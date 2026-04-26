@@ -1,0 +1,279 @@
+import json
+
+from nipux_cli.artifacts import ArtifactStore
+from nipux_cli.config import AppConfig, RuntimeConfig
+from nipux_cli.db import AgentDB
+from nipux_cli.tools import APPROVED_TOOL_NAMES, DEFAULT_REGISTRY, ToolContext
+
+
+def test_static_tool_surface_is_barebones():
+    assert tuple(DEFAULT_REGISTRY.names()) == tuple(sorted(APPROVED_TOOL_NAMES))
+    assert "terminal" not in DEFAULT_REGISTRY.names()
+    assert "delegate_task" not in DEFAULT_REGISTRY.names()
+    assert "skill_manage" not in DEFAULT_REGISTRY.names()
+    assert "browser_navigate" in DEFAULT_REGISTRY.names()
+    assert "shell_exec" in DEFAULT_REGISTRY.names()
+    assert "write_artifact" in DEFAULT_REGISTRY.names()
+    assert "report_update" in DEFAULT_REGISTRY.names()
+    assert "record_lesson" in DEFAULT_REGISTRY.names()
+    assert "record_source" in DEFAULT_REGISTRY.names()
+    assert "record_findings" in DEFAULT_REGISTRY.names()
+    assert "record_tasks" in DEFAULT_REGISTRY.names()
+    assert "record_experiment" in DEFAULT_REGISTRY.names()
+
+
+def test_artifact_tools_roundtrip(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Save evidence")
+        run_id = db.start_run(job_id, model="fake")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="write_artifact")
+        ctx = ToolContext(config=config, db=db, artifacts=ArtifactStore(tmp_path, db), job_id=job_id, run_id=run_id, step_id=step_id)
+
+        raw = DEFAULT_REGISTRY.handle("write_artifact", {"content": "needle text", "title": "Evidence"}, ctx)
+        result = json.loads(raw)
+        assert result["success"] is True
+
+        read_raw = DEFAULT_REGISTRY.handle("read_artifact", {"artifact_id": result["artifact_id"]}, ctx)
+        assert json.loads(read_raw)["content"] == "needle text"
+
+        search_raw = DEFAULT_REGISTRY.handle("search_artifacts", {"query": "needle"}, ctx)
+        assert json.loads(search_raw)["results"][0]["id"] == result["artifact_id"]
+    finally:
+        db.close()
+
+
+def test_shell_exec_tool_runs_bounded_command(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Run command")
+        run_id = db.start_run(job_id, model="fake")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec")
+        ctx = ToolContext(config=config, db=db, artifacts=ArtifactStore(tmp_path, db), job_id=job_id, run_id=run_id, step_id=step_id)
+
+        raw = DEFAULT_REGISTRY.handle("shell_exec", {"command": "printf hello", "timeout_seconds": 5}, ctx)
+        result = json.loads(raw)
+
+        assert result["success"] is True
+        assert result["returncode"] == 0
+        assert result["stdout"] == "hello"
+    finally:
+        db.close()
+
+
+def test_shell_exec_does_not_attach_local_ssh_config(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Run command")
+        run_id = db.start_run(job_id, model="fake")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec")
+        ctx = ToolContext(config=config, db=db, artifacts=ArtifactStore(tmp_path, db), job_id=job_id, run_id=run_id, step_id=step_id)
+
+        raw = DEFAULT_REGISTRY.handle("shell_exec", {"command": "ssh -V", "timeout_seconds": 5}, ctx)
+        result = json.loads(raw)
+
+        assert "ssh_config" not in result
+    finally:
+        db.close()
+
+
+def test_update_job_state_keeps_terminal_statuses_operator_only(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Keep running")
+        run_id = db.start_run(job_id, model="fake")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="update_job_state")
+        ctx = ToolContext(config=config, db=db, artifacts=ArtifactStore(tmp_path, db), job_id=job_id, run_id=run_id, step_id=step_id)
+
+        for requested in ("paused", "cancelled", "completed", "failed"):
+            raw = DEFAULT_REGISTRY.handle("update_job_state", {"status": requested}, ctx)
+            result = json.loads(raw)
+
+            assert result["success"] is True
+            assert result["requested_status"] == requested
+            assert result["kept_running"] is True
+            assert db.get_job(job_id)["status"] == "running"
+    finally:
+        db.close()
+
+
+def test_report_update_tool_records_operator_visible_note(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Research topic")
+        run_id = db.start_run(job_id, model="fake")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="report_update")
+        ctx = ToolContext(config=config, db=db, artifacts=ArtifactStore(tmp_path, db), job_id=job_id, run_id=run_id, step_id=step_id)
+
+        raw = DEFAULT_REGISTRY.handle("report_update", {"message": "Found a usable finding source", "category": "finding"}, ctx)
+        result = json.loads(raw)
+        job = db.get_job(job_id)
+
+        assert result["success"] is True
+        assert job["metadata"]["agent_updates"][-1]["message"] == "Found a usable finding source"
+        assert job["metadata"]["last_agent_update"]["category"] == "finding"
+    finally:
+        db.close()
+
+
+def test_record_lesson_tool_records_durable_learning(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Research topic")
+        run_id = db.start_run(job_id, model="fake")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="record_lesson")
+        ctx = ToolContext(config=config, db=db, artifacts=ArtifactStore(tmp_path, db), job_id=job_id, run_id=run_id, step_id=step_id)
+
+        raw = DEFAULT_REGISTRY.handle(
+            "record_lesson",
+            {"lesson": "Competitor low-evidence lists are not finding sources.", "category": "source_quality", "confidence": 0.8},
+            ctx,
+        )
+        result = json.loads(raw)
+        job = db.get_job(job_id)
+
+        assert result["success"] is True
+        assert job["metadata"]["lessons"][-1]["lesson"] == "Competitor low-evidence lists are not finding sources."
+        assert job["metadata"]["last_lesson"]["category"] == "source_quality"
+    finally:
+        db.close()
+
+
+def test_record_source_and_findings_tools_update_ledgers(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Research topic")
+        run_id = db.start_run(job_id, model="fake")
+        source_step = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="record_source")
+        ctx = ToolContext(config=config, db=db, artifacts=ArtifactStore(tmp_path, db), job_id=job_id, run_id=run_id, step_id=source_step)
+
+        source_raw = DEFAULT_REGISTRY.handle(
+            "record_source",
+            {"source": "https://example.com", "source_type": "web_source", "usefulness_score": 0.8, "yield_count": 2},
+            ctx,
+        )
+        finding_raw = DEFAULT_REGISTRY.handle(
+            "record_findings",
+            {
+                "findings": [
+                    {
+                        "name": "Acme Finding",
+                        "url": "https://acme.example",
+                        "source_url": "https://example-source.com/acme",
+                        "location": "Toronto",
+                        "category": "example category",
+                        "reason": "reusable result",
+                        "score": 0.75,
+                    }
+                ]
+            },
+            ctx,
+        )
+        job = db.get_job(job_id)
+
+        assert json.loads(source_raw)["source"]["yield_count"] == 2
+        finding_result = json.loads(finding_raw)
+        assert finding_result["added"] == 1
+        assert finding_result["sources_updated"] == 1
+        assert job["metadata"]["source_ledger"][0]["source"] == "https://example.com"
+        assert any(source["source"] == "https://example-source.com/acme" for source in job["metadata"]["source_ledger"])
+        assert job["metadata"]["finding_ledger"][0]["name"] == "Acme Finding"
+        assert job["metadata"]["last_agent_update"]["category"] == "finding"
+    finally:
+        db.close()
+
+
+def test_record_tasks_tool_updates_task_queue(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Research topic")
+        run_id = db.start_run(job_id, model="fake")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="record_tasks")
+        ctx = ToolContext(config=config, db=db, artifacts=ArtifactStore(tmp_path, db), job_id=job_id, run_id=run_id, step_id=step_id)
+
+        raw = DEFAULT_REGISTRY.handle(
+            "record_tasks",
+            {
+                "tasks": [
+                    {
+                        "title": "Explore primary sources",
+                        "status": "open",
+                        "priority": 5,
+                        "goal": "Find artifact-backed evidence",
+                        "source_hint": "official docs",
+                    }
+                ]
+            },
+            ctx,
+        )
+        result = json.loads(raw)
+        job = db.get_job(job_id)
+
+        assert result["success"] is True
+        assert result["added"] == 1
+        assert job["metadata"]["task_queue"][0]["title"] == "Explore primary sources"
+        assert job["metadata"]["task_queue"][0]["priority"] == 5
+        assert job["metadata"]["last_agent_update"]["category"] == "plan"
+    finally:
+        db.close()
+
+
+def test_record_experiment_tool_tracks_best_measured_result(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Improve a measurable process")
+        run_id = db.start_run(job_id, model="fake")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="record_experiment")
+        ctx = ToolContext(config=config, db=db, artifacts=ArtifactStore(tmp_path, db), job_id=job_id, run_id=run_id, step_id=step_id)
+
+        first = DEFAULT_REGISTRY.handle(
+            "record_experiment",
+            {
+                "title": "baseline attempt",
+                "status": "measured",
+                "metric_name": "score",
+                "metric_value": 2.0,
+                "metric_unit": "units",
+                "higher_is_better": True,
+                "config": {"variant": "a"},
+                "result": "baseline measured",
+                "next_action": "try variant b",
+            },
+            ctx,
+        )
+        second = DEFAULT_REGISTRY.handle(
+            "record_experiment",
+            {
+                "title": "second attempt",
+                "status": "measured",
+                "metric_name": "score",
+                "metric_value": 3.5,
+                "metric_unit": "units",
+                "higher_is_better": True,
+                "config": {"variant": "b"},
+                "result": "improved",
+                "next_action": "test a different branch",
+            },
+            ctx,
+        )
+        job = db.get_job(job_id)
+        experiments = job["metadata"]["experiment_ledger"]
+
+        assert json.loads(first)["experiment"]["best_observed"] is True
+        assert json.loads(second)["experiment"]["best_observed"] is True
+        assert experiments[0]["best_observed"] is False
+        assert experiments[1]["best_observed"] is True
+        assert experiments[1]["delta_from_previous_best"] == 1.5
+        assert job["metadata"]["best_experiment_record"]["title"] == "second attempt"
+        assert job["metadata"]["last_agent_update"]["metadata"]["best_observed"] is True
+    finally:
+        db.close()

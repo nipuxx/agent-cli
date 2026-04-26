@@ -1,0 +1,373 @@
+"""Daemon runner for restartable background jobs."""
+
+from __future__ import annotations
+
+import contextlib
+import fcntl
+import json
+import os
+import signal
+import time
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
+
+from nipux_cli.config import AppConfig, load_config
+from nipux_cli.db import AgentDB
+from nipux_cli.digest import write_daily_digest
+
+
+class DaemonAlreadyRunning(RuntimeError):
+    pass
+
+
+def _parse_lock_metadata(raw: str) -> dict[str, Any]:
+    raw = raw.strip()
+    if not raw:
+        return {}
+    try:
+        parsed = json.loads(raw)
+        return parsed if isinstance(parsed, dict) else {"raw": raw}
+    except json.JSONDecodeError:
+        return {"raw": raw}
+
+
+def daemon_lock_status(path: str | Path) -> dict[str, Any]:
+    """Return whether another process currently holds the daemon lock."""
+
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a+", encoding="utf-8") as handle:
+        handle.seek(0)
+        metadata = _parse_lock_metadata(handle.read())
+        try:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            return {
+                "running": True,
+                "lock_path": str(path),
+                "metadata": metadata,
+                "detail": "daemon lock is held",
+            }
+        with contextlib.suppress(OSError):
+            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+    return {
+        "running": False,
+        "lock_path": str(path),
+        "metadata": metadata,
+        "detail": "daemon lock is free",
+    }
+
+
+@contextlib.contextmanager
+def single_instance_lock(path: str | Path):
+    """Hold an exclusive non-blocking daemon lock for this state directory."""
+
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w+", encoding="utf-8") as handle:
+        try:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as exc:
+            raise DaemonAlreadyRunning(f"Another nipux daemon holds {path}") from exc
+        payload = {
+            "pid": os.getpid(),
+            "started_at": datetime.now(timezone.utc).isoformat(),
+        }
+        handle.seek(0)
+        handle.truncate()
+        handle.write(json.dumps(payload, sort_keys=True))
+        handle.flush()
+        try:
+            yield handle
+        finally:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+
+
+def update_lock_metadata(handle, **patch: Any) -> None:
+    handle.seek(0)
+    metadata = _parse_lock_metadata(handle.read())
+    metadata.update(patch)
+    handle.seek(0)
+    handle.truncate()
+    handle.write(json.dumps(metadata, sort_keys=True))
+    handle.flush()
+
+
+def append_daemon_event(config: AppConfig, event: str, **fields: Any) -> Path:
+    """Append a small daemon event that the CLI can tail without parsing stdout."""
+
+    config.ensure_dirs()
+    path = config.runtime.logs_dir / "daemon-events.jsonl"
+    payload = {
+        "at": datetime.now(timezone.utc).isoformat(),
+        "event": event,
+        **fields,
+    }
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(payload, ensure_ascii=False, sort_keys=True, default=str) + "\n")
+    return path
+
+
+def read_daemon_events(config: AppConfig, *, limit: int = 20) -> list[dict[str, Any]]:
+    path = config.runtime.logs_dir / "daemon-events.jsonl"
+    if not path.exists():
+        return []
+    lines = path.read_text(encoding="utf-8", errors="replace").splitlines()[-limit:]
+    events: list[dict[str, Any]] = []
+    for line in lines:
+        try:
+            parsed = json.loads(line)
+        except json.JSONDecodeError:
+            events.append({"event": "unparseable", "raw": line})
+            continue
+        if isinstance(parsed, dict):
+            events.append(parsed)
+    return events
+
+
+def fake_step_llm():
+    from nipux_cli.llm import LLMResponse, ScriptedLLM, ToolCall
+
+    nonce = datetime.now(timezone.utc).isoformat()
+    return ScriptedLLM([
+        LLMResponse(tool_calls=[
+            ToolCall(
+                name="write_artifact",
+                arguments={
+                    "title": "daemon-fake-step",
+                    "type": "text",
+                    "summary": "Fake daemon step",
+                    "content": f"This is a fake daemon worker step.\n\nnonce: {nonce}",
+                },
+            )
+        ])
+    ])
+
+
+@dataclass
+class Daemon:
+    config: AppConfig
+    db: AgentDB
+
+    @classmethod
+    def open(cls, config: AppConfig | None = None) -> "Daemon":
+        config = config or load_config()
+        config.ensure_dirs()
+        return cls(config=config, db=AgentDB(config.runtime.state_db_path))
+
+    @property
+    def lock_path(self) -> Path:
+        return self.config.runtime.home / "agentd.lock"
+
+    def close(self) -> None:
+        self.db.close()
+
+    def next_runnable_job(self) -> dict | None:
+        """Return the next runnable job by priority/age.
+
+        UI focus is intentionally not used here. Focus is for the operator's
+        chat view; the daemon should keep all runnable jobs advancing.
+        """
+
+        jobs = self.db.list_jobs(statuses=["queued", "running"])
+        return jobs[0] if jobs else None
+
+    def run_once(self, *, fake: bool = False, verbose: bool = False):
+        from nipux_cli.worker import run_one_step
+
+        job = self.next_runnable_job()
+        if job is None:
+            return None
+        if verbose:
+            print(f"thinking job={job['id']} title={job['title']} kind={job['kind']}", flush=True)
+            print(f"objective: {job['objective']}", flush=True)
+        llm = fake_step_llm() if fake else None
+        return run_one_step(job["id"], config=self.config, db=self.db, llm=llm)
+
+    def send_due_daily_digest(self, *, now: datetime | None = None) -> dict | None:
+        if not self.config.runtime.daily_digest_enabled:
+            return None
+        now = now or datetime.now()
+        if not _is_digest_due(now, self.config.runtime.daily_digest_time):
+            return None
+        day = now.date().isoformat()
+        target = self.config.email.to_addr or "dry-run"
+        if self.db.digest_exists(day=day, target=target):
+            return None
+        return write_daily_digest(self.config, self.db, day=day)
+
+    def run_forever(
+        self,
+        *,
+        fake: bool = False,
+        poll_seconds: float = 30.0,
+        quiet: bool = False,
+        verbose: bool = False,
+        max_iterations: int | None = None,
+    ) -> None:
+        consecutive_failures = 0
+        iterations = 0
+        with single_instance_lock(self.lock_path) as lock_handle:
+            previous_sigterm = signal.getsignal(signal.SIGTERM)
+            signal.signal(signal.SIGTERM, _raise_keyboard_interrupt)
+            recovered = self.db.mark_interrupted_running(reason="daemon recovered abandoned running work from a previous process")
+            append_daemon_event(
+                self.config,
+                "daemon_started",
+                pid=os.getpid(),
+                fake=fake,
+                poll_seconds=poll_seconds,
+                recovered_steps=recovered["steps"],
+                recovered_runs=recovered["runs"],
+            )
+            if recovered["steps"] or recovered["runs"]:
+                append_daemon_event(self.config, "stale_work_recovered", **recovered)
+            if not quiet:
+                print(f"nipux daemon started; db={self.config.runtime.state_db_path}", flush=True)
+            try:
+                while True:
+                    iterations += 1
+                    update_lock_metadata(
+                        lock_handle,
+                        last_heartbeat=datetime.now(timezone.utc).isoformat(),
+                        last_state="checking",
+                        consecutive_failures=consecutive_failures,
+                    )
+
+                    try:
+                        digest = self.send_due_daily_digest()
+                        if digest:
+                            append_daemon_event(self.config, "daily_digest", **digest)
+                            if not quiet:
+                                print(f"daily_digest {json.dumps(digest, ensure_ascii=False)}", flush=True)
+                        result = self.run_once(fake=fake, verbose=verbose and not quiet)
+                    except Exception as exc:
+                        consecutive_failures += 1
+                        payload = _exception_payload(exc)
+                        update_lock_metadata(
+                            lock_handle,
+                            last_heartbeat=datetime.now(timezone.utc).isoformat(),
+                            last_state="error",
+                            last_error=payload["error"],
+                            last_error_type=payload["error_type"],
+                            consecutive_failures=consecutive_failures,
+                        )
+                        append_daemon_event(self.config, "daemon_error", **payload, consecutive_failures=consecutive_failures)
+                        if not quiet:
+                            print(
+                                f"daemon_error type={payload['error_type']} error={payload['error'][:240]}",
+                                flush=True,
+                            )
+                        _sleep_or_stop(_failure_backoff(poll_seconds, consecutive_failures), max_iterations, iterations)
+                        if max_iterations is not None and iterations >= max_iterations:
+                            return
+                        continue
+
+                    if result is None:
+                        update_lock_metadata(
+                            lock_handle,
+                            last_heartbeat=datetime.now(timezone.utc).isoformat(),
+                            last_state="idle",
+                        )
+                        idle_sleep = max(5.0, poll_seconds)
+                        if not quiet:
+                            print(f"idle; sleeping {idle_sleep:g}s", flush=True)
+                        _sleep_or_stop(idle_sleep, max_iterations, iterations)
+                    else:
+                        consecutive_failures = consecutive_failures + 1 if result.status == "failed" else 0
+                        update_lock_metadata(
+                            lock_handle,
+                            last_heartbeat=datetime.now(timezone.utc).isoformat(),
+                            last_state="step",
+                            last_job_id=result.job_id,
+                            last_run_id=result.run_id,
+                            last_step_id=result.step_id,
+                            last_status=result.status,
+                            last_tool=result.tool_name,
+                            last_error="" if result.status != "failed" else str(result.result.get("error") or ""),
+                            last_error_type="" if result.status != "failed" else str(result.result.get("error_type") or ""),
+                            consecutive_failures=consecutive_failures,
+                        )
+                        detail = result.result.get("error") or result.result.get("artifact_id") or result.result.get("content", "")
+                        append_daemon_event(
+                            self.config,
+                            "step",
+                            job_id=result.job_id,
+                            run_id=result.run_id,
+                            step_id=result.step_id,
+                            status=result.status,
+                            tool=result.tool_name,
+                            detail=str(detail)[:500],
+                            consecutive_failures=consecutive_failures,
+                        )
+                        if not quiet:
+                            print(
+                                f"step job={result.job_id} run={result.run_id} step={result.step_id} "
+                                f"status={result.status} tool={result.tool_name or '-'} detail={str(detail)[:240]}",
+                                flush=True,
+                            )
+                            if verbose:
+                                print(json.dumps(result.result, ensure_ascii=False, indent=2)[:8000], flush=True)
+                        sleep_seconds = _failure_backoff(poll_seconds, consecutive_failures) if result.status == "failed" else max(0.0, poll_seconds)
+                        _sleep_or_stop(sleep_seconds, max_iterations, iterations)
+                    if max_iterations is not None and iterations >= max_iterations:
+                        return
+            except KeyboardInterrupt:
+                interrupted = self.db.mark_interrupted_running(reason="daemon stopped during active work")
+                update_lock_metadata(
+                    lock_handle,
+                    last_heartbeat=datetime.now(timezone.utc).isoformat(),
+                    last_state="stopped",
+                    consecutive_failures=consecutive_failures,
+                )
+                append_daemon_event(self.config, "daemon_stopped", pid=os.getpid(), interrupted_steps=interrupted["steps"], interrupted_runs=interrupted["runs"])
+                if not quiet:
+                    print("nipux daemon stopped", flush=True)
+            finally:
+                signal.signal(signal.SIGTERM, previous_sigterm)
+
+
+def _is_digest_due(now: datetime, configured_time: str) -> bool:
+    try:
+        hour_text, minute_text = configured_time.split(":", 1)
+        hour = int(hour_text)
+        minute = int(minute_text)
+    except ValueError:
+        hour, minute = 8, 0
+    return (now.hour, now.minute) >= (hour, minute)
+
+
+def _raise_keyboard_interrupt(signum, frame) -> None:
+    raise KeyboardInterrupt
+
+
+def _exception_payload(exc: Exception) -> dict[str, str]:
+    return {
+        "error": str(exc),
+        "error_type": type(exc).__name__,
+    }
+
+
+def _failure_backoff(poll_seconds: float, consecutive_failures: int) -> float:
+    base = max(1.0, poll_seconds)
+    return min(60.0, base * min(8, max(1, consecutive_failures)))
+
+
+def _sleep_or_stop(seconds: float, max_iterations: int | None, iterations: int) -> None:
+    if max_iterations is not None and iterations >= max_iterations:
+        return
+    time.sleep(seconds)
+
+
+def _focused_job_id(config: AppConfig) -> str | None:
+    path = config.runtime.home / "shell_state.json"
+    if not path.exists():
+        return None
+    try:
+        parsed = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    job_id = parsed.get("focus_job_id") if isinstance(parsed, dict) else None
+    return job_id if isinstance(job_id, str) and job_id else None
