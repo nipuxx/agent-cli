@@ -24,6 +24,34 @@ class SuccessRegistry:
         return json.dumps({"success": True, "tool": name, "args": args, "results": []})
 
 
+class MeasuredShellRegistry:
+    def openai_tools(self):
+        return []
+
+    def handle(self, name, args, ctx):
+        del args, ctx
+        if name == "shell_exec":
+            return json.dumps({"success": True, "command": "run test", "returncode": 0, "stdout": "score 2.7 units/s", "stderr": ""})
+        return json.dumps({"success": True, "results": []})
+
+
+class DiagnosticShellRegistry:
+    def openai_tools(self):
+        return []
+
+    def handle(self, name, args, ctx):
+        del args, ctx
+        if name == "shell_exec":
+            return json.dumps({
+                "success": True,
+                "command": "df -h && nproc && free -h",
+                "returncode": 0,
+                "stdout": "Filesystem Size Used Avail Use% Mounted on\\n/dev/root 233G 198G 23G 90% /\\nCPU COUNT 24\\nRAM 93Gi",
+                "stderr": "",
+            })
+        return json.dumps({"success": True})
+
+
 class CapturingLLM:
     def __init__(self, response):
         self.response = response
@@ -185,15 +213,15 @@ def test_prompt_does_not_inject_local_ssh_alias_context(monkeypatch, tmp_path):
     monkeypatch.setenv("HOME", str(tmp_path))
     ssh_dir = tmp_path / ".ssh"
     ssh_dir.mkdir()
-    (ssh_dir / "config").write_text("Host home\n  HostName 100.64.0.1\n  User home\n", encoding="utf-8")
-    job = {"title": "server work", "kind": "generic", "objective": "benchmark home server"}
+    (ssh_dir / "config").write_text("Host remote-box\n  HostName 100.64.0.1\n  User operator\n", encoding="utf-8")
+    job = {"title": "remote work", "kind": "generic", "objective": "benchmark remote target"}
 
     messages = build_messages(job, [])
 
     content = messages[-1]["content"]
     assert "Local CLI context:" not in content
     assert "100.64.0.1" not in content
-    assert "home ->" not in content
+    assert "remote-box ->" not in content
 
 
 def test_prompt_includes_operator_steering_messages():
@@ -212,8 +240,312 @@ def test_prompt_includes_operator_steering_messages():
 
     messages = build_messages(job, [])
 
-    assert "Operator messages:" in messages[-1]["content"]
+    assert "Operator context:" in messages[-1]["content"]
     assert "Focus on actual strong evidence sources" in messages[-1]["content"]
+
+
+def test_prompt_keeps_claimed_operator_context_until_acknowledged(tmp_path):
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Find durable research findings", title="research", kind="generic")
+        entry = db.append_operator_message(job_id, "use the corrected target from chat", source="chat")
+        claimed = db.claim_operator_messages(job_id, modes=("steer",), limit=1)
+        assert claimed[0]["event_id"] == entry["event_id"]
+
+        job = db.get_job(job_id)
+        messages = build_messages(job, [], include_unclaimed_operator_messages=False)
+        content = messages[-1]["content"]
+
+        assert "Operator context:" in content
+        assert "use the corrected target from chat" in content
+        assert "delivered" in content
+
+        db.acknowledge_operator_messages(job_id, message_ids=[entry["event_id"]], summary="incorporated correction")
+        job = db.get_job(job_id)
+        messages = build_messages(job, [], include_unclaimed_operator_messages=False)
+
+        assert "use the corrected target from chat" not in messages[-1]["content"]
+    finally:
+        db.close()
+
+
+def test_run_one_step_drops_conversation_only_chat_from_worker_prompt(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Keep improving a generic task", title="context", kind="generic")
+        chat = db.append_operator_message(job_id, "hello", source="chat")
+        correction = db.append_operator_message(job_id, "use the corrected target from chat", source="chat")
+        llm = CapturingLLM(
+            LLMResponse(tool_calls=[ToolCall(name="report_update", arguments={"message": "noted", "category": "progress"})])
+        )
+
+        run_one_step(job_id, config=config, db=db, llm=llm)
+
+        content = llm.messages[-1]["content"]
+        assert "hello" not in content
+        assert "use the corrected target from chat" in content
+        job = db.get_job(job_id)
+        messages = {entry["event_id"]: entry for entry in job["metadata"]["operator_messages"]}
+        assert messages[chat["event_id"]]["acknowledged_at"]
+        assert messages[correction["event_id"]]["claimed_at"]
+        assert not messages[correction["event_id"]].get("acknowledged_at")
+    finally:
+        db.close()
+
+
+def test_build_messages_keeps_generic_context_under_budget():
+    job = {
+        "title": "large context",
+        "kind": "generic",
+        "objective": "Improve a measurable process without looping.",
+        "metadata": {
+            "operator_messages": [
+                {"event_id": "chat", "mode": "steer", "message": "how is it going?"},
+                {"event_id": "use", "mode": "steer", "message": "use the corrected target from chat"},
+            ],
+            "lessons": [{"category": "memory", "lesson": "lesson " + "x" * 700} for _ in range(30)],
+            "task_queue": [
+                {
+                    "title": f"Task {index}",
+                    "status": "open" if index % 3 else "done",
+                    "priority": index,
+                    "output_contract": "experiment",
+                    "acceptance_criteria": "accept " + "x" * 500,
+                    "evidence_needed": "evidence " + "x" * 500,
+                    "stall_behavior": "stall " + "x" * 500,
+                }
+                for index in range(40)
+            ],
+            "finding_ledger": [{"name": f"Finding {index}", "category": "generic", "score": index} for index in range(200)],
+            "source_ledger": [
+                {
+                    "source": f"https://source{index}.example",
+                    "source_type": "web",
+                    "usefulness_score": index / 100,
+                    "yield_count": index % 4,
+                    "fail_count": index % 3,
+                    "last_outcome": "outcome " + "x" * 500,
+                }
+                for index in range(90)
+            ],
+            "experiment_ledger": [
+                {
+                    "title": f"Experiment {index}",
+                    "status": "measured",
+                    "metric_name": "score",
+                    "metric_value": index,
+                    "metric_unit": "units",
+                    "best_observed": index in {38, 39},
+                    "result": "result " + "x" * 600,
+                    "next_action": "next " + "x" * 600,
+                }
+                for index in range(40)
+            ],
+            "reflections": [{"summary": "summary " + "x" * 800, "strategy": "strategy " + "x" * 800} for _ in range(20)],
+        },
+    }
+    steps = [
+        {
+            "step_no": index,
+            "kind": "tool",
+            "status": "completed",
+            "tool_name": "shell_exec",
+            "summary": "summary " + "x" * 800,
+            "input": {"arguments": {"command": "command " + "x" * 800}},
+            "output": {"success": True, "command": "command", "returncode": 0, "stdout": "stdout " + "x" * 3000},
+        }
+        for index in range(30)
+    ]
+    memory_entries = [{"key": "rolling_state", "summary": "memory " + "x" * 20000, "artifact_refs": [f"art_{i}" for i in range(40)]}]
+    timeline = [{"event_type": "tool_result", "title": "event", "body": "body " + "x" * 900} for _ in range(40)]
+
+    messages = build_messages(job, steps, memory_entries=memory_entries, timeline_events=timeline)
+    content = messages[-1]["content"]
+
+    assert "use the corrected target from chat" in content
+    assert "how is it going" not in content
+    assert len(content) < 22000
+
+
+def test_measurement_obligation_blocks_research_until_recorded(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Improve a measurable process", title="measure", kind="generic")
+
+        first = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([LLMResponse(tool_calls=[ToolCall(name="shell_exec", arguments={"command": "run test"})])]),
+            registry=MeasuredShellRegistry(),
+        )
+        job = db.get_job(job_id)
+        assert first.tool_name == "shell_exec"
+        assert job["metadata"]["pending_measurement_obligation"]["metric_candidates"]
+
+        second = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([LLMResponse(tool_calls=[ToolCall(name="web_search", arguments={"query": "more notes"})])]),
+            registry=MeasuredShellRegistry(),
+        )
+        assert second.status == "blocked"
+        assert second.result["error"] == "measurement obligation pending"
+
+        third = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(
+                        name="record_experiment",
+                        arguments={
+                            "title": "measured trial",
+                            "status": "measured",
+                            "metric_name": "score",
+                            "metric_value": 2.7,
+                            "metric_unit": "units/s",
+                        },
+                    )
+                ])
+            ]),
+        )
+        job = db.get_job(job_id)
+        assert third.tool_name == "record_experiment"
+        assert job["metadata"].get("pending_measurement_obligation") == {}
+        assert job["metadata"]["experiment_ledger"][0]["metric_value"] == 2.7
+    finally:
+        db.close()
+
+
+def test_diagnostic_shell_output_does_not_create_measurement_obligation(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Improve a measurable process", title="measure", kind="generic")
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([LLMResponse(tool_calls=[ToolCall(name="shell_exec", arguments={"command": "df -h && nproc && free -h"})])]),
+            registry=DiagnosticShellRegistry(),
+        )
+
+        job = db.get_job(job_id)
+        assert result.tool_name == "shell_exec"
+        assert job["metadata"].get("pending_measurement_obligation") in (None, {})
+    finally:
+        db.close()
+
+
+def test_stale_diagnostic_measurement_obligation_is_cleared(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job(
+            "Improve a measurable process",
+            title="measure",
+            kind="generic",
+            metadata={
+                "pending_measurement_obligation": {
+                    "source_step_no": 1,
+                    "command": "df -h && nproc && free -h",
+                    "metric_candidates": ["CPU COUNT 24", "RAM 93"],
+                }
+            },
+        )
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([LLMResponse(tool_calls=[ToolCall(name="record_lesson", arguments={"lesson": "continue", "category": "memory"})])]),
+        )
+
+        job = db.get_job(job_id)
+        assert result.tool_name == "record_lesson"
+        assert job["metadata"].get("pending_measurement_obligation") == {}
+        assert "diagnostic context" in job["metadata"]["last_agent_update"]["message"]
+    finally:
+        db.close()
+
+
+def test_measurable_objective_blocks_research_after_budget_but_allows_action(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Optimize a measurable process", title="measured", kind="generic")
+        for index in range(19):
+            run_id = db.start_run(job_id)
+            step_id = db.add_step(
+                job_id=job_id,
+                run_id=run_id,
+                kind="tool",
+                tool_name="web_search" if index % 2 == 0 else "web_extract",
+                input_data={"arguments": {"query": f"research branch {index}"}},
+            )
+            db.finish_step(step_id, status="completed", output_data={"success": True})
+            db.finish_run(run_id, "completed")
+
+        blocked = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([LLMResponse(tool_calls=[ToolCall(name="web_search", arguments={"query": "more research"})])]),
+            registry=MeasuredShellRegistry(),
+        )
+        assert blocked.status == "blocked"
+        assert blocked.result["error"] == "measured progress required"
+
+        action = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([LLMResponse(tool_calls=[ToolCall(name="shell_exec", arguments={"command": "run test"})])]),
+            registry=MeasuredShellRegistry(),
+        )
+        job = db.get_job(job_id)
+        assert action.status == "completed"
+        assert action.tool_name == "shell_exec"
+        assert job["metadata"]["pending_measurement_obligation"]["metric_candidates"]
+    finally:
+        db.close()
+
+
+def test_measurable_objective_blocks_shell_churn_without_experiment_accounting(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Optimize a measurable process", title="measured", kind="generic")
+        for index in range(4):
+            run_id = db.start_run(job_id)
+            step_id = db.add_step(
+                job_id=job_id,
+                run_id=run_id,
+                kind="tool",
+                tool_name="shell_exec",
+                input_data={"arguments": {"command": f"probe {index}"}},
+            )
+            db.finish_step(step_id, status="completed", output_data={"success": True, "stdout": "no metric"})
+            db.finish_run(run_id, "completed")
+
+        blocked = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([LLMResponse(tool_calls=[ToolCall(name="shell_exec", arguments={"command": "probe again"})])]),
+            registry=MeasuredShellRegistry(),
+        )
+
+        assert blocked.status == "blocked"
+        assert blocked.result["error"] == "measured progress required"
+    finally:
+        db.close()
 
 
 def test_prompt_includes_durable_lessons():

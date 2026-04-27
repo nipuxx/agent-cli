@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Any
 from urllib.parse import urlparse
 
@@ -13,11 +14,17 @@ from nipux_cli.config import AppConfig, load_config
 from nipux_cli.compression import refresh_memory_index
 from nipux_cli.db import AgentDB
 from nipux_cli.llm import LLMResponse, LLMResponseError, OpenAIChatLLM, StepLLM
+from nipux_cli.operator_context import (
+    active_prompt_operator_entries,
+    inactive_prompt_operator_ids,
+    operator_entry_is_prompt_relevant,
+)
 from nipux_cli.source_quality import anti_bot_reason
 from nipux_cli.tools import DEFAULT_REGISTRY, ToolContext, ToolRegistry
 
 
 REFLECTION_INTERVAL_STEPS = 12
+WORKER_PROTOCOL_VERSION = "2026-04-26-measured-progress-v1"
 
 SYSTEM_PROMPT = """You are a long-running local work agent.
 
@@ -62,6 +69,9 @@ experiments, files, bugs, sources, or other reusable outputs. Dedupe against the
 finding ledger and artifacts before saving.
 Use record_tasks to maintain a durable queue of objective-neutral branches:
 open work, active branch, blocked branch, completed branch, and skipped branch.
+Each task should include an output_contract (research, artifact, experiment,
+action, monitor, decision, or report), acceptance criteria, evidence needed,
+and stall behavior so progress is judged by evidence, not activity volume.
 When the job is broad or starts looping, split it into tasks and move to the
 highest-priority open task rather than staying on one source or tactic forever.
 Use record_experiment for measurable trials, benchmarks, comparisons,
@@ -75,10 +85,12 @@ benchmarks, repeatable experiments, and other command execution that the
 objective requires. Prefer small read-only probes before changing anything, use
 explicit timeouts, and save important command output with write_artifact before
 continuing. Do not run destructive or high-risk cyber commands.
-Operator messages marked steer are immediate constraints for the next step.
-Operator messages marked follow_up are lower-priority queued work; keep them in
-the task queue and act on them after the current active branch has a durable
-checkpoint.
+Operator messages are durable context from the human operator. Messages marked
+steer are active constraints until acknowledged or superseded. Messages marked
+follow_up are lower-priority queued work; keep them in the task queue and act on
+them after the current active branch has a durable checkpoint. Messages marked
+note are durable preferences. Use acknowledge_operator_context only after you
+have incorporated or intentionally superseded a steer/follow_up message.
 """
 
 INFORMATION_GATHERING_TOOLS = {
@@ -95,6 +107,38 @@ INFORMATION_GATHERING_TOOLS = {
 }
 
 BRANCH_WORK_TOOLS = INFORMATION_GATHERING_TOOLS | {"shell_exec"}
+LEDGER_PROGRESS_TOOLS = {"record_findings", "record_source", "record_tasks", "record_experiment", "record_lesson"}
+MEASUREMENT_RESOLUTION_TOOLS = {"record_experiment", "record_lesson", "record_tasks", "acknowledge_operator_context"}
+MEASUREMENT_BLOCKED_TOOLS = INFORMATION_GATHERING_TOOLS | {
+    "shell_exec",
+    "write_artifact",
+    "record_findings",
+    "record_source",
+    "report_update",
+}
+CHURN_TOOLS = INFORMATION_GATHERING_TOOLS | {"shell_exec"}
+MEASURABLE_RESEARCH_BLOCKED_TOOLS = INFORMATION_GATHERING_TOOLS | {
+    "write_artifact",
+    "record_findings",
+    "record_source",
+    "report_update",
+}
+MEASURABLE_PROGRESS_PATTERN = re.compile(
+    r"(?i)\b("
+    r"benchmark|baseline|compare|comparison|experiment|improv(?:e|ing|ement)|increase|latency|"
+    r"measure|metric|minimi[sz]e|maximi[sz]e|optim(?:ize|ise|ization|isation)|performance|"
+    r"rate|reduce|score|speed|throughput|tune|tuning"
+    r")\b"
+)
+MEASURABLE_RESEARCH_BUDGET_STEPS = 18
+MEASURABLE_ACTION_BUDGET_STEPS = 4
+PROGRAM_PROMPT_CHARS = 2000
+MEMORY_ENTRY_PROMPT_CHARS = 700
+MEMORY_PROMPT_CHARS = 1800
+RECENT_STATE_STEPS = 5
+RECENT_STATE_PROMPT_CHARS = 3000
+TIMELINE_PROMPT_EVENTS = 8
+SECTION_ITEM_CHARS = 420
 
 QUERY_STOPWORDS = {
     "and",
@@ -165,21 +209,25 @@ def build_messages(
     include_unclaimed_operator_messages: bool = True,
 ) -> list[dict[str, Any]]:
     step_lines = []
-    for step in recent_steps[-8:]:
-        step_lines.append(_format_step_for_prompt(step))
-    state = "\n".join(step_lines) if step_lines else "No prior steps."
+    for step in recent_steps[-RECENT_STATE_STEPS:]:
+        step_lines.append(_clip_text(_format_step_for_prompt(step), 720))
+    state = _clip_text("\n".join(step_lines), RECENT_STATE_PROMPT_CHARS) if step_lines else "No prior steps."
     memory_lines = []
-    for entry in (memory_entries or [])[:4]:
-        refs = ", ".join(entry.get("artifact_refs") or [])
+    for entry in (memory_entries or [])[:2]:
+        refs = ", ".join((entry.get("artifact_refs") or [])[:8])
         suffix = f"\nArtifact refs: {refs}" if refs else ""
-        memory_lines.append(f"### {entry['key']}\n{entry['summary']}{suffix}")
-    memory_text = "\n\n".join(memory_lines) if memory_lines else "No compact memory yet."
-    program = program_text.strip()[:4000] if program_text else "No program.md saved yet."
+        memory_lines.append(
+            _clip_text(f"### {entry['key']}\n{entry.get('summary') or ''}{suffix}", MEMORY_ENTRY_PROMPT_CHARS)
+        )
+    memory_text = _clip_text("\n\n".join(memory_lines), MEMORY_PROMPT_CHARS) if memory_lines else "No compact memory yet."
+    program = _clip_text(program_text.strip(), PROGRAM_PROMPT_CHARS) if program_text else "No program.md saved yet."
     operator_messages = _operator_messages_for_prompt(
         job,
         active_messages=active_operator_messages or [],
         include_unclaimed=include_unclaimed_operator_messages,
     )
+    measurement_obligation = _measurement_obligation_for_prompt(job)
+    measured_progress_guard = _measured_progress_guard_for_prompt(job, recent_steps)
     lessons = _lessons_for_prompt(job)
     tasks = _tasks_for_prompt(job)
     ledgers = _ledgers_for_prompt(job)
@@ -195,7 +243,9 @@ def build_messages(
                 f"Job: {job['title']}\n"
                 f"Kind: {job['kind']}\n"
                 f"Objective:\n{job['objective']}\n\n"
-                f"Operator messages:\n{operator_messages}\n\n"
+                f"Operator context:\n{operator_messages}\n\n"
+                f"Pending measurement obligation:\n{measurement_obligation}\n\n"
+                f"Measured progress guard:\n{measured_progress_guard}\n\n"
                 f"Program:\n{program}\n\n"
                 f"Lessons learned:\n{lessons}\n\n"
                 f"Task queue:\n{tasks}\n\n"
@@ -222,31 +272,45 @@ def _operator_messages_for_prompt(
     metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
     messages = metadata.get("operator_messages") if isinstance(metadata.get("operator_messages"), list) else []
     lines = []
-    active_messages = active_messages or []
+    active_messages = active_prompt_operator_entries(active_messages or [])
+    active_ids = {active.get("event_id") for active in active_messages if isinstance(active, dict)}
     if active_messages:
-        lines.append("Active queued operator messages for this turn:")
+        lines.append("Newly delivered operator messages for this turn:")
     for entry in active_messages:
         line = _operator_message_line(entry)
         if line:
             lines.append(line)
-    durable_notes = [
+    active_context = [
         entry
         for entry in messages
         if isinstance(entry, dict)
-        and (
-            str(entry.get("mode") or "steer") == "note"
-            or (include_unclaimed and not entry.get("claimed_at"))
-        )
-        and entry.get("event_id") not in {active.get("event_id") for active in active_messages}
+        and operator_entry_is_prompt_relevant(entry)
+        and (include_unclaimed or entry.get("claimed_at") or str(entry.get("mode") or "steer") == "note")
+        and entry.get("event_id") not in active_ids
     ]
-    if durable_notes:
+    if active_context:
         if lines:
-            lines.append("Other unclaimed notes or queued messages:")
-        for entry in durable_notes[-8:]:
+            lines.append("Still-active durable operator context:")
+        for entry in active_context[-6:]:
             line = _operator_message_line(entry)
             if line:
                 lines.append(line)
-    return "\n".join(lines) if lines else "No unclaimed operator steering messages."
+    return "\n".join(lines) if lines else "No active operator context."
+
+
+def _acknowledge_non_prompt_operator_context(db: AgentDB, job_id: str) -> int:
+    job = db.get_job(job_id)
+    metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
+    messages = metadata.get("operator_messages") if isinstance(metadata.get("operator_messages"), list) else []
+    message_ids = inactive_prompt_operator_ids(messages)
+    if not message_ids:
+        return 0
+    result = db.acknowledge_operator_messages(
+        job_id,
+        message_ids=message_ids,
+        summary="conversation-only message retained in history, not used as worker constraint",
+    )
+    return int(result.get("count") or 0)
 
 
 def _operator_message_line(entry: dict[str, Any]) -> str:
@@ -255,10 +319,19 @@ def _operator_message_line(entry: dict[str, Any]) -> str:
     at = str(entry.get("at") or "")
     source = str(entry.get("source") or "operator")
     mode = str(entry.get("mode") or "steer")
+    event_id = str(entry.get("event_id") or "")
     message = " ".join(str(entry.get("message") or "").split())
     if message:
-        claimed = " claimed" if entry.get("claimed_at") else ""
-        return f"- {at} {source} {mode}{claimed}: {message[:600]}"
+        states = []
+        if entry.get("claimed_at"):
+            states.append("delivered")
+        if entry.get("acknowledged_at"):
+            states.append("acknowledged")
+        if entry.get("superseded_at"):
+            states.append("superseded")
+        state_text = f" ({', '.join(states)})" if states else ""
+        id_text = f" id={event_id}" if event_id else ""
+        return f"-{id_text} {at} {source} {mode}{state_text}: {_clip_text(message, 420)}"
     return ""
 
 
@@ -268,13 +341,13 @@ def _lessons_for_prompt(job: dict[str, Any]) -> str:
     if not lessons:
         return "No durable lessons yet."
     lines = []
-    for entry in lessons[-10:]:
+    for entry in lessons[-5:]:
         if not isinstance(entry, dict):
             continue
         category = str(entry.get("category") or "memory")
         lesson = " ".join(str(entry.get("lesson") or "").split())
         if lesson:
-            lines.append(f"- {category}: {lesson[:700]}")
+            lines.append(f"- {category}: {_clip_text(lesson, SECTION_ITEM_CHARS)}")
     return "\n".join(lines) if lines else "No durable lessons yet."
 
 
@@ -291,7 +364,7 @@ def _tasks_for_prompt(job: dict[str, Any]) -> str:
     if not tasks:
         return (
             "No durable task queue yet. If the objective is broad, use record_tasks "
-            "to create a few concrete open branches before continuing."
+            "to create a few concrete open branches with output contracts and acceptance criteria before continuing."
         )
     status_rank = {"active": 0, "open": 1, "blocked": 2, "done": 3, "skipped": 4}
     ranked = sorted(
@@ -303,20 +376,33 @@ def _tasks_for_prompt(job: dict[str, Any]) -> str:
         status = str(task.get("status") or "open")
         counts[status] = counts.get(status, 0) + 1
     lines = ["Task counts: " + ", ".join(f"{key}={value}" for key, value in sorted(counts.items()))]
-    for task in ranked[:10]:
+    selected = [task for task in ranked if str(task.get("status") or "open") in {"active", "open"}][:6]
+    if len(selected) < 6:
+        selected.extend([task for task in ranked if str(task.get("status") or "open") == "blocked"][: 6 - len(selected)])
+    if len(selected) < 6:
+        selected.extend([task for task in ranked if task not in selected][: 6 - len(selected)])
+    for task in selected[:6]:
         bits = [
             str(task.get("status") or "open"),
             f"priority={task.get('priority') or 0}",
             str(task.get("title") or "untitled"),
         ]
+        if task.get("output_contract"):
+            bits.append(f"contract={task.get('output_contract')}")
         detail = " | ".join(bit for bit in bits if bit)
         if task.get("goal"):
             detail += f" | goal={task.get('goal')}"
+        if task.get("acceptance_criteria"):
+            detail += f" | accept={task.get('acceptance_criteria')}"
+        if task.get("evidence_needed"):
+            detail += f" | evidence={task.get('evidence_needed')}"
+        if task.get("stall_behavior"):
+            detail += f" | stall={task.get('stall_behavior')}"
         if task.get("source_hint"):
             detail += f" | source_hint={task.get('source_hint')}"
         if task.get("result"):
             detail += f" | result={task.get('result')}"
-        lines.append("- " + detail[:700])
+        lines.append("- " + _clip_text(detail, 520))
     return "\n".join(lines)
 
 
@@ -324,7 +410,7 @@ def _timeline_for_prompt(events: list[dict[str, Any]]) -> str:
     if not events:
         return "No timeline events yet."
     lines = []
-    for event in events[-18:]:
+    for event in events[-TIMELINE_PROMPT_EVENTS:]:
         event_type = str(event.get("event_type") or "event")
         if event_type == "operator_message":
             continue
@@ -334,7 +420,7 @@ def _timeline_for_prompt(events: list[dict[str, Any]]) -> str:
         detail = title if title else event_type
         if body:
             detail = f"{detail}: {body}"
-        lines.append(f"- {at} {event_type}: {detail[:700]}")
+        lines.append(f"- {at} {event_type}: {_clip_text(detail, SECTION_ITEM_CHARS)}")
     return "\n".join(lines)
 
 
@@ -361,14 +447,14 @@ def _ledgers_for_prompt(job: dict[str, Any]) -> str:
     ]
     if findings:
         lines.append("Recent findings:")
-        for finding in findings[-8:]:
+        for finding in findings[-5:]:
             bits = [
                 str(finding.get("name") or "unknown"),
                 str(finding.get("category") or "").strip(),
                 str(finding.get("location") or "").strip(),
                 f"score={finding.get('score')}" if finding.get("score") is not None else "",
             ]
-            lines.append("- " + " | ".join(bit for bit in bits if bit)[:500])
+            lines.append("- " + _clip_text(" | ".join(bit for bit in bits if bit), 360))
     if sources:
         usable_sources = [
             source
@@ -390,25 +476,27 @@ def _ledgers_for_prompt(job: dict[str, Any]) -> str:
         )
         if ranked:
             lines.append("High-yield/current sources:")
-            for source in ranked[:6]:
+            for source in ranked[:4]:
                 lines.append(
                     "- "
-                    + (
+                    + _clip_text(
                         f"{source.get('source')} type={source.get('source_type') or 'unknown'} "
                         f"score={source.get('usefulness_score')} findings={source.get('yield_count') or 0} "
-                        f"fails={source.get('fail_count') or 0} outcome={source.get('last_outcome') or ''}"
-                    )[:650]
+                        f"fails={source.get('fail_count') or 0} outcome={source.get('last_outcome') or ''}",
+                        420,
+                    )
                 )
         if low_quality_sources:
             lines.append("Low-yield/blocked source patterns to avoid:")
-            for source in low_quality_sources[-4:]:
+            for source in low_quality_sources[-3:]:
                 lines.append(
                     "- "
-                    + (
+                    + _clip_text(
                         f"{source.get('source')} type={source.get('source_type') or 'unknown'} "
                         f"score={source.get('usefulness_score')} fails={source.get('fail_count') or 0} "
-                        f"warnings={', '.join(source.get('warnings') or [])} outcome={source.get('last_outcome') or ''}"
-                    )[:650]
+                        f"warnings={', '.join(source.get('warnings') or [])} outcome={source.get('last_outcome') or ''}",
+                        420,
+                    )
                 )
     return "\n".join(lines)
 
@@ -437,14 +525,14 @@ def _experiments_for_prompt(job: dict[str, Any]) -> str:
     ]
     if best:
         lines.append("Best observed results:")
-        for experiment in best[-4:]:
+        for experiment in best[-3:]:
             metric = (
                 f"{experiment.get('metric_name') or 'metric'}={experiment.get('metric_value')}"
                 f"{experiment.get('metric_unit') or ''}"
             )
             lines.append(
                 "- "
-                + " | ".join(
+                + _clip_text(" | ".join(
                     bit
                     for bit in [
                         str(experiment.get("title") or "experiment"),
@@ -453,9 +541,9 @@ def _experiments_for_prompt(job: dict[str, Any]) -> str:
                         f"next={experiment.get('next_action')}" if experiment.get("next_action") else "",
                     ]
                     if bit
-                )[:700]
+                ), 520)
             )
-    recent = experiments[-6:]
+    recent = experiments[-4:]
     if recent:
         lines.append("Recent experiments:")
         for experiment in recent:
@@ -470,7 +558,7 @@ def _experiments_for_prompt(job: dict[str, Any]) -> str:
                 delta = f"delta={experiment.get('delta_from_previous_best')}"
             lines.append(
                 "- "
-                + " | ".join(
+                + _clip_text(" | ".join(
                     bit
                     for bit in [
                         str(experiment.get("status") or "planned"),
@@ -480,8 +568,53 @@ def _experiments_for_prompt(job: dict[str, Any]) -> str:
                         f"next={experiment.get('next_action')}" if experiment.get("next_action") else "",
                     ]
                     if bit
-                )[:700]
+                ), 520)
             )
+    return "\n".join(lines)
+
+
+def _measured_progress_guard_for_prompt(job: dict[str, Any], recent_steps: list[dict[str, Any]]) -> str:
+    context = _measured_progress_guard_context(job, recent_steps)
+    if not context:
+        return "None."
+    if _as_int(context.get("shell_actions_since_last_experiment")) >= _as_int(context.get("shell_action_budget")):
+        return (
+            "This objective or active task is measurably framed, and the shell/action budget since the last experiment "
+            f"is exhausted. completed_since_last_experiment={context.get('completed_since_last_experiment')} "
+            f"shell_actions={context.get('shell_actions_since_last_experiment')} shell_budget={context.get('shell_action_budget')} "
+            f"reason={context.get('reason')}. Do not call shell_exec or do more research next. Use record_experiment "
+            "for a known result, record_tasks to create a missing experiment/monitor branch, or record_lesson if the "
+            "branch is blocked or the recent outputs were not valid measurements."
+        )
+    return (
+        "This objective or active task is measurably framed, but recent work has not produced "
+        f"new experiment records. completed_since_last_experiment={context.get('completed_since_last_experiment')} "
+        f"research_budget={context.get('research_budget')} shell_actions={context.get('shell_actions_since_last_experiment')} "
+        f"shell_budget={context.get('shell_action_budget')} reason={context.get('reason')}. "
+        "Next useful actions: run a small measuring action, call record_experiment for a known result, "
+        "or use record_tasks to create an experiment/action/monitor task with acceptance criteria and evidence."
+    )
+
+
+def _measurement_obligation_for_prompt(job: dict[str, Any]) -> str:
+    metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
+    obligation = metadata.get("pending_measurement_obligation")
+    if not isinstance(obligation, dict) or not obligation or obligation.get("resolved_at"):
+        return "None."
+    candidates = obligation.get("metric_candidates") if isinstance(obligation.get("metric_candidates"), list) else []
+    lines = [
+        f"source_step=#{obligation.get('source_step_no') or '?'} tool={obligation.get('tool') or ''}",
+        f"summary={obligation.get('summary') or ''}",
+    ]
+    command = str(obligation.get("command") or "")
+    if command:
+        lines.append(f"command={_clip_text(command, 360)}")
+    if candidates:
+        lines.append("metric_candidates=" + "; ".join(str(item) for item in candidates[:6]))
+    lines.append(
+        "Before more research or artifact churn, call record_experiment with the measured result, "
+        "record_lesson explaining why it is not a valid measurement, or record_tasks to create the missing measurement branch."
+    )
     return "\n".join(lines)
 
 
@@ -490,13 +623,28 @@ def _reflections_for_prompt(job: dict[str, Any]) -> str:
     if not reflections:
         return "No reflection checkpoints yet."
     lines = []
-    for reflection in reflections[-4:]:
+    for reflection in reflections[-2:]:
         strategy = f" strategy={reflection.get('strategy')}" if reflection.get("strategy") else ""
-        lines.append(f"- {reflection.get('summary')}{strategy}"[:700])
+        lines.append("- " + _clip_text(f"{reflection.get('summary')}{strategy}", 520))
     return "\n".join(lines)
 
 
 def _next_action_constraint(job: dict[str, Any], recent_steps: list[dict[str, Any]]) -> str:
+    measurement_obligation = _pending_measurement_obligation(job)
+    if measurement_obligation:
+        return (
+            "A pending measurement obligation is active from "
+            f"step #{measurement_obligation.get('source_step_no') or '?'}. "
+            "Resolve it with record_experiment, record_lesson explaining why it is invalid, "
+            "or record_tasks creating the missing measurement branch before more research/artifact churn."
+        )
+    measured_guard = _measured_progress_guard_context(job, recent_steps)
+    if measured_guard:
+        return (
+            "This job needs measured progress, not more research-only activity. "
+            "Do one of: run a small measuring command/action, call record_experiment for a known measurement, "
+            "record_tasks with an experiment/action/monitor contract, or record_lesson if measurement is blocked."
+        )
     evidence_step = _unpersisted_evidence_step(recent_steps)
     if evidence_step:
         return (
@@ -549,6 +697,13 @@ def _compact(value: Any, limit: int = 500) -> str:
     return text if len(text) <= limit else text[:limit] + "..."
 
 
+def _clip_text(value: Any, limit: int) -> str:
+    text = " ".join(str(value or "").split())
+    if len(text) <= limit:
+        return text
+    return text[: max(0, limit - 3)].rstrip() + "..."
+
+
 def _format_step_for_prompt(step: dict[str, Any]) -> str:
     tool = f" tool={step['tool_name']}" if step.get("tool_name") else ""
     summary = step.get("summary") or step.get("error") or ""
@@ -574,7 +729,7 @@ def _observation_for_prompt(tool_name: str | None, output: dict[str, Any]) -> st
             title = result.get("title") or "untitled"
             url = result.get("url") or ""
             titles.append(f"{title} <{url}>")
-        return f"query={output.get('query')!r}; results={'; '.join(titles)}"[:900]
+        return _clip_text(f"query={output.get('query')!r}; results={'; '.join(titles)}", 650)
     if tool_name == "web_extract":
         pages = output.get("pages") if isinstance(output.get("pages"), list) else []
         parts = []
@@ -583,30 +738,30 @@ def _observation_for_prompt(tool_name: str | None, output: dict[str, Any]) -> st
                 parts.append(f"{page.get('url')}: ERROR {page.get('error')}")
             else:
                 text = str(page.get("text") or "")
-                parts.append(f"{page.get('url')}: {text[:240]}")
-        return "; ".join(parts)[:900]
+                parts.append(f"{page.get('url')}: {_clip_text(text, 160)}")
+        return _clip_text("; ".join(parts), 650)
     if tool_name == "shell_exec":
         stdout = str(output.get("stdout") or "")
         stderr = str(output.get("stderr") or "")
         excerpt = stdout.strip() or stderr.strip()
         return (
             f"command={output.get('command')!r}; rc={output.get('returncode')}; "
-            f"duration={output.get('duration_seconds')}s; output={excerpt[:600]}"
-        )[:900]
+            f"duration={output.get('duration_seconds')}s; output={_clip_text(excerpt, 360)}"
+        )[:650]
     if tool_name == "write_artifact":
         return f"saved artifact={output.get('artifact_id')} path={output.get('path')}"
     if tool_name == "report_update":
         update = output.get("update") if isinstance(output.get("update"), dict) else {}
-        return f"agent_update={update.get('message') or ''}"[:700]
+        return _clip_text(f"agent_update={update.get('message') or ''}", 420)
     if tool_name == "record_lesson":
         lesson = output.get("lesson") if isinstance(output.get("lesson"), dict) else {}
-        return f"lesson={lesson.get('category') or 'memory'}: {lesson.get('lesson') or ''}"[:700]
+        return _clip_text(f"lesson={lesson.get('category') or 'memory'}: {lesson.get('lesson') or ''}", 420)
     if tool_name == "record_source":
         source = output.get("source") if isinstance(output.get("source"), dict) else {}
         return (
             f"source={source.get('source')} score={source.get('usefulness_score')} "
             f"findings={source.get('yield_count')} fails={source.get('fail_count')} outcome={source.get('last_outcome')}"
-        )[:700]
+        )[:420]
     if tool_name == "record_findings":
         return f"finding ledger updated added={output.get('added')} updated={output.get('updated')}"[:700]
     if tool_name == "record_experiment":
@@ -616,12 +771,14 @@ def _observation_for_prompt(tool_name: str | None, output: dict[str, Any]) -> st
             metric = f"{experiment.get('metric_name') or 'metric'}={experiment.get('metric_value')}{experiment.get('metric_unit') or ''}"
         delta = f" delta={experiment.get('delta_from_previous_best')}" if experiment.get("delta_from_previous_best") is not None else ""
         best = " best_observed" if experiment.get("best_observed") else ""
-        return f"experiment={experiment.get('title')} status={experiment.get('status')} {metric}{delta}{best}"[:900]
+        return _clip_text(f"experiment={experiment.get('title')} status={experiment.get('status')} {metric}{delta}{best}", 520)
+    if tool_name == "acknowledge_operator_context":
+        return f"operator_context {output.get('status')} count={output.get('count')}"[:700]
     if tool_name in {"browser_click", "browser_type"} and output.get("error"):
         recovery = output.get("recovery_snapshot") if isinstance(output.get("recovery_snapshot"), dict) else {}
         candidates = _browser_candidates_for_prompt(recovery)
         suffix = f"; recovery_candidates={candidates}" if candidates else ""
-        return f"error={output.get('error')}; guidance={output.get('recovery_guidance', '')}{suffix}"[:1200]
+        return _clip_text(f"error={output.get('error')}; guidance={output.get('recovery_guidance', '')}{suffix}", 700)
     if tool_name == "browser_navigate":
         data = output.get("data") if isinstance(output.get("data"), dict) else {}
         title = data.get("title") or ""
@@ -631,7 +788,7 @@ def _observation_for_prompt(tool_name: str | None, output: dict[str, Any]) -> st
         suffix = f"; source_warning={warning}" if warning else ""
         candidates = _browser_candidates_for_prompt(output)
         candidate_suffix = f"; candidates={candidates}" if candidates else ""
-        return f"opened {title} <{url}>; snapshot_chars={len(snapshot)}{suffix}{candidate_suffix}"[:1200]
+        return _clip_text(f"opened {title} <{url}>; snapshot_chars={len(snapshot)}{suffix}{candidate_suffix}", 700)
     if tool_name == "browser_snapshot":
         data = output.get("data") if isinstance(output.get("data"), dict) else {}
         snapshot = str(output.get("snapshot") or data.get("snapshot") or output.get("data") or "")
@@ -639,7 +796,7 @@ def _observation_for_prompt(tool_name: str | None, output: dict[str, Any]) -> st
         suffix = f"; source_warning={warning}" if warning else ""
         candidates = _browser_candidates_for_prompt(output)
         candidate_suffix = f"; candidates={candidates}" if candidates else ""
-        return f"snapshot_chars={len(snapshot)}{suffix}{candidate_suffix}"[:1200]
+        return _clip_text(f"snapshot_chars={len(snapshot)}{suffix}{candidate_suffix}", 700)
     if output.get("error"):
         return f"error={output.get('error')}"
     return _compact(output, 700)
@@ -781,7 +938,7 @@ def _duplicate_recent_tool_call(
     args: dict[str, Any],
     recent_steps: list[dict[str, Any]],
     *,
-    window: int = 8,
+    window: int = 24,
 ) -> dict[str, Any] | None:
     if name == "browser_snapshot":
         return None
@@ -845,6 +1002,221 @@ def _recent_search_streak(recent_steps: list[dict[str, Any]]) -> int:
     return streak
 
 
+def _pending_measurement_obligation(job: dict[str, Any]) -> dict[str, Any] | None:
+    metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
+    obligation = metadata.get("pending_measurement_obligation")
+    if isinstance(obligation, dict) and obligation and not obligation.get("resolved_at"):
+        return obligation
+    return None
+
+
+def _clear_invalid_measurement_obligation(db: AgentDB, job_id: str) -> bool:
+    job = db.get_job(job_id)
+    obligation = _pending_measurement_obligation(job)
+    if not obligation:
+        return False
+    candidates = obligation.get("metric_candidates") if isinstance(obligation.get("metric_candidates"), list) else []
+    if not candidates:
+        return False
+    command = str(obligation.get("command") or "")
+    has_intent = bool(MEASUREMENT_INTENT_PATTERN.search(command))
+    if not all(_candidate_is_diagnostic_only(str(candidate), has_intent) for candidate in candidates):
+        return False
+    db.update_job_metadata(job_id, {"pending_measurement_obligation": {}})
+    db.append_agent_update(
+        job_id,
+        "Cleared measurement obligation because the output was diagnostic context, not a trial result.",
+        category="progress",
+        metadata={"cleared_measurement_obligation": obligation},
+    )
+    return True
+
+
+def _progress_churn_context(recent_steps: list[dict[str, Any]], *, window: int = 10) -> dict[str, Any] | None:
+    completed = [step for step in recent_steps if step.get("status") == "completed"]
+    tail = completed[-window:]
+    if len(tail) < 8:
+        return None
+    if any(step.get("tool_name") in LEDGER_PROGRESS_TOOLS for step in tail):
+        return None
+    churn_count = sum(1 for step in tail if step.get("tool_name") in CHURN_TOOLS)
+    if churn_count < 7:
+        return None
+    return {
+        "window": len(tail),
+        "churn_count": churn_count,
+        "since_step": tail[0].get("step_no"),
+        "tools": [step.get("tool_name") or step.get("kind") for step in tail],
+    }
+
+
+def _job_requires_measured_progress(job: dict[str, Any]) -> bool:
+    text_parts = [
+        str(job.get("title") or ""),
+        str(job.get("objective") or ""),
+        str(job.get("kind") or ""),
+    ]
+    tasks = _metadata_list(job, "task_queue")
+    for task in tasks:
+        status = str(task.get("status") or "open")
+        if status in {"done", "skipped"}:
+            continue
+        contract = str(task.get("output_contract") or "")
+        if contract in {"experiment", "monitor"}:
+            return True
+        if contract == "action" and _task_text_requires_measurement(task):
+            return True
+        text_parts.extend(
+            str(task.get(key) or "")
+            for key in ("title", "goal", "acceptance_criteria", "evidence_needed", "stall_behavior")
+        )
+    return any(MEASURABLE_PROGRESS_PATTERN.search(part) for part in text_parts if part)
+
+
+def _task_text_requires_measurement(task: dict[str, Any]) -> bool:
+    return any(
+        MEASURABLE_PROGRESS_PATTERN.search(str(task.get(key) or ""))
+        for key in ("title", "goal", "acceptance_criteria", "evidence_needed", "stall_behavior")
+    )
+
+
+def _measured_progress_guard_context(
+    job: dict[str, Any],
+    recent_steps: list[dict[str, Any]],
+    *,
+    budget: int = MEASURABLE_RESEARCH_BUDGET_STEPS,
+) -> dict[str, Any] | None:
+    if not _job_requires_measured_progress(job):
+        return None
+    if _pending_measurement_obligation(job):
+        return None
+    completed = [step for step in recent_steps if step.get("status") == "completed"]
+    if not completed:
+        return None
+    last_experiment_index = -1
+    for index, step in enumerate(completed):
+        if step.get("tool_name") == "record_experiment":
+            last_experiment_index = index
+    tail = completed[last_experiment_index + 1 :]
+    branch_activity = [step for step in tail if step.get("tool_name") in BRANCH_WORK_TOOLS | {"write_artifact"}]
+    shell_actions = [step for step in tail if step.get("tool_name") == "shell_exec"]
+    if len(branch_activity) < budget and len(shell_actions) < MEASURABLE_ACTION_BUDGET_STEPS:
+        return None
+    if any(step.get("tool_name") in {"record_tasks", "record_lesson"} for step in tail[-6:]):
+        return None
+    experiments = _metadata_list(job, "experiment_ledger")
+    reason = "no experiment records yet" if not experiments else "no recent experiment update"
+    return {
+        "reason": reason,
+        "research_budget": budget,
+        "shell_action_budget": MEASURABLE_ACTION_BUDGET_STEPS,
+        "completed_since_last_experiment": len(tail),
+        "branch_activity": len(branch_activity),
+        "shell_actions_since_last_experiment": len(shell_actions),
+        "since_step": branch_activity[0].get("step_no") if branch_activity else None,
+        "tools": [step.get("tool_name") or step.get("kind") for step in branch_activity[-10:]],
+    }
+
+
+MEASUREMENT_PATTERN = re.compile(
+    r"(?i)(?:"
+    r"\b\d+(?:\.\d+)?\s*(?:%|ms|s|sec|secs|seconds|msec|us|hz|khz|mhz|ghz|kb/s|mb/s|gb/s|tb/s|"
+    r"it/s|ops/s|req/s|qps|rps|samples/s|items/s|units/s|tokens/s|tok/s|t/s)\b"
+    r"|(?:score|rate|speed|throughput|latency|accuracy|loss|error|duration|runtime|time|memory|cpu|gpu|ram)\D{0,40}\d+(?:\.\d+)?"
+    r")"
+)
+MEASUREMENT_INTENT_PATTERN = re.compile(
+    r"(?i)\b(bench(?:mark)?|compare|duration|eval(?:uate)?|experiment|hyperfine|latency|measure|metric|perf|"
+    r"profile|rate|runtime|speed|test|throughput|time|trial)\b"
+)
+DIAGNOSTIC_MEASUREMENT_PATTERN = re.compile(r"(?i)^\s*(?:cpu|gpu|memory|mem|ram)\b")
+ACTION_MEASUREMENT_PATTERN = re.compile(
+    r"(?i)^\s*(?:score|rate|speed|throughput|latency|accuracy|loss|error|duration|runtime|time)\b"
+)
+EXPLICIT_RESULT_UNIT_PATTERN = re.compile(
+    r"(?i)\b\d+(?:\.\d+)?\s*(?:ms|msec|sec|secs|seconds|it/s|ops/s|req/s|qps|rps|samples/s|items/s|units/s|"
+    r"tokens/s|tok/s|t/s|kb/s|mb/s|gb/s|tb/s)\b"
+)
+
+
+def _measurement_candidates(output: dict[str, Any], *, command: str = "", limit: int = 8) -> list[str]:
+    text = "\n".join(
+        str(output.get(key) or "")
+        for key in ("stdout", "stderr", "result", "content")
+        if output.get(key) is not None
+    )
+    if not text.strip():
+        return []
+    command_has_measurement_intent = bool(MEASUREMENT_INTENT_PATTERN.search(command))
+    candidates: list[str] = []
+    for match in MEASUREMENT_PATTERN.finditer(text[:20000]):
+        candidate = " ".join(match.group(0).split())
+        if _candidate_is_diagnostic_only(candidate, command_has_measurement_intent):
+            continue
+        if candidate not in candidates:
+            candidates.append(candidate[:140])
+        if len(candidates) >= limit:
+            break
+    return candidates
+
+
+def _candidate_is_diagnostic_only(candidate: str, command_has_measurement_intent: bool) -> bool:
+    if command_has_measurement_intent:
+        return False
+    if DIAGNOSTIC_MEASUREMENT_PATTERN.search(candidate):
+        return True
+    if EXPLICIT_RESULT_UNIT_PATTERN.search(candidate) and not re.search(r"(?i)\b(?:cpu|gpu|ram|mem|memory)\b", candidate):
+        return False
+    if ACTION_MEASUREMENT_PATTERN.search(candidate):
+        return False
+    return True
+
+
+def _maybe_create_measurement_obligation(
+    *,
+    db: AgentDB,
+    job_id: str,
+    step: dict[str, Any] | None,
+    tool_name: str,
+    args: dict[str, Any],
+    result: dict[str, Any],
+) -> None:
+    if tool_name != "shell_exec":
+        return
+    command = str(args.get("command") or result.get("command") or "")
+    candidates = _measurement_candidates(result, command=command)
+    if not candidates:
+        return
+    metadata = db.get_job(job_id).get("metadata")
+    if isinstance(metadata, dict):
+        existing = metadata.get("pending_measurement_obligation")
+        if isinstance(existing, dict) and existing and not existing.get("resolved_at"):
+            return
+    obligation = {
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "source_step_id": step.get("id") if step else "",
+        "source_step_no": step.get("step_no") if step else None,
+        "tool": tool_name,
+        "summary": "Tool output contains measurable-looking results that need experiment accounting.",
+        "metric_candidates": candidates,
+        "command": command[:1000],
+    }
+    db.update_job_metadata(job_id, {"pending_measurement_obligation": obligation})
+    db.append_agent_update(
+        job_id,
+        f"Measured output needs accounting: {', '.join(candidates[:3])}.",
+        category="blocked",
+        metadata={"pending_measurement_obligation": obligation},
+    )
+
+
+def _step_by_id(db: AgentDB, job_id: str, step_id: str) -> dict[str, Any] | None:
+    for step in db.list_steps(job_id=job_id):
+        if str(step.get("id") or "") == step_id:
+            return step
+    return None
+
+
 def _search_query(args: dict[str, Any]) -> str:
     return str(args.get("query") or "").strip()
 
@@ -901,6 +1273,38 @@ def _blocked_tool_call_result(
             "guidance": "Use a different query, extract one of the prior result URLs, open a result in the browser, or write an artifact.",
         }
         return result, f"blocked duplicate {name}; previous step #{duplicate_step['step_no']}"
+
+    measurement_obligation = _pending_measurement_obligation(job)
+    if measurement_obligation and name in MEASUREMENT_BLOCKED_TOOLS and name not in MEASUREMENT_RESOLUTION_TOOLS:
+        result = {
+            "success": False,
+            "error": "measurement obligation pending",
+            "blocked_tool": name,
+            "blocked_arguments": args,
+            "pending_measurement_obligation": measurement_obligation,
+            "guidance": (
+                "A recent action produced measurable output. Record it with record_experiment, "
+                "explain why it is invalid with record_lesson, or create the missing measurement branch with record_tasks "
+                "before doing more research, artifact writing, or finding/source updates."
+            ),
+        }
+        return result, f"blocked {name}; record_experiment required after measured output"
+
+    measured_progress_guard = _measured_progress_guard_context(job, recent_steps)
+    progress_churn = _progress_churn_context(recent_steps)
+    if progress_churn and not measured_progress_guard and name in CHURN_TOOLS:
+        result = {
+            "success": False,
+            "error": "progress ledger update required",
+            "blocked_tool": name,
+            "blocked_arguments": args,
+            "progress_churn": progress_churn,
+            "guidance": (
+                "Recent activity has not changed findings, experiments, tasks, lessons, or sources. "
+                "Use a ledger tool to record progress, reject the branch, or create a pivot task before continuing."
+            ),
+        }
+        return result, f"blocked {name}; progress ledger update required"
 
     anti_bot_context = _recent_anti_bot_context(recent_steps)
     if anti_bot_context:
@@ -959,6 +1363,26 @@ def _blocked_tool_call_result(
             "guidance": "Write an artifact summarizing the browser or extracted evidence before doing more search or browsing.",
         }
         return result, f"blocked {name}; write_artifact required after evidence step #{unpersisted_evidence['step_no']}"
+
+    shell_budget_exhausted = (
+        name == "shell_exec"
+        and _as_int(measured_progress_guard.get("shell_actions_since_last_experiment")) >= MEASURABLE_ACTION_BUDGET_STEPS
+    ) if measured_progress_guard else False
+    if measured_progress_guard and (name in MEASURABLE_RESEARCH_BLOCKED_TOOLS or shell_budget_exhausted):
+        result = {
+            "success": False,
+            "error": "measured progress required",
+            "blocked_tool": name,
+            "blocked_arguments": args,
+            "measured_progress_guard": measured_progress_guard,
+            "guidance": (
+                "This job is measurably framed and has exhausted its research budget without new experiment records. "
+                "If the shell/action budget is exhausted, do not call shell_exec again; call record_experiment for a "
+                "known measurement, record_tasks with an experiment/action/monitor contract, or record_lesson if "
+                "measurement is blocked."
+            ),
+        }
+        return result, f"blocked {name}; measured progress required"
 
     if name in BRANCH_WORK_TOOLS and _task_queue_exhausted(job):
         result = {
@@ -1059,6 +1483,8 @@ def _summarize_tool_result(name: str, args: dict[str, Any], result: dict[str, An
             metric = f" {experiment.get('metric_name') or 'metric'}={experiment.get('metric_value')}{experiment.get('metric_unit') or ''}"
         best = " best" if experiment.get("best_observed") else ""
         return f"record_experiment {experiment.get('status')}: {experiment.get('title')}{metric}{best}"
+    if name == "acknowledge_operator_context":
+        return f"acknowledge_operator_context {result.get('status')} count={result.get('count', 0)}"
     if name == "browser_navigate":
         data = result.get("data") if isinstance(result.get("data"), dict) else {}
         title = data.get("title") or ""
@@ -1205,6 +1631,15 @@ def _run_reflection_step(
     tasks = metadata.get("task_queue") if isinstance(metadata.get("task_queue"), list) else []
     experiments = metadata.get("experiment_ledger") if isinstance(metadata.get("experiment_ledger"), list) else []
     lessons = metadata.get("lessons") if isinstance(metadata.get("lessons"), list) else []
+    operator_messages = metadata.get("operator_messages") if isinstance(metadata.get("operator_messages"), list) else []
+    active_operator_messages = [
+        entry for entry in operator_messages
+        if isinstance(entry, dict)
+        and str(entry.get("mode") or "steer") in {"steer", "follow_up"}
+        and not entry.get("acknowledged_at")
+        and not entry.get("superseded_at")
+    ]
+    pending_measurement = _pending_measurement_obligation(job)
     artifacts = db.list_artifacts(job_id, limit=12)
     failures = [step for step in recent_steps[-REFLECTION_INTERVAL_STEPS:] if step.get("status") == "failed" or step.get("status") == "blocked"]
     step_no = _max_step_no(recent_steps)
@@ -1237,8 +1672,10 @@ def _run_reflection_step(
     summary = (
         f"Reflection through step #{step_no}: {len(findings)} findings, {len(sources)} sources, "
         f"{len(tasks)} tasks, {len(experiments)} experiments, {len(lessons)} lessons, "
+        f"{len(active_operator_messages)} active operator messages, "
         f"{len(finding_batches)} recent finding artifacts, {len(failures)} recent blocked/failed steps. "
         f"Best source direction: {source_text}. Best measured result: {best_experiment_text}."
+        + (" Pending measurement obligation needs resolution." if pending_measurement else "")
     )
     strategy = (
         "Prioritize source types that have yielded durable findings or artifacts; "
@@ -1256,6 +1693,8 @@ def _run_reflection_step(
             "task_count": len(tasks),
             "experiment_count": len(experiments),
             "measured_experiment_count": len(measured_experiments),
+            "active_operator_message_count": len(active_operator_messages),
+            "pending_measurement_obligation": bool(pending_measurement),
         },
     )
     db.append_lesson(job_id, strategy, category="strategy", confidence=0.75, metadata={"source": "reflection", "through_step": step_no})
@@ -1420,6 +1859,10 @@ def run_one_step(
     try:
         artifacts = ArtifactStore(config.runtime.home, db=db)
         job = db.get_job(job_id)
+        if _acknowledge_non_prompt_operator_context(db, job_id):
+            job = db.get_job(job_id)
+        if _clear_invalid_measurement_obligation(db, job_id):
+            job = db.get_job(job_id)
         run_id = db.start_run(job_id, model=config.model.model)
         _emit_loop_start(db, job_id, run_id)
         recent_steps = db.list_steps(job_id=job_id)
@@ -1537,10 +1980,19 @@ def run_one_step(
                 db.finish_run(run_id, "completed" if ok else "failed", error=result.get("error"))
                 _emit_loop_end(db, job_id, run_id, status=status, step_id=step_id, tool_name=call.name, detail=summary)
                 if ok:
+                    finished_step = _step_by_id(db, job_id, step_id)
+                    _maybe_create_measurement_obligation(
+                        db=db,
+                        job_id=job_id,
+                        step=finished_step,
+                        tool_name=call.name,
+                        args=call.arguments,
+                        result=result,
+                    )
                     _auto_checkpoint_update(
                         db=db,
                         job_id=job_id,
-                        step_no=db.list_steps(job_id=job_id)[-1]["step_no"],
+                        step_no=(finished_step or db.list_steps(job_id=job_id)[-1])["step_no"],
                         tool_name=call.name,
                         args=call.arguments,
                         result=result,
