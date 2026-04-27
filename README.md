@@ -148,11 +148,11 @@ nipux[nightly research]> /history
 nipux[nightly research]> /activity
 nipux[nightly research]> /outputs
 nipux[nightly research]> /artifacts
+nipux[nightly research]> /settings
 nipux[nightly research]> /run
 nipux[nightly research]> /work 1
 nipux[nightly research]> /follow after this branch, compare another source
 nipux[nightly research]> /stop
-nipux[nightly research]> /shell
 nipux[nightly research]> /exit
 ```
 

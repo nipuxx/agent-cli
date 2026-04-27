@@ -7,6 +7,7 @@ from nipux_cli.cli import (
     _build_chat_frame,
     _build_chat_messages,
     _chat_handle_line,
+    _decode_terminal_escape,
     _launch_agent_plist,
     _minimal_live_event_line,
     _print_shell_help,
@@ -128,7 +129,8 @@ def test_main_no_args_with_no_jobs_shows_first_run_menu(monkeypatch, tmp_path, c
     out = capsys.readouterr().out
     assert "FIRST RUN" in out
     assert "new       create a job" in out
-    assert "shell     open the full command console" in out
+    assert "settings  show model, home, daemon, and config" in out
+    assert "shell     open the full command console" not in out
     assert "doctor    check local setup" in out
     assert "_   _" not in out
 
@@ -174,12 +176,13 @@ def test_first_run_frame_uses_full_screen_ui_not_banner(monkeypatch, tmp_path):
 
     assert "Nipux" in frame
     assert "Start" in frame
-    assert "Workspace" in frame
+    assert "Control" in frame
     assert "Compose" in frame
-    assert "/new" in frame
+    assert "New job" in frame
     assert "_   _" not in frame
     assert "FIRST RUN" not in frame
     assert "nipux menu >" not in frame
+    assert "/shell" not in frame
 
 
 def test_first_run_frame_has_slash_command_popup(monkeypatch, tmp_path):
@@ -190,11 +193,26 @@ def test_first_run_frame_has_slash_command_popup(monkeypatch, tmp_path):
     assert "commands" in frame
     assert "/new" in frame
     assert "/doctor" in frame
+    assert "/settings" in frame
+    assert "/shell" not in frame
     assert "tab completes first match" in frame
+
+
+def test_first_run_frame_has_settings_view(monkeypatch, tmp_path):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+
+    frame = _build_first_run_frame("", [], width=100, height=26, view="settings", selected=1)
+
+    assert "Settings" in frame
+    assert "Config" in frame
+    assert "Init config" in frame
+    assert "keyboard + mouse enabled" in frame
+    assert "/shell" not in frame
 
 
 def test_slash_autocomplete_filters_commands():
     assert _autocomplete_slash("/do", FIRST_RUN_SLASH_COMMANDS) == "/doctor "
+    assert _autocomplete_slash("/se", FIRST_RUN_SLASH_COMMANDS) == "/settings "
     assert _autocomplete_slash("/sta", CHAT_SLASH_COMMANDS) == "/status "
     assert _autocomplete_slash("plain text", CHAT_SLASH_COMMANDS) == "plain text"
     lines = _slash_suggestion_lines("/art", CHAT_SLASH_COMMANDS, width=80)
@@ -202,6 +220,30 @@ def test_slash_autocomplete_filters_commands():
     assert "/artifacts" in text
     assert "/artifact" in text
     assert "/run" not in text
+    assert "/shell" not in "\n".join(_slash_suggestion_lines("/", CHAT_SLASH_COMMANDS, width=80, limit=20))
+
+
+def test_terminal_escape_decodes_arrows_and_mouse_click():
+    assert _decode_terminal_escape("\x1b[A") == ("up", None)
+    assert _decode_terminal_escape("\x1b[B") == ("down", None)
+    assert _decode_terminal_escape("\x1b[C") == ("right", None)
+    assert _decode_terminal_escape("\x1b[D") == ("left", None)
+    assert _decode_terminal_escape("\x1b[<0;88;12M") == ("click", (88, 12))
+
+
+def test_chat_help_has_settings_without_shell(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Research topic", title="research")
+    finally:
+        db.close()
+
+    assert _chat_handle_line(job_id, "/help") is True
+
+    out = capsys.readouterr().out
+    assert "/settings" in out
+    assert "/shell" not in out
 
 
 def test_shell_ls_alias_lists_jobs_instead_of_steering(monkeypatch, tmp_path, capsys):

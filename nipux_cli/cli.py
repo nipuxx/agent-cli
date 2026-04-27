@@ -134,9 +134,9 @@ NATURAL_COMMANDS = {
 FIRST_RUN_SLASH_COMMANDS = [
     ("/new", "create a job"),
     ("/jobs", "list jobs"),
+    ("/settings", "open settings"),
     ("/doctor", "check setup"),
     ("/init", "write config"),
-    ("/shell", "command console"),
     ("/help", "show commands"),
     ("/clear", "clear notices"),
     ("/exit", "quit"),
@@ -153,12 +153,29 @@ CHAT_SLASH_COMMANDS = [
     ("/artifact", "open output"),
     ("/memory", "learning"),
     ("/status", "job state"),
+    ("/settings", "local setup"),
     ("/pause", "pause job"),
     ("/resume", "resume job"),
     ("/stop", "pause job"),
     ("/new", "new job"),
-    ("/shell", "console"),
     ("/exit", "quit"),
+]
+
+FIRST_RUN_ACTIONS = [
+    ("new", "New job", "type a goal, then press enter"),
+    ("jobs", "Jobs", "show saved workspaces"),
+    ("settings", "Settings", "model, home, daemon, config"),
+    ("doctor", "Doctor", "check local setup"),
+    ("init", "Init", "write starter config"),
+    ("exit", "Exit", "leave Nipux"),
+]
+
+FIRST_RUN_SETTINGS_ACTIONS = [
+    ("back", "Back", "return to start"),
+    ("init", "Init config", "write starter config"),
+    ("doctor", "Doctor", "check local setup"),
+    ("jobs", "Jobs", "show saved workspaces"),
+    ("exit", "Exit", "leave Nipux"),
 ]
 
 
@@ -424,7 +441,7 @@ def _print_first_run_menu() -> None:
     print("Create or manage jobs")
     print("  1  new       create a job and open its workspace")
     print("  2  jobs      list jobs")
-    print("  3  shell     open the full command console")
+    print("  3  settings  show model, home, daemon, and config")
     print("  4  doctor    check local setup")
     print("  5  init      write starter config/env files")
     print("  6  exit")
@@ -462,8 +479,8 @@ def _handle_first_run_menu_line(line: str, *, history_limit: int = 12) -> bool:
     if lowered in {"2", "jobs", "ls"}:
         cmd_jobs(argparse.Namespace())
         return True
-    if lowered in {"3", "shell"}:
-        cmd_shell(argparse.Namespace(status=False, no_status=True, limit=8, chars=180))
+    if lowered in {"3", "settings"}:
+        _print_first_run_settings()
         return True
     if lowered in {"4", "doctor"}:
         try:
@@ -498,6 +515,18 @@ def _handle_first_run_menu_line(line: str, *, history_limit: int = 12) -> bool:
     return False
 
 
+def _print_first_run_settings() -> None:
+    config = load_config()
+    daemon = daemon_lock_status(config.runtime.home / "agentd.lock")
+    print("SETTINGS")
+    print(f"  model   {config.model.model}")
+    print(f"  daemon  {_daemon_state_line(daemon)}")
+    print(f"  home    {_short_path(config.runtime.home)}")
+    print(f"  config  {_short_path(config.runtime.home / 'config.yaml')}")
+    print()
+    print("Use `init` to write starter config files or `doctor` to check setup.")
+
+
 def _prompt_first_run_value(label: str) -> str:
     try:
         return input(f"{label} > ").strip()
@@ -525,17 +554,19 @@ def _enter_first_run_frame(*, history_limit: int = 12) -> None:
     buffer = ""
     notices: list[str] = []
     next_job_id: str | None = None
-    open_shell = False
+    view = "start"
+    selected = 0
     old_attrs = termios.tcgetattr(sys.stdin)
-    print("\033[?25l", end="", flush=True)
+    print("\033[?25l\033[?1000h\033[?1006h", end="", flush=True)
     try:
         tty.setcbreak(sys.stdin.fileno())
         needs_render = True
         last_render = 0.0
-        while next_job_id is None and not open_shell:
+        while next_job_id is None:
             now = time.monotonic()
             if needs_render or now - last_render >= 1.0:
-                _render_first_run_frame(buffer, notices)
+                selected = _clamp_first_run_selection(selected, view)
+                _render_first_run_frame(buffer, notices, selected=selected, view=view)
                 needs_render = False
                 last_render = now
             readable, _, _ = select.select([sys.stdin], [], [], 0.05)
@@ -546,11 +577,15 @@ def _enter_first_run_frame(*, history_limit: int = 12) -> None:
                 line = buffer.strip()
                 buffer = ""
                 if not line:
-                    notices.append("Type an objective, `new OBJECTIVE`, `doctor`, `init`, `shell`, or `exit`.")
-                    notices[:] = notices[-10:]
+                    action, payload = _handle_first_run_action(_first_run_actions(view)[selected][0])
+                else:
+                    action, payload = _handle_first_run_frame_line(line)
+                if action == "view":
+                    view = str(payload or "start")
+                    selected = 0
+                    notices.clear()
                     needs_render = True
                     continue
-                action, payload = _handle_first_run_frame_line(line)
                 if action == "exit":
                     return
                 if action == "clear":
@@ -559,9 +594,6 @@ def _enter_first_run_frame(*, history_limit: int = 12) -> None:
                     continue
                 if action == "open":
                     next_job_id = str(payload)
-                    break
-                if action == "shell":
-                    open_shell = True
                     break
                 if isinstance(payload, list):
                     notices.extend(str(item) for item in payload if str(item).strip())
@@ -589,7 +621,38 @@ def _enter_first_run_frame(*, history_limit: int = 12) -> None:
                     needs_render = True
                 continue
             if char == "\x1b":
-                _drain_pending_input()
+                key, payload = _decode_terminal_escape(_read_escape_sequence(char))
+                if key == "up":
+                    selected = (selected - 1) % len(_first_run_actions(view))
+                elif key == "down":
+                    selected = (selected + 1) % len(_first_run_actions(view))
+                elif key == "left":
+                    view = "start"
+                    selected = 0
+                elif key == "right":
+                    view = "settings"
+                    selected = 0
+                elif key == "click" and isinstance(payload, tuple):
+                    clicked = _first_run_click_action(payload[0], payload[1], view=view)
+                    if clicked is not None:
+                        selected = clicked
+                        action, action_payload = _handle_first_run_action(_first_run_actions(view)[selected][0])
+                        if action == "view":
+                            view = str(action_payload or "start")
+                            selected = 0
+                            notices.clear()
+                        elif action == "exit":
+                            return
+                        elif action == "open":
+                            next_job_id = str(action_payload)
+                            break
+                        elif isinstance(action_payload, list):
+                            notices.extend(str(item) for item in action_payload if str(item).strip())
+                        elif action_payload:
+                            notices.append(str(action_payload))
+                        notices[:] = notices[-10:]
+                else:
+                    _drain_pending_input()
                 needs_render = True
                 continue
             if char.isprintable():
@@ -597,11 +660,82 @@ def _enter_first_run_frame(*, history_limit: int = 12) -> None:
                 needs_render = True
     finally:
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_attrs)
-        print("\033[?25h\033[0m", flush=True)
+        print("\033[?1000l\033[?1006l\033[?25h\033[0m", flush=True)
     if next_job_id:
         _enter_chat(next_job_id, show_history=True, history_limit=history_limit)
-    elif open_shell:
-        cmd_shell(argparse.Namespace(status=False, no_status=True, limit=8, chars=180))
+
+
+def _first_run_actions(view: str) -> list[tuple[str, str, str]]:
+    return FIRST_RUN_SETTINGS_ACTIONS if view == "settings" else FIRST_RUN_ACTIONS
+
+
+def _clamp_first_run_selection(selected: int, view: str) -> int:
+    actions = _first_run_actions(view)
+    if not actions:
+        return 0
+    return max(0, min(selected, len(actions) - 1))
+
+
+def _handle_first_run_action(action: str) -> tuple[str, str | list[str] | None]:
+    if action == "new":
+        return "notice", "Type the goal in the input line, or use `/new OBJECTIVE`."
+    if action == "settings":
+        return "view", "settings"
+    if action == "back":
+        return "view", "start"
+    if action == "jobs":
+        return "notice", _capture_first_run_command("jobs")
+    if action == "doctor":
+        return "notice", _capture_first_run_command("doctor")
+    if action == "init":
+        return "notice", _capture_first_run_command("init")
+    if action == "exit":
+        return "exit", None
+    return "notice", f"Unknown action: {action}"
+
+
+def _read_escape_sequence(first: str) -> str:
+    sequence = first
+    while len(sequence) < 48:
+        readable, _, _ = select.select([sys.stdin], [], [], 0.01)
+        if not readable:
+            break
+        sequence += sys.stdin.read(1)
+        if sequence in {"\x1b[A", "\x1b[B", "\x1b[C", "\x1b[D"}:
+            break
+        if re.match(r"^\x1b\[<\d+;\d+;\d+[mM]$", sequence):
+            break
+    return sequence
+
+
+def _decode_terminal_escape(sequence: str) -> tuple[str, tuple[int, int] | None]:
+    arrows = {
+        "\x1b[A": "up",
+        "\x1b[B": "down",
+        "\x1b[C": "right",
+        "\x1b[D": "left",
+    }
+    if sequence in arrows:
+        return arrows[sequence], None
+    match = re.match(r"^\x1b\[<(\d+);(\d+);(\d+)([mM])$", sequence)
+    if match and match.group(4) == "M":
+        button = int(match.group(1))
+        if button == 0:
+            return "click", (int(match.group(2)), int(match.group(3)))
+    return "unknown", None
+
+
+def _first_run_click_action(x: int, y: int, *, view: str) -> int | None:
+    width, _height = shutil.get_terminal_size((100, 30))
+    left_width, _right_width = _first_run_columns(max(92, width))
+    right_start = left_width + 4
+    if x < right_start:
+        return None
+    body_start_y = 4
+    action_body_index = 8 if view == "settings" else 6
+    index = y - (body_start_y + action_body_index)
+    actions = _first_run_actions(view)
+    return index if 0 <= index < len(actions) else None
 
 
 def _handle_first_run_frame_line(line: str) -> tuple[str, str | list[str] | None]:
@@ -616,7 +750,7 @@ def _handle_first_run_frame_line(line: str) -> tuple[str, str | list[str] | None
     if lowered in {"help", "?", "commands"}:
         return "notice", [
             "Create a job by typing an objective.",
-            "Commands: new OBJECTIVE, jobs, doctor, init, shell, exit.",
+            "Commands: new OBJECTIVE, jobs, settings, doctor, init, exit.",
             "After creation, the workspace opens and `/run` starts work.",
         ]
     if lowered in {"1", "new"}:
@@ -625,13 +759,19 @@ def _handle_first_run_frame_line(line: str) -> tuple[str, str | list[str] | None
         return "open", _create_first_run_job(original[4:].strip())
     if lowered in {"2", "jobs", "ls"}:
         return "notice", _capture_first_run_command("jobs")
-    if lowered in {"3", "shell"}:
-        return "shell", None
+    if lowered in {"3", "settings"}:
+        return "view", "settings"
+    if lowered in {"back"}:
+        return "view", "start"
     if lowered in {"4", "doctor"}:
         return "notice", _capture_first_run_command("doctor")
     if lowered in {"5", "init"}:
         return "notice", _capture_first_run_command("init")
+    if lowered == "shell":
+        return "notice", "The old console is only available as `nipux shell` from your terminal."
     first = _first_token(original)
+    if first == "shell":
+        return "notice", "The old console is only available as `nipux shell` from your terminal."
     if first in SHELL_COMMAND_NAMES:
         before_job_id = _current_default_job_id()
         output = _capture_first_run_command(original)
@@ -670,13 +810,21 @@ def _current_default_job_id() -> str | None:
         db.close()
 
 
-def _render_first_run_frame(input_buffer: str, notices: list[str]) -> None:
+def _render_first_run_frame(input_buffer: str, notices: list[str], *, selected: int = 0, view: str = "start") -> None:
     width, height = shutil.get_terminal_size((100, 30))
-    frame = _build_first_run_frame(input_buffer, notices, width=width, height=height)
+    frame = _build_first_run_frame(input_buffer, notices, width=width, height=height, selected=selected, view=view)
     print("\033[H\033[2J" + frame, end="", flush=True)
 
 
-def _build_first_run_frame(input_buffer: str, notices: list[str], *, width: int, height: int) -> str:
+def _build_first_run_frame(
+    input_buffer: str,
+    notices: list[str],
+    *,
+    width: int,
+    height: int,
+    selected: int = 0,
+    view: str = "start",
+) -> str:
     width = max(92, width)
     height = max(22, height)
     config = load_config()
@@ -692,48 +840,92 @@ def _build_first_run_frame(input_buffer: str, notices: list[str], *, width: int,
     compose_lines = _compose_bar(
         input_buffer,
         width=width,
-        hint="Type a goal. Use / for commands. Tab completes.",
+        hint="Enter creates or runs the selected action. ↑↓ moves. ←→ switches views. Click actions.",
         suggestions=_slash_suggestion_lines(input_buffer, FIRST_RUN_SLASH_COMMANDS, width=width),
     )
     footer_rows = len(compose_lines)
     body_rows = max(10, height - len(header) - 1 - footer_rows)
-    left_width = max(50, int(width * 0.62))
-    right_width = max(30, width - left_width - 3)
-    if right_width < 30:
-        right_width = 30
-        left_width = max(50, width - right_width - 3)
-    left_lines = _first_run_left_lines(notices, width=left_width, rows=body_rows)
+    left_width, right_width = _first_run_columns(width)
+    left_lines = _first_run_left_lines(
+        notices,
+        width=left_width,
+        rows=body_rows,
+        view=view,
+        selected=selected,
+    )
     right_lines = _first_run_right_lines(
         jobs=jobs,
         daemon_text=daemon_text,
         model=config.model.model,
         home=_short_path(config.runtime.home, max_width=max(20, right_width - 8)),
+        config_path=_short_path(config.runtime.home / "config.yaml", max_width=max(20, right_width - 8)),
+        selected=selected,
+        view=view,
         width=right_width,
         rows=body_rows,
     )
-    lines = [*header, _two_col_title(left_width, right_width, "Start", "Workspace")]
+    left_title = "Settings" if view == "settings" else "Start"
+    lines = [*header, _two_col_title(left_width, right_width, left_title, "Control")]
     for index in range(body_rows):
         left = left_lines[index] if index < len(left_lines) else ""
         right = right_lines[index] if index < len(right_lines) else ""
         lines.append(_two_col_line(left, right, left_width=left_width, right_width=right_width))
     lines.extend(compose_lines)
-    return "\n".join(lines[:height])
+    return "\n".join(_first_run_themed_lines(lines[:height], width=width))
 
 
-def _first_run_left_lines(notices: list[str], *, width: int, rows: int) -> list[str]:
-    lines = [
-        _bold("What should Nipux work on?"),
-        _muted("Create the first job by typing the outcome you want."),
-        "",
-        "Nipux will draft a plan before running tools.",
-        "",
-        _muted("Good starting points"),
-        "Research a topic and save findings",
-        "Monitor a process and report progress",
-        "Improve or automate a workflow",
-        "",
-        _muted("Use / to open commands"),
-    ]
+def _first_run_columns(width: int) -> tuple[int, int]:
+    left_width = max(56, int(width * 0.60))
+    right_width = max(34, width - left_width - 3)
+    if right_width < 34:
+        right_width = 34
+        left_width = max(56, width - right_width - 3)
+    return left_width, right_width
+
+
+def _first_run_themed_lines(lines: list[str], *, width: int) -> list[str]:
+    if not _fancy_ui():
+        return [_fit_ansi(line, width) for line in lines]
+    bg = "\033[48;5;235m\033[38;5;252m"
+    reset = "\033[0m"
+    return [bg + _fit_ansi(line, width).replace(reset, reset + bg) + reset for line in lines]
+
+
+def _first_run_left_lines(
+    notices: list[str],
+    *,
+    width: int,
+    rows: int,
+    view: str,
+    selected: int,
+) -> list[str]:
+    if view == "settings":
+        lines = [
+            _bold("Settings"),
+            _muted("This profile controls where Nipux stores state and which model the worker uses."),
+            "",
+            "Use the action list on the right to run setup checks or write starter files.",
+            "",
+            _muted("Navigation"),
+            "↑↓ move selection",
+            "← return to Start",
+            "Enter or click selects",
+        ]
+    else:
+        selected_label = _first_run_actions(view)[_clamp_first_run_selection(selected, view)][1]
+        lines = [
+            _bold("What should Nipux work on?"),
+            _muted("Type the outcome you want. Nipux will create a job, draft a plan, then wait for you to run it."),
+            "",
+            f"{_muted('Selected')} {_accent(selected_label)}",
+            "",
+            _muted("Good first goals"),
+            "Research a topic and save findings",
+            "Monitor a process and report progress",
+            "Improve or automate a workflow",
+            "",
+            _muted("Use / for commands, Tab to complete, or click an action."),
+        ]
     if notices:
         lines.extend(["", _muted("Recent")])
         for notice in notices[-6:]:
@@ -748,19 +940,34 @@ def _first_run_right_lines(
     daemon_text: str,
     model: str,
     home: str,
+    config_path: str,
+    selected: int,
+    view: str,
     width: int,
     rows: int,
 ) -> list[str]:
+    if view == "settings":
+        lines = [
+            _bold("Profile"),
+            f"{_muted('Model')}  {_one_line(model, width - 8)}",
+            f"{_muted('Daemon')} {_one_line(daemon_text, width - 8)}",
+            f"{_muted('Home')}   {_one_line(home, width - 8)}",
+            f"{_muted('Config')} {_one_line(config_path, width - 8)}",
+            f"{_muted('Frame')}  keyboard + mouse enabled",
+            "",
+            _bold("Actions"),
+            *_first_run_action_lines(_first_run_actions(view), selected, width=width),
+        ]
+        return [_fit_ansi(line, width) for line in lines[:rows]]
+
     lines = [
+        _bold("Profile"),
         f"{_muted('Model')}  {_one_line(model, width - 8)}",
         f"{_muted('Daemon')} {_one_line(daemon_text, width - 8)}",
         f"{_muted('Home')}   {_one_line(home, width - 8)}",
         "",
-        _bold("Commands"),
-        f"{_fit_ansi(_accent('/new'), 10)} create",
-        f"{_fit_ansi(_accent('/jobs'), 10)} list",
-        f"{_fit_ansi(_accent('/doctor'), 10)} setup",
-        f"{_fit_ansi(_accent('/shell'), 10)} console",
+        _bold("Actions"),
+        *_first_run_action_lines(_first_run_actions(view), selected, width=width),
         "",
         _bold("Jobs"),
     ]
@@ -769,6 +976,16 @@ def _first_run_right_lines(
     else:
         lines.append(_muted("No saved jobs in this profile."))
     return [_fit_ansi(line, width) for line in lines[:rows]]
+
+
+def _first_run_action_lines(actions: list[tuple[str, str, str]], selected: int, *, width: int) -> list[str]:
+    lines: list[str] = []
+    selected = max(0, min(selected, len(actions) - 1)) if actions else 0
+    for index, (_key, label, detail) in enumerate(actions):
+        marker = _accent("›") if index == selected else _muted(" ")
+        name = _bold(label) if index == selected else label
+        lines.append(_fit_ansi(f"{marker} {_fit_ansi(name, 14)} {_muted(detail)}", width))
+    return lines
 
 
 def _enter_chat(job_id: str, *, show_history: bool, history_limit: int = 12) -> None:
@@ -1072,7 +1289,7 @@ def _build_chat_frame(snapshot: dict[str, Any], input_buffer: str, notices: list
         keep_bottom = footer_rows
         middle_budget = max(0, height - keep_top - keep_bottom)
         lines = lines[:keep_top] + lines[-(middle_budget + keep_bottom):-keep_bottom] + lines[-keep_bottom:]
-    return "\n".join(lines)
+    return "\n".join(_first_run_themed_lines(lines[:height], width=width))
 
 
 def _top_bar(width: int, *, state: str, daemon: str, model: str) -> list[str]:
@@ -3567,8 +3784,9 @@ def _chat_handle_line(job_id: str, line: str, *, reply_fn=None) -> bool:
         print("  /jobs /focus JOB_TITLE /switch JOB_TITLE /new OBJECTIVE /delete [JOB_TITLE]")
         print("  /history /events /activity /outputs /updates /status /health")
         print("  /artifacts /artifact QUERY /findings /tasks /experiments /sources /memory /metrics /lessons")
+        print("  /settings")
         print("  /run /work N /work-verbose N /stop /pause [note] /resume /cancel [note]")
-        print("  /learn LESSON /note MESSAGE /follow MESSAGE /digest /clear /shell /exit")
+        print("  /learn LESSON /note MESSAGE /follow MESSAGE /digest /clear /exit")
         print("Plain text gets a model reply and is saved as model-visible steering.")
         return True
     if line in {"clear", "/clear"}:
@@ -3655,6 +3873,9 @@ def _chat_handle_line(job_id: str, line: str, *, reply_fn=None) -> bool:
         if command == "status":
             cmd_status(argparse.Namespace(job_id=job_id, limit=8, chars=180, full=False, json=False))
             return True
+        if command == "settings":
+            _print_first_run_settings()
+            return True
         if command == "health":
             cmd_health(argparse.Namespace(limit=8, chars=180))
             return True
@@ -3714,9 +3935,6 @@ def _chat_handle_line(job_id: str, line: str, *, reply_fn=None) -> bool:
                 print("usage: /follow MESSAGE")
                 return True
             _queue_chat_note(job_id, message, mode="follow_up")
-            return True
-        if command == "shell":
-            cmd_shell(argparse.Namespace(status=False, no_status=True, limit=8, chars=180))
             return True
         if command == "new":
             objective = " ".join(rest).strip()
