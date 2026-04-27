@@ -124,7 +124,11 @@ NATURAL_COMMANDS = {
     "what is going on": "status",
     "whats going on": "status",
     "what's going on": "status",
+    "what are you doing": "status",
+    "what is it doing": "status",
     "how is it going": "status",
+    "how are things going": "status",
+    "check up on things": "status",
     "is it running": "health",
     "is the daemon running": "health",
     "daemon health": "health",
@@ -231,7 +235,9 @@ def cmd_create(args: argparse.Namespace) -> None:
     print(f"created {title}")
 
 
-def _create_job(*, objective: str, title: str | None = None, kind: str = "generic", cadence: str | None = None) -> tuple[str, str]:
+def _create_job(
+    *, objective: str, title: str | None = None, kind: str = "generic", cadence: str | None = None
+) -> tuple[str, str]:
     db, config = _db()
     try:
         title = title or objective.strip().splitlines()[0][:80] or "Untitled job"
@@ -305,7 +311,7 @@ def cmd_jobs(args: argparse.Namespace) -> None:
     try:
         jobs = db.list_jobs()
         if not jobs:
-            print("No jobs yet. Create one with: nipux create \"objective\"")
+            print('No jobs yet. Create one with: nipux create "objective"')
             return
         focused = _configured_focus_job_id(db)
         daemon_running = daemon_lock_status(load_config().runtime.home / "agentd.lock")["running"]
@@ -470,7 +476,7 @@ def _print_first_run_menu() -> None:
     print("  5  init      write starter config/env files")
     print("  6  exit")
     print()
-    print("Type `new OBJECTIVE`, `create \"OBJECTIVE\"`, any command, or paste an objective directly.")
+    print('Type `new OBJECTIVE`, `create "OBJECTIVE"`, any command, or paste an objective directly.')
 
 
 def _handle_first_run_menu_line(line: str, *, history_limit: int = 12) -> bool:
@@ -584,6 +590,7 @@ def _enter_first_run_frame(*, history_limit: int = 12) -> None:
     next_job_id: str | None = None
     view = "start"
     selected = 0
+    editing_field: str | None = None
     old_attrs = termios.tcgetattr(sys.stdin)
     print("\033[?25l\033[?1000h\033[?1002h\033[?1006h", end="", flush=True)
     try:
@@ -595,13 +602,47 @@ def _enter_first_run_frame(*, history_limit: int = 12) -> None:
             now = time.monotonic()
             if needs_render or now - last_render >= 1.0:
                 selected = _clamp_first_run_selection(selected, view)
-                _render_first_run_frame(buffer, notices, selected=selected, view=view)
+                _render_first_run_frame(buffer, notices, selected=selected, view=view, editing_field=editing_field)
                 needs_render = False
                 last_render = now
             readable, _, _ = select.select([stdin_fd], [], [], 0.05)
             if not readable:
                 continue
             char = _read_terminal_char(stdin_fd)
+            if editing_field is not None:
+                if char in {"\r", "\n"}:
+                    notices.append(_inline_setting_notice(editing_field, buffer))
+                    notices[:] = notices[-10:]
+                    editing_field = None
+                    buffer = ""
+                    needs_render = True
+                    continue
+                if char in {"\x04"}:
+                    return
+                if char == "\x03":
+                    notices.append("cancelled edit")
+                    notices[:] = notices[-10:]
+                    editing_field = None
+                    buffer = ""
+                    needs_render = True
+                    continue
+                if char in {"\x7f", "\b"}:
+                    buffer = buffer[:-1]
+                    needs_render = True
+                    continue
+                if char == "\x1b":
+                    key, _payload = _decode_terminal_escape(_read_escape_sequence(char, fd=stdin_fd))
+                    if key == "unknown":
+                        notices.append("cancelled edit")
+                        notices[:] = notices[-10:]
+                        editing_field = None
+                        buffer = ""
+                    needs_render = True
+                    continue
+                if char.isprintable():
+                    buffer += char
+                    needs_render = True
+                continue
             if char in {"\r", "\n"}:
                 line = buffer.strip()
                 buffer = ""
@@ -625,10 +666,9 @@ def _enter_first_run_frame(*, history_limit: int = 12) -> None:
                     next_job_id = str(payload)
                     break
                 if action == "edit":
-                    notice = _prompt_first_run_setting(str(payload), stdin_fd=stdin_fd, old_attrs=old_attrs)
-                    if notice:
-                        notices.append(notice)
-                        notices[:] = notices[-10:]
+                    editing_field = str(payload)
+                    notices.append(f"editing {editing_field}; enter saves, escape cancels")
+                    notices[:] = notices[-10:]
                     needs_render = True
                     continue
                 if isinstance(payload, list):
@@ -679,9 +719,8 @@ def _enter_first_run_frame(*, history_limit: int = 12) -> None:
                             next_job_id = str(action_payload)
                             break
                         elif action == "edit":
-                            notice = _prompt_first_run_setting(str(action_payload), stdin_fd=stdin_fd, old_attrs=old_attrs)
-                            if notice:
-                                notices.append(notice)
+                            editing_field = str(action_payload)
+                            notices.append(f"editing {editing_field}; enter saves, escape cancels")
                         elif isinstance(action_payload, list):
                             notices.extend(str(item) for item in action_payload if str(item).strip())
                         elif action_payload:
@@ -699,28 +738,6 @@ def _enter_first_run_frame(*, history_limit: int = 12) -> None:
         print("\033[?1002l\033[?1000l\033[?1006l\033[?25h\033[0m", flush=True)
     if next_job_id:
         _enter_chat(next_job_id, show_history=True, history_limit=history_limit)
-
-
-def _prompt_first_run_setting(field: str, *, stdin_fd: int, old_attrs: list[Any]) -> str:
-    config = load_config()
-    current = _config_field_value(field, config)
-    termios.tcsetattr(stdin_fd, termios.TCSADRAIN, old_attrs)
-    print("\033[?25h\033[0m", flush=True)
-    try:
-        value = input(f"{field} [{current}] > ").strip()
-    except (EOFError, KeyboardInterrupt):
-        print()
-        value = ""
-    finally:
-        tty.setcbreak(stdin_fd)
-        print("\033[?25l", end="", flush=True)
-    if not value:
-        return f"kept {field}"
-    try:
-        saved = _save_config_field(field, value)
-    except ValueError as exc:
-        return f"{field}: {exc}"
-    return f"saved {field} = {saved}"
 
 
 def _config_path() -> Path:
@@ -770,6 +787,17 @@ def _save_config_field(field: str, raw_value: str) -> Any:
     target[key] = value
     _save_config_yaml(data)
     return value
+
+
+def _inline_setting_notice(field: str, raw_value: str) -> str:
+    value = raw_value.strip()
+    if not value:
+        return f"kept {field}"
+    try:
+        saved = _save_config_field(field, value)
+    except ValueError as exc:
+        return f"{field}: {exc}"
+    return f"saved {field} = {saved}"
 
 
 def _coerce_config_value(field: str, raw_value: str) -> Any:
@@ -897,6 +925,25 @@ def _first_run_click_action(x: int, y: int, *, view: str) -> int | None:
     return index if 0 <= index < len(actions) else None
 
 
+def _chat_settings_click_action(x: int, y: int, *, right_view: str) -> int | None:
+    if right_view != "settings":
+        return None
+    width, _height = shutil.get_terminal_size((100, 30))
+    width = max(92, width)
+    left_width = max(48, int(width * 0.58))
+    right_width = max(34, width - left_width - 3)
+    if right_width < 34:
+        left_width = max(48, width - 34 - 3)
+    right_start = left_width + 4
+    if x < right_start:
+        return None
+    body_start_y = 4
+    settings_action_index = 8
+    index = y - (body_start_y + settings_action_index)
+    actions = _first_run_actions("settings")
+    return index if 0 <= index < len(actions) else None
+
+
 def _handle_first_run_frame_line(line: str) -> tuple[str, str | list[str] | None]:
     original = line.strip()
     if original.startswith("/"):
@@ -981,9 +1028,24 @@ def _current_default_job_id() -> str | None:
         db.close()
 
 
-def _render_first_run_frame(input_buffer: str, notices: list[str], *, selected: int = 0, view: str = "start") -> None:
+def _render_first_run_frame(
+    input_buffer: str,
+    notices: list[str],
+    *,
+    selected: int = 0,
+    view: str = "start",
+    editing_field: str | None = None,
+) -> None:
     width, height = shutil.get_terminal_size((100, 30))
-    frame = _build_first_run_frame(input_buffer, notices, width=width, height=height, selected=selected, view=view)
+    frame = _build_first_run_frame(
+        input_buffer,
+        notices,
+        width=width,
+        height=height,
+        selected=selected,
+        view=view,
+        editing_field=editing_field,
+    )
     print("\033[H\033[2J" + frame, end="", flush=True)
 
 
@@ -995,6 +1057,7 @@ def _build_first_run_frame(
     height: int,
     selected: int = 0,
     view: str = "start",
+    editing_field: str | None = None,
 ) -> str:
     width = max(92, width)
     height = max(22, height)
@@ -1008,10 +1071,18 @@ def _build_first_run_frame(
         db.close()
     daemon_text = _daemon_state_line(daemon)
     header = _top_bar(width, state="setup", daemon=daemon_text, model=config.model.model)
+    if editing_field:
+        current = _config_field_value(editing_field, config)
+        hint = f"Editing {editing_field}. Current: {current}. Enter saves, Esc cancels, empty keeps current."
+        prompt_label = editing_field
+    else:
+        hint = "Enter selects the highlighted control. ↑↓ moves. ←→ switches pages. Click selects."
+        prompt_label = "❯"
     compose_lines = _compose_bar(
         input_buffer,
         width=width,
-        hint="Enter selects the highlighted control. ↑↓ moves. ←→ switches views. Click works.",
+        hint=hint,
+        prompt_label=prompt_label,
     )
     footer_rows = len(compose_lines)
     body_rows = max(10, height - len(header) - 1 - footer_rows)
@@ -1075,6 +1146,8 @@ def _first_run_left_lines(
             _bold("Settings"),
             _muted("Edit values from the control pane. The worker reads these from config.yaml."),
             "",
+            f"{_muted('Pages')} {_page_indicator(view, [('start', 'Start'), ('settings', 'Settings')])}",
+            "",
             "Highlight a setting and press Enter, or click it.",
             "",
             _muted("Navigation"),
@@ -1089,6 +1162,8 @@ def _first_run_left_lines(
             _muted("Create a job from the control pane or type a goal in the input line."),
             "",
             f"{_muted('Selected')} {_accent(selected_label)}",
+            "",
+            f"{_muted('Pages')} {_page_indicator(view, [('start', 'Start'), ('settings', 'Settings')])}",
             "",
             _muted("After a job exists, this side becomes the agent conversation and output stream."),
             "",
@@ -1116,7 +1191,7 @@ def _first_run_right_lines(
 ) -> list[str]:
     if view == "settings":
         lines = [
-            _bold("Profile"),
+            f"{_bold('Profile')}  {_page_indicator(view, [('start', 'Start'), ('settings', 'Settings')])}",
             f"{_muted('Model')}  {_one_line(model, width - 8)}",
             f"{_muted('Daemon')} {_one_line(daemon_text, width - 8)}",
             f"{_muted('Home')}   {_one_line(home, width - 8)}",
@@ -1129,7 +1204,7 @@ def _first_run_right_lines(
         return [_fit_ansi(line, width) for line in lines[:rows]]
 
     lines = [
-        _bold("Profile"),
+        f"{_bold('Profile')}  {_page_indicator(view, [('start', 'Start'), ('settings', 'Settings')])}",
         f"{_muted('Model')}  {_one_line(model, width - 8)}",
         f"{_muted('Daemon')} {_one_line(daemon_text, width - 8)}",
         f"{_muted('Home')}   {_one_line(home, width - 8)}",
@@ -1224,6 +1299,7 @@ def _enter_chat_frame(job_id: str, *, history_limit: int = 12) -> None:
     notices: list[str] = []
     right_view = "status"
     selected_control = 0
+    editing_field: str | None = None
     snapshot = _load_frame_snapshot(job_id, history_limit=history_limit)
     job_id = str(snapshot["job_id"])
     old_attrs = termios.tcgetattr(sys.stdin)
@@ -1246,12 +1322,53 @@ def _enter_chat_frame(job_id: str, *, history_limit: int = 12) -> None:
                     notices[:] = notices[-12:]
             if needs_render:
                 selected_control = _clamp_first_run_selection(selected_control, "settings")
-                _render_chat_frame(snapshot, buffer, notices, right_view=right_view, selected_control=selected_control)
+                _render_chat_frame(
+                    snapshot,
+                    buffer,
+                    notices,
+                    right_view=right_view,
+                    selected_control=selected_control,
+                    editing_field=editing_field,
+                )
                 needs_render = False
             readable, _, _ = select.select([stdin_fd], [], [], 0.05)
             if not readable:
                 continue
             char = _read_terminal_char(stdin_fd)
+            if editing_field is not None:
+                if char in {"\r", "\n"}:
+                    notices.append(_inline_setting_notice(editing_field, buffer))
+                    notices[:] = notices[-12:]
+                    editing_field = None
+                    buffer = ""
+                    needs_render = True
+                    continue
+                if char in {"\x04"}:
+                    return
+                if char == "\x03":
+                    notices.append("cancelled edit")
+                    notices[:] = notices[-12:]
+                    editing_field = None
+                    buffer = ""
+                    needs_render = True
+                    continue
+                if char in {"\x7f", "\b"}:
+                    buffer = buffer[:-1]
+                    needs_render = True
+                    continue
+                if char == "\x1b":
+                    key, _payload = _decode_terminal_escape(_read_escape_sequence(char, fd=stdin_fd))
+                    if key == "unknown":
+                        notices.append("cancelled edit")
+                        notices[:] = notices[-12:]
+                        editing_field = None
+                        buffer = ""
+                    needs_render = True
+                    continue
+                if char.isprintable():
+                    buffer += char
+                    needs_render = True
+                continue
             if char in {"\r", "\n"}:
                 line = buffer.strip()
                 buffer = ""
@@ -1262,10 +1379,9 @@ def _enter_chat_frame(job_id: str, *, history_limit: int = 12) -> None:
                             right_view = "status"
                             selected_control = 0
                         elif action == "edit":
-                            notice = _prompt_first_run_setting(str(payload), stdin_fd=stdin_fd, old_attrs=old_attrs)
-                            if notice:
-                                notices.append(notice)
-                                notices[:] = notices[-12:]
+                            editing_field = str(payload)
+                            notices.append(f"editing {editing_field}; enter saves, escape cancels")
+                            notices[:] = notices[-12:]
                         elif isinstance(payload, list):
                             notices.extend(str(item) for item in payload if str(item).strip())
                             notices[:] = notices[-12:]
@@ -1280,7 +1396,14 @@ def _enter_chat_frame(job_id: str, *, history_limit: int = 12) -> None:
                     continue
                 notices.append(f"> {line}")
                 notices[:] = notices[-12:]
-                _render_chat_frame(snapshot, buffer, notices, right_view=right_view, selected_control=selected_control)
+                _render_chat_frame(
+                    snapshot,
+                    buffer,
+                    notices,
+                    right_view=right_view,
+                    selected_control=selected_control,
+                    editing_field=editing_field,
+                )
                 if _is_plain_chat_line(line):
                     keep_running, message = _handle_chat_message(job_id, line, quiet=True)
                     notices = [notice for notice in notices if notice != f"> {line}"]
@@ -1313,7 +1436,7 @@ def _enter_chat_frame(job_id: str, *, history_limit: int = 12) -> None:
             if char == "\t":
                 continue
             if char == "\x1b":
-                key, _payload = _decode_terminal_escape(_read_escape_sequence(char, fd=stdin_fd))
+                key, payload = _decode_terminal_escape(_read_escape_sequence(char, fd=stdin_fd))
                 if key == "right" and not buffer:
                     right_view = "settings"
                     selected_control = 0
@@ -1332,6 +1455,24 @@ def _enter_chat_frame(job_id: str, *, history_limit: int = 12) -> None:
                         title = snapshot["job"].get("title") or job_id
                         notices.append(f"focus {title}")
                         notices[:] = notices[-12:]
+                elif key == "click" and isinstance(payload, tuple):
+                    clicked = _chat_settings_click_action(payload[0], payload[1], right_view=right_view)
+                    if clicked is not None:
+                        selected_control = clicked
+                        action, payload = _handle_first_run_action(_first_run_actions("settings")[selected_control][0])
+                        if action == "view":
+                            right_view = "status"
+                            selected_control = 0
+                        elif action == "edit":
+                            editing_field = str(payload)
+                            notices.append(f"editing {editing_field}; enter saves, escape cancels")
+                            notices[:] = notices[-12:]
+                        elif isinstance(payload, list):
+                            notices.extend(str(item) for item in payload if str(item).strip())
+                            notices[:] = notices[-12:]
+                        elif payload:
+                            notices.append(str(payload))
+                            notices[:] = notices[-12:]
                 else:
                     _drain_pending_input(stdin_fd)
                 needs_render = True
@@ -1433,6 +1574,7 @@ def _render_chat_frame(
     *,
     right_view: str = "status",
     selected_control: int = 0,
+    editing_field: str | None = None,
 ) -> None:
     width, height = shutil.get_terminal_size((100, 30))
     frame = _build_chat_frame(
@@ -1443,6 +1585,7 @@ def _render_chat_frame(
         height=height,
         right_view=right_view,
         selected_control=selected_control,
+        editing_field=editing_field,
     )
     print("\033[H\033[2J" + frame, end="", flush=True)
 
@@ -1456,6 +1599,7 @@ def _build_chat_frame(
     height: int,
     right_view: str = "status",
     selected_control: int = 0,
+    editing_field: str | None = None,
 ) -> str:
     width = max(92, width)
     height = max(22, height)
@@ -1498,10 +1642,18 @@ def _build_chat_frame(
     ]
 
     header = _top_bar(width, state=state, daemon=daemon_text, model=model)
+    if editing_field:
+        current = _config_field_value(editing_field)
+        hint = f"Editing {editing_field}. Current: {current}. Enter saves, Esc cancels, empty keeps current."
+        prompt_label = editing_field
+    else:
+        hint = "Type normally to chat and control jobs. ↑↓ switches jobs. ←→ switches pages."
+        prompt_label = "❯"
     compose_lines = _compose_bar(
         input_buffer,
         width=width,
-        hint="Enter sends. ↑↓ switches jobs when the input is empty. Controls live on the right.",
+        hint=hint,
+        prompt_label=prompt_label,
     )
     footer_rows = len(compose_lines)
     body_rows = max(10, height - len(header) - 1 - footer_rows)
@@ -1532,6 +1684,7 @@ def _build_chat_frame(
             events=events,
             width=right_width,
             rows=right_rows,
+            right_view=right_view,
         )
         right_title = "Control / Status"
     lines = [*header, _two_col_title(left_width, right_width, "Agent Output", right_title)]
@@ -1544,7 +1697,7 @@ def _build_chat_frame(
         keep_top = min(4, len(header) + 1)
         keep_bottom = footer_rows
         middle_budget = max(0, height - keep_top - keep_bottom)
-        lines = lines[:keep_top] + lines[-(middle_budget + keep_bottom):-keep_bottom] + lines[-keep_bottom:]
+        lines = lines[:keep_top] + lines[-(middle_budget + keep_bottom) : -keep_bottom] + lines[-keep_bottom:]
     return "\n".join(_first_run_themed_lines(lines[:height], width=width))
 
 
@@ -1577,7 +1730,9 @@ def _chat_pane_lines(events: list[dict[str, Any]], notices: list[str], *, width:
         elif kind == "agent_message":
             chat_events.append((_agent_chat_label(title), _generic_display_text(event.get("body") or "")))
         elif kind in {"artifact", "finding", "task", "lesson", "reflection", "digest", "error"}:
-            chat_events.append((_event_chat_label(kind), _generic_display_text(event.get("body") or event.get("summary") or title)))
+            chat_events.append(
+                (_event_chat_label(kind), _generic_display_text(event.get("body") or event.get("summary") or title))
+            )
     for notice in notices:
         if notice.startswith("> "):
             chat_events.append((_style("YOU", "35"), notice[2:]))
@@ -1586,10 +1741,10 @@ def _chat_pane_lines(events: list[dict[str, Any]], notices: list[str], *, width:
     if not chat_events:
         return [
             _muted("No chat yet."),
-            _muted("Type normally to talk. Use the right pane for status and controls."),
+            _muted("Type normally to talk, start work, check status, or create jobs."),
         ][:rows]
     lines: list[str] = []
-    for label, body in chat_events[-max(3, rows):]:
+    for label, body in chat_events[-max(3, rows) :]:
         available = max(18, width - 9)
         wrapped = textwrap.wrap(" ".join(str(body).split()), width=available) or [""]
         lines.append(f"{_fit_ansi(label, 7)} {wrapped[0]}")
@@ -1639,8 +1794,10 @@ def _right_pane_lines(
     events: list[dict[str, Any]],
     width: int,
     rows: int,
+    right_view: str = "status",
 ) -> list[str]:
     info_lines: list[str] = [
+        f"{_muted('Page')}   {_page_indicator(right_view, [('status', 'Status'), ('settings', 'Settings')])}",
         f"{_muted('Focus')}  {_bold(_one_line(job.get('title') or 'untitled', width - 8))}",
         f"{_muted('State')}  {_status_badge(state)}  {_muted('worker')} {_status_badge(worker)}",
         f"{_muted('Daemon')} {_one_line(daemon_text, width - 8)}",
@@ -1651,7 +1808,9 @@ def _right_pane_lines(
     info_lines.append(f"{_muted('Latest')} {_one_line(latest_text, width - 8)}")
     info_lines.append(_metric_strip(metrics, width=width))
     info_lines.append("")
-    info_lines.append(f"{_bold('Controls')}  {_muted('run')}  {_muted('pause')}  {_muted('jobs')}  {_muted('settings')}")
+    info_lines.append(
+        f"{_bold('Controls')}  {_muted('run')}  {_muted('pause')}  {_muted('jobs')}  {_muted('settings')}"
+    )
     info_lines.append("")
     info_lines.append(_bold("Jobs"))
     for job_line in _frame_jobs_lines(jobs, focused_job_id=job_id, daemon_running=daemon_running, width=width)[:4]:
@@ -1670,7 +1829,7 @@ def _right_pane_lines(
 def _chat_settings_pane_lines(*, daemon_text: str, selected: int, width: int, rows: int) -> list[str]:
     config = load_config()
     lines = [
-        _bold("Profile"),
+        f"{_bold('Profile')}  {_page_indicator('settings', [('status', 'Status'), ('settings', 'Settings')])}",
         f"{_muted('Model')}  {_one_line(config.model.model, width - 8)}",
         f"{_muted('Daemon')} {_one_line(daemon_text, width - 8)}",
         f"{_muted('Home')}   {_one_line(_short_path(config.runtime.home), width - 8)}",
@@ -1696,23 +1855,29 @@ def _compose_bar(
     width: int,
     hint: str | None = None,
     suggestions: list[str] | None = None,
+    prompt_label: str = "❯",
 ) -> list[str]:
-    visible_input = input_buffer[-max(8, width - 8):]
+    visible_input = input_buffer[-max(8, width - 8) :]
     hint = _muted(hint or "Enter sends  /jobs switches  /run starts  /help commands")
-    prompt = f"{_accent('❯')} {visible_input}{_accent('▌')}"
+    label = _accent(prompt_label) if prompt_label == "❯" else _muted(prompt_label)
+    prompt = f"{label} {visible_input}{_accent('▌')}"
     title = " Compose "
     lines = []
     if suggestions:
         lines.extend(suggestions)
-    lines.extend([
-        _muted("─") + _bold(title) + _muted("─" * max(0, width - len(title) - 1)),
-        _fit_ansi(hint, width),
-        _fit_ansi(prompt, width),
-    ])
+    lines.extend(
+        [
+            _muted("─") + _bold(title) + _muted("─" * max(0, width - len(title) - 1)),
+            _fit_ansi(hint, width),
+            _fit_ansi(prompt, width),
+        ]
+    )
     return lines
 
 
-def _slash_suggestion_lines(input_buffer: str, commands: list[tuple[str, str]], *, width: int, limit: int = 5) -> list[str]:
+def _slash_suggestion_lines(
+    input_buffer: str, commands: list[tuple[str, str]], *, width: int, limit: int = 5
+) -> list[str]:
     if not input_buffer.startswith("/"):
         return []
     parts = input_buffer[1:].split(maxsplit=1)
@@ -1724,7 +1889,11 @@ def _slash_suggestion_lines(input_buffer: str, commands: list[tuple[str, str]], 
         matches = [(cmd, desc) for cmd, desc in commands if token in cmd[1:]]
     matches = matches[:limit]
     if not matches:
-        return [_fit_ansi(_muted("╭─ commands"), width), _fit_ansi(_muted("│ no matches"), width), _fit_ansi(_muted("╰"), width)]
+        return [
+            _fit_ansi(_muted("╭─ commands"), width),
+            _fit_ansi(_muted("│ no matches"), width),
+            _fit_ansi(_muted("╰"), width),
+        ]
     cmd_width = min(14, max(len(cmd) for cmd, _ in matches) + 2)
     lines = [_fit_ansi(_muted("╭─ commands"), width)]
     for index, (cmd, desc) in enumerate(matches):
@@ -1747,7 +1916,9 @@ def _autocomplete_slash(input_buffer: str, commands: list[tuple[str, str]]) -> s
     return matches[0] + " "
 
 
-def _frame_jobs_lines(jobs: list[dict[str, Any]], *, focused_job_id: str, daemon_running: bool, width: int) -> list[str]:
+def _frame_jobs_lines(
+    jobs: list[dict[str, Any]], *, focused_job_id: str, daemon_running: bool, width: int
+) -> list[str]:
     rendered = []
     for index, item in enumerate(jobs[:5], start=1):
         marker = _accent("●") if str(item.get("id")) == focused_job_id else _muted("○")
@@ -2004,7 +2175,9 @@ def cmd_health(args: argparse.Namespace) -> None:
         if metadata.get("consecutive_failures"):
             print(f"consecutive failures: {metadata['consecutive_failures']}")
         if metadata.get("last_error"):
-            print(f"last error: {metadata.get('last_error_type') or 'error'}: {_one_line(metadata['last_error'], args.chars)}")
+            print(
+                f"last error: {metadata.get('last_error_type') or 'error'}: {_one_line(metadata['last_error'], args.chars)}"
+            )
         print(f"model: {config.model.model}")
         print(f"state db: {config.runtime.state_db_path}")
         print(f"daemon log: {config.runtime.logs_dir / 'daemon.log'}")
@@ -2030,7 +2203,7 @@ def cmd_health(args: argparse.Namespace) -> None:
             print()
             print("recent daemon events:")
             job_titles = {job["id"]: job["title"] for job in db.list_jobs()}
-            for event in events[-args.limit:]:
+            for event in events[-args.limit :]:
                 print(f"  {_daemon_event_line(event, chars=args.chars, job_titles=job_titles)}")
         else:
             print()
@@ -2050,7 +2223,11 @@ def cmd_history(args: argparse.Namespace) -> None:
         job = db.get_job(job_id)
         events = db.list_timeline_events(job_id, limit=args.limit)
         if args.json:
-            print(json.dumps([_public_event(event) for event in events], ensure_ascii=False, indent=2, default=_json_default))
+            print(
+                json.dumps(
+                    [_public_event(event) for event in events], ensure_ascii=False, indent=2, default=_json_default
+                )
+            )
             return
         print(f"history {job['title']}")
         print(_rule("="))
@@ -2208,7 +2385,9 @@ def cmd_learn(args: argparse.Namespace) -> None:
             ref = _job_ref_text(args.job_id)
             print(f"No job matched: {ref}" if ref else "No jobs found.")
             return
-        entry = db.append_lesson(job_id, lesson, category=args.category or "operator_preference", metadata={"source": "operator"})
+        entry = db.append_lesson(
+            job_id, lesson, category=args.category or "operator_preference", metadata={"source": "operator"}
+        )
         job = db.get_job(job_id)
         print(f"learned for {job['title']}: {_one_line(entry['lesson'], args.chars)}")
     finally:
@@ -2276,7 +2455,11 @@ def cmd_tasks(args: argparse.Namespace) -> None:
         status_order = {"active": 0, "open": 1, "blocked": 2, "done": 3, "skipped": 4}
         ranked = sorted(
             tasks,
-            key=lambda task: (status_order.get(str(task.get("status") or "open"), 9), -int(task.get("priority") or 0), str(task.get("title") or "")),
+            key=lambda task: (
+                status_order.get(str(task.get("status") or "open"), 9),
+                -int(task.get("priority") or 0),
+                str(task.get("title") or ""),
+            ),
         )
         print(f"tasks {job['title']} | {len(ranked)} tracked")
         print(_rule("="))
@@ -2314,7 +2497,9 @@ def cmd_experiments(args: argparse.Namespace) -> None:
         experiments = _metadata_records(job, "experiment_ledger")
         if args.status:
             wanted = {status.strip().lower() for status in args.status}
-            experiments = [experiment for experiment in experiments if str(experiment.get("status") or "planned").lower() in wanted]
+            experiments = [
+                experiment for experiment in experiments if str(experiment.get("status") or "planned").lower() in wanted
+            ]
         if args.json:
             print(json.dumps(experiments, ensure_ascii=False, indent=2, default=_json_default))
             return
@@ -2344,7 +2529,9 @@ def cmd_experiments(args: argparse.Namespace) -> None:
                 for value in [
                     str(experiment.get("result") or "").strip(),
                     f"next: {experiment.get('next_action')}" if experiment.get("next_action") else "",
-                    f"delta: {experiment.get('delta_from_previous_best')}" if experiment.get("delta_from_previous_best") is not None else "",
+                    f"delta: {experiment.get('delta_from_previous_best')}"
+                    if experiment.get("delta_from_previous_best") is not None
+                    else "",
                 ]
                 if value
             )
@@ -2425,7 +2612,7 @@ def cmd_memory(args: argparse.Namespace) -> None:
         if lessons:
             print()
             print("latest lessons:")
-            for lesson in lessons[-min(args.limit, 8):]:
+            for lesson in lessons[-min(args.limit, 8) :]:
                 print(f"  {lesson.get('category') or 'memory'}: {_one_line(lesson.get('lesson') or '', args.chars)}")
         if compact:
             print()
@@ -2454,21 +2641,33 @@ def cmd_metrics(args: argparse.Namespace) -> None:
         lessons = _metadata_records(job, "lessons")
         reflections = _metadata_records(job, "reflections")
         daemon = daemon_lock_status(config.runtime.home / "agentd.lock")
-        finding_batches = [artifact for artifact in artifacts if "finding" in str(artifact.get("title") or artifact.get("summary") or "").lower()]
+        finding_batches = [
+            artifact
+            for artifact in artifacts
+            if "finding" in str(artifact.get("title") or artifact.get("summary") or "").lower()
+        ]
         blocked = [step for step in steps if step.get("status") == "blocked"]
         failed = [step for step in steps if step.get("status") == "failed"]
         print(f"metrics {job['title']}")
         print(_rule("="))
-        print(f"daemon: {'running' if daemon['running'] else 'stopped'} | worker: {_worker_label(job, bool(daemon['running']))}")
+        print(
+            f"daemon: {'running' if daemon['running'] else 'stopped'} | worker: {_worker_label(job, bool(daemon['running']))}"
+        )
         print(f"steps: {_step_count(steps)} | failed: {len(failed)} | blocked/recovered: {len(blocked)}")
         print(f"artifacts: {len(artifacts)} | finding_batches: {len(finding_batches)}")
-        print(f"findings: {len(findings)} | sources: {len(sources)} | tasks: {len(tasks)} | experiments: {len(experiments)} | lessons: {len(lessons)} | reflections: {len(reflections)}")
+        print(
+            f"findings: {len(findings)} | sources: {len(sources)} | tasks: {len(tasks)} | experiments: {len(experiments)} | lessons: {len(lessons)} | reflections: {len(reflections)}"
+        )
         if sources:
             best = max(sources, key=lambda source: float(source.get("usefulness_score") or 0))
-            print(f"best source: {_one_line(best.get('source') or '', args.chars)} score={best.get('usefulness_score')}")
+            print(
+                f"best source: {_one_line(best.get('source') or '', args.chars)} score={best.get('usefulness_score')}"
+            )
         if findings:
             best_finding = max(findings, key=lambda finding: float(finding.get("score") or 0))
-            print(f"best finding: {_one_line(best_finding.get('name') or '', args.chars)} score={best_finding.get('score')}")
+            print(
+                f"best finding: {_one_line(best_finding.get('name') or '', args.chars)} score={best_finding.get('score')}"
+            )
         measured = [experiment for experiment in experiments if experiment.get("metric_value") is not None]
         best_experiments = [experiment for experiment in measured if experiment.get("best_observed")]
         if best_experiments:
@@ -2525,7 +2724,9 @@ def cmd_start(args: argparse.Namespace) -> None:
     raise SystemExit(f"nipux daemon exited immediately with code {process.returncode}; see {log_path}")
 
 
-def _start_daemon_if_needed(*, poll_seconds: float, fake: bool = False, quiet: bool = False, log_file: str | None = None) -> None:
+def _start_daemon_if_needed(
+    *, poll_seconds: float, fake: bool = False, quiet: bool = False, log_file: str | None = None
+) -> None:
     config = load_config()
     config.ensure_dirs()
     status = daemon_lock_status(config.runtime.home / "agentd.lock")
@@ -2632,13 +2833,17 @@ def cmd_autostart(args: argparse.Namespace) -> None:
         print(f"autostart: {status}")
         print(f"plist: {path}")
         if path.exists():
-            result = subprocess.run(["launchctl", "print", label], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            result = subprocess.run(
+                ["launchctl", "print", label], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+            )
             print("launchd: loaded" if result.returncode == 0 else "launchd: not loaded")
         return
     if args.action == "install":
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(_launch_agent_plist(poll_seconds=args.poll_seconds, quiet=args.quiet), encoding="utf-8")
-        subprocess.run(["launchctl", "bootout", label], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run(
+            ["launchctl", "bootout", label], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+        )
         result = subprocess.run(["launchctl", "bootstrap", "gui/" + str(os.getuid()), str(path)], check=False)
         if result.returncode:
             raise SystemExit(result.returncode)
@@ -2647,7 +2852,9 @@ def cmd_autostart(args: argparse.Namespace) -> None:
         print("daemon will start at login and launchd will keep it alive")
         return
     if args.action == "uninstall":
-        subprocess.run(["launchctl", "bootout", label], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run(
+            ["launchctl", "bootout", label], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+        )
         if path.exists():
             path.unlink()
         print("autostart uninstalled")
@@ -2671,24 +2878,26 @@ def _systemd_service_text(*, poll_seconds: float, quiet: bool) -> str:
         str(poll_seconds),
     ]
     command.append("--quiet" if quiet else "--verbose")
-    return "\n".join([
-        "[Unit]",
-        "Description=Nipux 24/7 autonomous worker",
-        "After=network-online.target",
-        "Wants=network-online.target",
-        "",
-        "[Service]",
-        "Type=simple",
-        f"WorkingDirectory={Path.cwd()}",
-        f"Environment=NIPUX_HOME={config.runtime.home}",
-        f"ExecStart={' '.join(shlex.quote(part) for part in command)}",
-        "Restart=always",
-        "RestartSec=3",
-        "",
-        "[Install]",
-        "WantedBy=default.target",
-        "",
-    ])
+    return "\n".join(
+        [
+            "[Unit]",
+            "Description=Nipux 24/7 autonomous worker",
+            "After=network-online.target",
+            "Wants=network-online.target",
+            "",
+            "[Service]",
+            "Type=simple",
+            f"WorkingDirectory={Path.cwd()}",
+            f"Environment=NIPUX_HOME={config.runtime.home}",
+            f"ExecStart={' '.join(shlex.quote(part) for part in command)}",
+            "Restart=always",
+            "RestartSec=3",
+            "",
+            "[Install]",
+            "WantedBy=default.target",
+            "",
+        ]
+    )
 
 
 def cmd_service(args: argparse.Namespace) -> None:
@@ -2699,7 +2908,9 @@ def cmd_service(args: argparse.Namespace) -> None:
         print(f"service: {'installed' if path.exists() else 'not installed'}")
         print(f"unit: {path}")
         if user_cmd:
-            result = subprocess.run([*user_cmd, "is-active", "nipux.service"], check=False, capture_output=True, text=True)
+            result = subprocess.run(
+                [*user_cmd, "is-active", "nipux.service"], check=False, capture_output=True, text=True
+            )
             print(f"systemd: {result.stdout.strip() or result.stderr.strip() or 'unknown'}")
         else:
             print("systemd: unavailable on this machine")
@@ -2713,7 +2924,9 @@ def cmd_service(args: argparse.Namespace) -> None:
             subprocess.run([*user_cmd, "enable", "--now", "nipux.service"], check=False)
             print("systemd user service enabled and started")
         else:
-            print("systemd not found; copy this service to a Linux server or run: systemctl --user enable --now nipux.service")
+            print(
+                "systemd not found; copy this service to a Linux server or run: systemctl --user enable --now nipux.service"
+            )
         return
     if args.action == "uninstall":
         if user_cmd:
@@ -2789,7 +3002,9 @@ def _print_step(step: dict[str, Any], *, verbose: bool = False, chars: int = 400
             print(f"  source: {_one_line(source.get('source') or '', chars)} score={source.get('usefulness_score')}")
         if isinstance(output_data.get("findings"), list):
             print(f"  findings: {output_data.get('added', 0)} new, {output_data.get('updated', 0)} updated")
-        checkpoint = output_data.get("auto_checkpoint") if isinstance(output_data.get("auto_checkpoint"), dict) else None
+        checkpoint = (
+            output_data.get("auto_checkpoint") if isinstance(output_data.get("auto_checkpoint"), dict) else None
+        )
         if checkpoint:
             print(f"  auto checkpoint: {checkpoint.get('artifact_id')}")
     if verbose:
@@ -2885,7 +3100,9 @@ def _print_session_overview(
 
     print()
     print(_section_title("Focus"))
-    _print_wrapped("  goal       ", job.get("objective") or "", width=_terminal_width(), subsequent_indent="             ")
+    _print_wrapped(
+        "  goal       ", job.get("objective") or "", width=_terminal_width(), subsequent_indent="             "
+    )
     planning = metadata.get("planning") if isinstance(metadata.get("planning"), dict) else {}
     if job.get("status") == "planning" and planning:
         print("  plan       waiting for your answers or /run")
@@ -2895,18 +3112,19 @@ def _print_session_overview(
 
     print()
     print(_section_title("Progress"))
-    _print_metric_grid([
-        ("actions", _step_count(steps)),
-        ("outputs", len(artifacts)),
-        ("findings", len(findings)),
-        ("sources", len(sources)),
-        ("tasks", f"{len(tasks)} ({open_tasks} open)"),
-        ("experiments", len(experiments)),
-        ("lessons", len(lessons)),
-        ("memory", len(memory_entries)),
-    ])
+    _print_metric_grid(
+        [
+            ("actions", _step_count(steps)),
+            ("outputs", len(artifacts)),
+            ("findings", len(findings)),
+            ("sources", len(sources)),
+            ("tasks", f"{len(tasks)} ({open_tasks} open)"),
+            ("experiments", len(experiments)),
+            ("lessons", len(lessons)),
+            ("memory", len(memory_entries)),
+        ]
+    )
     print(f"  output dir {_short_path(artifacts_dir, max_width=min(_terminal_width() - 13, 84))}")
-
 
 
 def _print_chat_composer(job: dict[str, Any]) -> None:
@@ -3143,6 +3361,16 @@ def _bold(text: Any) -> str:
     return _style(text, "1")
 
 
+def _page_indicator(active: str, pages: list[tuple[str, str]]) -> str:
+    parts: list[str] = []
+    for key, label in pages:
+        if key == active:
+            parts.append(f"{_accent('●')} {_bold(label)}")
+        else:
+            parts.append(f"{_muted('○')} {_muted(label)}")
+    return "  ".join(parts)
+
+
 def _status_badge(value: Any) -> str:
     text = str(value)
     color = {
@@ -3202,7 +3430,7 @@ def _print_metric_grid(items: list[tuple[str, Any]]) -> None:
     cells = [f"{label:<12} {value}"[:cell_width].ljust(cell_width) for label, value in items]
     columns = max(1, width // cell_width)
     for start in range(0, len(cells), columns):
-        print("  " + "  ".join(cells[start:start + columns]).rstrip())
+        print("  " + "  ".join(cells[start : start + columns]).rstrip())
 
 
 def _print_command_grid(items: list[tuple[str, str]]) -> None:
@@ -3211,14 +3439,14 @@ def _print_command_grid(items: list[tuple[str, str]]) -> None:
     cells = [f"{command:<15} {label}"[:cell_width].ljust(cell_width) for command, label in items]
     columns = max(1, width // cell_width)
     for start in range(0, len(cells), columns):
-        print("  " + "  ".join(cells[start:start + columns]).rstrip())
+        print("  " + "  ".join(cells[start : start + columns]).rstrip())
 
 
 def _short_path(path: Path | str, *, max_width: int = 80) -> str:
     text = str(path)
     home = str(Path.home())
     if text.startswith(home + os.sep):
-        text = "~" + text[len(home):]
+        text = "~" + text[len(home) :]
     if len(text) <= max_width:
         return text
     keep = max(12, max_width - 4)
@@ -3236,7 +3464,9 @@ def _print_jobs_panel(jobs: list[dict[str, Any]], *, focused_job_id: str, daemon
         state = _job_display_state(item, daemon_running)
         worker = _worker_label(item, daemon_running)
         title = _one_line(item.get("title") or item.get("id") or "job", 27)
-        print(f"  {marker}{index:<2} {title:<27} {_status_badge(state):<11} {_status_badge(worker):<11} {item.get('kind') or ''}")
+        print(
+            f"  {marker}{index:<2} {title:<27} {_status_badge(state):<11} {_status_badge(worker):<11} {item.get('kind') or ''}"
+        )
     if len(jobs) > 8:
         print(f"  ... {len(jobs) - 8} more. Use /jobs for the full list.")
     print("  switch: /focus JOB_TITLE")
@@ -3264,7 +3494,18 @@ def _next_operator_action(job: dict[str, Any], daemon_running: bool) -> str:
 def _important_startup_events(events: list[dict[str, Any]], *, limit: int) -> list[dict[str, Any]]:
     if len(events) <= limit:
         return events
-    important_types = {"operator_message", "agent_message", "artifact", "finding", "task", "experiment", "lesson", "reflection", "error", "compaction"}
+    important_types = {
+        "operator_message",
+        "agent_message",
+        "artifact",
+        "finding",
+        "task",
+        "experiment",
+        "lesson",
+        "reflection",
+        "error",
+        "compaction",
+    }
     selected: list[dict[str, Any]] = []
     for event in reversed(events):
         if event.get("event_type") in important_types:
@@ -3416,9 +3657,13 @@ def _print_event_details(event: dict[str, Any], *, chars: int) -> None:
     if compact:
         print(f"     meta: {_one_line(json.dumps(compact, ensure_ascii=False, sort_keys=True, default=str), chars)}")
     if isinstance(metadata.get("input"), dict):
-        print(f"     input: {_one_line(json.dumps(metadata['input'], ensure_ascii=False, sort_keys=True, default=str), chars)}")
+        print(
+            f"     input: {_one_line(json.dumps(metadata['input'], ensure_ascii=False, sort_keys=True, default=str), chars)}"
+        )
     if isinstance(metadata.get("output"), dict):
-        print(f"     output: {_one_line(json.dumps(metadata['output'], ensure_ascii=False, sort_keys=True, default=str), chars)}")
+        print(
+            f"     output: {_one_line(json.dumps(metadata['output'], ensure_ascii=False, sort_keys=True, default=str), chars)}"
+        )
 
 
 def _step_line(step: dict[str, Any], *, chars: int = 180) -> str:
@@ -3588,7 +3833,9 @@ def _read_shell_state() -> dict[str, Any]:
 def _write_shell_state(patch: dict[str, Any]) -> None:
     state = _read_shell_state()
     state.update(patch)
-    _shell_state_path().write_text(json.dumps(state, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    _shell_state_path().write_text(
+        json.dumps(state, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
 
 
 def _pid_is_alive(pid: int) -> bool:
@@ -3727,14 +3974,18 @@ def cmd_logs(args: argparse.Namespace) -> None:
                 tool = step.get("tool_name") or "-"
                 summary = _one_line(_clean_step_summary(step.get("summary") or ""), args.chars)
                 error = f"\tERROR {step['error']}" if step.get("error") else ""
-                print(f"#{step['step_no']}\t{step['started_at']}\t{step['status']}\t{step['kind']}\t{tool}\t{summary}{error}")
+                print(
+                    f"#{step['step_no']}\t{step['started_at']}\t{step['status']}\t{step['kind']}\t{tool}\t{summary}{error}"
+                )
         print()
         print("Artifacts")
         artifacts = db.list_artifacts(job_id, limit=args.limit)
         if not artifacts:
             print("No artifacts recorded.")
         for artifact in artifacts:
-            print(f"{artifact['created_at']}\t{artifact['type']}\t{artifact.get('title') or artifact['id']}\t{artifact['path']}")
+            print(
+                f"{artifact['created_at']}\t{artifact['type']}\t{artifact.get('title') or artifact['id']}\t{artifact['path']}"
+            )
     finally:
         db.close()
 
@@ -3793,7 +4044,9 @@ def cmd_updates(args: argparse.Namespace) -> None:
         steps = db.list_steps(job_id=job_id)
         artifacts = db.list_artifacts(job_id, limit=args.limit)
         metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
-        operator_messages = metadata.get("operator_messages") if isinstance(metadata.get("operator_messages"), list) else []
+        operator_messages = (
+            metadata.get("operator_messages") if isinstance(metadata.get("operator_messages"), list) else []
+        )
         agent_updates = metadata.get("agent_updates") if isinstance(metadata.get("agent_updates"), list) else []
         lessons = metadata.get("lessons") if isinstance(metadata.get("lessons"), list) else []
         daemon = daemon_lock_status(load_config().runtime.home / "agentd.lock")
@@ -3804,18 +4057,18 @@ def cmd_updates(args: argparse.Namespace) -> None:
             print(f"last steering: {_one_line(latest.get('message') or '', args.chars)}")
         if agent_updates:
             print("latest agent notes:")
-            for update in agent_updates[-min(args.limit, 5):]:
+            for update in agent_updates[-min(args.limit, 5) :]:
                 category = update.get("category") or "progress"
                 print(f"  {category}: {_one_line(update.get('message') or '', args.chars)}")
         if lessons:
             print("latest lessons:")
-            for lesson in lessons[-min(args.limit, 5):]:
+            for lesson in lessons[-min(args.limit, 5) :]:
                 if not isinstance(lesson, dict):
                     continue
                 category = lesson.get("category") or "memory"
                 print(f"  {category}: {_one_line(lesson.get('lesson') or '', args.chars)}")
         print("recent tool calls:")
-        for step in steps[-min(args.limit, 8):]:
+        for step in steps[-min(args.limit, 8) :]:
             print(f"  {_step_line(step, chars=args.chars)}")
         print()
         print("latest findings/artifacts:")
@@ -3846,7 +4099,9 @@ def cmd_watch(args: argparse.Namespace) -> None:
         daemon = daemon_lock_status(load_config().runtime.home / "agentd.lock")
         print(f"watching {job['title']} | state {_job_display_state(job, bool(daemon['running']))} | {job['kind']}")
         print(f"objective: {job['objective']}")
-        print("Note: this shows model-visible state, tool calls, outputs, and errors. It does not expose hidden chain-of-thought.")
+        print(
+            "Note: this shows model-visible state, tool calls, outputs, and errors. It does not expose hidden chain-of-thought."
+        )
         print()
 
         def emit_snapshot(*, initial: bool = False) -> None:
@@ -3907,19 +4162,23 @@ def cmd_run_one(args: argparse.Namespace) -> None:
         if args.fake:
             from nipux_cli.llm import LLMResponse, ScriptedLLM, ToolCall
 
-            llm = ScriptedLLM([
-                LLMResponse(tool_calls=[
-                    ToolCall(
-                        name="write_artifact",
-                        arguments={
-                            "title": "fake-step",
-                            "type": "text",
-                            "summary": "Fake one-step smoke artifact",
-                            "content": "This is a fake bounded worker step.",
-                        },
+            llm = ScriptedLLM(
+                [
+                    LLMResponse(
+                        tool_calls=[
+                            ToolCall(
+                                name="write_artifact",
+                                arguments={
+                                    "title": "fake-step",
+                                    "type": "text",
+                                    "summary": "Fake one-step smoke artifact",
+                                    "content": "This is a fake bounded worker step.",
+                                },
+                            )
+                        ]
                     )
-                ])
-            ])
+                ]
+            )
         result = run_one_step(job_id, config=config, db=db, llm=llm)
         print(json.dumps(result.__dict__, ensure_ascii=False, indent=2))
     finally:
@@ -3933,31 +4192,37 @@ def cmd_work(args: argparse.Namespace) -> None:
     try:
         job_id = _resolve_job_id(db, args.job_id)
         if not job_id:
-            print("No jobs found. Create one with: nipux create \"objective\"")
+            print('No jobs found. Create one with: nipux create "objective"')
             return
         _activate_job_if_planning(db, job_id)
         job = db.get_job(job_id)
         print(f"working {job['title']} | state foreground | {job['kind']}")
-        print("Note: this shows model-visible state, tool calls, outputs, and errors. It does not expose hidden chain-of-thought.")
+        print(
+            "Note: this shows model-visible state, tool calls, outputs, and errors. It does not expose hidden chain-of-thought."
+        )
         print()
         for index in range(1, args.steps + 1):
             llm = None
             if args.fake:
                 from nipux_cli.llm import LLMResponse, ScriptedLLM, ToolCall
 
-                llm = ScriptedLLM([
-                    LLMResponse(tool_calls=[
-                        ToolCall(
-                            name="write_artifact",
-                            arguments={
-                                "title": f"fake-work-step-{index}",
-                                "type": "text",
-                                "summary": "Fake foreground work step",
-                                "content": f"This is fake foreground work step {index}.",
-                            },
+                llm = ScriptedLLM(
+                    [
+                        LLMResponse(
+                            tool_calls=[
+                                ToolCall(
+                                    name="write_artifact",
+                                    arguments={
+                                        "title": f"fake-work-step-{index}",
+                                        "type": "text",
+                                        "summary": "Fake foreground work step",
+                                        "content": f"This is fake foreground work step {index}.",
+                                    },
+                                )
+                            ]
                         )
-                    ])
-                ])
+                    ]
+                )
             print(f"work step {index}/{args.steps}", flush=True)
             result = run_one_step(job_id, config=config, db=db, llm=llm)
             step = _step_by_id(db, job_id, result.step_id)
@@ -4011,15 +4276,17 @@ def cmd_run(args: argparse.Namespace) -> None:
     )
     if args.no_follow:
         return
-    cmd_activity(argparse.Namespace(
-        job_id=args.job_id,
-        limit=args.limit,
-        chars=args.chars,
-        follow=True,
-        interval=args.interval,
-        verbose=args.verbose,
-        paths=args.paths,
-    ))
+    cmd_activity(
+        argparse.Namespace(
+            job_id=args.job_id,
+            limit=args.limit,
+            chars=args.chars,
+            follow=True,
+            interval=args.interval,
+            verbose=args.verbose,
+            paths=args.paths,
+        )
+    )
 
 
 def cmd_digest(args: argparse.Namespace) -> None:
@@ -4110,13 +4377,35 @@ def _chat_handle_line(job_id: str, line: str, *, reply_fn=None) -> bool:
             cmd_jobs(argparse.Namespace())
             return True
         if command == "history":
-            cmd_history(argparse.Namespace(job_id=job_id, limit=int(rest[0]) if rest and rest[0].isdigit() else 40, chars=220, full=False, json=False))
+            cmd_history(
+                argparse.Namespace(
+                    job_id=job_id,
+                    limit=int(rest[0]) if rest and rest[0].isdigit() else 40,
+                    chars=220,
+                    full=False,
+                    json=False,
+                )
+            )
             return True
         if command == "events":
-            cmd_events(argparse.Namespace(job_id=job_id, limit=int(rest[0]) if rest and rest[0].isdigit() else 40, chars=220, full=False, json=False, follow=False, interval=2.0))
+            cmd_events(
+                argparse.Namespace(
+                    job_id=job_id,
+                    limit=int(rest[0]) if rest and rest[0].isdigit() else 40,
+                    chars=220,
+                    full=False,
+                    json=False,
+                    follow=False,
+                    interval=2.0,
+                )
+            )
             return True
         if command == "outputs":
-            cmd_logs(argparse.Namespace(job_id=[job_id], limit=int(rest[0]) if rest and rest[0].isdigit() else 25, verbose=False, chars=260))
+            cmd_logs(
+                argparse.Namespace(
+                    job_id=[job_id], limit=int(rest[0]) if rest and rest[0].isdigit() else 25, verbose=False, chars=260
+                )
+            )
             return True
         if command == "updates":
             cmd_updates(argparse.Namespace(job_id=job_id, limit=5, chars=180, paths=False))
@@ -4166,7 +4455,11 @@ def _chat_handle_line(job_id: str, line: str, *, reply_fn=None) -> bool:
                 db.close()
             return True
         if command == "activity":
-            cmd_activity(argparse.Namespace(job_id=job_id, limit=20, chars=180, follow=False, interval=2.0, verbose=False, paths=False))
+            cmd_activity(
+                argparse.Namespace(
+                    job_id=job_id, limit=20, chars=180, follow=False, interval=2.0, verbose=False, paths=False
+                )
+            )
             return True
         if command == "digest":
             cmd_digest(argparse.Namespace(job_id=[job_id]))
@@ -4186,33 +4479,37 @@ def _chat_handle_line(job_id: str, line: str, *, reply_fn=None) -> bool:
                 _ensure_job_runnable(db, job_id)
             finally:
                 db.close()
-            cmd_run(argparse.Namespace(
-                job_id=job_id,
-                poll_seconds=0.0,
-                interval=2.0,
-                limit=20,
-                chars=180,
-                verbose=False,
-                paths=False,
-                fake=False,
-                quiet=False,
-                log_file=None,
-                no_follow=True,
-            ))
+            cmd_run(
+                argparse.Namespace(
+                    job_id=job_id,
+                    poll_seconds=0.0,
+                    interval=2.0,
+                    limit=20,
+                    chars=180,
+                    verbose=False,
+                    paths=False,
+                    fake=False,
+                    quiet=False,
+                    log_file=None,
+                    no_follow=True,
+                )
+            )
             return True
         if command in {"work", "work-verbose"}:
             steps = int(rest[0]) if rest and rest[0].isdigit() else 1
-            cmd_work(argparse.Namespace(
-                job_id=job_id,
-                steps=steps,
-                poll_seconds=0.5,
-                fake=False,
-                verbose=command == "work-verbose",
-                dashboard=False,
-                limit=12,
-                chars=260 if command == "work" else 4000,
-                continue_on_error=False,
-            ))
+            cmd_work(
+                argparse.Namespace(
+                    job_id=job_id,
+                    steps=steps,
+                    poll_seconds=0.5,
+                    fake=False,
+                    verbose=command == "work-verbose",
+                    dashboard=False,
+                    limit=12,
+                    chars=260 if command == "work" else 4000,
+                    continue_on_error=False,
+                )
+            )
             return True
         if command in {"pause", "stop"}:
             cmd_pause(argparse.Namespace(job_id=job_id, note=rest))
@@ -4273,6 +4570,9 @@ def _handle_chat_message(job_id: str, line: str, *, reply_fn=None, quiet: bool =
     spawned = _maybe_spawn_job_from_chat(job_id, line, quiet=quiet)
     if spawned:
         return True, spawned
+    controlled = _handle_chat_control_intent(job_id, line, quiet=quiet)
+    if controlled is not None:
+        return controlled
     _queue_chat_note(job_id, line, mode="steer", quiet=quiet)
     try:
         reply = reply_fn(job_id, line)
@@ -4298,6 +4598,57 @@ def _handle_chat_message(job_id: str, line: str, *, reply_fn=None, quiet: bool =
         if not quiet:
             print("model returned an empty reply; your message is still queued.")
         return True, message
+
+
+def _handle_chat_control_intent(job_id: str, line: str, *, quiet: bool = False) -> tuple[bool, str] | None:
+    command = _chat_control_command(line)
+    if not command:
+        return None
+    keep_running, output = _capture_chat_command(job_id, command)
+    compact = _compact_command_output(output)
+    message = " | ".join(compact[-4:]) if compact else f"{command.lstrip('/')} done"
+    if not quiet:
+        print(message)
+    return keep_running, message
+
+
+def _chat_control_command(line: str) -> str:
+    text = " ".join(line.strip().split())
+    if not text:
+        return ""
+    lowered = text.lower().rstrip("?.!")
+    natural = NATURAL_COMMANDS.get(lowered)
+    if natural:
+        return f"/{natural}"
+    if lowered in {"jobs", "show jobs", "list jobs", "switch jobs", "change jobs"}:
+        return "/jobs"
+    if lowered in {"settings", "show settings", "model settings", "change model", "edit settings"}:
+        return "/settings"
+    if lowered in {
+        "run",
+        "start",
+        "start working",
+        "start work",
+        "run this",
+        "run this job",
+        "start this job",
+        "continue",
+        "keep going",
+        "keep working",
+        "resume work",
+    }:
+        return "/run"
+    if lowered in {"pause", "pause work", "pause this job", "stop", "stop work", "stop working", "stop this job"}:
+        return "/pause"
+    if lowered in {"resume", "resume this job", "reopen this job"}:
+        return "/resume"
+    if lowered in {"history", "show history", "timeline", "show timeline"}:
+        return "/history"
+    if lowered in {"artifacts", "outputs", "saved outputs", "show artifacts", "show outputs"}:
+        return "/artifacts"
+    if lowered in {"memory", "show memory", "learning", "show learning"}:
+        return "/memory"
+    return ""
 
 
 def _maybe_spawn_job_from_chat(job_id: str, message: str, *, quiet: bool = False) -> str:
@@ -4416,7 +4767,10 @@ def _build_chat_messages(db: AgentDB, job: dict[str, Any], message: str) -> list
     sources = metadata.get("source_ledger") if isinstance(metadata.get("source_ledger"), list) else []
     tasks = metadata.get("task_queue") if isinstance(metadata.get("task_queue"), list) else []
     experiments = metadata.get("experiment_ledger") if isinstance(metadata.get("experiment_ledger"), list) else []
-    step_lines = "\n".join(f"- #{step['step_no']} {step['status']} {step.get('tool_name') or step['kind']}: {_clean_step_summary(step.get('summary') or step.get('error') or '')}" for step in steps)
+    step_lines = "\n".join(
+        f"- #{step['step_no']} {step['status']} {step.get('tool_name') or step['kind']}: {_clean_step_summary(step.get('summary') or step.get('error') or '')}"
+        for step in steps
+    )
     artifact_lines = "\n".join(
         f"- #{index} {artifact.get('title') or artifact['id']}: {artifact.get('summary') or ''} "
         f"(view with /artifact {index})"
@@ -4427,10 +4781,26 @@ def _build_chat_messages(db: AgentDB, job: dict[str, Any], message: str) -> list
         for entry in operator_messages[-8:]
         if isinstance(entry, dict)
     )
-    update_lines = "\n".join(f"- {entry.get('category', 'progress')}: {entry.get('message', '')}" for entry in agent_updates[-5:] if isinstance(entry, dict))
-    lesson_lines = "\n".join(f"- {entry.get('category', 'memory')}: {entry.get('lesson', '')}" for entry in lessons[-8:] if isinstance(entry, dict))
-    finding_lines = "\n".join(f"- {entry.get('name')}: {entry.get('category') or ''} {entry.get('location') or ''} score={entry.get('score')}" for entry in findings[-8:] if isinstance(entry, dict))
-    task_lines = "\n".join(f"- {entry.get('status') or 'open'} p={entry.get('priority') or 0}: {entry.get('title')}" for entry in tasks[-10:] if isinstance(entry, dict))
+    update_lines = "\n".join(
+        f"- {entry.get('category', 'progress')}: {entry.get('message', '')}"
+        for entry in agent_updates[-5:]
+        if isinstance(entry, dict)
+    )
+    lesson_lines = "\n".join(
+        f"- {entry.get('category', 'memory')}: {entry.get('lesson', '')}"
+        for entry in lessons[-8:]
+        if isinstance(entry, dict)
+    )
+    finding_lines = "\n".join(
+        f"- {entry.get('name')}: {entry.get('category') or ''} {entry.get('location') or ''} score={entry.get('score')}"
+        for entry in findings[-8:]
+        if isinstance(entry, dict)
+    )
+    task_lines = "\n".join(
+        f"- {entry.get('status') or 'open'} p={entry.get('priority') or 0}: {entry.get('title')}"
+        for entry in tasks[-10:]
+        if isinstance(entry, dict)
+    )
     experiment_lines = "\n".join(
         (
             f"- {entry.get('status') or 'planned'}: {entry.get('title')}"
@@ -4442,7 +4812,11 @@ def _build_chat_messages(db: AgentDB, job: dict[str, Any], message: str) -> list
         for entry in experiments[-10:]
         if isinstance(entry, dict)
     )
-    source_lines = "\n".join(f"- {entry.get('source')}: score={entry.get('usefulness_score')} findings={entry.get('yield_count') or 0} outcome={entry.get('last_outcome') or ''}" for entry in sources[-8:] if isinstance(entry, dict))
+    source_lines = "\n".join(
+        f"- {entry.get('source')}: score={entry.get('usefulness_score')} findings={entry.get('yield_count') or 0} outcome={entry.get('last_outcome') or ''}"
+        for entry in sources[-8:]
+        if isinstance(entry, dict)
+    )
     timeline_lines = "\n".join(_event_line(event, chars=700, full=False) for event in timeline_events[-12:])
     return [
         {
@@ -4570,19 +4944,64 @@ def _print_shell_help() -> None:
     print(NIPUX_BANNER)
     print(_rule("="))
     print("Jobs")
-    for command in ("create \"objective\" --title TITLE", "ls", "focus [JOB_TITLE]", "rename JOB_TITLE --title NEW_TITLE", "delete JOB_TITLE", "chat [JOB_TITLE]", "steer [--job JOB_TITLE] MESSAGE", "pause [JOB_TITLE] [note...]", "resume [JOB_TITLE]", "cancel [JOB_TITLE] [note...]"):
+    for command in (
+        'create "objective" --title TITLE',
+        "ls",
+        "focus [JOB_TITLE]",
+        "rename JOB_TITLE --title NEW_TITLE",
+        "delete JOB_TITLE",
+        "chat [JOB_TITLE]",
+        "steer [--job JOB_TITLE] MESSAGE",
+        "pause [JOB_TITLE] [note...]",
+        "resume [JOB_TITLE]",
+        "cancel [JOB_TITLE] [note...]",
+    ):
         print(f"  {command}")
     print()
     print("Inspect")
-    for command in ("status [JOB_TITLE]", "health", "history [JOB_TITLE]", "events [JOB_TITLE] [--follow] [--json]", "activity [JOB_TITLE] [--follow]", "updates [JOB_TITLE]", "outputs [JOB_TITLE] --verbose", "findings [JOB_TITLE]", "tasks [JOB_TITLE]", "experiments [JOB_TITLE]", "sources [JOB_TITLE]", "memory [JOB_TITLE]", "metrics [JOB_TITLE]", "artifacts [JOB_TITLE]", "artifact QUERY_OR_TITLE", "lessons [JOB_TITLE]"):
+    for command in (
+        "status [JOB_TITLE]",
+        "health",
+        "history [JOB_TITLE]",
+        "events [JOB_TITLE] [--follow] [--json]",
+        "activity [JOB_TITLE] [--follow]",
+        "updates [JOB_TITLE]",
+        "outputs [JOB_TITLE] --verbose",
+        "findings [JOB_TITLE]",
+        "tasks [JOB_TITLE]",
+        "experiments [JOB_TITLE]",
+        "sources [JOB_TITLE]",
+        "memory [JOB_TITLE]",
+        "metrics [JOB_TITLE]",
+        "artifacts [JOB_TITLE]",
+        "artifact QUERY_OR_TITLE",
+        "lessons [JOB_TITLE]",
+    ):
         print(f"  {command}")
     print()
     print("Worker")
-    for command in ("work [JOB_TITLE] --steps N [--verbose]", "run [JOB_TITLE] --poll-seconds N", "start --poll-seconds N", "stop  # daemon", "stop [JOB_TITLE]  # pause job"):
+    for command in (
+        "work [JOB_TITLE] --steps N [--verbose]",
+        "run [JOB_TITLE] --poll-seconds N",
+        "start --poll-seconds N",
+        "stop  # daemon",
+        "stop [JOB_TITLE]  # pause job",
+    ):
         print(f"  {command}")
     print()
     print("System")
-    for command in ("learn [--job JOB_TITLE] LESSON", "digest JOB_TITLE", "daily-digest", "service install|status|uninstall", "autostart install|status|uninstall", "dashboard [JOB_TITLE] --no-follow", "doctor --check-model", "browser-dashboard --port 4848", "help", "exit"):
+    for command in (
+        "learn [--job JOB_TITLE] LESSON",
+        "digest JOB_TITLE",
+        "daily-digest",
+        "service install|status|uninstall",
+        "autostart install|status|uninstall",
+        "dashboard [JOB_TITLE] --no-follow",
+        "doctor --check-model",
+        "browser-dashboard --port 4848",
+        "help",
+        "exit",
+    ):
         print(f"  {command}")
 
 
@@ -4637,7 +5056,7 @@ def _steer_default_job(message: str) -> None:
     try:
         job_id = _default_job_id(db)
         if not job_id:
-            print("No focused job. Create one first, or run: create \"objective\"")
+            print('No focused job. Create one first, or run: create "objective"')
             return
         job = db.get_job(job_id)
         entry = db.append_operator_message(job_id, message, source="shell")
