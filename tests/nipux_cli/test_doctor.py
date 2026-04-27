@@ -40,4 +40,4 @@ def test_doctor_reports_openrouter_auth_failure(tmp_path, monkeypatch):
 
     assert model_check.name == "model_auth"
     assert model_check.ok is False
-    assert "OpenRouter rejected TEST_OPENROUTER_KEY" in model_check.detail
+    assert "OpenRouter rejected API key" in model_check.detail

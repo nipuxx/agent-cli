@@ -179,8 +179,7 @@ FIRST_RUN_ACTIONS = [
 FIRST_RUN_SETTINGS_ACTIONS = [
     ("edit:model.name", "Model", "model name"),
     ("edit:model.base_url", "Base URL", "OpenAI-compatible endpoint"),
-    ("edit:model.api_key_env", "API env", "environment variable name"),
-    ("secret:model.api_key", "API key", "stored in profile .env"),
+    ("secret:model.api_key", "API key", "stored locally"),
     ("edit:model.context_length", "Context", "token budget"),
     ("edit:model.request_timeout_seconds", "Timeout", "request seconds"),
     ("edit:runtime.home", "Home", "state directory"),
@@ -825,7 +824,7 @@ def _save_env_secret(name: str, value: str) -> None:
 
 def _edit_target_label(field: str) -> str:
     if field == "secret:model.api_key":
-        return load_config().model.api_key_env
+        return "API key"
     return field
 
 
@@ -833,7 +832,7 @@ def _edit_target_hint(field: str, config: Any | None = None) -> str:
     config = config or load_config()
     if field == "secret:model.api_key":
         state = "set" if config.model.api_key else "missing"
-        return f"Editing {config.model.api_key_env} ({state}). Enter saves, Esc cancels. Input is hidden."
+        return f"Editing API key ({state}). Enter saves, Esc cancels. Input is hidden."
     current = _config_field_value(field, config)
     return f"Editing {field}. Current: {current}. Enter saves, Esc cancels, empty keeps current."
 
@@ -1149,7 +1148,7 @@ def _build_first_run_frame(
         width=right_width,
         rows=body_rows,
     )
-    left_title = "Agent Output"
+    left_title = "Nipux Chat"
     right_title = "Control"
     lines = [*header, _two_col_title(left_width, right_width, left_title, right_title)]
     for index in range(body_rows):
@@ -1279,7 +1278,7 @@ def _first_run_action_lines(actions: list[tuple[str, str, str]], selected: int, 
         elif _key == "secret:model.api_key":
             config = load_config()
             state = "set" if config.model.api_key else "missing"
-            detail = f"{state} {config.model.api_key_env}"
+            detail = state
         lines.append(_fit_ansi(f"{marker} {_fit_ansi(name, 14)} {_muted(detail)}", width))
     return lines
 
@@ -1696,7 +1695,7 @@ def _build_chat_frame(
         hint = _edit_target_hint(editing_field)
         prompt_label = _edit_target_label(editing_field)
     else:
-        hint = "Type normally to chat and control jobs. ↑↓ switches jobs. ←→ switches pages."
+        hint = "Talk to Nipux. Ask for jobs, status, settings, artifacts, or new long-running work."
         prompt_label = "❯"
     compose_lines = _compose_bar(
         input_buffer,
@@ -1724,7 +1723,7 @@ def _build_chat_frame(
             width=right_width,
             rows=right_rows,
         )
-        right_title = "Control / Status"
+        right_title = "Jobs / Status"
     else:
         right_lines = _right_pane_lines(
             job=job,
@@ -1743,8 +1742,8 @@ def _build_chat_frame(
             rows=right_rows,
             right_view=right_view,
         )
-        right_title = "Control / Status"
-    lines = [*header, _two_col_title(left_width, right_width, "Agent Output", right_title)]
+        right_title = "Jobs / Status"
+    lines = [*header, _two_col_title(left_width, right_width, "Nipux Chat", right_title)]
     for index in range(body_rows):
         left = chat_lines[index] if index < len(chat_lines) else ""
         right = right_lines[index] if index < len(right_lines) else ""
@@ -1799,7 +1798,7 @@ def _chat_pane_lines(events: list[dict[str, Any]], notices: list[str], *, width:
     if not chat_events:
         return [
             _muted("No chat yet."),
-            _muted("Type normally to talk, start work, check status, or create jobs."),
+            _muted("Ask Nipux to create jobs, run jobs, check status, or explain the workspace."),
         ][:rows]
     lines: list[str] = []
     for label, body in chat_events[-max(3, rows) :]:
@@ -1889,7 +1888,7 @@ def _right_pane_lines(
         width=width,
     )
     info_lines.append(
-        f"{_bold('Controls')}  {_muted('run')}  {_muted('pause')}  {_muted('jobs')}  {_muted('settings')}"
+        f"{_bold('Controls')}  {_muted('new')}  {_muted('run')}  {_muted('pause')}  {_muted('jobs')}  {_muted('settings')}"
     )
     info_lines.append("")
     info_lines.append(_bold("Jobs"))
@@ -4820,6 +4819,7 @@ def _extract_job_objective_from_message(message: str) -> str:
     lowered = text.lower()
     patterns = [
         r"^(?:please\s+)?(?:create|start|spin\s+off|make|launch)\s+(?:a\s+)?(?:new\s+)?job\s+(?:to|for|that|which)?\s*(.+)$",
+        r"^(?:please\s+)?(?:send|queue)\s+(?:off\s+)?(?:a\s+)?(?:new\s+)?job\s+(?:to|for|that|which)?\s*(.+)$",
         r"^(?:please\s+)?(?:new|job)\s+(.+)$",
         r"^(?:please\s+)?(?:can\s+you|could\s+you|i\s+need\s+you\s+to|i\s+want\s+you\s+to)\s+(.+)$",
     ]
@@ -4957,10 +4957,11 @@ def _build_chat_messages(db: AgentDB, job: dict[str, Any], message: str) -> list
         {
             "role": "system",
             "content": (
-                "You are Nipux, a chat-first controller for generic long-running work agents. "
+                "You are Nipux, the chat model that controls a generic long-running agent workspace. "
+                "You know the visible CLI state, focused job, job list, task queue, artifacts, memory, metrics, and recent activity. "
                 "Answer directly from the visible job state. Do not claim hidden chain-of-thought. "
-                "If the operator asks where saved work is, explain that artifacts and history are visible from the right-side controls or direct CLI commands. "
-                "If the operator wants action, refer to the right-side controls such as Run, Pause, Jobs, Settings, History, or Artifacts. "
+                "If the operator asks for work to be done, explain the concrete job/control action Nipux will take or how to run it from the Jobs/Status panel. "
+                "If the operator asks where saved work is, explain that artifacts and history are visible from the Jobs/Status panel or direct CLI commands. "
                 "Do not start replies with an introduction. Keep replies concise and useful."
             ),
         },

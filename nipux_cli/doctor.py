@@ -69,7 +69,7 @@ def _check_browser_runtime() -> Check:
 
 def _check_model_endpoint(config: AppConfig) -> Check:
     if "openrouter.ai" in config.model.base_url and not config.model.api_key:
-        return Check("model_endpoint", False, f"{config.model.api_key_env} is not set")
+        return Check("model_endpoint", False, "API key is not set")
     auth = _check_openrouter_auth(config)
     if auth is not None and not auth.ok:
         return auth
@@ -99,11 +99,11 @@ def _check_openrouter_auth(config: AppConfig) -> Check | None:
     try:
         with urllib.request.urlopen(request, timeout=5) as response:
             response.read(2048)
-        return Check("model_auth", True, f"{config.model.api_key_env} accepted by OpenRouter")
+        return Check("model_auth", True, "API key accepted by OpenRouter")
     except urllib.error.HTTPError as exc:
         body = exc.read(512).decode("utf-8", errors="replace")
         detail = _extract_error_message(body) or str(exc)
-        return Check("model_auth", False, f"OpenRouter rejected {config.model.api_key_env}: {detail}")
+        return Check("model_auth", False, f"OpenRouter rejected API key: {detail}")
     except (urllib.error.URLError, TimeoutError, OSError) as exc:
         return Check("model_auth", False, f"{url}: {exc}")
 

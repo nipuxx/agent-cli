@@ -200,7 +200,7 @@ def test_first_run_frame_uses_full_screen_ui_not_banner(monkeypatch, tmp_path):
     frame = _build_first_run_frame("", [], width=100, height=24)
 
     assert "Nipux" in frame
-    assert "Agent Output" in frame
+    assert "Nipux Chat" in frame
     assert "Control" in frame
     assert "Compose" in frame
     assert "New job" in frame
@@ -232,6 +232,7 @@ def test_first_run_frame_has_settings_view(monkeypatch, tmp_path):
     assert "Config" in frame
     assert "Base URL" in frame
     assert "API key" in frame
+    assert "API env" not in frame
     assert "Page" in frame
     assert "/shell" not in frame
 
@@ -518,8 +519,8 @@ def test_chat_frame_is_bounded_and_has_composer():
 
     assert len(frame.splitlines()) <= 22
     assert "Nipux CLI" in frame
-    assert "Agent Output" in frame
-    assert "Control / Status" in frame
+    assert "Nipux Chat" in frame
+    assert "Jobs / Status" in frame
     assert "Model Activity" in frame
     assert "Compose" in frame
     assert "❯ hello" in frame
@@ -549,10 +550,11 @@ def test_chat_frame_is_bounded_and_has_composer():
         width=100,
         height=24,
         right_view="settings",
-        selected_control=3,
+        selected_control=2,
         editing_field="secret:model.api_key",
     )
-    assert "Editing " in secret and "API_KEY" in secret
+    assert "Editing API key" in secret
+    assert "API env" not in secret
     assert "secret-value" not in secret
     assert "••••" in secret
 
