@@ -557,9 +557,10 @@ def _enter_first_run_frame(*, history_limit: int = 12) -> None:
     view = "start"
     selected = 0
     old_attrs = termios.tcgetattr(sys.stdin)
-    print("\033[?25l\033[?1000h\033[?1006h", end="", flush=True)
+    print("\033[?25l\033[?1000h\033[?1002h\033[?1006h", end="", flush=True)
     try:
-        tty.setcbreak(sys.stdin.fileno())
+        stdin_fd = sys.stdin.fileno()
+        tty.setcbreak(stdin_fd)
         needs_render = True
         last_render = 0.0
         while next_job_id is None:
@@ -569,10 +570,10 @@ def _enter_first_run_frame(*, history_limit: int = 12) -> None:
                 _render_first_run_frame(buffer, notices, selected=selected, view=view)
                 needs_render = False
                 last_render = now
-            readable, _, _ = select.select([sys.stdin], [], [], 0.05)
+            readable, _, _ = select.select([stdin_fd], [], [], 0.05)
             if not readable:
                 continue
-            char = sys.stdin.read(1)
+            char = _read_terminal_char(stdin_fd)
             if char in {"\r", "\n"}:
                 line = buffer.strip()
                 buffer = ""
@@ -621,7 +622,7 @@ def _enter_first_run_frame(*, history_limit: int = 12) -> None:
                     needs_render = True
                 continue
             if char == "\x1b":
-                key, payload = _decode_terminal_escape(_read_escape_sequence(char))
+                key, payload = _decode_terminal_escape(_read_escape_sequence(char, fd=stdin_fd))
                 if key == "up":
                     selected = (selected - 1) % len(_first_run_actions(view))
                 elif key == "down":
@@ -652,7 +653,7 @@ def _enter_first_run_frame(*, history_limit: int = 12) -> None:
                             notices.append(str(action_payload))
                         notices[:] = notices[-10:]
                 else:
-                    _drain_pending_input()
+                    _drain_pending_input(stdin_fd)
                 needs_render = True
                 continue
             if char.isprintable():
@@ -660,7 +661,7 @@ def _enter_first_run_frame(*, history_limit: int = 12) -> None:
                 needs_render = True
     finally:
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_attrs)
-        print("\033[?1000l\033[?1006l\033[?25h\033[0m", flush=True)
+        print("\033[?1002l\033[?1000l\033[?1006l\033[?25h\033[0m", flush=True)
     if next_job_id:
         _enter_chat(next_job_id, show_history=True, history_limit=history_limit)
 
@@ -694,18 +695,38 @@ def _handle_first_run_action(action: str) -> tuple[str, str | list[str] | None]:
     return "notice", f"Unknown action: {action}"
 
 
-def _read_escape_sequence(first: str) -> str:
+def _read_terminal_char(fd: int) -> str:
+    data = os.read(fd, 1)
+    return data.decode("latin1", errors="ignore")
+
+
+def _read_escape_sequence(first: str, *, fd: int | None = None) -> str:
+    fd = sys.stdin.fileno() if fd is None else fd
     sequence = first
-    while len(sequence) < 48:
-        readable, _, _ = select.select([sys.stdin], [], [], 0.01)
+    deadline = time.monotonic() + 0.12
+    while len(sequence) < 96:
+        timeout = max(0.0, min(0.04, deadline - time.monotonic()))
+        if timeout <= 0:
+            break
+        readable, _, _ = select.select([fd], [], [], timeout)
         if not readable:
             break
-        sequence += sys.stdin.read(1)
-        if sequence in {"\x1b[A", "\x1b[B", "\x1b[C", "\x1b[D"}:
-            break
-        if re.match(r"^\x1b\[<\d+;\d+;\d+[mM]$", sequence):
+        sequence += _read_terminal_char(fd)
+        if _terminal_escape_complete(sequence):
             break
     return sequence
+
+
+def _terminal_escape_complete(sequence: str) -> bool:
+    if sequence in {"\x1b[A", "\x1b[B", "\x1b[C", "\x1b[D", "\x1bOA", "\x1bOB", "\x1bOC", "\x1bOD"}:
+        return True
+    if re.match(r"^\x1b\[[0-9;?]*[ABCD]$", sequence):
+        return True
+    if re.match(r"^\x1b\[<\d+;\d+;\d+[mM]$", sequence):
+        return True
+    if sequence.startswith("\x1b[M") and len(sequence) >= 6:
+        return True
+    return False
 
 
 def _decode_terminal_escape(sequence: str) -> tuple[str, tuple[int, int] | None]:
@@ -714,14 +735,25 @@ def _decode_terminal_escape(sequence: str) -> tuple[str, tuple[int, int] | None]
         "\x1b[B": "down",
         "\x1b[C": "right",
         "\x1b[D": "left",
+        "\x1bOA": "up",
+        "\x1bOB": "down",
+        "\x1bOC": "right",
+        "\x1bOD": "left",
     }
     if sequence in arrows:
         return arrows[sequence], None
+    csi_arrow = re.match(r"^\x1b\[[0-9;?]*([ABCD])$", sequence)
+    if csi_arrow:
+        return {"A": "up", "B": "down", "C": "right", "D": "left"}[csi_arrow.group(1)], None
     match = re.match(r"^\x1b\[<(\d+);(\d+);(\d+)([mM])$", sequence)
     if match and match.group(4) == "M":
         button = int(match.group(1))
         if button == 0:
             return "click", (int(match.group(2)), int(match.group(3)))
+    if sequence.startswith("\x1b[M") and len(sequence) >= 6:
+        button = ord(sequence[3]) - 32
+        if button == 0:
+            return "click", (ord(sequence[4]) - 32, ord(sequence[5]) - 32)
     return "unknown", None
 
 
@@ -1056,7 +1088,8 @@ def _enter_chat_frame(job_id: str, *, history_limit: int = 12) -> None:
     old_attrs = termios.tcgetattr(sys.stdin)
     print("\033[?25l", end="", flush=True)
     try:
-        tty.setcbreak(sys.stdin.fileno())
+        stdin_fd = sys.stdin.fileno()
+        tty.setcbreak(stdin_fd)
         last_snapshot = 0.0
         needs_render = True
         while True:
@@ -1073,10 +1106,10 @@ def _enter_chat_frame(job_id: str, *, history_limit: int = 12) -> None:
             if needs_render:
                 _render_chat_frame(snapshot, buffer, notices)
                 needs_render = False
-            readable, _, _ = select.select([sys.stdin], [], [], 0.05)
+            readable, _, _ = select.select([stdin_fd], [], [], 0.05)
             if not readable:
                 continue
-            char = sys.stdin.read(1)
+            char = _read_terminal_char(stdin_fd)
             if char in {"\r", "\n"}:
                 line = buffer.strip()
                 buffer = ""
@@ -1126,7 +1159,18 @@ def _enter_chat_frame(job_id: str, *, history_limit: int = 12) -> None:
                     needs_render = True
                 continue
             if char == "\x1b":
-                _drain_pending_input()
+                key, _payload = _decode_terminal_escape(_read_escape_sequence(char, fd=stdin_fd))
+                if key in {"up", "down"} and not buffer:
+                    next_focus = _frame_next_job_id(snapshot, job_id, direction=-1 if key == "up" else 1)
+                    if next_focus and next_focus != job_id:
+                        job_id = next_focus
+                        _write_shell_state({"focus_job_id": job_id})
+                        snapshot = _load_frame_snapshot(job_id, history_limit=history_limit)
+                        title = snapshot["job"].get("title") or job_id
+                        notices.append(f"focus {title}")
+                        notices[:] = notices[-12:]
+                else:
+                    _drain_pending_input(stdin_fd)
                 needs_render = True
                 continue
             if char.isprintable():
@@ -1154,12 +1198,27 @@ def _compact_command_output(output: str) -> list[str]:
     return compacted[-8:]
 
 
-def _drain_pending_input() -> None:
+def _drain_pending_input(fd: int | None = None) -> None:
+    fd = sys.stdin.fileno() if fd is None else fd
     while True:
-        readable, _, _ = select.select([sys.stdin], [], [], 0)
+        readable, _, _ = select.select([fd], [], [], 0)
         if not readable:
             return
-        sys.stdin.read(1)
+        os.read(fd, 1)
+
+
+def _frame_next_job_id(snapshot: dict[str, Any], current_job_id: str, *, direction: int) -> str | None:
+    jobs = snapshot.get("jobs")
+    if not isinstance(jobs, list) or not jobs:
+        return None
+    ids = [str(job.get("id")) for job in jobs if job.get("id")]
+    if not ids:
+        return None
+    try:
+        index = ids.index(str(current_job_id))
+    except ValueError:
+        index = 0
+    return ids[(index + direction) % len(ids)]
 
 
 def _is_plain_chat_line(line: str) -> bool:

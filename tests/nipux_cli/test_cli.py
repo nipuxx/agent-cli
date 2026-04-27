@@ -8,6 +8,8 @@ from nipux_cli.cli import (
     _build_chat_messages,
     _chat_handle_line,
     _decode_terminal_escape,
+    _first_run_click_action,
+    _frame_next_job_id,
     _launch_agent_plist,
     _minimal_live_event_line,
     _print_shell_help,
@@ -228,7 +230,27 @@ def test_terminal_escape_decodes_arrows_and_mouse_click():
     assert _decode_terminal_escape("\x1b[B") == ("down", None)
     assert _decode_terminal_escape("\x1b[C") == ("right", None)
     assert _decode_terminal_escape("\x1b[D") == ("left", None)
+    assert _decode_terminal_escape("\x1bOB") == ("down", None)
+    assert _decode_terminal_escape("\x1b[1;2B") == ("down", None)
     assert _decode_terminal_escape("\x1b[<0;88;12M") == ("click", (88, 12))
+    assert _decode_terminal_escape("\x1b[M !!") == ("click", (1, 1))
+
+
+def test_first_run_click_maps_right_pane_actions(monkeypatch):
+    monkeypatch.setattr("shutil.get_terminal_size", lambda fallback=(100, 30): (100, 30))
+
+    assert _first_run_click_action(70, 10, view="start") == 0
+    assert _first_run_click_action(70, 12, view="start") == 2
+    assert _first_run_click_action(70, 12, view="settings") == 0
+    assert _first_run_click_action(10, 12, view="start") is None
+
+
+def test_frame_next_job_cycles_jobs():
+    snapshot = {"jobs": [{"id": "one"}, {"id": "two"}, {"id": "three"}]}
+
+    assert _frame_next_job_id(snapshot, "one", direction=1) == "two"
+    assert _frame_next_job_id(snapshot, "one", direction=-1) == "three"
+    assert _frame_next_job_id(snapshot, "missing", direction=1) == "two"
 
 
 def test_chat_help_has_settings_without_shell(monkeypatch, tmp_path, capsys):
