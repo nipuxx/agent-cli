@@ -11,6 +11,7 @@ from typing import Any
 from nipux_cli.config import AppConfig
 from nipux_cli.daemon import daemon_lock_status
 from nipux_cli.db import AgentDB
+from nipux_cli.operator_context import active_prompt_operator_entries
 from nipux_cli.tools import DEFAULT_REGISTRY
 
 
@@ -89,10 +90,11 @@ def render_overview(state: dict[str, Any], *, width: int = 100) -> str:
     daemon = state["daemon"]
     focus = state.get("focus")
     jobs = state.get("jobs") or []
+    latest_step = ((focus or {}).get("recent_steps") or [{}])[-1] if focus else {}
     lines = [
         "Nipux Status",
         "=" * min(width, 96),
-        f"daemon: {_daemon_health_text(daemon)}",
+        f"daemon: {_daemon_health_text(daemon, latest_step=latest_step)}",
         f"model: {runtime['model']}",
         f"jobs: {len(jobs)} total | tools: {runtime['tool_count']} | home: {runtime['home']}",
     ]
@@ -104,7 +106,6 @@ def render_overview(state: dict[str, Any], *, width: int = 100) -> str:
 
     job = focus["job"]
     counts = focus["counts"]
-    latest_step = (focus.get("recent_steps") or [{}])[-1]
     artifacts = focus.get("artifacts") or []
     metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
     operator = (metadata.get("last_operator_message") if isinstance(metadata, dict) else None) or {}
@@ -113,6 +114,9 @@ def render_overview(state: dict[str, Any], *, width: int = 100) -> str:
     findings = metadata.get("finding_ledger") if isinstance(metadata.get("finding_ledger"), list) else []
     sources = metadata.get("source_ledger") if isinstance(metadata.get("source_ledger"), list) else []
     tasks = metadata.get("task_queue") if isinstance(metadata.get("task_queue"), list) else []
+    experiments = metadata.get("experiment_ledger") if isinstance(metadata.get("experiment_ledger"), list) else []
+    active_operator = _active_operator_messages(metadata)
+    pending_measurement = metadata.get("pending_measurement_obligation") if isinstance(metadata.get("pending_measurement_obligation"), dict) else {}
     lines.extend([
         "",
         f"focus: {job['title']}",
@@ -121,9 +125,13 @@ def render_overview(state: dict[str, Any], *, width: int = 100) -> str:
             f"worker: {_worker_text(job, bool(daemon.get('running')))} | kind: {job['kind']} | "
             f"steps: {counts['steps']} | artifacts: {counts['artifacts']} | failures: {counts['failed_steps']}"
         ),
-        f"learning: findings={len(findings)} | sources={len(sources)} | tasks={len(tasks)} | lessons={counts.get('lessons', 0)} | reflections={counts.get('reflections', 0)}",
+        f"learning: findings={len(findings)} | sources={len(sources)} | tasks={len(tasks)} | experiments={len(experiments)} | lessons={counts.get('lessons', 0)} | reflections={counts.get('reflections', 0)}",
         f"objective: {_one_line(job['objective'], width - 11)}",
     ])
+    if active_operator:
+        lines.append(f"operator context: {len(active_operator)} active | {_one_line(active_operator[-1].get('message') or '', width - 28)}")
+    if pending_measurement:
+        lines.append(f"measurement: pending from step #{pending_measurement.get('source_step_no') or '?'}")
     if latest_step:
         tool = latest_step.get("tool_name") or latest_step.get("kind") or "-"
         status = latest_step.get("status") or "-"
@@ -183,7 +191,9 @@ def _focus_state(db: AgentDB, job: dict[str, Any], *, limit: int) -> dict[str, A
     findings = metadata.get("finding_ledger") if isinstance(metadata.get("finding_ledger"), list) else []
     sources = metadata.get("source_ledger") if isinstance(metadata.get("source_ledger"), list) else []
     tasks = metadata.get("task_queue") if isinstance(metadata.get("task_queue"), list) else []
+    experiments = metadata.get("experiment_ledger") if isinstance(metadata.get("experiment_ledger"), list) else []
     reflections = metadata.get("reflections") if isinstance(metadata.get("reflections"), list) else []
+    active_operator = _active_operator_messages(metadata)
     tool_counts = Counter(step.get("tool_name") or step.get("kind") or "unknown" for step in steps)
     blocked = [step for step in steps if str(step.get("error") or "").endswith("blocked") or "blocked" in str(step.get("summary") or "")]
     return {
@@ -205,6 +215,8 @@ def _focus_state(db: AgentDB, job: dict[str, Any], *, limit: int) -> dict[str, A
             "findings": len(findings),
             "sources": len(sources),
             "tasks": len(tasks),
+            "experiments": len(experiments),
+            "active_operator_messages": len(active_operator),
             "lessons": len(lessons),
             "reflections": len(reflections),
         },
@@ -233,6 +245,8 @@ def _focus_state(db: AgentDB, job: dict[str, Any], *, limit: int) -> dict[str, A
         ],
         "findings": findings[-8:],
         "tasks": tasks[-12:],
+        "experiments": experiments[-12:],
+        "active_operator_messages": active_operator[-12:],
         "sources": sources[-8:],
         "reflections": reflections[-4:],
     }
@@ -249,11 +263,16 @@ def _render_focus(focus: dict[str, Any], *, width: int, chars: int, daemon_runni
             f"counts: steps={counts['steps']} runs={counts['runs']} artifacts={counts['artifacts']} "
             f"failed_steps={counts['failed_steps']} blocked_steps={counts['blocked_steps']}"
         ),
-        f"learning: findings={counts.get('findings', 0)} sources={counts.get('sources', 0)} tasks={counts.get('tasks', 0)} lessons={counts.get('lessons', 0)} reflections={counts.get('reflections', 0)}",
+        f"learning: findings={counts.get('findings', 0)} sources={counts.get('sources', 0)} tasks={counts.get('tasks', 0)} experiments={counts.get('experiments', 0)} lessons={counts.get('lessons', 0)} reflections={counts.get('reflections', 0)}",
         f"tool mix: {_tool_mix(focus.get('tool_counts') or {})}",
-        "",
-        "Recent Steps",
     ]
+    active_operator = focus.get("active_operator_messages") or []
+    if active_operator:
+        lines.append(f"operator context: {len(active_operator)} active | {_one_line(active_operator[-1].get('message') or '', chars)}")
+    pending_measurement = (job.get("metadata") or {}).get("pending_measurement_obligation") if isinstance(job.get("metadata"), dict) else {}
+    if isinstance(pending_measurement, dict) and pending_measurement:
+        lines.append(f"measurement obligation: pending from step #{pending_measurement.get('source_step_no') or '?'}")
+    lines.extend(["", "Recent Steps"])
     recent_steps = focus.get("recent_steps") or []
     if not recent_steps:
         lines.append("  no steps recorded")
@@ -355,26 +374,48 @@ def _step_count(steps: list[dict[str, Any]]) -> int:
     return max(numbers, default=0)
 
 
+def _active_operator_messages(metadata: dict[str, Any]) -> list[dict[str, Any]]:
+    messages = metadata.get("operator_messages") if isinstance(metadata.get("operator_messages"), list) else []
+    prompt_entries = active_prompt_operator_entries(messages)
+    return [
+        entry for entry in messages
+        if isinstance(entry, dict)
+        and entry in prompt_entries
+        and str(entry.get("mode") or "steer") in {"steer", "follow_up"}
+    ]
+
+
 def _daemon_text(daemon: dict[str, Any]) -> str:
     metadata = daemon.get("metadata") or {}
     if daemon.get("running"):
         pid = metadata.get("pid") or "unknown"
         started = metadata.get("started_at") or "unknown start"
-        return f"running pid={pid} started={started}"
+        stale = " stale-runtime" if daemon.get("stale") else ""
+        return f"running pid={pid}{stale} started={started}"
     return "stopped"
 
 
-def _daemon_health_text(daemon: dict[str, Any]) -> str:
+def _daemon_health_text(daemon: dict[str, Any], *, latest_step: dict[str, Any] | None = None) -> str:
     if not daemon.get("running"):
         return "stopped (job will not advance until you run: start)"
     metadata = daemon.get("metadata") or {}
     heartbeat = metadata.get("last_heartbeat")
     status = "running"
+    if daemon.get("stale"):
+        status = "running stale-runtime"
     if heartbeat:
         age = _age_seconds(heartbeat)
         if age is not None:
             status += f" | heartbeat {int(age)}s ago"
-            if age > 120:
+            running_step = latest_step or {}
+            if age > 120 and running_step.get("status") == "running":
+                tool = running_step.get("tool_name") or running_step.get("kind") or "step"
+                step_age = _age_seconds(running_step.get("started_at") or "")
+                if step_age is not None:
+                    status += f" | busy #{running_step.get('step_no')} {tool} for {int(step_age)}s"
+                else:
+                    status += f" | busy #{running_step.get('step_no')} {tool}"
+            elif age > 120:
                 status += " (stale)"
     failures = metadata.get("consecutive_failures")
     if failures:

@@ -10,7 +10,7 @@ def test_db_job_run_step_and_artifact_roundtrip(tmp_path):
         assert job["status"] == "queued"
         assert job["kind"] == "generic"
 
-        run_id = db.start_run(job_id, model="local-qwen")
+        run_id = db.start_run(job_id, model="local-test-model")
         step_id = db.add_step(
             job_id=job_id,
             run_id=run_id,
@@ -109,6 +109,31 @@ def test_claim_operator_messages_marks_one_message_at_a_time(tmp_path):
         assert [item["message"] for item in second_claim] == ["second steer"]
         assert all(message.get("claimed_at") for message in messages)
         assert any(event["event_type"] == "loop" and event["title"] == "steering claimed" for event in events)
+    finally:
+        db.close()
+
+
+def test_acknowledge_operator_messages_marks_delivered_context(tmp_path):
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Research topic")
+        entry = db.append_operator_message(job_id, "correct the target before continuing", source="chat")
+        db.claim_operator_messages(job_id, modes=("steer",), limit=1)
+
+        result = db.acknowledge_operator_messages(
+            job_id,
+            message_ids=[entry["event_id"]],
+            summary="target correction incorporated",
+        )
+
+        job = db.get_job(job_id)
+        message = job["metadata"]["operator_messages"][0]
+        events = db.list_timeline_events(job_id, limit=20)
+
+        assert result["count"] == 1
+        assert message["acknowledged_at"]
+        assert job["metadata"]["last_operator_context_ack"]["summary"] == "target correction incorporated"
+        assert any(event["event_type"] == "operator_context" for event in events)
     finally:
         db.close()
 
@@ -328,4 +353,3 @@ def test_timeline_events_cover_visible_activity(tmp_path):
         assert any(event["body"] == "operator note" for event in events)
     finally:
         db.close()
-

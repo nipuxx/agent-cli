@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import contextlib
 import fcntl
+import hashlib
 import json
 import os
 import signal
@@ -20,6 +21,73 @@ from nipux_cli.digest import write_daily_digest
 
 class DaemonAlreadyRunning(RuntimeError):
     pass
+
+
+def current_runtime_fingerprint() -> dict[str, Any]:
+    """Return a stable fingerprint for code that affects daemon behavior."""
+
+    from nipux_cli import __version__
+    from nipux_cli.tools import DEFAULT_REGISTRY
+    from nipux_cli.worker import SYSTEM_PROMPT, WORKER_PROTOCOL_VERSION
+
+    tool_schema = DEFAULT_REGISTRY.openai_tools()
+    tool_schema_hash = hashlib.sha256(json.dumps(tool_schema, sort_keys=True, default=str).encode("utf-8")).hexdigest()
+    prompt_hash = hashlib.sha256(SYSTEM_PROMPT.encode("utf-8")).hexdigest()
+    code_fingerprint = _runtime_code_fingerprint()
+    payload = {
+        "nipux_version": __version__,
+        "worker_protocol": WORKER_PROTOCOL_VERSION,
+        "tool_schema_hash": tool_schema_hash[:16],
+        "prompt_hash": prompt_hash[:16],
+        "code_hash": code_fingerprint["code_hash"],
+        "code_mtime": code_fingerprint["code_mtime"],
+        "tool_count": len(DEFAULT_REGISTRY.names()),
+    }
+    payload["runtime_hash"] = hashlib.sha256(json.dumps(payload, sort_keys=True).encode("utf-8")).hexdigest()[:16]
+    return payload
+
+
+def _runtime_code_fingerprint() -> dict[str, Any]:
+    package_dir = Path(__file__).resolve().parent
+    runtime_files = [
+        "artifacts.py",
+        "browser.py",
+        "browser_web.py",
+        "compression.py",
+        "config.py",
+        "daemon.py",
+        "db.py",
+        "digest.py",
+        "llm.py",
+        "operator_context.py",
+        "source_quality.py",
+        "templates.py",
+        "tools.py",
+        "worker.py",
+    ]
+    digest = hashlib.sha256()
+    mtimes: list[float] = []
+    for name in runtime_files:
+        path = package_dir / name
+        if not path.exists():
+            continue
+        digest.update(name.encode("utf-8"))
+        data = path.read_bytes()
+        digest.update(hashlib.sha256(data).digest())
+        mtimes.append(path.stat().st_mtime)
+    return {
+        "code_hash": digest.hexdigest()[:16],
+        "code_mtime": max(mtimes) if mtimes else 0,
+    }
+
+
+def runtime_stale(metadata: dict[str, Any] | None) -> bool:
+    if not isinstance(metadata, dict):
+        return False
+    recorded = metadata.get("runtime")
+    if not isinstance(recorded, dict):
+        return True
+    return recorded.get("runtime_hash") != current_runtime_fingerprint().get("runtime_hash")
 
 
 def _parse_lock_metadata(raw: str) -> dict[str, Any]:
@@ -44,10 +112,13 @@ def daemon_lock_status(path: str | Path) -> dict[str, Any]:
         try:
             fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
+            stale = runtime_stale(metadata)
             return {
                 "running": True,
                 "lock_path": str(path),
                 "metadata": metadata,
+                "stale": stale,
+                "current_runtime": current_runtime_fingerprint(),
                 "detail": "daemon lock is held",
             }
         with contextlib.suppress(OSError):
@@ -56,6 +127,8 @@ def daemon_lock_status(path: str | Path) -> dict[str, Any]:
         "running": False,
         "lock_path": str(path),
         "metadata": metadata,
+        "stale": False,
+        "current_runtime": current_runtime_fingerprint(),
         "detail": "daemon lock is free",
     }
 
@@ -74,6 +147,7 @@ def single_instance_lock(path: str | Path):
         payload = {
             "pid": os.getpid(),
             "started_at": datetime.now(timezone.utc).isoformat(),
+            "runtime": current_runtime_fingerprint(),
         }
         handle.seek(0)
         handle.truncate()
@@ -221,6 +295,7 @@ class Daemon:
                 poll_seconds=poll_seconds,
                 recovered_steps=recovered["steps"],
                 recovered_runs=recovered["runs"],
+                runtime=current_runtime_fingerprint(),
             )
             if recovered["steps"] or recovered["runs"]:
                 append_daemon_event(self.config, "stale_work_recovered", **recovered)
@@ -234,6 +309,7 @@ class Daemon:
                         last_heartbeat=datetime.now(timezone.utc).isoformat(),
                         last_state="checking",
                         consecutive_failures=consecutive_failures,
+                        runtime=current_runtime_fingerprint(),
                     )
 
                     try:
@@ -253,6 +329,7 @@ class Daemon:
                             last_error=payload["error"],
                             last_error_type=payload["error_type"],
                             consecutive_failures=consecutive_failures,
+                            runtime=current_runtime_fingerprint(),
                         )
                         append_daemon_event(self.config, "daemon_error", **payload, consecutive_failures=consecutive_failures)
                         if not quiet:
@@ -270,6 +347,7 @@ class Daemon:
                             lock_handle,
                             last_heartbeat=datetime.now(timezone.utc).isoformat(),
                             last_state="idle",
+                            runtime=current_runtime_fingerprint(),
                         )
                         idle_sleep = max(5.0, poll_seconds)
                         if not quiet:
@@ -289,6 +367,7 @@ class Daemon:
                             last_error="" if result.status != "failed" else str(result.result.get("error") or ""),
                             last_error_type="" if result.status != "failed" else str(result.result.get("error_type") or ""),
                             consecutive_failures=consecutive_failures,
+                            runtime=current_runtime_fingerprint(),
                         )
                         detail = result.result.get("error") or result.result.get("artifact_id") or result.result.get("content", "")
                         append_daemon_event(
@@ -321,6 +400,7 @@ class Daemon:
                     last_heartbeat=datetime.now(timezone.utc).isoformat(),
                     last_state="stopped",
                     consecutive_failures=consecutive_failures,
+                    runtime=current_runtime_fingerprint(),
                 )
                 append_daemon_event(self.config, "daemon_stopped", pid=os.getpid(), interrupted_steps=interrupted["steps"], interrupted_runs=interrupted["runs"])
                 if not quiet:

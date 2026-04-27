@@ -485,7 +485,13 @@ class AgentDB:
                 created_at=str(entry.get("at") or job.get("updated_at") or job.get("created_at")),
                 title=str(entry.get("source") or "operator"),
                 body=str(entry.get("message") or ""),
-                metadata={"source": entry.get("source") or "operator", "mode": entry.get("mode") or "steer"},
+                metadata={
+                    "source": entry.get("source") or "operator",
+                    "mode": entry.get("mode") or "steer",
+                    "claimed_at": entry.get("claimed_at"),
+                    "acknowledged_at": entry.get("acknowledged_at"),
+                    "superseded_at": entry.get("superseded_at"),
+                },
             ))
 
         for index, entry in enumerate(_metadata_list(metadata, "agent_updates")):
@@ -765,12 +771,14 @@ class AgentDB:
                 mode = str(entry.get("mode") or "steer").strip().lower().replace("-", "_")
                 if mode not in allowed or entry.get("claimed_at"):
                     continue
+                if entry.get("acknowledged_at") or entry.get("superseded_at"):
+                    continue
                 entry["claimed_at"] = now
                 entry["delivered_at"] = now
                 claimed.append(dict(entry))
             if not claimed:
                 return []
-            metadata["operator_messages"] = messages[-50:]
+            metadata["operator_messages"] = messages[-200:]
             metadata["last_claimed_operator_messages"] = claimed
             conn.execute(
                 "UPDATE jobs SET updated_at = ?, metadata_json = ? WHERE id = ?",
@@ -837,7 +845,7 @@ class AgentDB:
                 if summary:
                     entry["acknowledgement_summary"] = summary.strip()
                 acknowledged.append(dict(entry))
-            metadata["operator_messages"] = messages[-50:]
+            metadata["operator_messages"] = messages[-200:]
             metadata["last_operator_context_ack"] = {
                 "at": now,
                 "status": status,
@@ -959,7 +967,7 @@ class AgentDB:
             if not isinstance(messages, list):
                 messages = []
             messages.append(entry)
-            metadata["operator_messages"] = messages[-50:]
+            metadata["operator_messages"] = messages[-200:]
             metadata["last_operator_message"] = entry
             conn.execute(
                 "UPDATE jobs SET updated_at = ?, metadata_json = ? WHERE id = ?",

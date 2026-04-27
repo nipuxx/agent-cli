@@ -8,8 +8,10 @@ from nipux_cli.daemon import (
     Daemon,
     DaemonAlreadyRunning,
     append_daemon_event,
+    current_runtime_fingerprint,
     daemon_lock_status,
     read_daemon_events,
+    runtime_stale,
     single_instance_lock,
     update_lock_metadata,
 )
@@ -41,6 +43,20 @@ def test_lock_metadata_can_be_updated_while_held(tmp_path):
     assert status["running"] is True
     assert status["metadata"]["last_state"] == "step"
     assert status["metadata"]["consecutive_failures"] == 2
+
+
+def test_daemon_lock_status_detects_stale_runtime(tmp_path):
+    lock_path = tmp_path / "agentd.lock"
+    with single_instance_lock(lock_path) as handle:
+        update_lock_metadata(handle, runtime={"runtime_hash": "old"})
+        status = daemon_lock_status(lock_path)
+
+    assert status["running"] is True
+    assert status["stale"] is True
+    assert status["current_runtime"]["code_hash"]
+    assert status["current_runtime"]["code_mtime"]
+    assert runtime_stale({"runtime": {"runtime_hash": "old"}}) is True
+    assert runtime_stale({"runtime": current_runtime_fingerprint()}) is False
 
 
 def test_daemon_run_once_claims_next_job_with_fake_step(tmp_path):

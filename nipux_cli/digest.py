@@ -9,12 +9,22 @@ from pathlib import Path
 
 from nipux_cli.config import AppConfig, EmailConfig
 from nipux_cli.db import AgentDB
+from nipux_cli.operator_context import active_prompt_operator_entries
 
 
 def _metadata_list(job: dict, key: str) -> list[dict]:
     metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
     values = metadata.get(key)
     return [value for value in values if isinstance(value, dict)] if isinstance(values, list) else []
+
+
+def _active_operator_messages(messages: list[dict]) -> list[dict]:
+    prompt_entries = active_prompt_operator_entries(messages)
+    return [
+        entry for entry in messages
+        if str(entry.get("mode") or "steer") in {"steer", "follow_up"}
+        and entry in prompt_entries
+    ]
 
 
 def render_job_digest(db: AgentDB, job_id: str) -> str:
@@ -24,8 +34,11 @@ def render_job_digest(db: AgentDB, job_id: str) -> str:
     findings = _metadata_list(job, "finding_ledger")
     sources = _metadata_list(job, "source_ledger")
     tasks = _metadata_list(job, "task_queue")
+    experiments = _metadata_list(job, "experiment_ledger")
     lessons = _metadata_list(job, "lessons")
     reflections = _metadata_list(job, "reflections")
+    operator_messages = _metadata_list(job, "operator_messages")
+    active_operator = _active_operator_messages(operator_messages)
     lines = [
         f"# {job['title']}",
         "",
@@ -33,15 +46,25 @@ def render_job_digest(db: AgentDB, job_id: str) -> str:
         f"Findings: {len(findings)}",
         f"Sources: {len(sources)}",
         f"Tasks: {len(tasks)}",
+        f"Experiments: {len(experiments)}",
         f"Lessons: {len(lessons)}",
         "",
         "## Objective",
         "",
         job["objective"],
         "",
-        "## Recent Steps",
+        "## Active Operator Context",
         "",
     ]
+    if not active_operator:
+        lines.append("- none")
+    for entry in active_operator[-8:]:
+        lines.append(f"- {entry.get('mode') or 'steer'}: {entry.get('message') or ''}")
+    lines.extend([
+        "",
+        "## Recent Steps",
+        "",
+    ])
     if not steps:
         lines.append("- No steps have run yet.")
     for step in steps[-20:]:
@@ -69,9 +92,25 @@ def render_job_digest(db: AgentDB, job_id: str) -> str:
         lines.append("- No tasks recorded yet.")
     status_order = {"active": 0, "open": 1, "blocked": 2, "done": 3, "skipped": 4}
     for task in sorted(tasks, key=lambda item: (status_order.get(str(item.get("status") or "open"), 9), -int(item.get("priority") or 0)))[:15]:
-        lines.append(f"- {task.get('status') or 'open'} p={task.get('priority') or 0}: {task.get('title') or 'untitled'}")
+        contract = f" [{task.get('output_contract')}]" if task.get("output_contract") else ""
+        lines.append(f"- {task.get('status') or 'open'} p={task.get('priority') or 0}{contract}: {task.get('title') or 'untitled'}")
+        for key, label in (("acceptance_criteria", "accept"), ("evidence_needed", "evidence"), ("stall_behavior", "stall")):
+            if task.get(key):
+                lines.append(f"  - {label}: {task[key]}")
         if task.get("result"):
             lines.append(f"  - {task['result']}")
+    lines.extend(["", "## Experiments", ""])
+    if not experiments:
+        lines.append("- No experiments recorded yet.")
+    measured = [experiment for experiment in experiments if experiment.get("metric_value") is not None]
+    for experiment in sorted(measured or experiments, key=lambda item: (not bool(item.get("best_observed")), str(item.get("updated_at") or item.get("created_at") or "")))[:15]:
+        metric = ""
+        if experiment.get("metric_value") is not None:
+            metric = f" {experiment.get('metric_name') or 'metric'}={experiment.get('metric_value')}{experiment.get('metric_unit') or ''}"
+        best = " best" if experiment.get("best_observed") else ""
+        lines.append(f"- {experiment.get('status') or 'planned'}: {experiment.get('title') or 'experiment'}{metric}{best}")
+        if experiment.get("result"):
+            lines.append(f"  - {experiment['result']}")
     lines.extend(["", "## Lessons", ""])
     if not lessons:
         lines.append("- No lessons recorded yet.")
@@ -126,15 +165,18 @@ def render_daily_digest(db: AgentDB) -> str:
         findings = _metadata_list(job, "finding_ledger")
         sources = _metadata_list(job, "source_ledger")
         tasks = _metadata_list(job, "task_queue")
+        experiments = _metadata_list(job, "experiment_ledger")
         lessons = _metadata_list(job, "lessons")
         reflections = _metadata_list(job, "reflections")
+        operator_messages = _metadata_list(job, "operator_messages")
+        active_operator = _active_operator_messages(operator_messages)
         finding_batches = [artifact for artifact in artifacts if "finding" in str(artifact.get("title") or artifact.get("summary") or "").lower()]
         lines.extend([
             f"## {job['title']}",
             "",
             f"Status: {job['status']}",
             f"Kind: {job['kind']}",
-            f"Counts: {len(findings)} findings, {len(sources)} sources, {len(tasks)} tasks, {len(lessons)} lessons, {len(finding_batches)} recent finding artifacts",
+            f"Counts: {len(findings)} findings, {len(sources)} sources, {len(tasks)} tasks, {len(experiments)} experiments, {len(lessons)} lessons, {len(finding_batches)} recent finding artifacts",
             "",
             "Recent steps:",
         ])
@@ -143,6 +185,11 @@ def render_daily_digest(db: AgentDB) -> str:
         for step in steps:
             tool = f" `{step['tool_name']}`" if step.get("tool_name") else ""
             lines.append(f"- #{step['step_no']} {step['kind']}{tool}: {step['status']} - {step.get('summary') or ''}")
+        lines.extend(["", "Active operator context:"])
+        if not active_operator:
+            lines.append("- none")
+        for entry in active_operator[-5:]:
+            lines.append(f"- {entry.get('mode') or 'steer'}: {entry.get('message') or ''}")
         lines.extend(["", "Best findings:"])
         if not findings:
             lines.append("- none")
@@ -153,7 +200,18 @@ def render_daily_digest(db: AgentDB) -> str:
             lines.append("- none")
         status_order = {"active": 0, "open": 1, "blocked": 2, "done": 3, "skipped": 4}
         for task in sorted(tasks, key=lambda item: (status_order.get(str(item.get("status") or "open"), 9), -int(item.get("priority") or 0)))[:8]:
-            lines.append(f"- {task.get('status') or 'open'} p={task.get('priority') or 0}: {task.get('title') or 'untitled'}")
+            contract = f" [{task.get('output_contract')}]" if task.get("output_contract") else ""
+            lines.append(f"- {task.get('status') or 'open'} p={task.get('priority') or 0}{contract}: {task.get('title') or 'untitled'}")
+        lines.extend(["", "Experiments:"])
+        if not experiments:
+            lines.append("- none")
+        measured = [experiment for experiment in experiments if experiment.get("metric_value") is not None]
+        for experiment in (measured or experiments)[-8:]:
+            metric = ""
+            if experiment.get("metric_value") is not None:
+                metric = f" {experiment.get('metric_name') or 'metric'}={experiment.get('metric_value')}{experiment.get('metric_unit') or ''}"
+            best = " best" if experiment.get("best_observed") else ""
+            lines.append(f"- {experiment.get('status') or 'planned'}: {experiment.get('title') or 'experiment'}{metric}{best}")
         lines.extend(["", "Lessons learned:"])
         if not lessons:
             lines.append("- none")
