@@ -23,12 +23,13 @@ from pathlib import Path
 from typing import Any
 
 from nipux_cli.artifacts import ArtifactStore
-from nipux_cli.config import default_config_yaml, load_config
+from nipux_cli.config import DEFAULT_BASE_URL, DEFAULT_CONTEXT_LENGTH, DEFAULT_MODEL, default_config_yaml, load_config
 from nipux_cli.daemon import Daemon, DaemonAlreadyRunning, daemon_lock_status, read_daemon_events
 from nipux_cli.dashboard import collect_dashboard_state, render_dashboard, render_overview
 from nipux_cli.db import AgentDB
 from nipux_cli.digest import render_job_digest, write_daily_digest
 from nipux_cli.doctor import run_doctor
+from nipux_cli.operator_context import active_prompt_operator_entries
 from nipux_cli.templates import program_for_job
 
 
@@ -60,6 +61,7 @@ SHELL_COMMAND_NAMES = {
     "dash",
     "start",
     "stop",
+    "restart",
     "browser-dashboard",
     "artifacts",
     "artifact",
@@ -146,8 +148,34 @@ def cmd_init(args: argparse.Namespace) -> None:
         print(f"Config already exists: {path}")
         return
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(default_config_yaml(), encoding="utf-8")
+    model = args.model or DEFAULT_MODEL
+    base_url = args.base_url or DEFAULT_BASE_URL
+    api_key_env = args.api_key_env or "OPENAI_API_KEY"
+    if args.openrouter:
+        base_url = args.base_url or "https://openrouter.ai/api/v1"
+        api_key_env = args.api_key_env or "OPENROUTER_API_KEY"
+        model = args.model or "openai/gpt-4.1-mini"
+    path.write_text(
+        default_config_yaml(
+            model=model,
+            base_url=base_url,
+            api_key_env=api_key_env,
+            context_length=args.context_length,
+        ),
+        encoding="utf-8",
+    )
     print(f"Wrote {path}")
+    env_path = config.runtime.home / ".env"
+    if not env_path.exists():
+        env_path.write_text(
+            f"# Optional local secrets for Nipux. This file stays outside the git repo.\n{api_key_env}=\n",
+            encoding="utf-8",
+        )
+        try:
+            env_path.chmod(0o600)
+        except OSError:
+            pass
+        print(f"Wrote {env_path} (fill {api_key_env}; do not commit secrets)")
 
 
 def cmd_create(args: argparse.Namespace) -> None:
@@ -752,10 +780,18 @@ def _right_pane_lines(
         f"{_muted('Daemon')} {_one_line(daemon_text, width - 8)}",
         f"{_muted('Model')}  {_one_line(model, width - 8)}",
     ]
+    metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
+    active_operator = _active_operator_messages(metadata)
+    pending_measurement = metadata.get("pending_measurement_obligation") if isinstance(metadata.get("pending_measurement_obligation"), dict) else {}
     for goal_line in textwrap.wrap(goal_text, width=max(20, width - 8))[:2]:
         info_lines.append(f"{_muted('Goal')}   {goal_line}")
     info_lines.append(f"{_muted('Latest')} {_one_line(latest_text, width - 8)}")
     info_lines.append(_metric_strip(metrics, width=width))
+    if active_operator:
+        info_lines.append(f"{_muted('Operator')} {len(active_operator)} active")
+        info_lines.append(f"{_muted('Context')} {_one_line(active_operator[-1].get('message') or '', width - 8)}")
+    if pending_measurement:
+        info_lines.append(f"{_muted('Measure')} pending step #{pending_measurement.get('source_step_no') or '?'}")
     info_lines.append("")
     info_lines.append(_bold("Jobs"))
     for job_line in _frame_jobs_lines(jobs, focused_job_id=job_id, daemon_running=daemon_running, width=width)[:4]:
@@ -1333,6 +1369,10 @@ def cmd_tasks(args: argparse.Namespace) -> None:
             details = " | ".join(
                 value
                 for value in [
+                    f"contract={task.get('output_contract')}" if task.get("output_contract") else "",
+                    f"accept={task.get('acceptance_criteria')}" if task.get("acceptance_criteria") else "",
+                    f"evidence={task.get('evidence_needed')}" if task.get("evidence_needed") else "",
+                    f"stall={task.get('stall_behavior')}" if task.get("stall_behavior") else "",
                     str(task.get("goal") or "").strip(),
                     str(task.get("source_hint") or "").strip(),
                     str(task.get("result") or "").strip(),
@@ -1452,12 +1492,27 @@ def cmd_memory(args: argparse.Namespace) -> None:
             print(f"No job matched: {ref}" if ref else "No jobs found.")
             return
         job = db.get_job(job_id)
+        metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
         lessons = _metadata_records(job, "lessons")
         reflections = _metadata_records(job, "reflections")
         compact = db.list_memory(job_id)
+        active_operator = _active_operator_messages(metadata)
+        pending_measurement = metadata.get("pending_measurement_obligation") if isinstance(metadata.get("pending_measurement_obligation"), dict) else {}
         print(f"memory {job['title']}")
         print(_rule("="))
         print(f"lessons={len(lessons)} reflections={len(reflections)} compact_entries={len(compact)}")
+        if active_operator:
+            print()
+            print("active operator context:")
+            for entry in active_operator[-min(args.limit, 8):]:
+                marker = entry.get("event_id") or "operator"
+                print(f"  {marker}: {_one_line(entry.get('message') or '', args.chars)}")
+        if pending_measurement:
+            print()
+            print(f"pending measurement: step #{pending_measurement.get('source_step_no') or '?'}")
+            candidates = pending_measurement.get("metric_candidates") if isinstance(pending_measurement.get("metric_candidates"), list) else []
+            if candidates:
+                print(f"  candidates: {_one_line(', '.join(str(item) for item in candidates[:5]), args.chars)}")
         if reflections:
             print()
             print("latest reflection:")
@@ -1528,8 +1583,13 @@ def cmd_start(args: argparse.Namespace) -> None:
     status = daemon_lock_status(config.runtime.home / "agentd.lock")
     if status["running"]:
         metadata = status.get("metadata") or {}
-        print(f"nipux daemon already running pid={metadata.get('pid', 'unknown')}")
-        return
+        if status.get("stale"):
+            print(f"nipux daemon stale pid={metadata.get('pid', 'unknown')}; restarting")
+            _stop_daemon_process(config, wait=5.0, quiet=True)
+            time.sleep(0.5)
+        else:
+            print(f"nipux daemon already running pid={metadata.get('pid', 'unknown')}")
+            return
     log_path = Path(args.log_file).expanduser() if args.log_file else config.runtime.logs_dir / "daemon.log"
     log_path.parent.mkdir(parents=True, exist_ok=True)
     command = [
@@ -1574,9 +1634,47 @@ def _start_daemon_if_needed(*, poll_seconds: float, fake: bool = False, quiet: b
     status = daemon_lock_status(config.runtime.home / "agentd.lock")
     if status["running"]:
         metadata = status.get("metadata") or {}
+        if status.get("stale"):
+            print(f"daemon stale pid={metadata.get('pid', 'unknown')}; restarting")
+            _stop_daemon_process(config, wait=5.0, quiet=True)
+            time.sleep(0.5)
+            cmd_start(argparse.Namespace(poll_seconds=poll_seconds, fake=fake, quiet=quiet, log_file=log_file))
+            return
         print(f"daemon already running pid={metadata.get('pid', 'unknown')}")
         return
     cmd_start(argparse.Namespace(poll_seconds=poll_seconds, fake=fake, quiet=quiet, log_file=log_file))
+
+
+def cmd_restart(args: argparse.Namespace) -> None:
+    config = load_config()
+    config.ensure_dirs()
+    stopped = _stop_daemon_process(config, wait=args.wait, quiet=False)
+    if stopped:
+        time.sleep(0.5)
+    cmd_start(argparse.Namespace(poll_seconds=args.poll_seconds, fake=args.fake, quiet=args.quiet, log_file=args.log_file))
+
+
+def _stop_daemon_process(config, *, wait: float, quiet: bool) -> bool:
+    status = daemon_lock_status(config.runtime.home / "agentd.lock")
+    if not status["running"]:
+        if not quiet:
+            print("nipux daemon is not running")
+        return False
+    metadata = status.get("metadata") or {}
+    pid = metadata.get("pid")
+    if not isinstance(pid, int):
+        raise SystemExit("daemon is running but lock file has no pid; stop it from the terminal that owns it")
+    os.kill(pid, signal.SIGTERM)
+    deadline = time.time() + wait
+    while time.time() < deadline:
+        if not _pid_is_alive(pid):
+            if not quiet:
+                print(f"nipux daemon stopped pid={pid}")
+            return True
+        time.sleep(0.2)
+    if not quiet:
+        print(f"sent SIGTERM to nipux daemon pid={pid}; it may still be shutting down")
+    return False
 
 
 def cmd_stop(args: argparse.Namespace) -> None:
@@ -1597,22 +1695,7 @@ def cmd_stop(args: argparse.Namespace) -> None:
             db.close()
 
     config = load_config()
-    status = daemon_lock_status(config.runtime.home / "agentd.lock")
-    if not status["running"]:
-        print("nipux daemon is not running")
-        return
-    metadata = status.get("metadata") or {}
-    pid = metadata.get("pid")
-    if not isinstance(pid, int):
-        raise SystemExit("daemon is running but lock file has no pid; stop it from the terminal that owns it")
-    os.kill(pid, signal.SIGTERM)
-    deadline = time.time() + args.wait
-    while time.time() < deadline:
-        if not _pid_is_alive(pid):
-            print(f"nipux daemon stopped pid={pid}")
-            return
-        time.sleep(0.2)
-    print(f"sent SIGTERM to nipux daemon pid={pid}; it may still be shutting down")
+    _stop_daemon_process(config, wait=args.wait, quiet=False)
 
 
 def _launch_agent_path() -> Path:
@@ -2031,6 +2114,8 @@ def _minimal_live_event_line(event: dict[str, Any], *, chars: int = 92) -> str:
         return ""
     if kind == "agent_message" and title == "chat":
         return ""
+    if kind == "operator_context":
+        return _one_line(f"operator {title or body}", chars)
     if kind == "tool_call":
         return _one_line("start " + _tool_live_summary(title, metadata, body), chars)
     if kind == "tool_result":
@@ -2097,6 +2182,10 @@ def _tool_live_summary(tool: str, metadata: dict[str, Any], body: str) -> str:
         return "record findings"
     if tool == "record_tasks":
         return "update tasks"
+    if tool == "record_experiment":
+        return "record experiment"
+    if tool == "acknowledge_operator_context":
+        return "ack operator"
     if tool == "report_update":
         return "report update"
     if tool == "read_artifact":
@@ -2370,6 +2459,8 @@ def _event_display_parts(event: dict[str, Any], *, chars: int, full: bool = Fals
             access = f"open: /artifact {shlex.quote(title)}"
     if kind == "operator_message" and metadata.get("mode"):
         title = f"{title or 'operator'} {metadata.get('mode')}"
+    if kind == "operator_context":
+        body = body or f"{metadata.get('count') or 0} message(s)"
     if kind in {"tool_call", "tool_result", "error"} and metadata.get("step_no"):
         title = f"#{metadata.get('step_no')} {title}".strip()
     if not body and kind == "artifact" and metadata.get("path"):
@@ -2398,6 +2489,8 @@ def _event_label(kind: str, metadata: dict[str, Any]) -> str:
     if kind == "operator_message":
         mode = str(metadata.get("mode") or "")
         return "FOLLOW" if mode == "follow_up" else "USER"
+    if kind == "operator_context":
+        return "ACK"
     if kind == "agent_message":
         return "AGENT"
     if kind == "tool_call":
@@ -2501,7 +2594,8 @@ def _daemon_state_line(lock: dict[str, Any]) -> str:
     metadata = lock.get("metadata") if isinstance(lock.get("metadata"), dict) else {}
     if lock.get("running"):
         pid = metadata.get("pid") or "unknown"
-        return f"running pid={pid}"
+        stale = " stale-runtime" if lock.get("stale") else ""
+        return f"running pid={pid}{stale}"
     return "stopped (start with: nipux start)"
 
 
@@ -2662,6 +2756,16 @@ def _metadata_records(job: dict[str, Any], key: str) -> list[dict[str, Any]]:
     metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
     values = metadata.get(key) if isinstance(metadata.get(key), list) else []
     return [entry for entry in values if isinstance(entry, dict)]
+
+
+def _active_operator_messages(metadata: dict[str, Any]) -> list[dict[str, Any]]:
+    messages = metadata.get("operator_messages") if isinstance(metadata.get("operator_messages"), list) else []
+    return [
+        entry for entry in messages
+        if isinstance(entry, dict)
+        and entry in active_prompt_operator_entries(messages)
+        and str(entry.get("mode") or "steer") in {"steer", "follow_up"}
+    ]
 
 
 def _print_lessons(job: dict[str, Any], *, limit: int, chars: int) -> None:
@@ -3128,7 +3232,7 @@ def _chat_handle_line(job_id: str, line: str, *, reply_fn=None) -> bool:
         print("  /jobs /focus JOB_TITLE /switch JOB_TITLE /new OBJECTIVE /delete [JOB_TITLE]")
         print("  /history /events /activity /outputs /updates /status /health")
         print("  /artifacts /artifact QUERY /findings /tasks /experiments /sources /memory /metrics /lessons")
-        print("  /run /work N /work-verbose N /stop /pause [note] /resume /cancel [note]")
+        print("  /run /restart /work N /work-verbose N /stop /pause [note] /resume /cancel [note]")
         print("  /learn LESSON /note MESSAGE /follow MESSAGE /digest /clear /shell /exit")
         print("Plain text gets a model reply and is saved as model-visible steering.")
         return True
@@ -3237,6 +3341,15 @@ def _chat_handle_line(job_id: str, line: str, *, reply_fn=None) -> bool:
                 quiet=False,
                 log_file=None,
                 no_follow=True,
+            ))
+            return True
+        if command == "restart":
+            cmd_restart(argparse.Namespace(
+                poll_seconds=0.0,
+                wait=5.0,
+                fake=False,
+                quiet=False,
+                log_file=None,
             ))
             return True
         if command in {"work", "work-verbose"}:
@@ -3384,7 +3497,7 @@ def _build_chat_messages(db: AgentDB, job: dict[str, Any], message: str) -> list
     )
     steering_lines = "\n".join(
         f"- {entry.get('source', 'operator')} {entry.get('mode', 'steer')}: {entry.get('message', '')}"
-        for entry in operator_messages[-8:]
+        for entry in active_prompt_operator_entries(operator_messages)[-6:]
         if isinstance(entry, dict)
     )
     update_lines = "\n".join(f"- {entry.get('category', 'progress')}: {entry.get('message', '')}" for entry in agent_updates[-5:] if isinstance(entry, dict))
@@ -3538,7 +3651,7 @@ def _print_shell_help() -> None:
         print(f"  {command}")
     print()
     print("Worker")
-    for command in ("work [JOB_TITLE] --steps N [--verbose]", "run [JOB_TITLE] --poll-seconds N", "start --poll-seconds N", "stop  # daemon", "stop [JOB_TITLE]  # pause job"):
+    for command in ("work [JOB_TITLE] --steps N [--verbose]", "run [JOB_TITLE] --poll-seconds N", "start --poll-seconds N", "restart --poll-seconds N", "stop  # daemon", "stop [JOB_TITLE]  # pause job"):
         print(f"  {command}")
     print()
     print("System")
@@ -3614,6 +3727,11 @@ def build_parser() -> argparse.ArgumentParser:
     init = sub.add_parser("init")
     init.add_argument("--path")
     init.add_argument("--force", action="store_true")
+    init.add_argument("--openrouter", action="store_true", help="Write an OpenRouter config that reads OPENROUTER_API_KEY")
+    init.add_argument("--model", help="Model name to write into config.yaml")
+    init.add_argument("--base-url", help="OpenAI-compatible API base URL")
+    init.add_argument("--api-key-env", help="Environment variable that stores the API key")
+    init.add_argument("--context-length", type=int, default=DEFAULT_CONTEXT_LENGTH)
     init.set_defaults(func=cmd_init)
 
     create = sub.add_parser("create")
@@ -3724,6 +3842,14 @@ def build_parser() -> argparse.ArgumentParser:
     stop.add_argument("job_id", nargs="*", help="Optional job title/id to pause instead of stopping the daemon")
     stop.add_argument("--wait", type=float, default=5.0)
     stop.set_defaults(func=cmd_stop)
+
+    restart = sub.add_parser("restart")
+    restart.add_argument("--poll-seconds", type=float, default=0.0)
+    restart.add_argument("--wait", type=float, default=5.0)
+    restart.add_argument("--fake", action="store_true", help="Use deterministic fake model responses")
+    restart.add_argument("--quiet", action="store_true", help="Write fewer daemon log lines")
+    restart.add_argument("--log-file")
+    restart.set_defaults(func=cmd_restart)
 
     browser_dashboard = sub.add_parser("browser-dashboard")
     browser_dashboard.add_argument("--port", type=int, default=4848)

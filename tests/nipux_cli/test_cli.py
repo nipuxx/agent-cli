@@ -43,6 +43,7 @@ def test_cli_has_operator_commands():
     assert parser.parse_args(["chat", "research", "finder"]).func.__name__ == "cmd_chat"
     assert parser.parse_args(["start", "--poll-seconds", "1"]).func.__name__ == "cmd_start"
     assert parser.parse_args(["stop"]).func.__name__ == "cmd_stop"
+    assert parser.parse_args(["restart"]).func.__name__ == "cmd_restart"
     assert parser.parse_args(["stop", "research", "finder"]).func.__name__ == "cmd_stop"
     assert parser.parse_args(["stop", "research", "finder"]).job_id == ["research", "finder"]
     assert parser.parse_args(["ls"]).func.__name__ == "cmd_jobs"
@@ -64,6 +65,23 @@ def test_cli_has_operator_commands():
     assert parser.parse_args(["service", "status"]).func.__name__ == "cmd_service"
     assert parser.parse_args(["work", "--steps", "2", "--fake"]).func.__name__ == "cmd_work"
     assert parser.parse_args(["run", "--no-follow"]).func.__name__ == "cmd_run"
+
+
+def test_init_openrouter_writes_secret_free_config_and_env_template(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+
+    main(["init", "--openrouter", "--model", "provider/model"])
+
+    out = capsys.readouterr().out
+    config_text = (tmp_path / "config.yaml").read_text(encoding="utf-8")
+    env_text = (tmp_path / ".env").read_text(encoding="utf-8")
+    assert "Wrote" in out
+    assert "name: provider/model" in config_text
+    assert "base_url: https://openrouter.ai/api/v1" in config_text
+    assert "api_key_env: OPENROUTER_API_KEY" in config_text
+    assert "sk-" not in config_text
+    assert env_text.strip().endswith("OPENROUTER_API_KEY" + "=")
+    assert "sk-" not in env_text
 
 
 def test_shell_freeform_text_adds_operator_message(monkeypatch, tmp_path, capsys):
