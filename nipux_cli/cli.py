@@ -296,7 +296,7 @@ def _format_initial_plan(plan: dict[str, Any]) -> str:
     if questions:
         lines.append("Questions:")
         lines.extend(f"- {question}" for question in questions)
-    lines.append("Reply with answers or use /run when this plan is good enough to start.")
+    lines.append("Reply with answers, or use the right-side Run control when this plan is good enough to start.")
     return "\n".join(lines)
 
 
@@ -535,8 +535,12 @@ def _handle_first_run_menu_line(line: str, *, history_limit: int = 12) -> bool:
                 _enter_chat(after_job_id, show_history=True, history_limit=history_limit)
                 return False
         return True
-    _first_run_create_and_open(line, history_limit=history_limit)
-    return False
+    objective = _extract_job_objective_from_message(line)
+    if objective:
+        _first_run_create_and_open(objective, history_limit=history_limit)
+        return False
+    print(_first_run_chat_reply(line))
+    return True
 
 
 def _print_first_run_settings() -> None:
@@ -904,9 +908,9 @@ def _handle_first_run_frame_line(line: str) -> tuple[str, str | list[str] | None
         return "clear", None
     if lowered in {"help", "?", "commands"}:
         return "notice", [
-            "Create a job by typing an objective.",
-            "Commands: new OBJECTIVE, jobs, settings, doctor, init, exit.",
-            "After creation, use the right-side controls to run work.",
+            "Talk normally here, or ask Nipux to create a job with a concrete goal.",
+            "Use the right-side controls for jobs, settings, setup checks, and exit.",
+            "When a job exists, the left pane becomes its chat and output stream.",
         ]
     if lowered in {"1", "new"}:
         return "notice", "Type `new OBJECTIVE` or paste the objective directly."
@@ -934,7 +938,19 @@ def _handle_first_run_frame_line(line: str) -> tuple[str, str | list[str] | None
         if first == "create" and after_job_id and after_job_id != before_job_id:
             return "open", after_job_id
         return "notice", output
-    return "open", _create_first_run_job(original)
+    objective = _extract_job_objective_from_message(original)
+    if objective:
+        return "open", _create_first_run_job(objective)
+    return "notice", _first_run_chat_reply(original)
+
+
+def _first_run_chat_reply(message: str) -> str:
+    lowered = message.strip().lower()
+    if lowered in {"hi", "hello", "hey", "yo"}:
+        return "Hi. Tell me what long-running work you want, or use the controls on the right to create a job."
+    if "what can" in lowered or "help" in lowered:
+        return "I can spin up long-running jobs, keep their output on the left, and let you monitor or change settings from the right."
+    return "I can chat here, but I only create a job when you give me a concrete goal like 'create a job to monitor nightly benchmarks'."
 
 
 def _create_first_run_job(objective: str) -> str | list[str]:
@@ -1558,8 +1574,10 @@ def _chat_pane_lines(events: list[dict[str, Any]], notices: list[str], *, width:
         title = str(event.get("title") or "")
         if kind == "operator_message":
             chat_events.append((_style("YOU", "35"), _generic_display_text(event.get("body") or "")))
-        elif kind == "agent_message" and title == "chat":
-            chat_events.append((_style("AGENT", "36"), _generic_display_text(event.get("body") or "")))
+        elif kind == "agent_message":
+            chat_events.append((_agent_chat_label(title), _generic_display_text(event.get("body") or "")))
+        elif kind in {"artifact", "finding", "task", "lesson", "reflection", "digest", "error"}:
+            chat_events.append((_event_chat_label(kind), _generic_display_text(event.get("body") or event.get("summary") or title)))
     for notice in notices:
         if notice.startswith("> "):
             chat_events.append((_style("YOU", "35"), notice[2:]))
@@ -1574,10 +1592,35 @@ def _chat_pane_lines(events: list[dict[str, Any]], notices: list[str], *, width:
     for label, body in chat_events[-max(3, rows):]:
         available = max(18, width - 9)
         wrapped = textwrap.wrap(" ".join(str(body).split()), width=available) or [""]
-        lines.append(f"{_fit_ansi(label, 5)} {wrapped[0]}")
+        lines.append(f"{_fit_ansi(label, 7)} {wrapped[0]}")
         for continuation in wrapped[1:3]:
-            lines.append(f"{'':5} {continuation}")
+            lines.append(f"{'':7} {continuation}")
     return lines[-rows:]
+
+
+def _agent_chat_label(title: str) -> str:
+    lowered = title.lower()
+    if lowered in {"plan", "planning"}:
+        return _style("PLAN", "35")
+    if lowered in {"progress", "update", "report"}:
+        return _style("UPDATE", "36")
+    if lowered in {"reflection", "reflect"}:
+        return _style("REFLECT", "35")
+    return _style("AGENT", "36")
+
+
+def _event_chat_label(kind: str) -> str:
+    labels = {
+        "artifact": ("OUTPUT", "32"),
+        "finding": ("FINDING", "32"),
+        "task": ("TASK", "33"),
+        "lesson": ("MEMORY", "36"),
+        "reflection": ("REFLECT", "35"),
+        "digest": ("DIGEST", "36"),
+        "error": ("ERROR", "31"),
+    }
+    text, color = labels.get(kind, ("NIPUX", "36"))
+    return _style(text, color)
 
 
 def _right_pane_lines(
@@ -3202,19 +3245,19 @@ def _print_jobs_panel(jobs: list[dict[str, Any]], *, focused_job_id: str, daemon
 def _next_operator_action(job: dict[str, Any], daemon_running: bool) -> str:
     status = str(job.get("status") or "")
     if status == "planning":
-        return "answer the plan questions, or /run when ready"
+        return "answer the plan questions, or use Run when ready"
     if status == "cancelled":
-        return "/resume to reopen this job, or /delete to remove it"
+        return "resume to reopen this job, or delete it"
     if status == "paused":
-        return "/resume then /run to continue"
+        return "resume, then run to continue"
     if status in {"queued", "running"} and not daemon_running:
-        return "/run to start background work"
+        return "run to start background work"
     if status in {"queued", "running"} and daemon_running:
         return "daemon is active; live steps will stream here"
     if status == "completed":
-        return "/history or /artifacts to inspect results"
+        return "inspect history or artifacts"
     if status == "failed":
-        return "/resume then /work 1 to test recovery"
+        return "resume, then run one worker step to test recovery"
     return ""
 
 
@@ -4227,6 +4270,9 @@ def _chat_handle_line(job_id: str, line: str, *, reply_fn=None) -> bool:
 def _handle_chat_message(job_id: str, line: str, *, reply_fn=None, quiet: bool = False) -> tuple[bool, str]:
     if reply_fn is None:
         reply_fn = _reply_to_chat
+    spawned = _maybe_spawn_job_from_chat(job_id, line, quiet=quiet)
+    if spawned:
+        return True, spawned
     _queue_chat_note(job_id, line, mode="steer", quiet=quiet)
     try:
         reply = reply_fn(job_id, line)
@@ -4252,6 +4298,85 @@ def _handle_chat_message(job_id: str, line: str, *, reply_fn=None, quiet: bool =
         if not quiet:
             print("model returned an empty reply; your message is still queued.")
         return True, message
+
+
+def _maybe_spawn_job_from_chat(job_id: str, message: str, *, quiet: bool = False) -> str:
+    objective = _extract_job_objective_from_message(message)
+    if not objective:
+        return ""
+    created_id, title = _create_job(objective=objective, title=None, kind="generic", cadence=None)
+    _write_shell_state({"focus_job_id": created_id})
+    db, _ = _db()
+    try:
+        db.append_operator_message(created_id, message, source="chat", mode="steer")
+        db.append_agent_update(
+            created_id,
+            "Created this job from chat and drafted its initial plan. Use the right-side controls to run it.",
+            category="chat",
+        )
+        db.append_agent_update(
+            job_id,
+            f"Created job '{title}' from your chat request and switched focus to it.",
+            category="chat",
+        )
+    finally:
+        db.close()
+    text = f"Created job: {title}. Focus switched to it."
+    if not quiet:
+        print(text)
+    return text
+
+
+def _extract_job_objective_from_message(message: str) -> str:
+    text = " ".join(message.strip().split())
+    if not text:
+        return ""
+    lowered = text.lower()
+    patterns = [
+        r"^(?:please\s+)?(?:create|start|spin\s+off|make|launch)\s+(?:a\s+)?(?:new\s+)?job\s+(?:to|for|that|which)?\s*(.+)$",
+        r"^(?:please\s+)?(?:new|job)\s+(.+)$",
+        r"^(?:please\s+)?(?:can\s+you|could\s+you|i\s+need\s+you\s+to|i\s+want\s+you\s+to)\s+(.+)$",
+    ]
+    for pattern in patterns:
+        match = re.match(pattern, text, flags=re.IGNORECASE)
+        if match:
+            objective = match.group(1).strip(" .")
+            return objective if _looks_like_job_objective(objective) else ""
+    if _looks_like_job_objective(text) and not _looks_like_smalltalk(lowered):
+        return text
+    return ""
+
+
+def _looks_like_smalltalk(lowered: str) -> bool:
+    return lowered in {"hi", "hello", "hey", "yo", "sup", "thanks", "thank you"} or lowered.endswith("?")
+
+
+def _looks_like_job_objective(text: str) -> bool:
+    lowered = text.lower()
+    if len(text.split()) < 3:
+        return False
+    action_words = {
+        "research",
+        "monitor",
+        "optimize",
+        "build",
+        "find",
+        "test",
+        "deploy",
+        "fix",
+        "write",
+        "analyze",
+        "track",
+        "benchmark",
+        "scrape",
+        "watch",
+        "automate",
+        "summarize",
+        "compare",
+        "investigate",
+        "improve",
+    }
+    return any(re.search(rf"\b{re.escape(word)}\b", lowered) for word in action_words)
 
 
 def _queue_chat_note(job_id: str, message: str, *, mode: str = "steer", quiet: bool = False) -> None:
@@ -4325,8 +4450,8 @@ def _build_chat_messages(db: AgentDB, job: dict[str, Any], message: str) -> list
             "content": (
                 "You are Nipux, a chat-first controller for generic long-running work agents. "
                 "Answer directly from the visible job state. Do not claim hidden chain-of-thought. "
-                "If the operator asks where saved work is, point to /artifacts or /artifact NUMBER. "
-                "If the operator wants action, tell them the exact chat command such as /run or /work 1. "
+                "If the operator asks where saved work is, explain that artifacts and history are visible from the right-side controls or direct CLI commands. "
+                "If the operator wants action, refer to the right-side controls such as Run, Pause, Jobs, Settings, History, or Artifacts. "
                 "Do not start replies with an introduction. Keep replies concise and useful."
             ),
         },

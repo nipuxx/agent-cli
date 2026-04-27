@@ -11,6 +11,7 @@ from nipux_cli.cli import (
     _decode_terminal_escape,
     _first_run_click_action,
     _frame_next_job_id,
+    _handle_first_run_menu_line,
     _launch_agent_plist,
     _minimal_live_event_line,
     _print_shell_help,
@@ -171,6 +172,20 @@ def test_first_run_menu_can_create_job_and_open_workspace(monkeypatch, tmp_path,
     assert "created Build a durable workflow" in out
     assert "Opening workspace" in out
     assert "opened" in out
+
+
+def test_first_run_plain_greeting_does_not_create_job(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+
+    assert _handle_first_run_menu_line("Hello") is True
+
+    out = capsys.readouterr().out
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        assert db.list_jobs() == []
+    finally:
+        db.close()
+    assert "long-running work" in out
 
 
 def test_first_run_frame_uses_full_screen_ui_not_banner(monkeypatch, tmp_path):
@@ -627,6 +642,34 @@ def test_chat_handle_line_adds_operator_message(monkeypatch, tmp_path, capsys):
         assert job["metadata"]["operator_messages"][-1]["source"] == "chat"
         assert job["metadata"]["operator_messages"][-1]["message"] == "prefer artifact-backed findings"
         assert job["metadata"]["last_agent_update"]["category"] == "chat"
+    finally:
+        db.close()
+
+
+def test_chat_can_spawn_new_job_from_plain_message(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        original_id = db.create_job("Research topic", title="nightly research")
+    finally:
+        db.close()
+
+    assert _chat_handle_line(
+        original_id,
+        "create a job to monitor nightly benchmarks and report regressions",
+        reply_fn=lambda _job_id, _message: "should not call model",
+    ) is True
+
+    out = capsys.readouterr().out
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        jobs = db.list_jobs()
+        assert len(jobs) == 2
+        created = [job for job in jobs if job["id"] != original_id][0]
+        assert "monitor nightly benchmarks" in created["objective"]
+        assert created["status"] == "planning"
+        assert "should not call model" not in out
+        assert "Created job" in out
     finally:
         db.close()
 
