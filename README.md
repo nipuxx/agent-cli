@@ -9,11 +9,11 @@
 ```
 
 Nipux CLI is a small, restartable local-model worker for long-running browser,
-web research, and command-line jobs. It is maintained for Nepox and built around
+web research, and command-line jobs. It is maintained for Nipux and built around
 one practical idea: keep a worker moving in bounded steps, save exact evidence,
 learn from each branch, and recover cleanly when a process or model call fails.
 
-- Website: [nepox.com](https://nepox.com)
+- Website: [Nipux.com](https://nipux.com)
 - Source: [github.com/nipuxx/agent-cli](https://github.com/nipuxx/agent-cli)
 - License: [MIT](LICENSE)
 
