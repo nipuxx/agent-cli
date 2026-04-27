@@ -231,7 +231,7 @@ def test_first_run_frame_has_settings_view(monkeypatch, tmp_path):
     assert "Settings" in frame
     assert "Config" in frame
     assert "Base URL" in frame
-    assert "Input" in frame
+    assert "Page" in frame
     assert "/shell" not in frame
 
 
@@ -290,9 +290,9 @@ def test_terminal_escape_decodes_arrows_and_mouse_click():
 def test_first_run_click_maps_right_pane_actions(monkeypatch):
     monkeypatch.setattr("shutil.get_terminal_size", lambda fallback=(100, 30): (100, 30))
 
-    assert _first_run_click_action(70, 10, view="start") == 0
-    assert _first_run_click_action(70, 12, view="start") == 2
-    assert _first_run_click_action(70, 12, view="settings") == 0
+    assert _first_run_click_action(70, 11, view="start") == 0
+    assert _first_run_click_action(70, 13, view="start") == 2
+    assert _first_run_click_action(70, 11, view="settings") == 0
     assert _first_run_click_action(10, 12, view="start") is None
 
 

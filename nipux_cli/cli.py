@@ -919,7 +919,7 @@ def _first_run_click_action(x: int, y: int, *, view: str) -> int | None:
     if x < right_start:
         return None
     body_start_y = 4
-    action_body_index = 8 if view == "settings" else 6
+    action_body_index = 7
     index = y - (body_start_y + action_body_index)
     actions = _first_run_actions(view)
     return index if 0 <= index < len(actions) else None
@@ -938,7 +938,7 @@ def _chat_settings_click_action(x: int, y: int, *, right_view: str) -> int | Non
     if x < right_start:
         return None
     body_start_y = 4
-    settings_action_index = 8
+    settings_action_index = 13
     index = y - (body_start_y + settings_action_index)
     actions = _first_run_actions("settings")
     return index if 0 <= index < len(actions) else None
@@ -1106,7 +1106,7 @@ def _build_first_run_frame(
         rows=body_rows,
     )
     left_title = "Agent Output"
-    right_title = "Settings" if view == "settings" else "Control"
+    right_title = "Control"
     lines = [*header, _two_col_title(left_width, right_width, left_title, right_title)]
     for index in range(body_rows):
         left = left_lines[index] if index < len(left_lines) else ""
@@ -1141,34 +1141,19 @@ def _first_run_left_lines(
     view: str,
     selected: int,
 ) -> list[str]:
-    if view == "settings":
-        lines = [
-            _bold("Settings"),
-            _muted("Edit values from the control pane. The worker reads these from config.yaml."),
-            "",
-            f"{_muted('Pages')} {_page_indicator(view, [('start', 'Start'), ('settings', 'Settings')])}",
-            "",
-            "Highlight a setting and press Enter, or click it.",
-            "",
-            _muted("Navigation"),
-            "↑↓ move selection",
-            "← return to Start",
-            "Enter or click selects",
-        ]
-    else:
-        selected_label = _first_run_actions(view)[_clamp_first_run_selection(selected, view)][1]
-        lines = [
-            _bold("No agent output yet."),
-            _muted("Create a job from the control pane or type a goal in the input line."),
-            "",
-            f"{_muted('Selected')} {_accent(selected_label)}",
-            "",
-            f"{_muted('Pages')} {_page_indicator(view, [('start', 'Start'), ('settings', 'Settings')])}",
-            "",
-            _muted("After a job exists, this side becomes the agent conversation and output stream."),
-            "",
-            _muted("Use arrows, Enter, or click. Controls stay on the right."),
-        ]
+    selected_label = _first_run_actions(view)[_clamp_first_run_selection(selected, view)][1]
+    lines = [
+        _bold("No agent output yet."),
+        _muted("Create a job from the control pane or type a goal in the input line."),
+        "",
+        f"{_muted('Selected')} {_accent(selected_label)}",
+        "",
+        f"{_muted('Pages')} {_page_indicator(view, [('start', 'Start'), ('settings', 'Settings')])}",
+        "",
+        _muted("After a job exists, this side becomes the agent conversation and output stream."),
+        "",
+        _muted("Use arrows, Enter, or click. Controls stay on the right."),
+    ]
     if notices:
         lines.extend(["", _muted("Recent")])
         for notice in notices[-6:]:
@@ -1189,26 +1174,24 @@ def _first_run_right_lines(
     width: int,
     rows: int,
 ) -> list[str]:
+    profile_lines = _first_run_profile_lines(
+        view=view,
+        model=model,
+        daemon_text=daemon_text,
+        home=home,
+        config_path=config_path,
+        width=width,
+    )
     if view == "settings":
         lines = [
-            f"{_bold('Profile')}  {_page_indicator(view, [('start', 'Start'), ('settings', 'Settings')])}",
-            f"{_muted('Model')}  {_one_line(model, width - 8)}",
-            f"{_muted('Daemon')} {_one_line(daemon_text, width - 8)}",
-            f"{_muted('Home')}   {_one_line(home, width - 8)}",
-            f"{_muted('Config')} {_one_line(config_path, width - 8)}",
-            f"{_muted('Input')}  arrows, Enter, click",
-            "",
+            *profile_lines,
             _bold("Editable"),
             *_first_run_action_lines(_first_run_actions(view), selected, width=width),
         ]
         return [_fit_ansi(line, width) for line in lines[:rows]]
 
     lines = [
-        f"{_bold('Profile')}  {_page_indicator(view, [('start', 'Start'), ('settings', 'Settings')])}",
-        f"{_muted('Model')}  {_one_line(model, width - 8)}",
-        f"{_muted('Daemon')} {_one_line(daemon_text, width - 8)}",
-        f"{_muted('Home')}   {_one_line(home, width - 8)}",
-        "",
+        *profile_lines,
         _bold("Actions"),
         *_first_run_action_lines(_first_run_actions(view), selected, width=width),
         "",
@@ -1219,6 +1202,25 @@ def _first_run_right_lines(
     else:
         lines.append(_muted("No saved jobs in this profile."))
     return [_fit_ansi(line, width) for line in lines[:rows]]
+
+
+def _first_run_profile_lines(
+    *,
+    view: str,
+    model: str,
+    daemon_text: str,
+    home: str,
+    config_path: str,
+    width: int,
+) -> list[str]:
+    return [
+        f"{_muted('Page')}   {_page_indicator(view, [('start', 'Start'), ('settings', 'Settings')])}",
+        f"{_muted('Model')}  {_one_line(model, width - 8)}",
+        f"{_muted('Daemon')} {_one_line(daemon_text, width - 8)}",
+        f"{_muted('Home')}   {_one_line(home, width - 8)}",
+        f"{_muted('Config')} {_one_line(config_path, width - 8)}",
+        "",
+    ]
 
 
 def _first_run_action_lines(actions: list[tuple[str, str, str]], selected: int, *, width: int) -> list[str]:
@@ -1662,12 +1664,19 @@ def _build_chat_frame(
     chat_lines = _chat_pane_lines(events, notices, width=left_width, rows=chat_rows)
     if right_view == "settings":
         right_lines = _chat_settings_pane_lines(
+            job=job,
+            state=state,
+            worker=worker,
             daemon_text=daemon_text,
+            model=model,
+            goal_text=goal_text,
+            latest_text=latest_text,
+            metrics=metrics,
             selected=selected_control,
             width=right_width,
             rows=right_rows,
         )
-        right_title = "Settings"
+        right_title = "Control / Status"
     else:
         right_lines = _right_pane_lines(
             job=job,
@@ -1796,18 +1805,18 @@ def _right_pane_lines(
     rows: int,
     right_view: str = "status",
 ) -> list[str]:
-    info_lines: list[str] = [
-        f"{_muted('Page')}   {_page_indicator(right_view, [('status', 'Status'), ('settings', 'Settings')])}",
-        f"{_muted('Focus')}  {_bold(_one_line(job.get('title') or 'untitled', width - 8))}",
-        f"{_muted('State')}  {_status_badge(state)}  {_muted('worker')} {_status_badge(worker)}",
-        f"{_muted('Daemon')} {_one_line(daemon_text, width - 8)}",
-        f"{_muted('Model')}  {_one_line(model, width - 8)}",
-    ]
-    for goal_line in textwrap.wrap(goal_text, width=max(20, width - 8))[:2]:
-        info_lines.append(f"{_muted('Goal')}   {goal_line}")
-    info_lines.append(f"{_muted('Latest')} {_one_line(latest_text, width - 8)}")
-    info_lines.append(_metric_strip(metrics, width=width))
-    info_lines.append("")
+    info_lines = _chat_workspace_lines(
+        right_view=right_view,
+        job=job,
+        state=state,
+        worker=worker,
+        daemon_text=daemon_text,
+        model=model,
+        goal_text=goal_text,
+        latest_text=latest_text,
+        metrics=metrics,
+        width=width,
+    )
     info_lines.append(
         f"{_bold('Controls')}  {_muted('run')}  {_muted('pause')}  {_muted('jobs')}  {_muted('settings')}"
     )
@@ -1826,20 +1835,70 @@ def _right_pane_lines(
     return (info_lines + activity_lines)[:rows]
 
 
-def _chat_settings_pane_lines(*, daemon_text: str, selected: int, width: int, rows: int) -> list[str]:
+def _chat_settings_pane_lines(
+    *,
+    job: dict[str, Any],
+    state: str,
+    worker: str,
+    daemon_text: str,
+    model: str,
+    goal_text: str,
+    latest_text: str,
+    metrics: list[tuple[str, Any]],
+    selected: int,
+    width: int,
+    rows: int,
+) -> list[str]:
     config = load_config()
     lines = [
-        f"{_bold('Profile')}  {_page_indicator('settings', [('status', 'Status'), ('settings', 'Settings')])}",
-        f"{_muted('Model')}  {_one_line(config.model.model, width - 8)}",
-        f"{_muted('Daemon')} {_one_line(daemon_text, width - 8)}",
-        f"{_muted('Home')}   {_one_line(_short_path(config.runtime.home), width - 8)}",
-        f"{_muted('Config')} {_one_line(_short_path(_config_path()), width - 8)}",
-        f"{_muted('Input')}  arrows, Enter, click",
-        "",
+        *_chat_workspace_lines(
+            right_view="settings",
+            job=job,
+            state=state,
+            worker=worker,
+            daemon_text=daemon_text,
+            model=model,
+            goal_text=goal_text,
+            latest_text=latest_text,
+            metrics=metrics,
+            width=width,
+        ),
         _bold("Editable"),
+        f"{_muted('Config')} {_one_line(_short_path(_config_path()), width - 8)}",
+        f"{_muted('Home')}   {_one_line(_short_path(config.runtime.home), width - 8)}",
         *_first_run_action_lines(_first_run_actions("settings"), selected, width=width),
     ]
     return [_fit_ansi(line, width) for line in lines[:rows]]
+
+
+def _chat_workspace_lines(
+    *,
+    right_view: str,
+    job: dict[str, Any],
+    state: str,
+    worker: str,
+    daemon_text: str,
+    model: str,
+    goal_text: str,
+    latest_text: str,
+    metrics: list[tuple[str, Any]],
+    width: int,
+) -> list[str]:
+    goal_lines = textwrap.wrap(goal_text, width=max(20, width - 8))[:2] or [""]
+    while len(goal_lines) < 2:
+        goal_lines.append("")
+    return [
+        f"{_muted('Page')}   {_page_indicator(right_view, [('status', 'Status'), ('settings', 'Settings')])}",
+        f"{_muted('Focus')}  {_bold(_one_line(job.get('title') or 'untitled', width - 8))}",
+        f"{_muted('State')}  {_status_badge(state)}  {_muted('worker')} {_status_badge(worker)}",
+        f"{_muted('Daemon')} {_one_line(daemon_text, width - 8)}",
+        f"{_muted('Model')}  {_one_line(model, width - 8)}",
+        f"{_muted('Goal')}   {goal_lines[0]}",
+        f"{_muted('Goal')}   {goal_lines[1]}",
+        f"{_muted('Latest')} {_one_line(latest_text, width - 8)}",
+        _metric_strip(metrics, width=width),
+        "",
+    ]
 
 
 def _activity_text(event: dict[str, Any], *, width: int) -> str:
