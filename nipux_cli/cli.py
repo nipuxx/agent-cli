@@ -22,8 +22,10 @@ from io import StringIO
 from pathlib import Path
 from typing import Any
 
+import yaml
+
 from nipux_cli.artifacts import ArtifactStore
-from nipux_cli.config import default_config_yaml, load_config
+from nipux_cli.config import default_config_yaml, get_agent_home, load_config
 from nipux_cli.daemon import Daemon, DaemonAlreadyRunning, daemon_lock_status, read_daemon_events
 from nipux_cli.dashboard import collect_dashboard_state, render_dashboard, render_overview
 from nipux_cli.db import AgentDB
@@ -171,12 +173,34 @@ FIRST_RUN_ACTIONS = [
 ]
 
 FIRST_RUN_SETTINGS_ACTIONS = [
+    ("edit:model.name", "Model", "model name"),
+    ("edit:model.base_url", "Base URL", "OpenAI-compatible endpoint"),
+    ("edit:model.api_key_env", "API env", "environment variable name"),
+    ("edit:model.context_length", "Context", "token budget"),
+    ("edit:model.request_timeout_seconds", "Timeout", "request seconds"),
+    ("edit:runtime.home", "Home", "state directory"),
+    ("edit:runtime.max_step_seconds", "Step limit", "worker timeout seconds"),
+    ("edit:runtime.artifact_inline_char_limit", "Output chars", "inline artifact limit"),
+    ("edit:runtime.daily_digest_enabled", "Digest", "true or false"),
+    ("edit:runtime.daily_digest_time", "Digest time", "HH:MM"),
     ("back", "Back", "return to start"),
-    ("init", "Init config", "write starter config"),
     ("doctor", "Doctor", "check local setup"),
-    ("jobs", "Jobs", "show saved workspaces"),
+    ("init", "Init config", "write starter config"),
     ("exit", "Exit", "leave Nipux"),
 ]
+
+SETTINGS_FIELD_TYPES = {
+    "model.name": "str",
+    "model.base_url": "str",
+    "model.api_key_env": "str",
+    "model.context_length": "int",
+    "model.request_timeout_seconds": "float",
+    "runtime.home": "path",
+    "runtime.max_step_seconds": "int",
+    "runtime.artifact_inline_char_limit": "int",
+    "runtime.daily_digest_enabled": "bool",
+    "runtime.daily_digest_time": "str",
+}
 
 
 def _db() -> tuple[AgentDB, object]:
@@ -538,7 +562,7 @@ def _prompt_first_run_value(label: str) -> str:
 def _first_run_create_and_open(objective: str, *, history_limit: int = 12) -> None:
     job_id, title = _create_job(objective=objective, title=None, kind="generic", cadence=None)
     print(f"created {title}")
-    print("Opening workspace. Use /run to start work, /jobs to switch, /help for commands.")
+    print("Opening workspace. Use the right-side controls to run, switch jobs, or inspect settings.")
     _enter_chat(job_id, show_history=True, history_limit=history_limit)
 
 
@@ -596,6 +620,13 @@ def _enter_first_run_frame(*, history_limit: int = 12) -> None:
                 if action == "open":
                     next_job_id = str(payload)
                     break
+                if action == "edit":
+                    notice = _prompt_first_run_setting(str(payload), stdin_fd=stdin_fd, old_attrs=old_attrs)
+                    if notice:
+                        notices.append(notice)
+                        notices[:] = notices[-10:]
+                    needs_render = True
+                    continue
                 if isinstance(payload, list):
                     notices.extend(str(item) for item in payload if str(item).strip())
                 elif payload:
@@ -616,10 +647,6 @@ def _enter_first_run_frame(*, history_limit: int = 12) -> None:
                 needs_render = True
                 continue
             if char == "\t":
-                completed = _autocomplete_slash(buffer, FIRST_RUN_SLASH_COMMANDS)
-                if completed != buffer:
-                    buffer = completed
-                    needs_render = True
                 continue
             if char == "\x1b":
                 key, payload = _decode_terminal_escape(_read_escape_sequence(char, fd=stdin_fd))
@@ -647,6 +674,10 @@ def _enter_first_run_frame(*, history_limit: int = 12) -> None:
                         elif action == "open":
                             next_job_id = str(action_payload)
                             break
+                        elif action == "edit":
+                            notice = _prompt_first_run_setting(str(action_payload), stdin_fd=stdin_fd, old_attrs=old_attrs)
+                            if notice:
+                                notices.append(notice)
                         elif isinstance(action_payload, list):
                             notices.extend(str(item) for item in action_payload if str(item).strip())
                         elif action_payload:
@@ -666,6 +697,96 @@ def _enter_first_run_frame(*, history_limit: int = 12) -> None:
         _enter_chat(next_job_id, show_history=True, history_limit=history_limit)
 
 
+def _prompt_first_run_setting(field: str, *, stdin_fd: int, old_attrs: list[Any]) -> str:
+    config = load_config()
+    current = _config_field_value(field, config)
+    termios.tcsetattr(stdin_fd, termios.TCSADRAIN, old_attrs)
+    print("\033[?25h\033[0m", flush=True)
+    try:
+        value = input(f"{field} [{current}] > ").strip()
+    except (EOFError, KeyboardInterrupt):
+        print()
+        value = ""
+    finally:
+        tty.setcbreak(stdin_fd)
+        print("\033[?25l", end="", flush=True)
+    if not value:
+        return f"kept {field}"
+    try:
+        saved = _save_config_field(field, value)
+    except ValueError as exc:
+        return f"{field}: {exc}"
+    return f"saved {field} = {saved}"
+
+
+def _config_path() -> Path:
+    return get_agent_home() / "config.yaml"
+
+
+def _load_config_yaml() -> dict[str, Any]:
+    path = _config_path()
+    if not path.exists():
+        loaded = yaml.safe_load(default_config_yaml()) or {}
+        return loaded if isinstance(loaded, dict) else {}
+    loaded = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    return loaded if isinstance(loaded, dict) else {}
+
+
+def _save_config_yaml(data: dict[str, Any]) -> None:
+    path = _config_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
+
+
+def _config_field_value(field: str, config: Any | None = None) -> Any:
+    config = load_config() if config is None else config
+    values = {
+        "model.name": config.model.model,
+        "model.base_url": config.model.base_url,
+        "model.api_key_env": config.model.api_key_env,
+        "model.context_length": config.model.context_length,
+        "model.request_timeout_seconds": config.model.request_timeout_seconds,
+        "runtime.home": str(config.runtime.home),
+        "runtime.max_step_seconds": config.runtime.max_step_seconds,
+        "runtime.artifact_inline_char_limit": config.runtime.artifact_inline_char_limit,
+        "runtime.daily_digest_enabled": config.runtime.daily_digest_enabled,
+        "runtime.daily_digest_time": config.runtime.daily_digest_time,
+    }
+    return values.get(field, "")
+
+
+def _save_config_field(field: str, raw_value: str) -> Any:
+    value = _coerce_config_value(field, raw_value)
+    data = _load_config_yaml()
+    section, key = field.split(".", 1)
+    target = data.setdefault(section, {})
+    if not isinstance(target, dict):
+        target = {}
+        data[section] = target
+    target[key] = value
+    _save_config_yaml(data)
+    return value
+
+
+def _coerce_config_value(field: str, raw_value: str) -> Any:
+    kind = SETTINGS_FIELD_TYPES.get(field, "str")
+    value = raw_value.strip()
+    if kind == "int":
+        return int(value)
+    if kind == "float":
+        return float(value)
+    if kind == "bool":
+        lowered = value.lower()
+        if lowered in {"1", "true", "yes", "on"}:
+            return True
+        if lowered in {"0", "false", "no", "off"}:
+            return False
+        raise ValueError("use true or false")
+    if kind == "path":
+        return str(Path(value).expanduser())
+    return value
+
+
 def _first_run_actions(view: str) -> list[tuple[str, str, str]]:
     return FIRST_RUN_SETTINGS_ACTIONS if view == "settings" else FIRST_RUN_ACTIONS
 
@@ -678,8 +799,10 @@ def _clamp_first_run_selection(selected: int, view: str) -> int:
 
 
 def _handle_first_run_action(action: str) -> tuple[str, str | list[str] | None]:
+    if action.startswith("edit:"):
+        return "edit", action.split(":", 1)[1]
     if action == "new":
-        return "notice", "Type the goal in the input line, or use `/new OBJECTIVE`."
+        return "notice", "Type the goal in the input line, then press Enter."
     if action == "settings":
         return "view", "settings"
     if action == "back":
@@ -783,7 +906,7 @@ def _handle_first_run_frame_line(line: str) -> tuple[str, str | list[str] | None
         return "notice", [
             "Create a job by typing an objective.",
             "Commands: new OBJECTIVE, jobs, settings, doctor, init, exit.",
-            "After creation, the workspace opens and `/run` starts work.",
+            "After creation, use the right-side controls to run work.",
         ]
     if lowered in {"1", "new"}:
         return "notice", "Type `new OBJECTIVE` or paste the objective directly."
@@ -872,8 +995,7 @@ def _build_first_run_frame(
     compose_lines = _compose_bar(
         input_buffer,
         width=width,
-        hint="Enter creates or runs the selected action. ↑↓ moves. ←→ switches views. Click actions.",
-        suggestions=_slash_suggestion_lines(input_buffer, FIRST_RUN_SLASH_COMMANDS, width=width),
+        hint="Enter selects the highlighted control. ↑↓ moves. ←→ switches views. Click works.",
     )
     footer_rows = len(compose_lines)
     body_rows = max(10, height - len(header) - 1 - footer_rows)
@@ -896,8 +1018,9 @@ def _build_first_run_frame(
         width=right_width,
         rows=body_rows,
     )
-    left_title = "Settings" if view == "settings" else "Start"
-    lines = [*header, _two_col_title(left_width, right_width, left_title, "Control")]
+    left_title = "Agent Output"
+    right_title = "Settings" if view == "settings" else "Control"
+    lines = [*header, _two_col_title(left_width, right_width, left_title, right_title)]
     for index in range(body_rows):
         left = left_lines[index] if index < len(left_lines) else ""
         right = right_lines[index] if index < len(right_lines) else ""
@@ -934,9 +1057,9 @@ def _first_run_left_lines(
     if view == "settings":
         lines = [
             _bold("Settings"),
-            _muted("This profile controls where Nipux stores state and which model the worker uses."),
+            _muted("Edit values from the control pane. The worker reads these from config.yaml."),
             "",
-            "Use the action list on the right to run setup checks or write starter files.",
+            "Highlight a setting and press Enter, or click it.",
             "",
             _muted("Navigation"),
             "↑↓ move selection",
@@ -946,17 +1069,14 @@ def _first_run_left_lines(
     else:
         selected_label = _first_run_actions(view)[_clamp_first_run_selection(selected, view)][1]
         lines = [
-            _bold("What should Nipux work on?"),
-            _muted("Type the outcome you want. Nipux will create a job, draft a plan, then wait for you to run it."),
+            _bold("No agent output yet."),
+            _muted("Create a job from the control pane or type a goal in the input line."),
             "",
             f"{_muted('Selected')} {_accent(selected_label)}",
             "",
-            _muted("Good first goals"),
-            "Research a topic and save findings",
-            "Monitor a process and report progress",
-            "Improve or automate a workflow",
+            _muted("After a job exists, this side becomes the agent conversation and output stream."),
             "",
-            _muted("Use / for commands, Tab to complete, or click an action."),
+            _muted("Use arrows, Enter, or click. Controls stay on the right."),
         ]
     if notices:
         lines.extend(["", _muted("Recent")])
@@ -985,9 +1105,9 @@ def _first_run_right_lines(
             f"{_muted('Daemon')} {_one_line(daemon_text, width - 8)}",
             f"{_muted('Home')}   {_one_line(home, width - 8)}",
             f"{_muted('Config')} {_one_line(config_path, width - 8)}",
-            f"{_muted('Frame')}  keyboard + mouse enabled",
+            f"{_muted('Input')}  arrows, Enter, click",
             "",
-            _bold("Actions"),
+            _bold("Editable"),
             *_first_run_action_lines(_first_run_actions(view), selected, width=width),
         ]
         return [_fit_ansi(line, width) for line in lines[:rows]]
@@ -1016,6 +1136,9 @@ def _first_run_action_lines(actions: list[tuple[str, str, str]], selected: int, 
     for index, (_key, label, detail) in enumerate(actions):
         marker = _accent("›") if index == selected else _muted(" ")
         name = _bold(label) if index == selected else label
+        if _key.startswith("edit:"):
+            field = _key.split(":", 1)[1]
+            detail = _one_line(str(_config_field_value(field)), max(10, width - 18))
         lines.append(_fit_ansi(f"{marker} {_fit_ansi(name, 14)} {_muted(detail)}", width))
     return lines
 
@@ -1083,6 +1206,8 @@ def _enter_chat_frame(job_id: str, *, history_limit: int = 12) -> None:
     _write_shell_state({"focus_job_id": job_id})
     buffer = ""
     notices: list[str] = []
+    right_view = "status"
+    selected_control = 0
     snapshot = _load_frame_snapshot(job_id, history_limit=history_limit)
     job_id = str(snapshot["job_id"])
     old_attrs = termios.tcgetattr(sys.stdin)
@@ -1104,7 +1229,8 @@ def _enter_chat_frame(job_id: str, *, history_limit: int = 12) -> None:
                     notices.append(f"frame refresh failed: {type(exc).__name__}")
                     notices[:] = notices[-12:]
             if needs_render:
-                _render_chat_frame(snapshot, buffer, notices)
+                selected_control = _clamp_first_run_selection(selected_control, "settings")
+                _render_chat_frame(snapshot, buffer, notices, right_view=right_view, selected_control=selected_control)
                 needs_render = False
             readable, _, _ = select.select([stdin_fd], [], [], 0.05)
             if not readable:
@@ -1114,6 +1240,22 @@ def _enter_chat_frame(job_id: str, *, history_limit: int = 12) -> None:
                 line = buffer.strip()
                 buffer = ""
                 if not line:
+                    if right_view == "settings":
+                        action, payload = _handle_first_run_action(_first_run_actions("settings")[selected_control][0])
+                        if action == "view":
+                            right_view = "status"
+                            selected_control = 0
+                        elif action == "edit":
+                            notice = _prompt_first_run_setting(str(payload), stdin_fd=stdin_fd, old_attrs=old_attrs)
+                            if notice:
+                                notices.append(notice)
+                                notices[:] = notices[-12:]
+                        elif isinstance(payload, list):
+                            notices.extend(str(item) for item in payload if str(item).strip())
+                            notices[:] = notices[-12:]
+                        elif payload:
+                            notices.append(str(payload))
+                            notices[:] = notices[-12:]
                     needs_render = True
                     continue
                 if line in {"clear", "/clear"}:
@@ -1122,7 +1264,7 @@ def _enter_chat_frame(job_id: str, *, history_limit: int = 12) -> None:
                     continue
                 notices.append(f"> {line}")
                 notices[:] = notices[-12:]
-                _render_chat_frame(snapshot, buffer, notices)
+                _render_chat_frame(snapshot, buffer, notices, right_view=right_view, selected_control=selected_control)
                 if _is_plain_chat_line(line):
                     keep_running, message = _handle_chat_message(job_id, line, quiet=True)
                     notices = [notice for notice in notices if notice != f"> {line}"]
@@ -1153,14 +1295,19 @@ def _enter_chat_frame(job_id: str, *, history_limit: int = 12) -> None:
                 needs_render = True
                 continue
             if char == "\t":
-                completed = _autocomplete_slash(buffer, CHAT_SLASH_COMMANDS)
-                if completed != buffer:
-                    buffer = completed
-                    needs_render = True
                 continue
             if char == "\x1b":
                 key, _payload = _decode_terminal_escape(_read_escape_sequence(char, fd=stdin_fd))
-                if key in {"up", "down"} and not buffer:
+                if key == "right" and not buffer:
+                    right_view = "settings"
+                    selected_control = 0
+                elif key == "left" and not buffer:
+                    right_view = "status"
+                    selected_control = 0
+                elif key in {"up", "down"} and not buffer and right_view == "settings":
+                    delta = -1 if key == "up" else 1
+                    selected_control = (selected_control + delta) % len(_first_run_actions("settings"))
+                elif key in {"up", "down"} and not buffer:
                     next_focus = _frame_next_job_id(snapshot, job_id, direction=-1 if key == "up" else 1)
                     if next_focus and next_focus != job_id:
                         job_id = next_focus
@@ -1263,13 +1410,37 @@ def _load_frame_snapshot(job_id: str, *, history_limit: int = 12) -> dict[str, A
     }
 
 
-def _render_chat_frame(snapshot: dict[str, Any], input_buffer: str, notices: list[str]) -> None:
+def _render_chat_frame(
+    snapshot: dict[str, Any],
+    input_buffer: str,
+    notices: list[str],
+    *,
+    right_view: str = "status",
+    selected_control: int = 0,
+) -> None:
     width, height = shutil.get_terminal_size((100, 30))
-    frame = _build_chat_frame(snapshot, input_buffer, notices, width=width, height=height)
+    frame = _build_chat_frame(
+        snapshot,
+        input_buffer,
+        notices,
+        width=width,
+        height=height,
+        right_view=right_view,
+        selected_control=selected_control,
+    )
     print("\033[H\033[2J" + frame, end="", flush=True)
 
 
-def _build_chat_frame(snapshot: dict[str, Any], input_buffer: str, notices: list[str], *, width: int, height: int) -> str:
+def _build_chat_frame(
+    snapshot: dict[str, Any],
+    input_buffer: str,
+    notices: list[str],
+    *,
+    width: int,
+    height: int,
+    right_view: str = "status",
+    selected_control: int = 0,
+) -> str:
     width = max(92, width)
     height = max(22, height)
     job = snapshot["job"]
@@ -1314,30 +1485,40 @@ def _build_chat_frame(snapshot: dict[str, Any], input_buffer: str, notices: list
     compose_lines = _compose_bar(
         input_buffer,
         width=width,
-        suggestions=_slash_suggestion_lines(input_buffer, CHAT_SLASH_COMMANDS, width=width),
+        hint="Enter sends. ↑↓ switches jobs when the input is empty. Controls live on the right.",
     )
     footer_rows = len(compose_lines)
     body_rows = max(10, height - len(header) - 1 - footer_rows)
     chat_rows = body_rows
     right_rows = body_rows
     chat_lines = _chat_pane_lines(events, notices, width=left_width, rows=chat_rows)
-    right_lines = _right_pane_lines(
-        job=job,
-        jobs=jobs,
-        job_id=job_id,
-        daemon_running=bool(daemon["running"]),
-        state=state,
-        worker=worker,
-        daemon_text=daemon_text,
-        model=model,
-        goal_text=goal_text,
-        latest_text=latest_text,
-        metrics=metrics,
-        events=events,
-        width=right_width,
-        rows=right_rows,
-    )
-    lines = [*header, _two_col_title(left_width, right_width, "Chat", "Work / Status")]
+    if right_view == "settings":
+        right_lines = _chat_settings_pane_lines(
+            daemon_text=daemon_text,
+            selected=selected_control,
+            width=right_width,
+            rows=right_rows,
+        )
+        right_title = "Settings"
+    else:
+        right_lines = _right_pane_lines(
+            job=job,
+            jobs=jobs,
+            job_id=job_id,
+            daemon_running=bool(daemon["running"]),
+            state=state,
+            worker=worker,
+            daemon_text=daemon_text,
+            model=model,
+            goal_text=goal_text,
+            latest_text=latest_text,
+            metrics=metrics,
+            events=events,
+            width=right_width,
+            rows=right_rows,
+        )
+        right_title = "Control / Status"
+    lines = [*header, _two_col_title(left_width, right_width, "Agent Output", right_title)]
     for index in range(body_rows):
         left = chat_lines[index] if index < len(chat_lines) else ""
         right = right_lines[index] if index < len(right_lines) else ""
@@ -1387,7 +1568,7 @@ def _chat_pane_lines(events: list[dict[str, Any]], notices: list[str], *, width:
     if not chat_events:
         return [
             _muted("No chat yet."),
-            _muted("Type normally to talk. Use /run, /stop, /jobs, /history, /artifacts."),
+            _muted("Type normally to talk. Use the right pane for status and controls."),
         ][:rows]
     lines: list[str] = []
     for label, body in chat_events[-max(3, rows):]:
@@ -1427,6 +1608,8 @@ def _right_pane_lines(
     info_lines.append(f"{_muted('Latest')} {_one_line(latest_text, width - 8)}")
     info_lines.append(_metric_strip(metrics, width=width))
     info_lines.append("")
+    info_lines.append(f"{_bold('Controls')}  {_muted('run')}  {_muted('pause')}  {_muted('jobs')}  {_muted('settings')}")
+    info_lines.append("")
     info_lines.append(_bold("Jobs"))
     for job_line in _frame_jobs_lines(jobs, focused_job_id=job_id, daemon_running=daemon_running, width=width)[:4]:
         info_lines.append(job_line)
@@ -1439,6 +1622,22 @@ def _right_pane_lines(
     activity_rows = rows - len(info_lines)
     activity_lines = activity[-activity_rows:] if activity else [_muted("No recent tool activity.")]
     return (info_lines + activity_lines)[:rows]
+
+
+def _chat_settings_pane_lines(*, daemon_text: str, selected: int, width: int, rows: int) -> list[str]:
+    config = load_config()
+    lines = [
+        _bold("Profile"),
+        f"{_muted('Model')}  {_one_line(config.model.model, width - 8)}",
+        f"{_muted('Daemon')} {_one_line(daemon_text, width - 8)}",
+        f"{_muted('Home')}   {_one_line(_short_path(config.runtime.home), width - 8)}",
+        f"{_muted('Config')} {_one_line(_short_path(_config_path()), width - 8)}",
+        f"{_muted('Input')}  arrows, Enter, click",
+        "",
+        _bold("Editable"),
+        *_first_run_action_lines(_first_run_actions("settings"), selected, width=width),
+    ]
+    return [_fit_ansi(line, width) for line in lines[:rows]]
 
 
 def _activity_text(event: dict[str, Any], *, width: int) -> str:

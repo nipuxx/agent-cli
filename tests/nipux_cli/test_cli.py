@@ -7,6 +7,7 @@ from nipux_cli.cli import (
     _build_chat_frame,
     _build_chat_messages,
     _chat_handle_line,
+    _config_field_value,
     _decode_terminal_escape,
     _first_run_click_action,
     _frame_next_job_id,
@@ -14,6 +15,7 @@ from nipux_cli.cli import (
     _minimal_live_event_line,
     _print_shell_help,
     _run_shell_line,
+    _save_config_field,
     _slash_suggestion_lines,
     _systemd_service_text,
     build_parser,
@@ -177,7 +179,7 @@ def test_first_run_frame_uses_full_screen_ui_not_banner(monkeypatch, tmp_path):
     frame = _build_first_run_frame("", [], width=100, height=24)
 
     assert "Nipux" in frame
-    assert "Start" in frame
+    assert "Agent Output" in frame
     assert "Control" in frame
     assert "Compose" in frame
     assert "New job" in frame
@@ -192,12 +194,12 @@ def test_first_run_frame_has_slash_command_popup(monkeypatch, tmp_path):
 
     frame = _build_first_run_frame("/", [], width=100, height=26)
 
-    assert "commands" in frame
-    assert "/new" in frame
-    assert "/doctor" in frame
-    assert "/settings" in frame
+    assert "commands" not in frame
+    assert "/new" not in frame
+    assert "/doctor" not in frame
+    assert "/settings" not in frame
     assert "/shell" not in frame
-    assert "tab completes first match" in frame
+    assert "tab completes first match" not in frame
 
 
 def test_first_run_frame_has_settings_view(monkeypatch, tmp_path):
@@ -207,9 +209,23 @@ def test_first_run_frame_has_settings_view(monkeypatch, tmp_path):
 
     assert "Settings" in frame
     assert "Config" in frame
-    assert "Init config" in frame
-    assert "keyboard + mouse enabled" in frame
+    assert "Base URL" in frame
+    assert "Input" in frame
     assert "/shell" not in frame
+
+
+def test_settings_editor_persists_model_config(monkeypatch, tmp_path):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+
+    assert _save_config_field("model.name", "demo/model") == "demo/model"
+    assert _save_config_field("model.context_length", "4096") == 4096
+    assert _save_config_field("runtime.daily_digest_enabled", "false") is False
+
+    assert _config_field_value("model.name") == "demo/model"
+    assert _config_field_value("model.context_length") == 4096
+    assert _config_field_value("runtime.daily_digest_enabled") is False
+    text = (tmp_path / "config.yaml").read_text(encoding="utf-8")
+    assert "demo/model" in text
 
 
 def test_slash_autocomplete_filters_commands():
@@ -444,11 +460,15 @@ def test_chat_frame_is_bounded_and_has_composer():
 
     assert len(frame.splitlines()) <= 22
     assert "Nipux CLI" in frame
-    assert "Chat" in frame
-    assert "Work / Status" in frame
+    assert "Agent Output" in frame
+    assert "Control / Status" in frame
     assert "Model Activity" in frame
     assert "Compose" in frame
     assert "❯ hello" in frame
+
+    settings = _build_chat_frame(snapshot, "", [], width=100, height=24, right_view="settings", selected_control=1)
+    assert "Settings" in settings
+    assert "Base URL" in settings
 
 
 def test_run_reopens_completed_focused_job(monkeypatch, tmp_path, capsys):

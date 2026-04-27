@@ -139,21 +139,12 @@ vllm serve "$MODEL_NAME" \
 ## Operator Workflow
 
 The no-argument CLI opens the focused job directly. Plain text becomes operator
-steering for the next worker step, and slash commands inspect or control the
-active job.
+steering for the next worker step. The terminal UI keeps conversation/output on
+the left and controls, jobs, status, and settings on the right.
 
 ```text
-nipux[nightly research]> what are you working on?
-nipux[nightly research]> /history
-nipux[nightly research]> /activity
-nipux[nightly research]> /outputs
-nipux[nightly research]> /artifacts
-nipux[nightly research]> /settings
-nipux[nightly research]> /run
-nipux[nightly research]> /work 1
-nipux[nightly research]> /follow after this branch, compare another source
-nipux[nightly research]> /stop
-nipux[nightly research]> /exit
+nipux > what are you working on?
+nipux > prioritize measured progress over notes
 ```
 
 For direct command use:
