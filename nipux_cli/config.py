@@ -155,15 +155,21 @@ def load_config(path: str | Path | None = None) -> AppConfig:
     return AppConfig(runtime=runtime, model=model, email=email)
 
 
-def default_config_yaml() -> str:
+def default_config_yaml(
+    *,
+    model: str = DEFAULT_MODEL,
+    base_url: str = DEFAULT_BASE_URL,
+    api_key_env: str = "OPENAI_API_KEY",
+    context_length: int = DEFAULT_CONTEXT_LENGTH,
+) -> str:
     """Return a starter config file for an OpenAI-compatible model server."""
 
     return (
         "model:\n"
-        f"  name: {DEFAULT_MODEL}\n"
-        f"  base_url: {DEFAULT_BASE_URL}\n"
-        "  api_key_env: OPENAI_API_KEY\n"
-        f"  context_length: {DEFAULT_CONTEXT_LENGTH}\n"
+        f"  name: {model}\n"
+        f"  base_url: {base_url.rstrip('/')}\n"
+        f"  api_key_env: {api_key_env}\n"
+        f"  context_length: {context_length}\n"
         "runtime:\n"
         "  max_step_seconds: 600\n"
         "  max_steps_per_run: 1\n"

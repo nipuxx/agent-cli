@@ -9,6 +9,7 @@ import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 from nipux_cli.config import AppConfig, load_config
 from nipux_cli.db import AgentDB
@@ -53,6 +54,21 @@ def _check_tool_surface() -> Check:
     return Check("tool_surface", True, f"{len(names)} tools: {', '.join(names)}")
 
 
+def _check_model_config(config: AppConfig) -> Check:
+    base_url = config.model.base_url
+    host = (urlparse(base_url).hostname or "").lower()
+    local_hosts = {"", "localhost", "127.0.0.1", "::1", "0.0.0.0"}
+    if host in local_hosts or host.endswith(".local"):
+        return Check("model_config", True, f"{config.model.model} at {base_url}")
+    if config.model.api_key:
+        return Check("model_config", True, f"{config.model.model} at {base_url}; key read from {config.model.api_key_env}")
+    return Check(
+        "model_config",
+        False,
+        f"{config.model.api_key_env} is not set for remote endpoint {base_url}; put it in the shell or ~/.nipux/.env",
+    )
+
+
 def _check_browser_runtime() -> Check:
     direct = shutil.which("agent-browser")
     if direct:
@@ -88,6 +104,7 @@ def run_doctor(*, config: AppConfig | None = None, check_model: bool = False) ->
     checks = [
         _check_writable_dir(config.runtime.home),
         _check_db(config),
+        _check_model_config(config),
         _check_tool_surface(),
         _check_browser_runtime(),
     ]
