@@ -1,5 +1,8 @@
 from nipux_cli.artifacts import ArtifactStore
 from nipux_cli.cli import (
+    CHAT_SLASH_COMMANDS,
+    FIRST_RUN_SLASH_COMMANDS,
+    _autocomplete_slash,
     _build_first_run_frame,
     _build_chat_frame,
     _build_chat_messages,
@@ -8,6 +11,7 @@ from nipux_cli.cli import (
     _minimal_live_event_line,
     _print_shell_help,
     _run_shell_line,
+    _slash_suggestion_lines,
     _systemd_service_text,
     build_parser,
     main,
@@ -168,14 +172,36 @@ def test_first_run_frame_uses_full_screen_ui_not_banner(monkeypatch, tmp_path):
 
     frame = _build_first_run_frame("", [], width=100, height=24)
 
-    assert "Nipux CLI" in frame
+    assert "Nipux" in frame
     assert "Start" in frame
     assert "Workspace" in frame
     assert "Compose" in frame
-    assert "new OBJECTIVE" in frame
+    assert "/new" in frame
     assert "_   _" not in frame
     assert "FIRST RUN" not in frame
     assert "nipux menu >" not in frame
+
+
+def test_first_run_frame_has_slash_command_popup(monkeypatch, tmp_path):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+
+    frame = _build_first_run_frame("/", [], width=100, height=26)
+
+    assert "commands" in frame
+    assert "/new" in frame
+    assert "/doctor" in frame
+    assert "tab completes first match" in frame
+
+
+def test_slash_autocomplete_filters_commands():
+    assert _autocomplete_slash("/do", FIRST_RUN_SLASH_COMMANDS) == "/doctor "
+    assert _autocomplete_slash("/sta", CHAT_SLASH_COMMANDS) == "/status "
+    assert _autocomplete_slash("plain text", CHAT_SLASH_COMMANDS) == "plain text"
+    lines = _slash_suggestion_lines("/art", CHAT_SLASH_COMMANDS, width=80)
+    text = "\n".join(lines)
+    assert "/artifacts" in text
+    assert "/artifact" in text
+    assert "/run" not in text
 
 
 def test_shell_ls_alias_lists_jobs_instead_of_steering(monkeypatch, tmp_path, capsys):

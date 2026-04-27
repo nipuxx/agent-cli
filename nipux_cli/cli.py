@@ -131,6 +131,36 @@ NATURAL_COMMANDS = {
     "show tool calls": "activity",
 }
 
+FIRST_RUN_SLASH_COMMANDS = [
+    ("/new", "create a job"),
+    ("/jobs", "list jobs"),
+    ("/doctor", "check setup"),
+    ("/init", "write config"),
+    ("/shell", "command console"),
+    ("/help", "show commands"),
+    ("/clear", "clear notices"),
+    ("/exit", "quit"),
+]
+
+CHAT_SLASH_COMMANDS = [
+    ("/run", "start worker"),
+    ("/work", "one step"),
+    ("/jobs", "switch jobs"),
+    ("/focus", "set focus"),
+    ("/history", "timeline"),
+    ("/activity", "live feed"),
+    ("/artifacts", "outputs"),
+    ("/artifact", "open output"),
+    ("/memory", "learning"),
+    ("/status", "job state"),
+    ("/pause", "pause job"),
+    ("/resume", "resume job"),
+    ("/stop", "pause job"),
+    ("/new", "new job"),
+    ("/shell", "console"),
+    ("/exit", "quit"),
+]
+
 
 def _db() -> tuple[AgentDB, object]:
     config = load_config()
@@ -552,6 +582,12 @@ def _enter_first_run_frame(*, history_limit: int = 12) -> None:
                 buffer = buffer[:-1]
                 needs_render = True
                 continue
+            if char == "\t":
+                completed = _autocomplete_slash(buffer, FIRST_RUN_SLASH_COMMANDS)
+                if completed != buffer:
+                    buffer = completed
+                    needs_render = True
+                continue
             if char == "\x1b":
                 _drain_pending_input()
                 needs_render = True
@@ -653,7 +689,13 @@ def _build_first_run_frame(input_buffer: str, notices: list[str], *, width: int,
         db.close()
     daemon_text = _daemon_state_line(daemon)
     header = _top_bar(width, state="setup", daemon=daemon_text, model=config.model.model)
-    footer_rows = 3
+    compose_lines = _compose_bar(
+        input_buffer,
+        width=width,
+        hint="Type a goal. Use / for commands. Tab completes.",
+        suggestions=_slash_suggestion_lines(input_buffer, FIRST_RUN_SLASH_COMMANDS, width=width),
+    )
+    footer_rows = len(compose_lines)
     body_rows = max(10, height - len(header) - 1 - footer_rows)
     left_width = max(50, int(width * 0.62))
     right_width = max(30, width - left_width - 3)
@@ -674,31 +716,23 @@ def _build_first_run_frame(input_buffer: str, notices: list[str], *, width: int,
         left = left_lines[index] if index < len(left_lines) else ""
         right = right_lines[index] if index < len(right_lines) else ""
         lines.append(_two_col_line(left, right, left_width=left_width, right_width=right_width))
-    lines.extend(
-        _compose_bar(
-            input_buffer,
-            width=width,
-            hint="Enter creates a job or runs a command. Try: new research topic  /  doctor  /  shell  /  exit",
-        )
-    )
+    lines.extend(compose_lines)
     return "\n".join(lines[:height])
 
 
 def _first_run_left_lines(notices: list[str], *, width: int, rows: int) -> list[str]:
     lines = [
-        _bold("No jobs yet."),
-        "Create a long-running agent by typing the goal in plain language.",
+        _bold("What should Nipux work on?"),
+        _muted("Create the first job by typing the outcome you want."),
         "",
-        _muted("Examples"),
-        "new research current browser automation libraries",
-        "optimize the deployment workflow for this repo",
-        "monitor a training run and report useful checkpoints",
+        "Nipux will draft a plan before running tools.",
         "",
-        _muted("Flow"),
-        "1. Create a job",
-        "2. Answer or accept the initial plan",
-        "3. Use /run to let the worker continue in the background",
-        "4. Reopen Nipux any time to chat, inspect, pause, or switch jobs",
+        _muted("Good starting points"),
+        "Research a topic and save findings",
+        "Monitor a process and report progress",
+        "Improve or automate a workflow",
+        "",
+        _muted("Use / to open commands"),
     ]
     if notices:
         lines.extend(["", _muted("Recent")])
@@ -722,13 +756,11 @@ def _first_run_right_lines(
         f"{_muted('Daemon')} {_one_line(daemon_text, width - 8)}",
         f"{_muted('Home')}   {_one_line(home, width - 8)}",
         "",
-        _bold("Controls"),
-        "new OBJECTIVE",
-        "jobs",
-        "doctor",
-        "init",
-        "shell",
-        "exit",
+        _bold("Commands"),
+        f"{_fit_ansi(_accent('/new'), 10)} create",
+        f"{_fit_ansi(_accent('/jobs'), 10)} list",
+        f"{_fit_ansi(_accent('/doctor'), 10)} setup",
+        f"{_fit_ansi(_accent('/shell'), 10)} console",
         "",
         _bold("Jobs"),
     ]
@@ -870,6 +902,12 @@ def _enter_chat_frame(job_id: str, *, history_limit: int = 12) -> None:
                 buffer = buffer[:-1]
                 needs_render = True
                 continue
+            if char == "\t":
+                completed = _autocomplete_slash(buffer, CHAT_SLASH_COMMANDS)
+                if completed != buffer:
+                    buffer = completed
+                    needs_render = True
+                continue
             if char == "\x1b":
                 _drain_pending_input()
                 needs_render = True
@@ -997,7 +1035,12 @@ def _build_chat_frame(snapshot: dict[str, Any], input_buffer: str, notices: list
     ]
 
     header = _top_bar(width, state=state, daemon=daemon_text, model=model)
-    footer_rows = 3
+    compose_lines = _compose_bar(
+        input_buffer,
+        width=width,
+        suggestions=_slash_suggestion_lines(input_buffer, CHAT_SLASH_COMMANDS, width=width),
+    )
+    footer_rows = len(compose_lines)
     body_rows = max(10, height - len(header) - 1 - footer_rows)
     chat_rows = body_rows
     right_rows = body_rows
@@ -1023,7 +1066,7 @@ def _build_chat_frame(snapshot: dict[str, Any], input_buffer: str, notices: list
         left = chat_lines[index] if index < len(chat_lines) else ""
         right = right_lines[index] if index < len(right_lines) else ""
         lines.append(_two_col_line(left, right, left_width=left_width, right_width=right_width))
-    lines.extend(_compose_bar(input_buffer, width=width))
+    lines.extend(compose_lines)
     if len(lines) > height:
         keep_top = min(4, len(header) + 1)
         keep_bottom = footer_rows
@@ -1033,8 +1076,9 @@ def _build_chat_frame(snapshot: dict[str, Any], input_buffer: str, notices: list
 
 
 def _top_bar(width: int, *, state: str, daemon: str, model: str) -> list[str]:
-    title = f"{_bold(_accent('Nipux CLI'))}  {_status_dot(state)}"
-    meta = f"{_pill('daemon', daemon)}  {_pill('model', model)}  {_pill('state', state)}"
+    title = f"{_bold(_accent('Nipux CLI'))} {_status_dot(state)}"
+    daemon_compact = "running" if daemon.startswith("running") else "stopped"
+    meta = f"{_pill('daemon', daemon_compact)}  {_pill('model', model)}"
     first = _fit_ansi(title, max(20, width - len(_strip_ansi(meta)) - 3))
     return [
         first + " " * max(1, width - len(_strip_ansi(first)) - len(_strip_ansi(meta))) + meta,
@@ -1128,16 +1172,61 @@ def _activity_text(event: dict[str, Any], *, width: int) -> str:
     return f"{_live_badge(text)} {_one_line(text, max(16, width - 9))}"
 
 
-def _compose_bar(input_buffer: str, *, width: int, hint: str | None = None) -> list[str]:
+def _compose_bar(
+    input_buffer: str,
+    *,
+    width: int,
+    hint: str | None = None,
+    suggestions: list[str] | None = None,
+) -> list[str]:
     visible_input = input_buffer[-max(8, width - 8):]
     hint = _muted(hint or "Enter sends  /jobs switches  /run starts  /help commands")
     prompt = f"{_accent('❯')} {visible_input}{_accent('▌')}"
     title = " Compose "
-    return [
+    lines = []
+    if suggestions:
+        lines.extend(suggestions)
+    lines.extend([
         _muted("─") + _bold(title) + _muted("─" * max(0, width - len(title) - 1)),
         _fit_ansi(hint, width),
         _fit_ansi(prompt, width),
-    ]
+    ])
+    return lines
+
+
+def _slash_suggestion_lines(input_buffer: str, commands: list[tuple[str, str]], *, width: int, limit: int = 5) -> list[str]:
+    if not input_buffer.startswith("/"):
+        return []
+    parts = input_buffer[1:].split(maxsplit=1)
+    token = parts[0].lower() if parts else ""
+    if " " in input_buffer.strip():
+        return []
+    matches = [(cmd, desc) for cmd, desc in commands if cmd[1:].startswith(token)]
+    if not matches and token:
+        matches = [(cmd, desc) for cmd, desc in commands if token in cmd[1:]]
+    matches = matches[:limit]
+    if not matches:
+        return [_fit_ansi(_muted("╭─ commands"), width), _fit_ansi(_muted("│ no matches"), width), _fit_ansi(_muted("╰"), width)]
+    cmd_width = min(14, max(len(cmd) for cmd, _ in matches) + 2)
+    lines = [_fit_ansi(_muted("╭─ commands"), width)]
+    for index, (cmd, desc) in enumerate(matches):
+        marker = _accent("›") if index == 0 else _muted(" ")
+        body = f"{marker} {_fit_ansi(_accent(cmd), cmd_width)} {_muted(desc)}"
+        lines.append(_fit_ansi(_muted("│ ") + body, width))
+    lines.append(_fit_ansi(_muted("╰─ tab completes first match"), width))
+    return lines
+
+
+def _autocomplete_slash(input_buffer: str, commands: list[tuple[str, str]]) -> str:
+    if not input_buffer.startswith("/") or " " in input_buffer.strip():
+        return input_buffer
+    token = input_buffer[1:].lower()
+    matches = [cmd for cmd, _desc in commands if cmd[1:].startswith(token)]
+    if not matches:
+        matches = [cmd for cmd, _desc in commands if token in cmd[1:]]
+    if not matches:
+        return input_buffer
+    return matches[0] + " "
 
 
 def _frame_jobs_lines(jobs: list[dict[str, Any]], *, focused_job_id: str, daemon_running: bool, width: int) -> list[str]:
