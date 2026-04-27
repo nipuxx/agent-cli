@@ -358,34 +358,385 @@ def cmd_home(args: argparse.Namespace) -> None:
         _enter_chat(job_id, show_history=True, history_limit=args.history_limit)
         return
 
-    print(NIPUX_BANNER)
+    _enter_first_run_menu(history_limit=args.history_limit)
+
+
+def _enter_first_run_menu(*, history_limit: int = 12) -> None:
+    if _frame_chat_enabled():
+        _enter_first_run_frame(history_limit=history_limit)
+        return
+
+    print("Nipux CLI")
     print(_rule("="))
-    print("No jobs yet. Type the first objective to create a generic long-running agent.")
-    print("Commands: /help, /shell, /exit")
+    _print_first_run_menu()
     print(_rule("="))
     while True:
         try:
-            line = input("nipux[new]> ").strip()
+            line = input("nipux menu > ").strip()
         except EOFError:
             print()
             return
         except KeyboardInterrupt:
             print()
             continue
-        if not line:
-            continue
-        if line in {"/exit", "/quit", "exit", "quit"}:
+        if not _handle_first_run_menu_line(line, history_limit=history_limit):
             return
-        if line in {"/help", "help"}:
-            print("Type an objective to create a job, or use /shell for the command console.")
-            continue
-        if line == "/shell":
-            cmd_shell(argparse.Namespace(status=False, no_status=True, limit=8, chars=180))
-            continue
-        job_id, title = _create_job(objective=line, title=None, kind="generic", cadence=None)
-        print(f"created {title}")
-        _enter_chat(job_id, show_history=True, history_limit=args.history_limit)
-        return
+
+
+def _print_first_run_menu() -> None:
+    config = load_config()
+    daemon = daemon_lock_status(config.runtime.home / "agentd.lock")
+    print("FIRST RUN")
+    print(f"  model   {config.model.model}")
+    print(f"  daemon  {'running' if daemon['running'] else 'stopped'}")
+    print(f"  home    {_short_path(config.runtime.home)}")
+    print()
+    print("Create or manage jobs")
+    print("  1  new       create a job and open its workspace")
+    print("  2  jobs      list jobs")
+    print("  3  shell     open the full command console")
+    print("  4  doctor    check local setup")
+    print("  5  init      write starter config/env files")
+    print("  6  exit")
+    print()
+    print("Type `new OBJECTIVE`, `create \"OBJECTIVE\"`, any command, or paste an objective directly.")
+
+
+def _handle_first_run_menu_line(line: str, *, history_limit: int = 12) -> bool:
+    line = line.strip()
+    if not line:
+        _print_first_run_menu()
+        return True
+    if line.startswith("/"):
+        line = line[1:].strip()
+    lowered = line.lower()
+    if lowered in {"exit", "quit", ":q", "6"}:
+        return False
+    if lowered in {"help", "?", "commands"}:
+        _print_first_run_menu()
+        return True
+    if lowered in {"1", "new"}:
+        objective = _prompt_first_run_value("objective")
+        if not objective:
+            print("No job created.")
+            return True
+        _first_run_create_and_open(objective, history_limit=history_limit)
+        return False
+    if lowered.startswith("new "):
+        objective = line[4:].strip()
+        if not objective:
+            print("usage: new OBJECTIVE")
+            return True
+        _first_run_create_and_open(objective, history_limit=history_limit)
+        return False
+    if lowered in {"2", "jobs", "ls"}:
+        cmd_jobs(argparse.Namespace())
+        return True
+    if lowered in {"3", "shell"}:
+        cmd_shell(argparse.Namespace(status=False, no_status=True, limit=8, chars=180))
+        return True
+    if lowered in {"4", "doctor"}:
+        try:
+            cmd_doctor(argparse.Namespace(check_model=False))
+        except SystemExit:
+            pass
+        return True
+    if lowered in {"5", "init"}:
+        cmd_init(argparse.Namespace(path=None, force=False))
+        return True
+    first = _first_token(line)
+    if first in SHELL_COMMAND_NAMES:
+        before_job_id = None
+        if first == "create":
+            db, _ = _db()
+            try:
+                before_job_id = _default_job_id(db)
+            finally:
+                db.close()
+        _run_shell_line(line)
+        if first == "create":
+            db, _ = _db()
+            try:
+                after_job_id = _default_job_id(db)
+            finally:
+                db.close()
+            if after_job_id and after_job_id != before_job_id:
+                _enter_chat(after_job_id, show_history=True, history_limit=history_limit)
+                return False
+        return True
+    _first_run_create_and_open(line, history_limit=history_limit)
+    return False
+
+
+def _prompt_first_run_value(label: str) -> str:
+    try:
+        return input(f"{label} > ").strip()
+    except (EOFError, KeyboardInterrupt):
+        print()
+        return ""
+
+
+def _first_run_create_and_open(objective: str, *, history_limit: int = 12) -> None:
+    job_id, title = _create_job(objective=objective, title=None, kind="generic", cadence=None)
+    print(f"created {title}")
+    print("Opening workspace. Use /run to start work, /jobs to switch, /help for commands.")
+    _enter_chat(job_id, show_history=True, history_limit=history_limit)
+
+
+def _first_token(line: str) -> str:
+    try:
+        parts = shlex.split(line)
+    except ValueError:
+        parts = line.split()
+    return parts[0].lower() if parts else ""
+
+
+def _enter_first_run_frame(*, history_limit: int = 12) -> None:
+    buffer = ""
+    notices: list[str] = []
+    next_job_id: str | None = None
+    open_shell = False
+    old_attrs = termios.tcgetattr(sys.stdin)
+    print("\033[?25l", end="", flush=True)
+    try:
+        tty.setcbreak(sys.stdin.fileno())
+        needs_render = True
+        last_render = 0.0
+        while next_job_id is None and not open_shell:
+            now = time.monotonic()
+            if needs_render or now - last_render >= 1.0:
+                _render_first_run_frame(buffer, notices)
+                needs_render = False
+                last_render = now
+            readable, _, _ = select.select([sys.stdin], [], [], 0.05)
+            if not readable:
+                continue
+            char = sys.stdin.read(1)
+            if char in {"\r", "\n"}:
+                line = buffer.strip()
+                buffer = ""
+                if not line:
+                    notices.append("Type an objective, `new OBJECTIVE`, `doctor`, `init`, `shell`, or `exit`.")
+                    notices[:] = notices[-10:]
+                    needs_render = True
+                    continue
+                action, payload = _handle_first_run_frame_line(line)
+                if action == "exit":
+                    return
+                if action == "clear":
+                    notices.clear()
+                    needs_render = True
+                    continue
+                if action == "open":
+                    next_job_id = str(payload)
+                    break
+                if action == "shell":
+                    open_shell = True
+                    break
+                if isinstance(payload, list):
+                    notices.extend(str(item) for item in payload if str(item).strip())
+                elif payload:
+                    notices.append(str(payload))
+                notices[:] = notices[-10:]
+                needs_render = True
+                continue
+            if char in {"\x04"}:
+                return
+            if char == "\x03":
+                buffer = ""
+                notices.append("cancelled input")
+                notices[:] = notices[-10:]
+                needs_render = True
+                continue
+            if char in {"\x7f", "\b"}:
+                buffer = buffer[:-1]
+                needs_render = True
+                continue
+            if char == "\x1b":
+                _drain_pending_input()
+                needs_render = True
+                continue
+            if char.isprintable():
+                buffer += char
+                needs_render = True
+    finally:
+        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_attrs)
+        print("\033[?25h\033[0m", flush=True)
+    if next_job_id:
+        _enter_chat(next_job_id, show_history=True, history_limit=history_limit)
+    elif open_shell:
+        cmd_shell(argparse.Namespace(status=False, no_status=True, limit=8, chars=180))
+
+
+def _handle_first_run_frame_line(line: str) -> tuple[str, str | list[str] | None]:
+    original = line.strip()
+    if original.startswith("/"):
+        original = original[1:].strip()
+    lowered = original.lower()
+    if lowered in {"exit", "quit", ":q", "6"}:
+        return "exit", None
+    if lowered in {"clear"}:
+        return "clear", None
+    if lowered in {"help", "?", "commands"}:
+        return "notice", [
+            "Create a job by typing an objective.",
+            "Commands: new OBJECTIVE, jobs, doctor, init, shell, exit.",
+            "After creation, the workspace opens and `/run` starts work.",
+        ]
+    if lowered in {"1", "new"}:
+        return "notice", "Type `new OBJECTIVE` or paste the objective directly."
+    if lowered.startswith("new "):
+        return "open", _create_first_run_job(original[4:].strip())
+    if lowered in {"2", "jobs", "ls"}:
+        return "notice", _capture_first_run_command("jobs")
+    if lowered in {"3", "shell"}:
+        return "shell", None
+    if lowered in {"4", "doctor"}:
+        return "notice", _capture_first_run_command("doctor")
+    if lowered in {"5", "init"}:
+        return "notice", _capture_first_run_command("init")
+    first = _first_token(original)
+    if first in SHELL_COMMAND_NAMES:
+        before_job_id = _current_default_job_id()
+        output = _capture_first_run_command(original)
+        after_job_id = _current_default_job_id()
+        if first == "create" and after_job_id and after_job_id != before_job_id:
+            return "open", after_job_id
+        return "notice", output
+    return "open", _create_first_run_job(original)
+
+
+def _create_first_run_job(objective: str) -> str | list[str]:
+    objective = objective.strip()
+    if not objective:
+        return ["No job created. Type an objective first."]
+    job_id, _title = _create_job(objective=objective, title=None, kind="generic", cadence=None)
+    return job_id
+
+
+def _capture_first_run_command(line: str) -> list[str]:
+    stream = StringIO()
+    with redirect_stdout(stream):
+        try:
+            _run_shell_line(line)
+        except SystemExit as exc:
+            if exc.code not in (None, 0):
+                print(f"command exited with status {exc.code}")
+    lines = [" ".join(item.split()) for item in stream.getvalue().splitlines() if item.strip()]
+    return lines[-8:] or ["done"]
+
+
+def _current_default_job_id() -> str | None:
+    db, _ = _db()
+    try:
+        return _default_job_id(db)
+    finally:
+        db.close()
+
+
+def _render_first_run_frame(input_buffer: str, notices: list[str]) -> None:
+    width, height = shutil.get_terminal_size((100, 30))
+    frame = _build_first_run_frame(input_buffer, notices, width=width, height=height)
+    print("\033[H\033[2J" + frame, end="", flush=True)
+
+
+def _build_first_run_frame(input_buffer: str, notices: list[str], *, width: int, height: int) -> str:
+    width = max(92, width)
+    height = max(22, height)
+    config = load_config()
+    daemon = daemon_lock_status(config.runtime.home / "agentd.lock")
+    jobs: list[dict[str, Any]] = []
+    db, _ = _db()
+    try:
+        jobs = db.list_jobs()
+    finally:
+        db.close()
+    daemon_text = _daemon_state_line(daemon)
+    header = _top_bar(width, state="setup", daemon=daemon_text, model=config.model.model)
+    footer_rows = 3
+    body_rows = max(10, height - len(header) - 1 - footer_rows)
+    left_width = max(50, int(width * 0.62))
+    right_width = max(30, width - left_width - 3)
+    if right_width < 30:
+        right_width = 30
+        left_width = max(50, width - right_width - 3)
+    left_lines = _first_run_left_lines(notices, width=left_width, rows=body_rows)
+    right_lines = _first_run_right_lines(
+        jobs=jobs,
+        daemon_text=daemon_text,
+        model=config.model.model,
+        home=_short_path(config.runtime.home, max_width=max(20, right_width - 8)),
+        width=right_width,
+        rows=body_rows,
+    )
+    lines = [*header, _two_col_title(left_width, right_width, "Start", "Workspace")]
+    for index in range(body_rows):
+        left = left_lines[index] if index < len(left_lines) else ""
+        right = right_lines[index] if index < len(right_lines) else ""
+        lines.append(_two_col_line(left, right, left_width=left_width, right_width=right_width))
+    lines.extend(
+        _compose_bar(
+            input_buffer,
+            width=width,
+            hint="Enter creates a job or runs a command. Try: new research topic  /  doctor  /  shell  /  exit",
+        )
+    )
+    return "\n".join(lines[:height])
+
+
+def _first_run_left_lines(notices: list[str], *, width: int, rows: int) -> list[str]:
+    lines = [
+        _bold("No jobs yet."),
+        "Create a long-running agent by typing the goal in plain language.",
+        "",
+        _muted("Examples"),
+        "new research current browser automation libraries",
+        "optimize the deployment workflow for this repo",
+        "monitor a training run and report useful checkpoints",
+        "",
+        _muted("Flow"),
+        "1. Create a job",
+        "2. Answer or accept the initial plan",
+        "3. Use /run to let the worker continue in the background",
+        "4. Reopen Nipux any time to chat, inspect, pause, or switch jobs",
+    ]
+    if notices:
+        lines.extend(["", _muted("Recent")])
+        for notice in notices[-6:]:
+            for wrapped in textwrap.wrap(" ".join(str(notice).split()), width=max(20, width - 4))[:3]:
+                lines.append(f"{_accent('›')} {wrapped}")
+    return [_fit_ansi(line, width) for line in lines[:rows]]
+
+
+def _first_run_right_lines(
+    *,
+    jobs: list[dict[str, Any]],
+    daemon_text: str,
+    model: str,
+    home: str,
+    width: int,
+    rows: int,
+) -> list[str]:
+    lines = [
+        f"{_muted('Model')}  {_one_line(model, width - 8)}",
+        f"{_muted('Daemon')} {_one_line(daemon_text, width - 8)}",
+        f"{_muted('Home')}   {_one_line(home, width - 8)}",
+        "",
+        _bold("Controls"),
+        "new OBJECTIVE",
+        "jobs",
+        "doctor",
+        "init",
+        "shell",
+        "exit",
+        "",
+        _bold("Jobs"),
+    ]
+    if jobs:
+        lines.extend(_frame_jobs_lines(jobs, focused_job_id="", daemon_running=False, width=width)[:5])
+    else:
+        lines.append(_muted("No saved jobs in this profile."))
+    return [_fit_ansi(line, width) for line in lines[:rows]]
 
 
 def _enter_chat(job_id: str, *, show_history: bool, history_limit: int = 12) -> None:
@@ -442,7 +793,6 @@ def _frame_chat_enabled() -> bool:
     return (
         sys.stdin.isatty()
         and sys.stdout.isatty()
-        and _fancy_ui()
         and not os.environ.get("NIPUX_APPEND_LIVE")
         and not os.environ.get("NIPUX_NO_FRAME")
     )
@@ -778,9 +1128,9 @@ def _activity_text(event: dict[str, Any], *, width: int) -> str:
     return f"{_live_badge(text)} {_one_line(text, max(16, width - 9))}"
 
 
-def _compose_bar(input_buffer: str, *, width: int) -> list[str]:
+def _compose_bar(input_buffer: str, *, width: int, hint: str | None = None) -> list[str]:
     visible_input = input_buffer[-max(8, width - 8):]
-    hint = _muted("Enter sends  /jobs switches  /run starts  /help commands")
+    hint = _muted(hint or "Enter sends  /jobs switches  /run starts  /help commands")
     prompt = f"{_accent('❯')} {visible_input}{_accent('▌')}"
     title = " Compose "
     return [

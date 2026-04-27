@@ -1,5 +1,6 @@
 from nipux_cli.artifacts import ArtifactStore
 from nipux_cli.cli import (
+    _build_first_run_frame,
     _build_chat_frame,
     _build_chat_messages,
     _chat_handle_line,
@@ -108,6 +109,73 @@ def test_main_no_args_enters_chat_first_home(monkeypatch, tmp_path, capsys):
     assert "RECENT ACTIVITY - research" in out
     assert "remember this visible note" in out
     assert "visible agent update" in out
+
+
+def test_main_no_args_with_no_jobs_shows_first_run_menu(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+
+    def eof_input(_prompt):
+        raise EOFError
+
+    monkeypatch.setattr("builtins.input", eof_input)
+
+    main([])
+
+    out = capsys.readouterr().out
+    assert "FIRST RUN" in out
+    assert "new       create a job" in out
+    assert "shell     open the full command console" in out
+    assert "doctor    check local setup" in out
+    assert "_   _" not in out
+
+
+def test_first_run_menu_can_create_job_and_open_workspace(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    opened = {}
+
+    def fake_input(_prompt):
+        return "new Build a durable workflow"
+
+    def fake_enter_chat(job_id, *, show_history, history_limit):
+        opened["job_id"] = job_id
+        opened["show_history"] = show_history
+        opened["history_limit"] = history_limit
+        print(f"opened {job_id}")
+
+    monkeypatch.setattr("builtins.input", fake_input)
+    monkeypatch.setattr("nipux_cli.cli._enter_chat", fake_enter_chat)
+
+    main([])
+
+    out = capsys.readouterr().out
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        jobs = db.list_jobs()
+        assert len(jobs) == 1
+        assert jobs[0]["title"] == "Build a durable workflow"
+        assert opened["job_id"] == jobs[0]["id"]
+        assert opened["show_history"] is True
+        assert opened["history_limit"] == 12
+    finally:
+        db.close()
+    assert "created Build a durable workflow" in out
+    assert "Opening workspace" in out
+    assert "opened" in out
+
+
+def test_first_run_frame_uses_full_screen_ui_not_banner(monkeypatch, tmp_path):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+
+    frame = _build_first_run_frame("", [], width=100, height=24)
+
+    assert "Nipux CLI" in frame
+    assert "Start" in frame
+    assert "Workspace" in frame
+    assert "Compose" in frame
+    assert "new OBJECTIVE" in frame
+    assert "_   _" not in frame
+    assert "FIRST RUN" not in frame
+    assert "nipux menu >" not in frame
 
 
 def test_shell_ls_alias_lists_jobs_instead_of_steering(monkeypatch, tmp_path, capsys):
