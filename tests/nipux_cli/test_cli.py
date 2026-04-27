@@ -231,6 +231,7 @@ def test_first_run_frame_has_settings_view(monkeypatch, tmp_path):
     assert "Settings" in frame
     assert "Config" in frame
     assert "Base URL" in frame
+    assert "API key" in frame
     assert "Page" in frame
     assert "/shell" not in frame
 
@@ -491,6 +492,18 @@ def test_chat_frame_is_bounded_and_has_composer():
         "memory_entries": [{}],
         "events": [
             {
+                "event_type": "agent_message",
+                "title": "plan",
+                "body": "I will plan this.\nPlan:\n- one\n- two\nQuestions:\n- answer?",
+                "metadata": {},
+            },
+            {
+                "event_type": "task",
+                "title": "internal task",
+                "body": "internal task body",
+                "metadata": {},
+            },
+            {
                 "event_type": "tool_result",
                 "title": "web_search",
                 "body": "web_search query='demo' returned 1 results",
@@ -510,6 +523,7 @@ def test_chat_frame_is_bounded_and_has_composer():
     assert "Model Activity" in frame
     assert "Compose" in frame
     assert "❯ hello" in frame
+    assert "Plan drafted with 2 items" in frame
 
     settings = _build_chat_frame(snapshot, "", [], width=100, height=24, right_view="settings", selected_control=1)
     assert "Settings" in settings
@@ -527,6 +541,20 @@ def test_chat_frame_is_bounded_and_has_composer():
     )
     assert "Editing model.name" in editing
     assert "model.name demo/model" in editing
+
+    secret = _build_chat_frame(
+        snapshot,
+        "secret-value",
+        [],
+        width=100,
+        height=24,
+        right_view="settings",
+        selected_control=3,
+        editing_field="secret:model.api_key",
+    )
+    assert "Editing " in secret and "API_KEY" in secret
+    assert "secret-value" not in secret
+    assert "••••" in secret
 
 
 def test_plain_chat_control_intents_map_to_commands():

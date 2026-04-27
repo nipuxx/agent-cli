@@ -180,6 +180,7 @@ FIRST_RUN_SETTINGS_ACTIONS = [
     ("edit:model.name", "Model", "model name"),
     ("edit:model.base_url", "Base URL", "OpenAI-compatible endpoint"),
     ("edit:model.api_key_env", "API env", "environment variable name"),
+    ("secret:model.api_key", "API key", "stored in profile .env"),
     ("edit:model.context_length", "Context", "token budget"),
     ("edit:model.request_timeout_seconds", "Timeout", "request seconds"),
     ("edit:runtime.home", "Home", "state directory"),
@@ -793,11 +794,52 @@ def _inline_setting_notice(field: str, raw_value: str) -> str:
     value = raw_value.strip()
     if not value:
         return f"kept {field}"
+    if field == "secret:model.api_key":
+        config = load_config()
+        name = config.model.api_key_env
+        _save_env_secret(name, value)
+        return f"saved {name} in {_short_path(get_agent_home() / '.env')}"
     try:
         saved = _save_config_field(field, value)
     except ValueError as exc:
         return f"{field}: {exc}"
     return f"saved {field} = {saved}"
+
+
+def _save_env_secret(name: str, value: str) -> None:
+    env_path = get_agent_home() / ".env"
+    env_path.parent.mkdir(parents=True, exist_ok=True)
+    existing: dict[str, str] = {}
+    if env_path.exists():
+        for raw in env_path.read_text(encoding="utf-8", errors="ignore").splitlines():
+            if "=" not in raw or raw.strip().startswith("#"):
+                continue
+            key, current = raw.split("=", 1)
+            if key.strip():
+                existing[key.strip()] = current.strip()
+    existing[name] = value
+    env_path.write_text("\n".join(f"{key}={current}" for key, current in existing.items()) + "\n", encoding="utf-8")
+    env_path.chmod(0o600)
+    os.environ[name] = value
+
+
+def _edit_target_label(field: str) -> str:
+    if field == "secret:model.api_key":
+        return load_config().model.api_key_env
+    return field
+
+
+def _edit_target_hint(field: str, config: Any | None = None) -> str:
+    config = config or load_config()
+    if field == "secret:model.api_key":
+        state = "set" if config.model.api_key else "missing"
+        return f"Editing {config.model.api_key_env} ({state}). Enter saves, Esc cancels. Input is hidden."
+    current = _config_field_value(field, config)
+    return f"Editing {field}. Current: {current}. Enter saves, Esc cancels, empty keeps current."
+
+
+def _edit_target_masks_input(field: str | None) -> bool:
+    return field == "secret:model.api_key"
 
 
 def _coerce_config_value(field: str, raw_value: str) -> Any:
@@ -833,6 +875,8 @@ def _clamp_first_run_selection(selected: int, view: str) -> int:
 def _handle_first_run_action(action: str) -> tuple[str, str | list[str] | None]:
     if action.startswith("edit:"):
         return "edit", action.split(":", 1)[1]
+    if action.startswith("secret:"):
+        return "edit", action
     if action == "new":
         return "notice", "Type the goal in the input line, then press Enter."
     if action == "settings":
@@ -1072,9 +1116,8 @@ def _build_first_run_frame(
     daemon_text = _daemon_state_line(daemon)
     header = _top_bar(width, state="setup", daemon=daemon_text, model=config.model.model)
     if editing_field:
-        current = _config_field_value(editing_field, config)
-        hint = f"Editing {editing_field}. Current: {current}. Enter saves, Esc cancels, empty keeps current."
-        prompt_label = editing_field
+        hint = _edit_target_hint(editing_field, config)
+        prompt_label = _edit_target_label(editing_field)
     else:
         hint = "Enter selects the highlighted control. ↑↓ moves. ←→ switches pages. Click selects."
         prompt_label = "❯"
@@ -1083,6 +1126,7 @@ def _build_first_run_frame(
         width=width,
         hint=hint,
         prompt_label=prompt_label,
+        mask_input=_edit_target_masks_input(editing_field),
     )
     footer_rows = len(compose_lines)
     body_rows = max(10, height - len(header) - 1 - footer_rows)
@@ -1232,6 +1276,10 @@ def _first_run_action_lines(actions: list[tuple[str, str, str]], selected: int, 
         if _key.startswith("edit:"):
             field = _key.split(":", 1)[1]
             detail = _one_line(str(_config_field_value(field)), max(10, width - 18))
+        elif _key == "secret:model.api_key":
+            config = load_config()
+            state = "set" if config.model.api_key else "missing"
+            detail = f"{state} {config.model.api_key_env}"
         lines.append(_fit_ansi(f"{marker} {_fit_ansi(name, 14)} {_muted(detail)}", width))
     return lines
 
@@ -1645,9 +1693,8 @@ def _build_chat_frame(
 
     header = _top_bar(width, state=state, daemon=daemon_text, model=model)
     if editing_field:
-        current = _config_field_value(editing_field)
-        hint = f"Editing {editing_field}. Current: {current}. Enter saves, Esc cancels, empty keeps current."
-        prompt_label = editing_field
+        hint = _edit_target_hint(editing_field)
+        prompt_label = _edit_target_label(editing_field)
     else:
         hint = "Type normally to chat and control jobs. ↑↓ switches jobs. ←→ switches pages."
         prompt_label = "❯"
@@ -1656,6 +1703,7 @@ def _build_chat_frame(
         width=width,
         hint=hint,
         prompt_label=prompt_label,
+        mask_input=_edit_target_masks_input(editing_field),
     )
     footer_rows = len(compose_lines)
     body_rows = max(10, height - len(header) - 1 - footer_rows)
@@ -1734,14 +1782,15 @@ def _chat_pane_lines(events: list[dict[str, Any]], notices: list[str], *, width:
     for event in events:
         kind = str(event.get("event_type") or "")
         title = str(event.get("title") or "")
+        body = _generic_display_text(event.get("body") or "")
         if kind == "operator_message":
-            chat_events.append((_style("YOU", "35"), _generic_display_text(event.get("body") or "")))
+            chat_events.append((_style("YOU", "35"), body))
         elif kind == "agent_message":
-            chat_events.append((_agent_chat_label(title), _generic_display_text(event.get("body") or "")))
-        elif kind in {"artifact", "finding", "task", "lesson", "reflection", "digest", "error"}:
-            chat_events.append(
-                (_event_chat_label(kind), _generic_display_text(event.get("body") or event.get("summary") or title))
-            )
+            compact = _chat_agent_message_text(title, body)
+            if compact:
+                chat_events.append((_agent_chat_label(title), compact))
+        elif kind == "error":
+            chat_events.append((_event_chat_label(kind), _friendly_error_text(body or title)))
     for notice in notices:
         if notice.startswith("> "):
             chat_events.append((_style("YOU", "35"), notice[2:]))
@@ -1760,6 +1809,21 @@ def _chat_pane_lines(events: list[dict[str, Any]], notices: list[str], *, width:
         for continuation in wrapped[1:3]:
             lines.append(f"{'':7} {continuation}")
     return lines[-rows:]
+
+
+def _chat_agent_message_text(title: str, body: str) -> str:
+    lowered = title.lower()
+    if lowered == "chat":
+        return body
+    if lowered in {"plan", "planning"}:
+        plan_body = body.split("Questions:", 1)[0]
+        tasks = len(re.findall(r"(?:^|\s)- ", plan_body))
+        if tasks:
+            return f"Plan drafted with {tasks} items. Reply with changes or start work from the controls."
+        return "Plan drafted. Reply with changes or start work from the controls."
+    if lowered in {"progress", "update", "report"}:
+        return _one_line(_clean_step_summary(body), 220)
+    return ""
 
 
 def _agent_chat_label(title: str) -> str:
@@ -1785,6 +1849,13 @@ def _event_chat_label(kind: str) -> str:
     }
     text, color = labels.get(kind, ("NIPUX", "36"))
     return _style(text, color)
+
+
+def _friendly_error_text(text: str) -> str:
+    lowered = text.lower()
+    if "authenticationerror" in lowered or "user not found" in lowered or "401" in lowered:
+        return "Model authentication failed. Update the API key in Settings, then try again."
+    return _one_line(_clean_step_summary(text), 220)
 
 
 def _right_pane_lines(
@@ -1915,8 +1986,12 @@ def _compose_bar(
     hint: str | None = None,
     suggestions: list[str] | None = None,
     prompt_label: str = "❯",
+    mask_input: bool = False,
 ) -> list[str]:
-    visible_input = input_buffer[-max(8, width - 8) :]
+    if mask_input:
+        visible_input = "•" * min(len(input_buffer), max(8, width - 8))
+    else:
+        visible_input = input_buffer[-max(8, width - 8) :]
     hint = _muted(hint or "Enter sends  /jobs switches  /run starts  /help commands")
     label = _accent(prompt_label) if prompt_label == "❯" else _muted(prompt_label)
     prompt = f"{label} {visible_input}{_accent('▌')}"
@@ -3270,7 +3345,7 @@ def _minimal_live_event_line(event: dict[str, Any], *, chars: int = 92) -> str:
     if kind == "tool_result":
         return _one_line("done " + _tool_live_summary(title, metadata, body), chars)
     if kind == "error":
-        detail = _clean_step_summary(body) or title or "error"
+        detail = _friendly_error_text(body or title or "error")
         return _one_line(f"error {detail}", chars)
     if kind == "artifact":
         return _one_line(f"saved {title or body or 'output'}", chars)
@@ -4636,10 +4711,11 @@ def _handle_chat_message(job_id: str, line: str, *, reply_fn=None, quiet: bool =
     try:
         reply = reply_fn(job_id, line)
     except Exception as exc:
-        message = f"model reply failed: {type(exc).__name__}: {exc}; message is queued"
+        detail = _friendly_error_text(f"{type(exc).__name__}: {exc}")
+        message = f"{detail}; message saved for the worker"
         if not quiet:
-            print(f"model reply failed: {type(exc).__name__}: {exc}")
-            print("Your message is still queued for the next worker step.")
+            print(detail)
+            print("Your message is still saved for the next worker step.")
         return True, message
     if reply.strip():
         db, _ = _db()
