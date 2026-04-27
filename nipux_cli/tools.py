@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import signal
 import subprocess
 import time
 from dataclasses import dataclass
@@ -469,18 +470,25 @@ def _shell_exec(args: dict[str, Any], ctx: ToolContext) -> str:
         env["NIPUX_RUN_ID"] = ctx.run_id
     started = time.monotonic()
     try:
-        completed = subprocess.run(
+        process = subprocess.Popen(
             command,
             shell=True,
             executable=shell,
             cwd=str(Path(cwd).expanduser()) if cwd else None,
             env=env,
-            capture_output=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             text=True,
-            timeout=timeout,
-            check=False,
+            start_new_session=True,
         )
-    except subprocess.TimeoutExpired as exc:
+        stdout, stderr = process.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        _terminate_process_group(process)
+        try:
+            stdout, stderr = process.communicate(timeout=2)
+        except subprocess.TimeoutExpired:
+            _kill_process_group(process)
+            stdout, stderr = process.communicate()
         return _json({
             "success": False,
             "error": f"command timed out after {timeout:.1f}s",
@@ -490,18 +498,47 @@ def _shell_exec(args: dict[str, Any], ctx: ToolContext) -> str:
             "timeout_seconds": timeout,
             "duration_seconds": round(time.monotonic() - started, 3),
             "returncode": None,
-            "stdout": _truncate_output(exc.stdout, max_chars),
-            "stderr": _truncate_output(exc.stderr, max_chars),
+            "stdout": _truncate_output(stdout, max_chars),
+            "stderr": _truncate_output(stderr, max_chars),
         })
+    error = _shell_error(process.returncode, stdout, stderr)
     return _json({
-        "success": completed.returncode == 0,
+        "success": process.returncode == 0,
+        "error": error,
         "command": command,
         "cwd": cwd or os.getcwd(),
         "duration_seconds": round(time.monotonic() - started, 3),
-        "returncode": completed.returncode,
-        "stdout": _truncate_output(completed.stdout, max_chars),
-        "stderr": _truncate_output(completed.stderr, max_chars),
+        "returncode": process.returncode,
+        "stdout": _truncate_output(stdout, max_chars),
+        "stderr": _truncate_output(stderr, max_chars),
     })
+
+
+def _shell_error(returncode: int | None, stdout: str, stderr: str) -> str:
+    if returncode == 0:
+        return ""
+    combined = "\n".join(part.strip() for part in (stderr, stdout) if part and part.strip())
+    lowered = combined.lower()
+    if "sudo:" in lowered and ("password" in lowered or "terminal is required" in lowered):
+        return "command requires interactive sudo/password; configure non-interactive privileges or choose a non-sudo path"
+    if "permission denied" in lowered:
+        return "command failed with permission denied"
+    excerpt = " ".join(combined.split())[:500] if combined else "no output"
+    return f"command exited with status {returncode}: {excerpt}"
+
+
+def _terminate_process_group(process: subprocess.Popen[str]) -> None:
+    try:
+        os.killpg(process.pid, signal.SIGTERM)
+    except ProcessLookupError:
+        return
+
+
+def _kill_process_group(process: subprocess.Popen[str]) -> None:
+    try:
+        os.killpg(process.pid, signal.SIGKILL)
+    except ProcessLookupError:
+        return
 
 
 def _truncate_output(value: Any, max_chars: int) -> str:
