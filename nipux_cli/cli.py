@@ -21,6 +21,7 @@ from contextlib import redirect_stdout
 from io import StringIO
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 from nipux_cli.artifacts import ArtifactStore
 from nipux_cli.config import DEFAULT_BASE_URL, DEFAULT_CONTEXT_LENGTH, DEFAULT_MODEL, default_config_yaml, load_config
@@ -1577,6 +1578,29 @@ def cmd_metrics(args: argparse.Namespace) -> None:
         db.close()
 
 
+def _remote_model_preflight_failures(config) -> list[str]:
+    host = (urlparse(config.model.base_url).hostname or "").lower()
+    local_hosts = {"", "localhost", "127.0.0.1", "::1", "0.0.0.0"}
+    if host in local_hosts or host.endswith(".local"):
+        return []
+    blocking = {"model_config", "model_auth", "model_endpoint"}
+    checks = run_doctor(config=config, check_model=True)
+    return [f"{check.name}: {check.detail}" for check in checks if not check.ok and check.name in blocking]
+
+
+def _ensure_remote_model_ready_for_worker(config, *, fake: bool) -> bool:
+    if fake:
+        return True
+    failures = _remote_model_preflight_failures(config)
+    if not failures:
+        return True
+    print("model is not ready; daemon not started")
+    for failure in failures:
+        print(f"  fail {failure}")
+    print("Run `nipux doctor --check-model` after fixing the model configuration.")
+    return False
+
+
 def cmd_start(args: argparse.Namespace) -> None:
     config = load_config()
     config.ensure_dirs()
@@ -1590,6 +1614,8 @@ def cmd_start(args: argparse.Namespace) -> None:
         else:
             print(f"nipux daemon already running pid={metadata.get('pid', 'unknown')}")
             return
+    if not _ensure_remote_model_ready_for_worker(config, fake=args.fake):
+        return
     log_path = Path(args.log_file).expanduser() if args.log_file else config.runtime.logs_dir / "daemon.log"
     log_path.parent.mkdir(parents=True, exist_ok=True)
     command = [
@@ -3191,7 +3217,10 @@ def cmd_daily_digest(args: argparse.Namespace) -> None:
 
 
 def cmd_daemon(args: argparse.Namespace) -> None:
-    daemon = Daemon.open()
+    config = load_config()
+    if not _ensure_remote_model_ready_for_worker(config, fake=args.fake):
+        raise SystemExit(2)
+    daemon = Daemon.open(config=config)
     try:
         if args.once:
             result = daemon.run_once(fake=args.fake, verbose=args.verbose)
