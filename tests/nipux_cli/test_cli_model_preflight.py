@@ -1,6 +1,6 @@
 from types import SimpleNamespace
 
-from nipux_cli.cli import _ensure_remote_model_ready_for_worker
+from nipux_cli.cli import _ensure_remote_model_ready_for_worker, build_parser
 from nipux_cli.doctor import Check
 
 
@@ -39,3 +39,23 @@ def test_remote_model_preflight_does_not_block_local_endpoints(monkeypatch):
     monkeypatch.setattr("nipux_cli.cli.run_doctor", fake_doctor)
 
     assert _ensure_remote_model_ready_for_worker(_config("http://localhost:11434/v1"), fake=False) is True
+
+
+def test_start_does_not_spawn_daemon_when_model_preflight_fails(monkeypatch, tmp_path):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    checked = {}
+
+    def fake_ready(config, *, fake):
+        checked["fake"] = fake
+        return False
+
+    def fake_popen(*args, **kwargs):
+        raise AssertionError("daemon should not spawn when model preflight fails")
+
+    monkeypatch.setattr("nipux_cli.cli._ensure_remote_model_ready_for_worker", fake_ready)
+    monkeypatch.setattr("subprocess.Popen", fake_popen)
+
+    args = build_parser().parse_args(["start", "--quiet"])
+    args.func(args)
+
+    assert checked["fake"] is False
