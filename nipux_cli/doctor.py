@@ -84,19 +84,63 @@ def _check_browser_runtime() -> Check:
 
 
 def _check_model_endpoint(config: AppConfig) -> Check:
+    if "openrouter.ai" in config.model.base_url:
+        auth = _check_openrouter_auth(config)
+        if auth is not None and not auth.ok:
+            return auth
     url = config.model.base_url.rstrip("/") + "/models"
     request = urllib.request.Request(url, headers={"Authorization": f"Bearer {config.model.api_key or 'local-no-key'}"})
     try:
         with urllib.request.urlopen(request, timeout=5) as response:
-            payload = response.read(2048).decode("utf-8", errors="replace")
+            payload = response.read(512_000).decode("utf-8", errors="replace")
         try:
             data = json.loads(payload)
             count = len(data.get("data", [])) if isinstance(data, dict) else "unknown"
-            return Check("model_endpoint", True, f"{url} returned models={count}")
+            available = _model_available(data, config.model.model)
+            if available is False:
+                return Check("model_endpoint", False, f"{config.model.model} not found at {url}; models={count}")
+            return Check("model_endpoint", True, f"{url} returned models={count}; {config.model.model} available")
         except json.JSONDecodeError:
             return Check("model_endpoint", True, f"{url} responded")
     except (urllib.error.URLError, TimeoutError, OSError) as exc:
         return Check("model_endpoint", False, f"{url}: {exc}")
+
+
+def _check_openrouter_auth(config: AppConfig) -> Check | None:
+    if "openrouter.ai" not in config.model.base_url:
+        return None
+    if not config.model.api_key:
+        return Check("model_auth", False, "OpenRouter API key is not set")
+    url = "https://openrouter.ai/api/v1/key"
+    request = urllib.request.Request(url, headers={"Authorization": f"Bearer {config.model.api_key}"})
+    try:
+        with urllib.request.urlopen(request, timeout=5) as response:
+            response.read(2048)
+        return Check("model_auth", True, "OpenRouter API key accepted")
+    except urllib.error.HTTPError as exc:
+        body = exc.read(512).decode("utf-8", errors="replace")
+        detail = _extract_error_message(body) or str(exc)
+        return Check("model_auth", False, f"OpenRouter rejected API key: {detail}")
+    except (urllib.error.URLError, TimeoutError, OSError) as exc:
+        return Check("model_auth", False, f"{url}: {exc}")
+
+
+def _extract_error_message(body: str) -> str:
+    try:
+        data = json.loads(body)
+    except json.JSONDecodeError:
+        return body.strip()
+    error = data.get("error") if isinstance(data, dict) else None
+    if isinstance(error, dict):
+        return str(error.get("message") or error.get("code") or "").strip()
+    return ""
+
+
+def _model_available(data: Any, model: str) -> bool | None:
+    if not isinstance(data, dict) or not isinstance(data.get("data"), list):
+        return None
+    ids = {str(item.get("id") or "") for item in data["data"] if isinstance(item, dict)}
+    return model in ids
 
 
 def run_doctor(*, config: AppConfig | None = None, check_model: bool = False) -> list[Check]:
