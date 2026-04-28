@@ -52,6 +52,23 @@ class DiagnosticShellRegistry:
         return json.dumps({"success": True})
 
 
+class SourceCodeShellRegistry:
+    def openai_tools(self):
+        return []
+
+    def handle(self, name, args, ctx):
+        del args, ctx
+        if name == "shell_exec":
+            return json.dumps({
+                "success": True,
+                "command": "git show HEAD:nipux_cli/cli.py",
+                "returncode": 0,
+                "stdout": 'for index, task in enumerate(plan["tasks"], start=1):\n    rate(plan["tasks"], start=1)\n',
+                "stderr": "",
+            })
+        return json.dumps({"success": True})
+
+
 class CapturingLLM:
     def __init__(self, response):
         self.response = response
@@ -434,6 +451,29 @@ def test_diagnostic_shell_output_does_not_create_measurement_obligation(tmp_path
             db=db,
             llm=ScriptedLLM([LLMResponse(tool_calls=[ToolCall(name="shell_exec", arguments={"command": "df -h && nproc && free -h"})])]),
             registry=DiagnosticShellRegistry(),
+        )
+
+        job = db.get_job(job_id)
+        assert result.tool_name == "shell_exec"
+        assert job["metadata"].get("pending_measurement_obligation") in (None, {})
+    finally:
+        db.close()
+
+
+def test_source_code_shell_output_does_not_create_measurement_obligation(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Improve a measurable process", title="measure", kind="generic")
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[ToolCall(name="shell_exec", arguments={"command": "git show HEAD:nipux_cli/cli.py"})])
+            ]),
+            registry=SourceCodeShellRegistry(),
         )
 
         job = db.get_job(job_id)

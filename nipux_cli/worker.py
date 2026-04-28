@@ -1133,6 +1133,9 @@ DIAGNOSTIC_MEASUREMENT_PATTERN = re.compile(r"(?i)^\s*(?:cpu|gpu|memory|mem|ram)
 ACTION_MEASUREMENT_PATTERN = re.compile(
     r"(?i)^\s*(?:score|rate|speed|throughput|latency|accuracy|loss|error|duration|runtime|time)\b"
 )
+LABELED_MEASUREMENT_PATTERN = re.compile(
+    r"(?i)^\s*(?:score|rate|speed|throughput|latency|accuracy|loss|error|duration|runtime|time)\s*(?:=|:)\s*[-+]?\d"
+)
 EXPLICIT_RESULT_UNIT_PATTERN = re.compile(
     r"(?i)\b\d+(?:\.\d+)?\s*(?:ms|msec|sec|secs|seconds|it/s|ops/s|req/s|qps|rps|samples/s|items/s|units/s|"
     r"tokens/s|tok/s|t/s|kb/s|mb/s|gb/s|tb/s)\b"
@@ -1168,7 +1171,7 @@ def _candidate_is_diagnostic_only(candidate: str, command_has_measurement_intent
     if EXPLICIT_RESULT_UNIT_PATTERN.search(candidate) and not re.search(r"(?i)\b(?:cpu|gpu|ram|mem|memory)\b", candidate):
         return False
     if ACTION_MEASUREMENT_PATTERN.search(candidate):
-        return False
+        return not bool(LABELED_MEASUREMENT_PATTERN.search(candidate))
     return True
 
 
