@@ -11,6 +11,7 @@ import signal
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from pathlib import Path
 from typing import Any
 
@@ -337,7 +338,7 @@ class Daemon:
                                 f"daemon_error type={payload['error_type']} error={payload['error'][:240]}",
                                 flush=True,
                             )
-                        _sleep_or_stop(_failure_backoff(poll_seconds, consecutive_failures), max_iterations, iterations)
+                        _sleep_or_stop(_exception_backoff(exc, poll_seconds, consecutive_failures), max_iterations, iterations)
                         if max_iterations is not None and iterations >= max_iterations:
                             return
                         continue
@@ -433,6 +434,62 @@ def _exception_payload(exc: Exception) -> dict[str, str]:
 def _failure_backoff(poll_seconds: float, consecutive_failures: int) -> float:
     base = max(1.0, poll_seconds)
     return min(60.0, base * min(8, max(1, consecutive_failures)))
+
+
+def _exception_backoff(exc: Exception, poll_seconds: float, consecutive_failures: int) -> float:
+    fallback = _failure_backoff(poll_seconds, consecutive_failures)
+    if not _is_rate_limit_error(exc):
+        return fallback
+    retry_after = _retry_after_seconds(exc)
+    if retry_after is None:
+        return max(fallback, 10.0)
+    return max(fallback, min(300.0, retry_after))
+
+
+def _is_rate_limit_error(exc: Exception) -> bool:
+    status_code = getattr(exc, "status_code", None)
+    if status_code == 429:
+        return True
+    text = f"{type(exc).__name__} {exc}".lower()
+    return "rate limit" in text or "ratelimit" in text or "too many requests" in text
+
+
+def _retry_after_seconds(exc: Exception) -> float | None:
+    headers = _exception_headers(exc)
+    for key, value in headers.items():
+        normalized = key.lower()
+        if normalized in {"retry-after", "x-ratelimit-reset", "x-rate-limit-reset"}:
+            parsed = _parse_retry_after(value)
+            if parsed is not None:
+                return parsed
+    return None
+
+
+def _exception_headers(exc: Exception) -> dict[str, str]:
+    response = getattr(exc, "response", None)
+    headers = getattr(response, "headers", None)
+    if headers:
+        return {str(key): str(value) for key, value in dict(headers).items()}
+    return {}
+
+
+def _parse_retry_after(value: str) -> float | None:
+    text = str(value).strip()
+    if not text:
+        return None
+    with contextlib.suppress(ValueError):
+        number = float(text)
+        if number > 10_000_000_000:
+            number = number / 1000
+        if number > 1_000_000_000:
+            return max(0.0, number - time.time())
+        return max(0.0, number)
+    with contextlib.suppress(ValueError, TypeError, OSError):
+        parsed = parsedate_to_datetime(text)
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return max(0.0, parsed.timestamp() - time.time())
+    return None
 
 
 def _sleep_or_stop(seconds: float, max_iterations: int | None, iterations: int) -> None:

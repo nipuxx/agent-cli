@@ -1,5 +1,6 @@
 from datetime import datetime
 import json
+import time
 
 import pytest
 
@@ -14,6 +15,8 @@ from nipux_cli.daemon import (
     runtime_stale,
     single_instance_lock,
     update_lock_metadata,
+    _exception_backoff,
+    _parse_retry_after,
 )
 from nipux_cli.db import AgentDB
 from nipux_cli.worker import StepExecution
@@ -57,6 +60,30 @@ def test_daemon_lock_status_detects_stale_runtime(tmp_path):
     assert status["current_runtime"]["code_mtime"]
     assert runtime_stale({"runtime": {"runtime_hash": "old"}}) is True
     assert runtime_stale({"runtime": current_runtime_fingerprint()}) is False
+
+
+def test_rate_limit_backoff_uses_retry_after_header():
+    class RateLimit(Exception):
+        status_code = 429
+        response = type("Response", (), {"headers": {"Retry-After": "42"}})()
+
+    assert _exception_backoff(RateLimit("too many requests"), poll_seconds=0, consecutive_failures=1) == 42
+
+
+def test_rate_limit_backoff_has_conservative_fallback():
+    class RateLimit(Exception):
+        status_code = 429
+
+    assert _exception_backoff(RateLimit("rate limit exceeded"), poll_seconds=0, consecutive_failures=1) == 10
+
+
+def test_retry_after_parses_epoch_milliseconds():
+    future_ms = str(int((time.time() + 5) * 1000))
+
+    parsed = _parse_retry_after(future_ms)
+
+    assert parsed is not None
+    assert 0 <= parsed <= 6
 
 
 def test_daemon_run_once_claims_next_job_with_fake_step(tmp_path):
