@@ -39,4 +39,3 @@ def test_remote_model_preflight_does_not_block_local_endpoints(monkeypatch):
     monkeypatch.setattr("nipux_cli.cli.run_doctor", fake_doctor)
 
     assert _ensure_remote_model_ready_for_worker(_config("http://localhost:11434/v1"), fake=False) is True
-
