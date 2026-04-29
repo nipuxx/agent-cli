@@ -69,6 +69,23 @@ class SourceCodeShellRegistry:
         return json.dumps({"success": True})
 
 
+class LargeShellEvidenceRegistry:
+    def openai_tools(self):
+        return []
+
+    def handle(self, name, args, ctx):
+        del args, ctx
+        if name == "shell_exec":
+            return json.dumps({
+                "success": True,
+                "command": "find . -type f",
+                "returncode": 0,
+                "stdout": "\n".join(f"./file_{index}.py" for index in range(200)),
+                "stderr": "",
+            })
+        return json.dumps({"success": True})
+
+
 class CapturingLLM:
     def __init__(self, response):
         self.response = response
@@ -481,6 +498,34 @@ def test_source_code_shell_output_does_not_create_measurement_obligation(tmp_pat
         job = db.get_job(job_id)
         assert result.tool_name == "shell_exec"
         assert job["metadata"].get("pending_measurement_obligation") in (None, {})
+    finally:
+        db.close()
+
+
+def test_large_shell_output_must_be_saved_before_more_shell_churn(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Audit a repository", title="audit", kind="generic")
+
+        first = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([LLMResponse(tool_calls=[ToolCall(name="shell_exec", arguments={"command": "find . -type f"})])]),
+            registry=LargeShellEvidenceRegistry(),
+        )
+        second = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([LLMResponse(tool_calls=[ToolCall(name="shell_exec", arguments={"command": "find . -name '*.md'"})])]),
+            registry=LargeShellEvidenceRegistry(),
+        )
+
+        assert first.tool_name == "shell_exec"
+        assert second.status == "blocked"
+        assert second.result["error"] == "artifact required before more research"
     finally:
         db.close()
 

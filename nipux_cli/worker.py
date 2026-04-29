@@ -980,6 +980,9 @@ def _step_has_evidence(step: dict[str, Any]) -> bool:
         if anti_bot_reason(str(data.get("title") or ""), str(data.get("url") or data.get("origin") or ""), snapshot):
             return False
         return len(snapshot.strip()) >= 500
+    if tool_name == "shell_exec":
+        text = "\n".join(str(output.get(key) or "") for key in ("stdout", "stderr"))
+        return len(text.strip()) >= 1000
     return False
 
 
@@ -1363,14 +1366,14 @@ def _blocked_tool_call_result(
             return result, f"blocked misleading write_artifact; anti-bot source at step #{anti_bot_context.get('step_no')}"
 
     unpersisted_evidence = _unpersisted_evidence_step(recent_steps)
-    if unpersisted_evidence and name in INFORMATION_GATHERING_TOOLS:
+    if unpersisted_evidence and name in BRANCH_WORK_TOOLS:
         result = {
             "success": False,
             "error": "artifact required before more research",
             "blocked_tool": name,
             "blocked_arguments": args,
             "previous_step": unpersisted_evidence["id"],
-            "guidance": "Write an artifact summarizing the browser or extracted evidence before doing more search or browsing.",
+            "guidance": "Write an artifact summarizing the browser, extracted, or shell evidence before doing more search, browsing, or shell work.",
         }
         return result, f"blocked {name}; write_artifact required after evidence step #{unpersisted_evidence['step_no']}"
 
