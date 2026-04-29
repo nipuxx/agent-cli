@@ -224,6 +224,8 @@ def test_prompt_includes_recent_tool_arguments_and_observations():
     assert "target model docs" in content
     assert "Target Docs <https://example.com>" in content
     assert "do not search the same query again" in content
+    assert "shell_exec default cwd:" in content
+    assert "read_artifact is only for those saved outputs" in content
 
 
 def test_prompt_does_not_inject_local_ssh_alias_context(monkeypatch, tmp_path):

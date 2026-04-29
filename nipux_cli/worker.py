@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -85,6 +86,8 @@ benchmarks, repeatable experiments, and other command execution that the
 objective requires. Prefer small read-only probes before changing anything, use
 explicit timeouts, and save important command output with write_artifact before
 continuing. Do not run destructive or high-risk cyber commands.
+read_artifact only reads saved Nipux artifacts. Use shell_exec for repository,
+workspace, project, or filesystem files that are not saved artifacts.
 Operator messages are durable context from the human operator. Messages marked
 steer are active constraints until acknowledged or superseded. Messages marked
 follow_up are lower-priority queued work; keep them in the task queue and act on
@@ -243,6 +246,10 @@ def build_messages(
                 f"Job: {job['title']}\n"
                 f"Kind: {job['kind']}\n"
                 f"Objective:\n{job['objective']}\n\n"
+                f"Workspace:\n"
+                f"- shell_exec default cwd: {os.getcwd()}\n"
+                f"- saved artifacts are separate Nipux outputs; read_artifact is only for those saved outputs\n"
+                f"- use shell_exec for workspace/project files unless the file is a saved artifact\n\n"
                 f"Operator context:\n{operator_messages}\n\n"
                 f"Pending measurement obligation:\n{measurement_obligation}\n\n"
                 f"Measured progress guard:\n{measured_progress_guard}\n\n"
