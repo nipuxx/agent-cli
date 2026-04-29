@@ -39,6 +39,15 @@ def test_artifact_tools_roundtrip(tmp_path):
         read_raw = DEFAULT_REGISTRY.handle("read_artifact", {"artifact_id": result["artifact_id"]}, ctx)
         assert json.loads(read_raw)["content"] == "needle text"
 
+        path_raw = DEFAULT_REGISTRY.handle("read_artifact", {"artifact_id": result["path"]}, ctx)
+        assert json.loads(path_raw)["artifact_id"] == result["artifact_id"]
+
+        title_raw = DEFAULT_REGISTRY.handle("read_artifact", {"title": "Evidence"}, ctx)
+        assert json.loads(title_raw)["content"] == "needle text"
+
+        number_raw = DEFAULT_REGISTRY.handle("read_artifact", {"artifact_id": "1"}, ctx)
+        assert json.loads(number_raw)["content"] == "needle text"
+
         search_raw = DEFAULT_REGISTRY.handle("search_artifacts", {"query": "needle"}, ctx)
         assert json.loads(search_raw)["results"][0]["id"] == result["artifact_id"]
     finally:

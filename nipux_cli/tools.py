@@ -76,11 +76,41 @@ def _write_artifact(args: dict[str, Any], ctx: ToolContext) -> str:
 
 
 def _read_artifact(args: dict[str, Any], ctx: ToolContext) -> str:
-    artifact_id = str(args.get("artifact_id") or args.get("path") or "")
-    if not artifact_id:
+    artifact_ref = str(args.get("artifact_id") or args.get("path") or args.get("title") or args.get("ref") or "")
+    if not artifact_ref:
         return _json({"success": False, "error": "artifact_id is required"})
-    content = ctx.artifacts.read_text(artifact_id)
-    return _json({"success": True, "artifact_id": artifact_id, "content": content})
+    resolved = _resolve_artifact_ref(ctx, artifact_ref)
+    if not resolved:
+        return _json({"success": False, "error": f"artifact not found: {artifact_ref}"})
+    try:
+        content = ctx.artifacts.read_text(resolved["id"])
+    except (OSError, KeyError, ValueError) as exc:
+        return _json({"success": False, "artifact_id": resolved["id"], "error": str(exc)})
+    return _json({"success": True, "artifact_id": resolved["id"], "title": resolved.get("title"), "path": resolved.get("path"), "content": content})
+
+
+def _resolve_artifact_ref(ctx: ToolContext, artifact_ref: str) -> dict[str, Any] | None:
+    ref = artifact_ref.strip().strip("'\"")
+    if not ref:
+        return None
+    artifacts = ctx.db.list_artifacts(ctx.job_id, limit=250)
+    for artifact in artifacts:
+        if ref == artifact.get("id") or ref == str(artifact.get("path") or ""):
+            return artifact
+    if ref.isdigit():
+        index = int(ref) - 1
+        if 0 <= index < len(artifacts):
+            return artifacts[index]
+    lowered = ref.lower()
+    for artifact in artifacts:
+        title = str(artifact.get("title") or "").lower()
+        if lowered == title:
+            return artifact
+    for artifact in artifacts:
+        haystack = " ".join(str(artifact.get(key) or "") for key in ("title", "summary", "path")).lower()
+        if lowered and lowered in haystack:
+            return artifact
+    return None
 
 
 def _search_artifacts(args: dict[str, Any], ctx: ToolContext) -> str:
@@ -664,10 +694,15 @@ SUPPORT_SCHEMAS: list[ToolSpec] = [
         },
         "required": ["content"],
     }, _write_artifact),
-    ToolSpec("read_artifact", "Read an exact artifact by artifact_id.", {
+    ToolSpec("read_artifact", "Read a saved artifact by artifact_id, visible number, exact saved path, or title.", {
         "type": "object",
-        "properties": {"artifact_id": {"type": "string"}},
-        "required": ["artifact_id"],
+        "properties": {
+            "artifact_id": {"type": "string", "description": "Artifact id, visible number, saved path, or title."},
+            "path": {"type": "string"},
+            "title": {"type": "string"},
+            "ref": {"type": "string"},
+        },
+        "required": [],
     }, _read_artifact),
     ToolSpec("search_artifacts", "Search stored artifacts for exact evidence from prior steps.", {
         "type": "object",
