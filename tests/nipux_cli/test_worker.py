@@ -1,5 +1,6 @@
 import json
 
+from nipux_cli.artifacts import ArtifactStore
 from nipux_cli.config import AppConfig, RuntimeConfig
 from nipux_cli.db import AgentDB
 from nipux_cli.llm import LLMResponse, ScriptedLLM, ToolCall
@@ -873,6 +874,29 @@ def test_run_one_step_blocks_exact_duplicate_tool_call(tmp_path):
         assert second.result["error"] == "duplicate tool call blocked"
         assert second.result["recoverable"] is True
         assert "previous_step" in second.result
+    finally:
+        db.close()
+
+
+def test_duplicate_artifact_read_guidance_pushes_follow_up_work(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Use artifact once", title="artifact")
+        run_id = db.start_run(job_id)
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="write_artifact")
+        artifacts = ArtifactStore(tmp_path, db)
+        stored = artifacts.write_text(job_id=job_id, run_id=run_id, step_id=step_id, title="Evidence", content="saved")
+        db.finish_step(step_id, status="completed", output_data={"success": True, "artifact_id": stored.id, "path": str(stored.path)})
+        db.finish_run(run_id, "completed")
+        call = ToolCall(name="read_artifact", arguments={"artifact_id": stored.id})
+
+        first = run_one_step(job_id, config=config, db=db, llm=ScriptedLLM([LLMResponse(tool_calls=[call])]))
+        second = run_one_step(job_id, config=config, db=db, llm=ScriptedLLM([LLMResponse(tool_calls=[call])]))
+
+        assert first.status == "completed"
+        assert second.status == "blocked"
+        assert "Do not read it again" in second.result["guidance"]
     finally:
         db.close()
 

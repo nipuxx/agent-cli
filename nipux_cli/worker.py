@@ -671,6 +671,12 @@ def _next_action_constraint(job: dict[str, Any], recent_steps: list[dict[str, An
         if error == "task branch required before more work":
             return "Create or reopen a task branch with record_tasks before doing more research or execution."
         if error in {"duplicate tool call blocked", "similar search query blocked", "search loop blocked"}:
+            output = step.get("output") if isinstance(step.get("output"), dict) else {}
+            blocked_tool = str(output.get("blocked_tool") or "")
+            if blocked_tool == "read_artifact":
+                return "Do not read the same artifact again. Use its content to choose a concrete next action: inspect a specific item, record findings/tasks, or write a report artifact."
+            if blocked_tool == "shell_exec":
+                return "Do not rerun the same shell discovery command. Use the prior output to inspect a specific file/item, save it, or update findings/tasks."
             return "Change source, extract an existing result, save an artifact, or record a lesson about the failed strategy."
     return "No special constraint beyond taking one bounded useful action."
 
@@ -1277,13 +1283,24 @@ def _blocked_tool_call_result(
 ) -> tuple[dict[str, Any], str] | None:
     duplicate_step = _duplicate_recent_tool_call(name, args, recent_steps)
     if duplicate_step:
+        guidance = "Use a different query, extract one of the prior result URLs, open a result in the browser, or write an artifact."
+        if name == "read_artifact":
+            guidance = (
+                "This artifact was already read. Do not read it again; use its content to inspect a concrete item, "
+                "record findings/tasks, or write a report artifact."
+            )
+        elif name == "shell_exec":
+            guidance = (
+                "This shell command was already run. Do not rerun discovery; use the previous output to inspect a "
+                "specific file/item, write an artifact, or update findings/tasks."
+            )
         result = {
             "success": False,
             "error": "duplicate tool call blocked",
             "blocked_tool": name,
             "blocked_arguments": args,
             "previous_step": duplicate_step["id"],
-            "guidance": "Use a different query, extract one of the prior result URLs, open a result in the browser, or write an artifact.",
+            "guidance": guidance,
         }
         return result, f"blocked duplicate {name}; previous step #{duplicate_step['step_no']}"
 
