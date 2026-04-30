@@ -5,13 +5,11 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import platform
 import re
 import select
 import shlex
 import shutil
 import signal
-import socket
 import subprocess
 import sys
 import termios
@@ -390,130 +388,34 @@ def cmd_home(args: argparse.Namespace) -> None:
         _enter_chat(job_id, show_history=True, history_limit=args.history_limit)
         return
 
-    _enter_first_run_menu(history_limit=args.history_limit)
-
-
-def _enter_first_run_menu(*, history_limit: int = 12) -> None:
-    _print_first_run_menu()
+    print(NIPUX_BANNER)
+    print(_rule("="))
+    print("No jobs yet. Type the first objective to create a generic long-running agent.")
+    print("Commands: /help, /shell, /exit")
+    print(_rule("="))
     while True:
         try:
-            line = input("❯ " if _fancy_ui() else "nipux > ").strip()
+            line = input("nipux[new]> ").strip()
         except EOFError:
             print()
             return
         except KeyboardInterrupt:
             print()
             continue
-        if not _handle_first_run_menu_line(line, history_limit=history_limit):
+        if not line:
+            continue
+        if line in {"/exit", "/quit", "exit", "quit"}:
             return
-
-
-def _print_first_run_menu() -> None:
-    config = load_config()
-    daemon = daemon_lock_status(config.runtime.home / "agentd.lock")
-    width, height = shutil.get_terminal_size((120, 34))
-    if _fancy_ui():
-        print("\033[2J\033[H", end="")
-    print(_build_first_run_frame(config=config, daemon=daemon, width=width, height=height), end="")
-
-
-def _handle_first_run_menu_line(line: str, *, history_limit: int = 12) -> bool:
-    line = line.strip()
-    if not line:
-        _print_first_run_menu()
-        return True
-    if line.startswith("/"):
-        line = line[1:].strip()
-    lowered = line.lower()
-    if lowered in {"exit", "quit", ":q", "6"}:
-        return False
-    if lowered in {"help", "?", "commands"}:
-        _print_first_run_menu()
-        return True
-    if lowered in {"1", "new"}:
-        objective = _prompt_first_run_value("objective")
-        if not objective:
-            print("No job created.")
-            return True
-        _first_run_create_and_open(objective, history_limit=history_limit)
-        return False
-    if lowered.startswith("new "):
-        objective = line[4:].strip()
-        if not objective:
-            print("usage: new OBJECTIVE")
-            return True
-        _first_run_create_and_open(objective, history_limit=history_limit)
-        return False
-    if lowered in {"2", "jobs", "ls"}:
-        cmd_jobs(argparse.Namespace())
-        return True
-    if lowered in {"3", "shell"}:
-        cmd_shell(argparse.Namespace(status=False, no_status=True, limit=8, chars=180))
-        return True
-    if lowered in {"4", "doctor"}:
-        try:
-            cmd_doctor(argparse.Namespace(check_model=False))
-        except SystemExit:
-            pass
-        return True
-    if lowered in {"5", "init"}:
-        cmd_init(
-            argparse.Namespace(
-                path=None,
-                force=False,
-                openrouter=False,
-                model=None,
-                base_url=None,
-                api_key_env=None,
-                context_length=DEFAULT_CONTEXT_LENGTH,
-            )
-        )
-        return True
-    first = _first_token(line)
-    if first in SHELL_COMMAND_NAMES:
-        before_job_id = None
-        if first == "create":
-            db, _ = _db()
-            try:
-                before_job_id = _default_job_id(db)
-            finally:
-                db.close()
-        _run_shell_line(line)
-        if first == "create":
-            db, _ = _db()
-            try:
-                after_job_id = _default_job_id(db)
-            finally:
-                db.close()
-            if after_job_id and after_job_id != before_job_id:
-                _enter_chat(after_job_id, show_history=True, history_limit=history_limit)
-                return False
-        return True
-    _first_run_create_and_open(line, history_limit=history_limit)
-    return False
-
-
-def _prompt_first_run_value(label: str) -> str:
-    try:
-        return input(f"{label} > ").strip()
-    except (EOFError, KeyboardInterrupt):
-        print()
-        return ""
-
-
-def _first_run_create_and_open(objective: str, *, history_limit: int = 12) -> None:
-    job_id, title = _create_job(objective=objective, title=None, kind="generic", cadence=None)
-    print(f"created {title}")
-    print("Opening workspace. Use /run to start work, /jobs to switch, /help for commands.")
-    _enter_chat(job_id, show_history=True, history_limit=history_limit)
-
-
-def _first_token(line: str) -> str:
-    try:
-        parts = shlex.split(line)
-    except ValueError:
-        parts = line.split()
-    return parts[0].lower() if parts else ""
+        if line in {"/help", "help"}:
+            print("Type an objective to create a job, or use /shell for the command console.")
+            continue
+        if line == "/shell":
+            cmd_shell(argparse.Namespace(status=False, no_status=True, limit=8, chars=180))
+            continue
+        job_id, title = _create_job(objective=line, title=None, kind="generic", cadence=None)
+        print(f"created {title}")
+        _enter_chat(job_id, show_history=True, history_limit=args.history_limit)
+        return
 
 
 def _enter_chat(job_id: str, *, show_history: bool, history_limit: int = 12) -> None:
@@ -734,7 +636,7 @@ def _render_chat_frame(snapshot: dict[str, Any], input_buffer: str, notices: lis
 
 
 def _build_chat_frame(snapshot: dict[str, Any], input_buffer: str, notices: list[str], *, width: int, height: int) -> str:
-    width = max(96, width)
+    width = max(92, width)
     height = max(22, height)
     job = snapshot["job"]
     jobs = snapshot["jobs"]
@@ -755,6 +657,12 @@ def _build_chat_frame(snapshot: dict[str, Any], input_buffer: str, notices: list
     state = _job_display_state(job, bool(daemon["running"]))
     worker = _worker_label(job, bool(daemon["running"]))
     latest_step = steps[-1] if steps else None
+    left_width = max(48, int(width * 0.58))
+    right_width = max(34, width - left_width - 3)
+    if right_width < 34:
+        right_width = 34
+        left_width = max(48, width - right_width - 3)
+    latest_text = _step_line(latest_step, chars=right_width - 6) if latest_step else "no worker steps yet"
     daemon_text = _daemon_state_line(daemon)
     goal_text = " ".join(str(job.get("objective") or "").split())
     metrics = [
@@ -770,28 +678,11 @@ def _build_chat_frame(snapshot: dict[str, Any], input_buffer: str, notices: list
 
     header = _top_bar(width, state=state, daemon=daemon_text, model=model)
     footer_rows = 3
-    body_rows = max(10, height - len(header) - footer_rows)
-    sidebar_width = 6 if width >= 112 else 4
-    right_width = min(max(36, int(width * 0.31)), 58)
-    main_width = width - sidebar_width - right_width - 2
-    if main_width < 46:
-        right_width = max(32, width - sidebar_width - 48 - 2)
-        main_width = width - sidebar_width - right_width - 2
-    latest_text = _step_line(latest_step, chars=max(18, right_width - 8)) if latest_step else "no worker steps yet"
-    sidebar_lines = _surface_sidebar_lines(rows=body_rows)
-    main_lines = _surface_main_lines(
-        job=job,
-        jobs=jobs,
-        daemon_running=bool(daemon["running"]),
-        state=state,
-        events=events,
-        notices=notices,
-        metrics=metrics,
-        memory_entries=memory_entries,
-        width=main_width,
-        rows=body_rows,
-    )
-    right_lines = _surface_status_lines(
+    body_rows = max(10, height - len(header) - 1 - footer_rows)
+    chat_rows = body_rows
+    right_rows = body_rows
+    chat_lines = _chat_pane_lines(events, notices, width=left_width, rows=chat_rows)
+    right_lines = _right_pane_lines(
         job=job,
         jobs=jobs,
         job_id=job_id,
@@ -803,23 +694,15 @@ def _build_chat_frame(snapshot: dict[str, Any], input_buffer: str, notices: list
         goal_text=goal_text,
         latest_text=latest_text,
         metrics=metrics,
-        memory_entries=memory_entries,
         events=events,
         width=right_width,
-        rows=body_rows,
+        rows=right_rows,
     )
-    lines = [*header]
+    lines = [*header, _two_col_title(left_width, right_width, "Chat", "Work / Status")]
     for index in range(body_rows):
-        nav = sidebar_lines[index] if index < len(sidebar_lines) else ""
-        main = main_lines[index] if index < len(main_lines) else ""
+        left = chat_lines[index] if index < len(chat_lines) else ""
         right = right_lines[index] if index < len(right_lines) else ""
-        lines.append(
-            _fit_ansi(nav, sidebar_width)
-            + _muted("│")
-            + _fit_ansi(main, main_width)
-            + _muted("│")
-            + _fit_ansi(right, right_width)
-        )
+        lines.append(_two_col_line(left, right, left_width=left_width, right_width=right_width))
     lines.extend(_compose_bar(input_buffer, width=width))
     if len(lines) > height:
         keep_top = min(4, len(header) + 1)
@@ -837,410 +720,6 @@ def _top_bar(width: int, *, state: str, daemon: str, model: str) -> list[str]:
         first + " " * max(1, width - len(_strip_ansi(first)) - len(_strip_ansi(meta))) + meta,
         _muted("─" * width),
     ]
-
-
-def _build_first_run_frame(*, config: Any, daemon: dict[str, Any], width: int, height: int) -> str:
-    width = max(96, width)
-    height = max(22, height)
-    daemon_text = _daemon_state_line(daemon)
-    header = _top_bar(width, state="setup", daemon=daemon_text, model=config.model.model)
-    footer_rows = 3
-    body_rows = max(10, height - len(header) - footer_rows)
-    sidebar_width = 6 if width >= 112 else 4
-    right_width = min(max(36, int(width * 0.31)), 58)
-    main_width = width - sidebar_width - right_width - 2
-    if main_width < 46:
-        right_width = max(32, width - sidebar_width - 48 - 2)
-        main_width = width - sidebar_width - right_width - 2
-
-    main_lines = _pad_lines(
-        [
-            _muted("D A S H B O A R D"),
-            _headline("Local control surface"),
-            _muted("Create the first long-running agent, then watch work, memory, and outputs here."),
-            "",
-            *_metric_cards(
-                [
-                    ("ACTIVE AGENTS", "0"),
-                    ("RUNNING JOBS", "0"),
-                    ("ACTIONS", "0"),
-                    ("OUTPUTS", "0"),
-                    ("THROUGHPUT", "idle"),
-                    ("COST", "n/a"),
-                ],
-                width=main_width,
-            ),
-            "",
-            *_box_lines(
-                "Start",
-                [
-                    _bold("No jobs yet."),
-                    "Type a goal in plain language to create a job and open its workspace.",
-                    "",
-                    f"{_accent('new OBJECTIVE')}   create a job",
-                    f"{_accent('jobs')}            list saved jobs",
-                    f"{_accent('doctor')}          check local setup",
-                    f"{_accent('init')}            write starter config/env files",
-                    f"{_accent('exit')}            close Nipux",
-                ],
-                width=main_width,
-                height=max(8, body_rows - 11),
-            ),
-        ],
-        rows=body_rows,
-        width=main_width,
-    )
-    right_lines = _surface_static_status_lines(
-        daemon_text=daemon_text,
-        model=config.model.model,
-        home=_short_path(config.runtime.home),
-        width=right_width,
-        rows=body_rows,
-    )
-    sidebar_lines = _surface_sidebar_lines(rows=body_rows)
-    lines = [*header]
-    for index in range(body_rows):
-        lines.append(
-            _fit_ansi(sidebar_lines[index] if index < len(sidebar_lines) else "", sidebar_width)
-            + _muted("│")
-            + _fit_ansi(main_lines[index] if index < len(main_lines) else "", main_width)
-            + _muted("│")
-            + _fit_ansi(right_lines[index] if index < len(right_lines) else "", right_width)
-        )
-    lines.extend(_compose_bar("", width=width, hint="Enter creates a job or runs a command. Try: new research topic, doctor, init, exit."))
-    return "\n".join(lines) + "\n"
-
-
-def _surface_sidebar_lines(*, rows: int) -> list[str]:
-    items = [
-        ("◇", ""),
-        ("▦", "on"),
-        ("◌", ""),
-        ("□", ""),
-        ("", ""),
-        ("⚙", ""),
-    ]
-    lines: list[str] = []
-    for icon, state in items:
-        if state == "on":
-            lines.append(_surface_nav_cell(icon, active=True))
-        elif icon:
-            lines.append(_surface_nav_cell(icon, active=False))
-        else:
-            lines.append("")
-        lines.append("")
-    return _pad_lines(lines, rows=rows, width=6)
-
-
-def _surface_nav_cell(icon: str, *, active: bool) -> str:
-    return f" {_accent(icon) if active else _muted(icon)}  "
-
-
-def _surface_main_lines(
-    *,
-    job: dict[str, Any],
-    jobs: list[dict[str, Any]],
-    daemon_running: bool,
-    state: str,
-    events: list[dict[str, Any]],
-    notices: list[str],
-    metrics: list[tuple[str, Any]],
-    memory_entries: list[dict[str, Any]],
-    width: int,
-    rows: int,
-) -> list[str]:
-    active_jobs = sum(1 for item in jobs if _job_display_state(item, daemon_running) in {"advancing", "running"})
-    running_jobs = sum(1 for item in jobs if str(item.get("status") or "") in {"running", "queued", "planning"})
-    metric_lookup = {str(key): value for key, value in metrics}
-    cards = [
-        ("ACTIVE AGENTS", active_jobs),
-        ("RUNNING JOBS", running_jobs),
-        ("ACTIONS", metric_lookup.get("actions", 0)),
-        ("OUTPUTS", metric_lookup.get("outputs", 0)),
-        ("FINDINGS", metric_lookup.get("findings", 0)),
-        ("SOURCES", metric_lookup.get("sources", 0)),
-    ]
-    if rows < 22:
-        heading = [
-            _muted("D A S H B O A R D"),
-            _headline("Local control surface"),
-            f"{_muted('Watch live agent output, active runs, saved outputs, and durable memory on this host.')} {_status_badge(state)}",
-            _metric_strip([(label.lower().replace(" ", "_"), value) for label, value in cards], width=width),
-            "",
-        ]
-    else:
-        heading = [
-            _muted("D A S H B O A R D"),
-            _headline("Local control surface"),
-            f"{_muted('Watch live agent output, active runs, saved outputs, and durable memory on this host.')} {_status_badge(state)}",
-            "",
-            *_metric_cards(cards, width=width),
-            "",
-        ]
-    remaining = max(6, rows - len(heading))
-    output_height = min(max(7, remaining // 2 + 3), remaining)
-    current_height = max(0, remaining - output_height)
-    output_body = _agent_output_lines(events, notices, width=max(20, width - 4), rows=max(2, output_height - 2))
-    lines = [
-        *heading,
-        *_box_lines("Agent Output", output_body, width=width, height=output_height),
-    ]
-    if current_height >= 6:
-        lines.extend(
-            _box_lines(
-                "Current Agents",
-                _current_agent_lines(job=job, jobs=jobs, daemon_running=daemon_running, width=max(20, width - 4)),
-                width=width,
-                height=current_height,
-                badge=f"{len(jobs)} total",
-            )
-        )
-    elif current_height > 0:
-        lines.extend([""] * current_height)
-    return _pad_lines(lines, rows=rows, width=width)
-
-
-def _surface_status_lines(
-    *,
-    job: dict[str, Any],
-    jobs: list[dict[str, Any]],
-    job_id: str,
-    daemon_running: bool,
-    state: str,
-    worker: str,
-    daemon_text: str,
-    model: str,
-    goal_text: str,
-    latest_text: str,
-    metrics: list[tuple[str, Any]],
-    memory_entries: list[dict[str, Any]],
-    events: list[dict[str, Any]],
-    width: int,
-    rows: int,
-) -> list[str]:
-    metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
-    active_operator = _active_operator_messages(metadata)
-    pending_measurement = metadata.get("pending_measurement_obligation") if isinstance(metadata.get("pending_measurement_obligation"), dict) else {}
-    body: list[str] = [
-        _muted("runtime.visible_state"),
-        _system_line("Daemon", daemon_text, width),
-        _system_line("Model", model, width),
-        _system_line("State", f"{state} / {worker}", width),
-        "",
-        _section_label("Workspace"),
-        _system_line("Focus", str(job.get("title") or "untitled"), width),
-    ]
-    for line in textwrap.wrap(goal_text, width=max(18, width - 10))[:2]:
-        body.append(_system_line("Goal", line, width))
-    body.append(_system_line("Latest", latest_text, width))
-    body.append(_metric_strip(metrics, width=max(10, width - 4)))
-    if active_operator:
-        body.append(_system_line("Operator", f"{len(active_operator)} active", width))
-        body.append(_system_line("Context", str(active_operator[-1].get("message") or ""), width))
-    if pending_measurement:
-        body.append(_system_line("Measure", f"pending step #{pending_measurement.get('source_step_no') or '?'}", width))
-    body.extend(["", _section_label("Jobs")])
-    body.extend(_frame_jobs_lines(jobs, focused_job_id=job_id, daemon_running=daemon_running, width=max(20, width - 4))[:5])
-    body.extend(["", _section_label("Memory")])
-    body.extend(_memory_lines(memory_entries, metadata=metadata, width=max(20, width - 4))[:4])
-    body.extend(["", _section_label("Host")])
-    body.extend(_host_lines(width=max(20, width - 4))[:4])
-    body.extend(["", _section_label("Model Activity")])
-    activity = [_activity_text(event, width=max(20, width - 4)) for event in events]
-    body.extend([line for line in activity if line][-max(4, rows // 3):] or [_muted("No recent tool activity.")])
-    return _box_lines("System Log / Model Activity", body, width=width, height=rows, badge=f"{min(len(body), rows)} lines")
-
-
-def _surface_static_status_lines(*, daemon_text: str, model: str, home: str, width: int, rows: int) -> list[str]:
-    body = [
-        _muted("runtime.ready"),
-        _system_line("Daemon", daemon_text, width),
-        _system_line("Model", model, width),
-        _system_line("Home", home, width),
-        "",
-        _section_label("Controls"),
-        f"{_accent('new OBJECTIVE')}   create a job and open it",
-        f"{_accent('jobs')}            list jobs",
-        f"{_accent('doctor')}          check setup",
-        f"{_accent('init')}            write config/env files",
-        "",
-        _section_label("Jobs"),
-        _muted("No saved jobs in this profile."),
-        "",
-        _section_label("Host"),
-        *_host_lines(width=max(20, width - 4))[:4],
-    ]
-    return _box_lines("System Log", body, width=width, height=rows, badge="ready")
-
-
-def _agent_output_lines(events: list[dict[str, Any]], notices: list[str], *, width: int, rows: int) -> list[str]:
-    lines: list[str] = []
-    for event in events:
-        kind = str(event.get("event_type") or "")
-        title = str(event.get("title") or "")
-        if kind == "operator_message":
-            label = _style("YOU", "35")
-            body = _generic_display_text(event.get("body") or "")
-        elif kind == "agent_message" and title == "chat":
-            label = _style("AGENT", "36")
-            body = _generic_display_text(event.get("body") or "")
-        else:
-            text = _minimal_live_event_line(event, chars=max(16, width - 9))
-            if not text:
-                continue
-            label = _live_badge(text)
-            body = text
-        lines.extend(_speaker_lines(label, body, width=width))
-    for notice in notices:
-        label = _style("YOU", "35") if notice.startswith("> ") else _style("NIPUX", "36")
-        body = notice[2:] if notice.startswith("> ") else notice
-        lines.extend(_speaker_lines(label, body, width=width))
-    if not lines:
-        return [
-            _muted("No chat yet."),
-            _muted("Type normally to talk. Use the right pane for jobs, status, memory, and activity."),
-        ][:rows]
-    return lines[-rows:]
-
-
-def _speaker_lines(label: str, body: Any, *, width: int) -> list[str]:
-    label_width = 7
-    available = max(18, width - label_width - 1)
-    wrapped = textwrap.wrap(" ".join(str(body).split()), width=available) or [""]
-    lines = [f"{_fit_ansi(label, label_width)}{wrapped[0]}"]
-    for continuation in wrapped[1:4]:
-        lines.append(f"{'':{label_width}}{continuation}")
-    return lines
-
-
-def _current_agent_lines(*, job: dict[str, Any], jobs: list[dict[str, Any]], daemon_running: bool, width: int) -> list[str]:
-    if not jobs:
-        return [_muted("No agents yet. Create one from the compose bar.")]
-    lines = []
-    for item in jobs[:6]:
-        marker = _accent("●") if item.get("id") == job.get("id") else _muted("○")
-        title = _one_line(str(item.get("title") or "untitled"), max(12, width - 28))
-        state = _status_badge(_job_display_state(item, daemon_running))
-        worker = _status_badge(_worker_label(item, daemon_running))
-        lines.append(_fit_ansi(f"{marker} {title}  {state} {worker}", width))
-    return lines
-
-
-def _memory_lines(memory_entries: list[dict[str, Any]], *, metadata: dict[str, Any], width: int) -> list[str]:
-    lessons = metadata.get("lessons") if isinstance(metadata.get("lessons"), list) else []
-    lines: list[str] = []
-    if memory_entries:
-        for entry in memory_entries[:2]:
-            lines.append(_one_line(f"{entry.get('key') or 'memory'}: {entry.get('summary') or ''}", width))
-    if lessons:
-        last = lessons[-1] if isinstance(lessons[-1], dict) else {}
-        lines.append(_one_line(f"lesson: {last.get('lesson') or ''}", width))
-    return lines or [_muted("No compact memory recorded yet.")]
-
-
-def _host_lines(*, width: int) -> list[str]:
-    host = socket.gethostname()
-    system = platform.system() or "unknown"
-    arch = platform.machine() or "unknown"
-    ram = _host_ram_text()
-    return [
-        _one_line(f"Host: {host}", width),
-        _one_line(f"Platform: {system}", width),
-        _one_line(f"Arch: {arch}", width),
-        _one_line(f"RAM: {ram}", width),
-    ]
-
-
-def _host_ram_text() -> str:
-    try:
-        pages = os.sysconf("SC_PHYS_PAGES")
-        page_size = os.sysconf("SC_PAGE_SIZE")
-        gb = pages * page_size / (1024**3)
-        return f"{gb:.1f} GB"
-    except (AttributeError, OSError, ValueError):
-        return "n/a"
-
-
-def _headline(text: str) -> str:
-    return _style(text, "1;37")
-
-
-def _section_label(text: str) -> str:
-    return _muted(" ".join(text.upper()))
-
-
-def _system_line(label: str, value: Any, width: int) -> str:
-    label_text = _muted(f"{label:<7}")
-    return _fit_ansi(f"{label_text} {_one_line(value, max(8, width - 11))}", max(10, width - 4))
-
-
-def _metric_cards(cards: list[tuple[str, Any]], *, width: int) -> list[str]:
-    if width < 62:
-        columns = 2
-    elif width < 104:
-        columns = 3
-    else:
-        columns = min(6, len(cards))
-    gap = 2
-    card_width = max(14, (width - gap * (columns - 1)) // columns)
-    rows: list[str] = []
-    for start in range(0, len(cards), columns):
-        chunk = cards[start : start + columns]
-        rendered = [_metric_card(label, value, width=card_width) for label, value in chunk]
-        for line_index in range(len(rendered[0])):
-            rows.append((" " * gap).join(card[line_index] for card in rendered))
-    return rows
-
-
-def _metric_card(label: str, value: Any, *, width: int) -> list[str]:
-    inner = max(4, width - 4)
-    label_text = _muted(_spaced_label(label, max_width=inner))
-    value_text = _accent(_bold(value)) if str(label).upper() in {"THROUGHPUT", "COST"} else _bold(value)
-    return [
-        _muted("╭" + "─" * (width - 2) + "╮"),
-        _muted("│") + " " + _fit_ansi(label_text, inner) + " " + _muted("│"),
-        _muted("│") + " " + _fit_ansi(value_text, inner) + " " + _muted("│"),
-        _muted("╰" + "─" * (width - 2) + "╯"),
-    ]
-
-
-def _spaced_label(label: str, *, max_width: int) -> str:
-    compact = " ".join(str(label).upper().split())
-    spaced = " ".join(compact)
-    if len(spaced) <= max_width:
-        return spaced
-    return compact
-
-
-def _box_lines(title: str, body: list[str], *, width: int, height: int | None = None, badge: str | None = None) -> list[str]:
-    width = max(12, width)
-    inner = max(4, width - 4)
-    title_text = f" {title} "
-    badge_text = f" {badge} " if badge else ""
-    visible_title = len(_strip_ansi(title_text))
-    visible_badge = len(_strip_ansi(badge_text))
-    filler = max(0, width - visible_title - visible_badge - 4)
-    top = _muted("╭─") + _bold(title_text) + _muted("─" * filler)
-    if badge_text:
-        top += _muted(" ") + _accent(badge_text)
-    top += _muted("╮")
-    body_rows = max(0, (height - 2) if height else len(body))
-    lines = [top]
-    for item in body[:body_rows]:
-        lines.append(_muted("│") + " " + _fit_ansi(item, inner) + " " + _muted("│"))
-    for _ in range(max(0, body_rows - len(body))):
-        lines.append(_muted("│") + " " * (width - 2) + _muted("│"))
-    lines.append(_muted("╰" + "─" * (width - 2) + "╯"))
-    if height:
-        return lines[:height]
-    return lines
-
-
-def _pad_lines(lines: list[str], *, rows: int, width: int) -> list[str]:
-    fitted = [_fit_ansi(line, width) for line in lines[:rows]]
-    if len(fitted) < rows:
-        fitted.extend([" " * width for _ in range(rows - len(fitted))])
-    return fitted
 
 
 def _two_col_title(left_width: int, right_width: int, left: str, right: str) -> str:
@@ -1337,14 +816,14 @@ def _activity_text(event: dict[str, Any], *, width: int) -> str:
     return f"{_live_badge(text)} {_one_line(text, max(16, width - 9))}"
 
 
-def _compose_bar(input_buffer: str, *, width: int, hint: str | None = None) -> list[str]:
+def _compose_bar(input_buffer: str, *, width: int) -> list[str]:
     visible_input = input_buffer[-max(8, width - 8):]
-    hint_text = hint or "Enter sends. Type jobs, run, status, artifacts, settings, or a normal message."
+    hint = _muted("Enter sends  /jobs switches  /run starts  /help commands")
     prompt = f"{_accent('❯')} {visible_input}{_accent('▌')}"
     title = " Compose "
     return [
         _muted("─") + _bold(title) + _muted("─" * max(0, width - len(title) - 1)),
-        _fit_ansi(_muted(hint_text), width),
+        _fit_ansi(hint, width),
         _fit_ansi(prompt, width),
     ]
 
