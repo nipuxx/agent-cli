@@ -112,6 +112,13 @@ INFORMATION_GATHERING_TOOLS = {
 BRANCH_WORK_TOOLS = INFORMATION_GATHERING_TOOLS | {"shell_exec"}
 LEDGER_PROGRESS_TOOLS = {"record_findings", "record_source", "record_tasks", "record_experiment", "record_lesson"}
 MEASUREMENT_RESOLUTION_TOOLS = {"record_experiment", "record_lesson", "record_tasks", "acknowledge_operator_context"}
+ARTIFACT_ACCOUNTING_RESOLUTION_TOOLS = LEDGER_PROGRESS_TOOLS | {"acknowledge_operator_context"}
+ARTIFACT_ACCOUNTING_BLOCKED_TOOLS = INFORMATION_GATHERING_TOOLS | {
+    "shell_exec",
+    "write_artifact",
+    "read_artifact",
+    "report_update",
+}
 MEASUREMENT_BLOCKED_TOOLS = INFORMATION_GATHERING_TOOLS | {
     "shell_exec",
     "write_artifact",
@@ -157,6 +164,17 @@ QUERY_STOPWORDS = {
     "the",
     "they",
     "what",
+    "with",
+}
+TEXT_TOKEN_STOPWORDS = {
+    "and",
+    "are",
+    "for",
+    "from",
+    "into",
+    "that",
+    "the",
+    "this",
     "with",
 }
 
@@ -231,6 +249,7 @@ def build_messages(
     )
     measurement_obligation = _measurement_obligation_for_prompt(job)
     measured_progress_guard = _measured_progress_guard_for_prompt(job, recent_steps)
+    progress_accounting_guard = _progress_accounting_for_prompt(recent_steps)
     lessons = _lessons_for_prompt(job)
     tasks = _tasks_for_prompt(job)
     ledgers = _ledgers_for_prompt(job)
@@ -253,6 +272,7 @@ def build_messages(
                 f"Operator context:\n{operator_messages}\n\n"
                 f"Pending measurement obligation:\n{measurement_obligation}\n\n"
                 f"Measured progress guard:\n{measured_progress_guard}\n\n"
+                f"Progress accounting guard:\n{progress_accounting_guard}\n\n"
                 f"Program:\n{program}\n\n"
                 f"Lessons learned:\n{lessons}\n\n"
                 f"Task queue:\n{tasks}\n\n"
@@ -625,6 +645,19 @@ def _measurement_obligation_for_prompt(job: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def _progress_accounting_for_prompt(recent_steps: list[dict[str, Any]]) -> str:
+    context = _artifact_accounting_context(recent_steps)
+    if not context:
+        return "None."
+    return (
+        "Recent saved outputs need accounting before more output/research. "
+        f"artifact_count={context.get('artifact_count')} since_step={context.get('since_step')} "
+        f"artifact_titles={'; '.join(str(title) for title in context.get('artifact_titles', [])[:4])}. "
+        "Next use record_tasks to mark progress/reopen branches, record_findings or record_source for reusable evidence, "
+        "record_experiment for measured results, or record_lesson if these outputs are not useful."
+    )
+
+
 def _reflections_for_prompt(job: dict[str, Any]) -> str:
     reflections = _metadata_list(job, "reflections")
     if not reflections:
@@ -644,6 +677,13 @@ def _next_action_constraint(job: dict[str, Any], recent_steps: list[dict[str, An
             f"step #{measurement_obligation.get('source_step_no') or '?'}. "
             "Resolve it with record_experiment, record_lesson explaining why it is invalid, "
             "or record_tasks creating the missing measurement branch before more research/artifact churn."
+        )
+    artifact_accounting = _artifact_accounting_context(recent_steps)
+    if artifact_accounting:
+        return (
+            "Recent saved outputs need durable accounting. Before more artifact writing, reading, research, browsing, "
+            "or shell work, use record_tasks, record_findings, record_source, record_experiment, or record_lesson "
+            "to explain what changed and what branch is next."
         )
     measured_guard = _measured_progress_guard_context(job, recent_steps)
     if measured_guard:
@@ -1066,6 +1106,37 @@ def _progress_churn_context(recent_steps: list[dict[str, Any]], *, window: int =
     }
 
 
+def _artifact_accounting_context(
+    recent_steps: list[dict[str, Any]],
+    *,
+    threshold: int = 3,
+    window: int = 12,
+) -> dict[str, Any] | None:
+    completed = [step for step in recent_steps if step.get("status") == "completed"]
+    tail: list[dict[str, Any]] = []
+    for step in reversed(completed[-window:]):
+        if step.get("tool_name") in LEDGER_PROGRESS_TOOLS:
+            break
+        tail.append(step)
+    tail.reverse()
+    artifact_steps = [step for step in tail if step.get("tool_name") == "write_artifact"]
+    if len(artifact_steps) < threshold:
+        return None
+    titles = []
+    for step in artifact_steps[-5:]:
+        input_data = step.get("input") if isinstance(step.get("input"), dict) else {}
+        args = input_data.get("arguments") if isinstance(input_data.get("arguments"), dict) else {}
+        title = str(args.get("title") or step.get("summary") or f"step #{step.get('step_no')}")
+        titles.append(_clip_text(title, 120))
+    return {
+        "artifact_count": len(artifact_steps),
+        "since_step": tail[0].get("step_no") if tail else None,
+        "artifact_steps": [step.get("step_no") for step in artifact_steps],
+        "artifact_titles": titles,
+        "tools": [step.get("tool_name") or step.get("kind") for step in tail],
+    }
+
+
 def _job_requires_measured_progress(job: dict[str, Any]) -> bool:
     text_parts = [
         str(job.get("title") or ""),
@@ -1248,6 +1319,14 @@ def _query_tokens(query: str) -> set[str]:
     }
 
 
+def _text_tokens(value: str) -> set[str]:
+    return {
+        token
+        for token in re.findall(r"[a-z0-9]+", str(value or "").lower())
+        if len(token) > 2 and token not in TEXT_TOKEN_STOPWORDS
+    }
+
+
 def _similar_recent_search(
     args: dict[str, Any],
     recent_steps: list[dict[str, Any]],
@@ -1322,6 +1401,26 @@ def _blocked_tool_call_result(
 
     measured_progress_guard = _measured_progress_guard_context(job, recent_steps)
     progress_churn = _progress_churn_context(recent_steps)
+    artifact_accounting = _artifact_accounting_context(recent_steps)
+    if (
+        artifact_accounting
+        and name in ARTIFACT_ACCOUNTING_BLOCKED_TOOLS
+        and name not in ARTIFACT_ACCOUNTING_RESOLUTION_TOOLS
+    ):
+        result = {
+            "success": False,
+            "error": "progress accounting required",
+            "blocked_tool": name,
+            "blocked_arguments": args,
+            "artifact_accounting": artifact_accounting,
+            "guidance": (
+                "Recent saved outputs have not been reflected in durable progress state. "
+                "Use record_tasks to mark completed/open branches, record_findings or record_source for reusable evidence, "
+                "record_experiment for measurements, or record_lesson if the outputs were low-value before continuing."
+            ),
+        }
+        return result, f"blocked {name}; progress accounting required after saved outputs"
+
     if progress_churn and not measured_progress_guard and name in CHURN_TOOLS:
         result = {
             "success": False,
@@ -1834,14 +1933,118 @@ def _auto_record_tool_source_quality(
     tool_name: str | None,
     result: dict[str, Any],
 ) -> None:
-    if tool_name not in {"browser_navigate", "browser_snapshot"}:
+    if tool_name == "web_extract":
+        pages = result.get("pages") if isinstance(result.get("pages"), list) else []
+        for page in pages[:12]:
+            if not isinstance(page, dict):
+                continue
+            url = str(page.get("url") or "").strip()
+            if not url:
+                continue
+            text = str(page.get("text") or "")
+            error = str(page.get("error") or "")
+            if error:
+                db.append_source_record(
+                    job_id,
+                    url,
+                    source_type="web_extract",
+                    usefulness_score=0.1,
+                    fail_count_delta=1,
+                    warnings=[error[:180]],
+                    outcome=f"extract failed: {error[:180]}",
+                    metadata={"auto_from_tool": "web_extract"},
+                )
+                continue
+            score = 0.35
+            if len(text.strip()) >= 500:
+                score = 0.55
+            if len(text.strip()) >= 3000:
+                score = 0.7
+            db.append_source_record(
+                job_id,
+                url,
+                source_type="web_extract",
+                usefulness_score=score,
+                yield_count=0,
+                outcome=f"extracted {len(text.strip())} chars for possible use",
+                metadata={"auto_from_tool": "web_extract"},
+            )
         return
-    context = _browser_warning_context(result)
-    if not context:
-        return
-    result["source_warning"] = context["reason"]
-    result["source_url"] = context.get("url") or ""
-    _auto_record_blocked_source(db=db, job_id=job_id, context=context, blocked_tool=tool_name or "browser")
+    if tool_name in {"browser_navigate", "browser_snapshot"}:
+        context = _browser_warning_context(result)
+        if not context:
+            return
+        result["source_warning"] = context["reason"]
+        result["source_url"] = context.get("url") or ""
+        _auto_record_blocked_source(db=db, job_id=job_id, context=context, blocked_tool=tool_name or "browser")
+
+
+def _auto_reconcile_artifact_tasks(
+    *,
+    db: AgentDB,
+    job_id: str,
+    args: dict[str, Any],
+    result: dict[str, Any],
+) -> list[dict[str, Any]]:
+    artifact_id = str(result.get("artifact_id") or "")
+    if not artifact_id:
+        return []
+    artifact_title = str(args.get("title") or "")
+    artifact_summary = str(args.get("summary") or "")
+    artifact_content = str(args.get("content") or "")
+    artifact_text = " ".join([artifact_title, artifact_summary, artifact_content[:4000]])
+    artifact_tokens = _text_tokens(artifact_text)
+    if len(artifact_tokens) < 2:
+        return []
+    job = db.get_job(job_id)
+    reconciled = []
+    for task in _metadata_list(job, "task_queue"):
+        status = str(task.get("status") or "open").strip().lower()
+        if status not in {"open", "active"}:
+            continue
+        contract = str(task.get("output_contract") or "").strip().lower()
+        if contract in {"experiment", "action", "monitor"}:
+            continue
+        task_text = " ".join(
+            str(task.get(key) or "")
+            for key in ("title", "goal", "acceptance_criteria", "evidence_needed", "source_hint")
+        )
+        task_tokens = _text_tokens(task_text)
+        if len(task_tokens) < 2:
+            continue
+        overlap = task_tokens & artifact_tokens
+        needed = max(2, min(4, (len(task_tokens) + 1) // 2))
+        if len(overlap) < needed:
+            continue
+        updated = db.append_task_record(
+            job_id,
+            title=str(task.get("title") or ""),
+            status="done",
+            priority=_as_int(task.get("priority")),
+            goal=str(task.get("goal") or ""),
+            source_hint=str(task.get("source_hint") or ""),
+            result=f"Saved output {artifact_id}: {_clip_text(artifact_title or artifact_summary, 180)}",
+            parent=str(task.get("parent") or ""),
+            output_contract=contract,
+            acceptance_criteria=str(task.get("acceptance_criteria") or ""),
+            evidence_needed=str(task.get("evidence_needed") or ""),
+            stall_behavior=str(task.get("stall_behavior") or ""),
+            metadata={
+                **(task.get("metadata") if isinstance(task.get("metadata"), dict) else {}),
+                "auto_reconciled_from_artifact": artifact_id,
+                "matched_tokens": sorted(overlap)[:12],
+            },
+        )
+        reconciled.append(updated)
+    if reconciled:
+        titles = ", ".join(str(task.get("title") or "") for task in reconciled[:4])
+        db.append_agent_update(
+            job_id,
+            f"Task progress reconciled from saved output {artifact_id}: {titles}.",
+            category="plan",
+            metadata={"artifact_id": artifact_id, "task_count": len(reconciled)},
+        )
+    return reconciled
 
 
 def _auto_checkpoint_update(
@@ -1981,6 +2184,18 @@ def _execute_tool_call(
                 args=call.arguments,
                 result=result,
             )
+            if call.name == "write_artifact":
+                reconciled_tasks = _auto_reconcile_artifact_tasks(
+                    db=db,
+                    job_id=job_id,
+                    args=call.arguments,
+                    result=result,
+                )
+                if reconciled_tasks:
+                    result["auto_reconciled_tasks"] = [
+                        {"title": task.get("title"), "status": task.get("status")}
+                        for task in reconciled_tasks[:8]
+                    ]
         return (
             StepExecution(job_id=job_id, run_id=run_id, step_id=step_id, tool_name=call.name, status=status, result=result),
             status != "completed",

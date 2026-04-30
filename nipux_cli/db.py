@@ -1320,7 +1320,18 @@ class AgentDB:
                 raise KeyError(f"Job not found: {job_id}")
             job_metadata = json.loads(row["metadata_json"] or "{}")
             tasks = _metadata_list(job_metadata, "task_queue")
-            current = next((entry for entry in tasks if entry.get("key") == key), None)
+            current = next(
+                (
+                    entry
+                    for entry in tasks
+                    if entry.get("key") == key
+                    or (
+                        not entry.get("key")
+                        and _norm_key(f"{entry.get('parent') or ''}|{entry.get('title') or ''}") == key
+                    )
+                ),
+                None,
+            )
             created = current is None
             if current is None:
                 current = {

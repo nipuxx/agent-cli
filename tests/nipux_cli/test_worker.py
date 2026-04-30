@@ -87,6 +87,23 @@ class LargeShellEvidenceRegistry:
         return json.dumps({"success": True})
 
 
+class ExtractRegistry:
+    def openai_tools(self):
+        return []
+
+    def handle(self, name, args, ctx):
+        del args, ctx
+        if name == "web_extract":
+            return json.dumps({
+                "success": True,
+                "pages": [
+                    {"url": "https://source.example/a", "text": "useful source text " * 250},
+                    {"url": "https://source.example/b", "error": "timeout"},
+                ],
+            })
+        return json.dumps({"success": True})
+
+
 class CapturingLLM:
     def __init__(self, response):
         self.response = response
@@ -197,6 +214,132 @@ def test_run_one_step_executes_tool_call_batch_in_order(tmp_path):
         assert any(task["title"] == "Review saved output" and task["output_contract"] == "report" for task in tasks)
         run = db.list_runs(job_id, limit=1)[0]
         assert run["status"] == "completed"
+    finally:
+        db.close()
+
+
+def test_write_artifact_reconciles_matching_report_task(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job(
+            "Write a durable report",
+            title="report",
+            kind="generic",
+            metadata={
+                "task_queue": [
+                    {
+                        "title": "Draft paper - Methods section",
+                        "status": "open",
+                        "priority": 5,
+                        "output_contract": "report",
+                        "acceptance_criteria": "Methods section is saved as an output.",
+                    }
+                ]
+            },
+        )
+        llm = ScriptedLLM([
+            LLMResponse(tool_calls=[
+                ToolCall(
+                    name="write_artifact",
+                    arguments={
+                        "title": "Paper Draft - Section 3: Methods",
+                        "summary": "Methods section for the report",
+                        "content": "This methods section explains the approach and evidence.",
+                    },
+                )
+            ])
+        ])
+
+        result = run_one_step(job_id, config=config, db=db, llm=llm)
+
+        assert result.status == "completed"
+        job = db.get_job(job_id)
+        task = job["metadata"]["task_queue"][0]
+        assert task["status"] == "done"
+        assert task["metadata"]["auto_reconciled_from_artifact"]
+        assert "Saved output" in task["result"]
+    finally:
+        db.close()
+
+
+def test_run_one_step_blocks_artifact_churn_until_progress_accounting(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Keep a durable progress ledger", title="ledger", kind="generic")
+        for index in range(3):
+            run_id = db.start_run(job_id, model="test")
+            step_id = db.add_step(
+                job_id=job_id,
+                run_id=run_id,
+                kind="tool",
+                tool_name="write_artifact",
+                input_data={"arguments": {"title": f"Output {index}", "content": "notes"}},
+            )
+            db.finish_step(
+                step_id,
+                status="completed",
+                summary=f"write_artifact saved art_{index}",
+                output_data={"success": True, "artifact_id": f"art_{index}"},
+            )
+            db.finish_run(run_id, "completed")
+
+        blocked = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(name="write_artifact", arguments={"title": "Another output", "content": "more notes"})
+                ])
+            ]),
+        )
+
+        assert blocked.status == "blocked"
+        assert blocked.result["error"] == "progress accounting required"
+        allowed = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(
+                        name="record_tasks",
+                        arguments={"tasks": [{"title": "Review saved outputs", "status": "open", "priority": 2}]},
+                    )
+                ])
+            ]),
+        )
+        assert allowed.status == "completed"
+        assert allowed.tool_name == "record_tasks"
+    finally:
+        db.close()
+
+
+def test_web_extract_auto_records_source_quality(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Track source quality", title="sources", kind="generic")
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[ToolCall(name="web_extract", arguments={"urls": ["https://source.example/a"]})])
+            ]),
+            registry=ExtractRegistry(),
+        )
+
+        assert result.status == "completed"
+        sources = db.get_job(job_id)["metadata"]["source_ledger"]
+        assert {source["source"] for source in sources} == {"https://source.example/a", "https://source.example/b"}
+        useful = next(source for source in sources if source["source"] == "https://source.example/a")
+        failed = next(source for source in sources if source["source"] == "https://source.example/b")
+        assert useful["usefulness_score"] >= 0.55
+        assert failed["fail_count"] == 1
     finally:
         db.close()
 
