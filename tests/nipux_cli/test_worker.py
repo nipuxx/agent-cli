@@ -423,6 +423,49 @@ def test_run_one_step_recovers_repeated_guard_blocks_without_llm(tmp_path):
         db.close()
 
 
+def test_guard_recovery_does_not_repeat_after_recovery_step(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Recover repeated blocked work once", title="guard-once", kind="generic")
+        for index in range(3):
+            run_id = db.start_run(job_id, model="test")
+            step_id = db.add_step(
+                job_id=job_id,
+                run_id=run_id,
+                kind="tool",
+                tool_name="search_artifacts",
+                input_data={"arguments": {"query": f"blocked {index}"}},
+            )
+            db.finish_step(
+                step_id,
+                status="blocked",
+                summary="blocked search_artifacts; progress ledger update required",
+                output_data={"success": True, "recoverable": True, "error": "progress ledger update required"},
+            )
+            db.finish_run(run_id, "completed")
+
+        first = run_one_step(job_id, config=config, db=db, llm=ExplodingLLM())
+        assert first.tool_name == "guard_recovery"
+
+        second = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(name="record_lesson", arguments={"lesson": "Recovered guard and chose a new branch", "category": "strategy"})
+                ])
+            ]),
+        )
+
+        assert second.status == "completed"
+        assert second.tool_name == "record_lesson"
+        assert [step["tool_name"] for step in db.list_steps(job_id=job_id)[-2:]] == ["guard_recovery", "record_lesson"]
+    finally:
+        db.close()
+
+
 def test_web_extract_auto_records_source_quality(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

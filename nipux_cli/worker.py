@@ -1394,9 +1394,18 @@ def _repeated_guard_block_context(
     threshold: int = 3,
     window: int = 12,
 ) -> dict[str, Any] | None:
+    last_recovery_no = max(
+        (
+            int(step.get("step_no") or 0)
+            for step in recent_steps
+            if step.get("tool_name") == "guard_recovery" and step.get("status") == "completed"
+        ),
+        default=0,
+    )
     operational_steps = [
         step
         for step in recent_steps
+        if int(step.get("step_no") or 0) > last_recovery_no
         if step.get("kind") in {"tool", "recovery"} and step.get("tool_name") != "guard_recovery"
     ]
     tail = operational_steps[-window:]
