@@ -569,7 +569,7 @@ def test_chat_frame_is_bounded_and_has_composer():
     assert "Nipux CLI" in frame
     assert "Agent Output" in frame
     assert "Control / Status" in frame
-    assert "Recent Work" in frame
+    assert "Latest" in frame
     assert "search demo" in frame
     assert "Compose" in frame
     assert "❯ hello" in frame
@@ -693,7 +693,50 @@ def test_chat_frame_surfaces_actual_work_events():
     assert "passed Draft" in frame
     assert "Citation coverage check" in frame
     assert "prefer measured updates" in frame
-    assert "Reflection through step #10" in frame
+    assert "reflected #10" in frame
+
+
+def test_chat_frame_collapses_repeated_failures_and_hides_memory_noise():
+    repeated_error = {
+        "event_type": "error",
+        "title": "llm",
+        "body": "Error code: 403 - {'error': {'message': 'Key limit exceeded (total limit).'}}",
+        "metadata": {},
+    }
+    snapshot = {
+        "job_id": "job_demo",
+        "job": {
+            "id": "job_demo",
+            "title": "demo job",
+            "objective": "stay readable",
+            "status": "running",
+            "kind": "generic",
+            "metadata": {"task_queue": []},
+        },
+        "jobs": [{"id": "job_demo", "title": "demo job", "status": "running", "kind": "generic", "metadata": {}}],
+        "steps": [],
+        "artifacts": [],
+        "memory_entries": [{}],
+        "events": [
+            repeated_error,
+            {
+                "event_type": "compaction",
+                "title": "rolling_state",
+                "body": "very long compact memory " * 80,
+                "metadata": {},
+            },
+            repeated_error,
+            repeated_error,
+        ],
+        "daemon": {"running": True, "metadata": {"pid": 123}},
+        "model": "model/demo",
+        "counts": {"steps": 3, "artifacts": 0, "memory": 1},
+    }
+
+    frame = _build_chat_frame(snapshot, "", [], width=120, height=24)
+
+    assert "x3 Provider key limit exceeded" in frame
+    assert "very long compact memory" not in frame
 
 
 def test_run_reopens_completed_focused_job(monkeypatch, tmp_path, capsys):

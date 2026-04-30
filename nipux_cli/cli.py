@@ -1862,24 +1862,63 @@ def _two_col_line(left: str, right: str, *, left_width: int, right_width: int) -
 
 
 def _chat_pane_lines(events: list[dict[str, Any]], notices: list[str], *, width: int, rows: int) -> list[str]:
-    output_rows: list[str] = []
+    items: list[dict[str, Any]] = []
     for event in events:
         rendered = _agent_output_event_parts(event, width=width)
         if not rendered:
             continue
         label, body, clock = rendered
-        _append_agent_output(output_rows, label, body, clock=clock, width=width)
+        _append_compact_output_item(items, label, body, clock)
     for notice in notices:
         if notice.startswith("> "):
-            _append_agent_output(output_rows, "YOU", notice[2:], clock="", width=width)
+            _append_compact_output_item(items, "YOU", notice[2:], "")
         else:
-            _append_agent_output(output_rows, "NIPUX", notice, clock="", width=width)
-    if not output_rows:
+            _append_compact_output_item(items, "NIPUX", notice, "")
+    if not items:
         return [
             _muted("No agent output yet."),
             _muted("Type normally to talk. The worker's actions will appear here as they happen."),
         ][:rows]
+    output_rows: list[str] = []
+    for item in items[-max(4, rows * 2) :]:
+        _append_agent_output(
+            output_rows,
+            str(item["label"]),
+            item["body"],
+            clock=str(item.get("clock") or ""),
+            count=int(item.get("count") or 1),
+            width=width,
+        )
     return output_rows[-rows:]
+
+
+def _append_compact_output_item(items: list[dict[str, Any]], label: str, body: Any, clock: str) -> None:
+    compact_body = _minimal_output_body(label, body)
+    key = (label, compact_body)
+    if items and items[-1].get("key") == key:
+        items[-1]["count"] = int(items[-1].get("count") or 1) + 1
+        items[-1]["clock"] = clock or items[-1].get("clock") or ""
+        return
+    if label not in {"YOU", "AGENT", "NIPUX"}:
+        for index in range(len(items) - 1, -1, -1):
+            if items[index].get("key") == key:
+                item = items.pop(index)
+                item["count"] = int(item.get("count") or 1) + 1
+                item["clock"] = clock or item.get("clock") or ""
+                items.append(item)
+                return
+    items.append({"label": label, "body": compact_body, "clock": clock, "count": 1, "key": key})
+
+
+def _minimal_output_body(label: str, body: Any) -> str:
+    text = _generic_display_text(body)
+    if label in {"FAIL", "BLOCK"}:
+        return _friendly_error_text(text)
+    if label in {"PLAN", "REFLECT"}:
+        return _brief_reflection_text(text)
+    if label == "MEMORY":
+        return "memory updated"
+    return _one_line(text, 140)
 
 
 def _agent_output_event_parts(event: dict[str, Any], *, width: int) -> tuple[str, str, str] | None:
@@ -1891,15 +1930,25 @@ def _agent_output_event_parts(event: dict[str, Any], *, width: int) -> tuple[str
     if kind == "operator_message":
         return "YOU", body, clock
     if kind == "agent_message":
+        if title in {"plan", "planning"} and _clean_step_summary(body).lower().startswith("reflection through"):
+            return None
+        if title not in {"chat", "plan", "planning", "progress", "update", "report"}:
+            return None
         compact = _chat_agent_message_text(title, body) or body or title
         label = _strip_ansi(_agent_chat_label(title)).strip() or "AGENT"
         return label, compact, clock
     if kind == "operator_context":
         return "ACK", title or body or "operator context updated", clock
     if kind == "tool_call":
+        if title in _LOW_SIGNAL_FRAME_TOOLS:
+            return None
         return "RUN", _tool_live_summary(title, metadata, body), clock
     if kind == "tool_result":
         status = str(metadata.get("status") or "completed")
+        if title in _LOW_SIGNAL_FRAME_TOOLS and status == "completed":
+            return None
+        if title == "llm" and status == "failed":
+            return None
         label = "BLOCK" if status == "blocked" else "FAIL" if status == "failed" else "DONE"
         summary = _tool_live_summary(title, metadata, body)
         clean = _clean_step_summary(body)
@@ -1939,32 +1988,47 @@ def _agent_output_event_parts(event: dict[str, Any], *, width: int) -> tuple[str
     if kind == "lesson":
         return "LEARN", _event_title_body(title, body, fallback="lesson"), clock
     if kind == "reflection":
-        return "PLAN", _clean_step_summary(body) or title or "reflection", clock
+        return "PLAN", _brief_reflection_text(body or title or "reflection"), clock
     if kind == "digest":
         return "DIGEST", _event_title_body(title, body, fallback="digest"), clock
     if kind == "compaction":
-        return "MEMORY", _event_title_body(title, body, fallback="compact memory"), clock
+        return None
     if kind == "loop":
-        status = str(metadata.get("status") or "")
-        if title in {"turn_end", "agent_end"} and status in {"blocked", "failed"}:
-            return "BLOCK" if status == "blocked" else "FAIL", _clean_step_summary(body) or title, clock
         return None
     if kind == "daemon":
         return None
     return None
 
 
-def _append_agent_output(lines: list[str], label: str, body: Any, *, clock: str, width: int) -> None:
+_LOW_SIGNAL_FRAME_TOOLS = {
+    "acknowledge_operator_context",
+    "read_artifact",
+    "record_experiment",
+    "record_findings",
+    "record_lesson",
+    "record_milestone_validation",
+    "record_roadmap",
+    "record_source",
+    "record_tasks",
+    "reflect",
+    "report_update",
+    "search_artifacts",
+    "update_job_state",
+    "write_artifact",
+}
+
+
+def _append_agent_output(lines: list[str], label: str, body: Any, *, clock: str, count: int, width: int) -> None:
     label_text = _fit_ansi(_event_badge(label), 8)
     clock_text = _fit_ansi(_muted(clock), 5) if clock else " " * 5
     prefix = f"{clock_text} {label_text} "
     prefix_width = 15
     content = _generic_display_text(body)
+    if count > 1:
+        content = f"x{count} {content}"
     available = max(18, width - prefix_width)
     wrapped = textwrap.wrap(content, width=available) or [""]
     lines.append(_fit_ansi(prefix + wrapped[0], width))
-    for continuation in wrapped[1:4]:
-        lines.append(_fit_ansi(" " * prefix_width + continuation, width))
 
 
 def _event_title_body(title: str, body: str, *, fallback: str) -> str:
@@ -2032,9 +2096,24 @@ def _event_chat_label(kind: str) -> str:
 
 def _friendly_error_text(text: str) -> str:
     lowered = text.lower()
+    if "key limit exceeded" in lowered:
+        return "Provider key limit exceeded. Update the key limit or switch models."
     if "authenticationerror" in lowered or "user not found" in lowered or "401" in lowered:
         return "Model authentication failed. Update the API key in Settings, then try again."
+    if "permissiondeniederror" in lowered or "403" in lowered:
+        return "Provider permission denied. Check model access or key limits."
     return _one_line(_clean_step_summary(text), 220)
+
+
+def _brief_reflection_text(text: str) -> str:
+    clean = _clean_step_summary(text)
+    match = re.search(r"Reflection through step #?([0-9]+):\s*(.*?)(?:\. Best |\.\s*$|$)", clean)
+    if match:
+        counts = match.group(2)
+        counts = counts.replace(", 0 active operator messages", "")
+        counts = counts.replace(", 0 recent finding artifacts", "")
+        return _one_line(f"reflected #{match.group(1)}: {counts}", 140)
+    return _one_line(clean, 140)
 
 
 def _right_pane_lines(
@@ -2086,15 +2165,28 @@ def _right_pane_lines(
     info_lines.append(_bold("Jobs"))
     for job_line in _frame_jobs_lines(jobs, focused_job_id=job_id, daemon_running=daemon_running, width=width)[:4]:
         info_lines.append(job_line)
-    info_lines.append("")
-    info_lines.append(_bold("Recent Work"))
-    activity = [_activity_text(event, width=width) for event in events]
-    activity = [line for line in activity if line]
-    if len(info_lines) >= rows:
-        return info_lines[:rows]
-    activity_rows = rows - len(info_lines)
-    activity_lines = activity[-activity_rows:] if activity else [_muted("No recent tool activity.")]
-    return (info_lines + activity_lines)[:rows]
+    return info_lines[:rows]
+
+
+def _compact_recent_activity_lines(events: list[dict[str, Any]], *, width: int, limit: int) -> list[str]:
+    items: list[dict[str, Any]] = []
+    for event in events:
+        line = _minimal_live_event_line(event, chars=max(16, width - 12))
+        if not line:
+            continue
+        key = line
+        if items and items[-1].get("key") == key:
+            items[-1]["count"] = int(items[-1].get("count") or 1) + 1
+            continue
+        items.append({"line": line, "count": 1, "key": key})
+    rendered = []
+    for item in items[-limit:]:
+        line = str(item["line"])
+        count = int(item.get("count") or 1)
+        if count > 1:
+            line = f"x{count} {line}"
+        rendered.append(f"{_live_badge(line)} {_one_line(line, max(16, width - 9))}")
+    return rendered
 
 
 def _chat_settings_pane_lines(
@@ -3691,9 +3783,17 @@ def _minimal_live_event_line(event: dict[str, Any], *, chars: int = 92) -> str:
     if kind == "operator_context":
         return _one_line(f"operator {title or body}", chars)
     if kind == "tool_call":
+        if title in _LOW_SIGNAL_FRAME_TOOLS:
+            return ""
         return _one_line("start " + _tool_live_summary(title, metadata, body), chars)
     if kind == "tool_result":
-        return _one_line("done " + _tool_live_summary(title, metadata, body), chars)
+        if title in _LOW_SIGNAL_FRAME_TOOLS and status == "completed":
+            return ""
+        if title == "llm" and status == "failed":
+            return ""
+        prefix = "blocked" if status == "blocked" else "failed" if status == "failed" else "done"
+        detail = _friendly_error_text(body or title) if status in {"blocked", "failed"} else _tool_live_summary(title, metadata, body)
+        return _one_line(f"{prefix} {detail}", chars)
     if kind == "error":
         detail = _friendly_error_text(body or title or "error")
         return _one_line(f"error {detail}", chars)
@@ -3714,13 +3814,15 @@ def _minimal_live_event_line(event: dict[str, Any], *, chars: int = 92) -> str:
     if kind == "lesson":
         return _one_line(f"learned {title or body}", chars)
     if kind == "reflection":
-        return _one_line(f"reflect {_clean_step_summary(body) or title}", chars)
+        return _one_line(f"reflect {_brief_reflection_text(body or title)}", chars)
     if kind == "agent_message":
+        if title not in {"chat", "progress", "update", "report"}:
+            return ""
         return _one_line(f"update {body or title}", chars)
     if kind == "daemon":
         return ""
-    if kind == "loop" and title == "turn_end" and status in {"blocked", "failed"}:
-        return _one_line(f"{status} {_clean_step_summary(body)}", chars)
+    if kind == "loop":
+        return ""
     return ""
 
 
