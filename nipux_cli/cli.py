@@ -704,7 +704,7 @@ def _build_chat_frame(snapshot: dict[str, Any], input_buffer: str, notices: list
     state = _job_display_state(job, bool(daemon["running"]))
     worker = _worker_label(job, bool(daemon["running"]))
     latest_step = steps[-1] if steps else None
-    left_width = max(48, int(width * 0.58))
+    left_width = max(52, int(width * 0.64))
     right_width = max(34, width - left_width - 3)
     if right_width < 34:
         right_width = 34
@@ -746,7 +746,7 @@ def _build_chat_frame(snapshot: dict[str, Any], input_buffer: str, notices: list
         width=right_width,
         rows=right_rows,
     )
-    lines = [*header, _two_col_title(left_width, right_width, "Chat", "Work / Status")]
+    lines = [*header, _two_col_title(left_width, right_width, "Agent Output", "Control / Status")]
     for index in range(body_rows):
         left = chat_lines[index] if index < len(chat_lines) else ""
         right = right_lines[index] if index < len(right_lines) else ""
@@ -779,32 +779,132 @@ def _two_col_line(left: str, right: str, *, left_width: int, right_width: int) -
 
 
 def _chat_pane_lines(events: list[dict[str, Any]], notices: list[str], *, width: int, rows: int) -> list[str]:
-    chat_events = []
+    output_rows: list[str] = []
     for event in events:
-        kind = str(event.get("event_type") or "")
-        title = str(event.get("title") or "")
-        if kind == "operator_message":
-            chat_events.append((_style("YOU", "35"), _generic_display_text(event.get("body") or "")))
-        elif kind == "agent_message" and title == "chat":
-            chat_events.append((_style("AGENT", "36"), _generic_display_text(event.get("body") or "")))
+        rendered = _agent_output_event_parts(event, width=width)
+        if not rendered:
+            continue
+        label, body, clock = rendered
+        _append_agent_output(output_rows, label, body, clock=clock, width=width)
     for notice in notices:
         if notice.startswith("> "):
-            chat_events.append((_style("YOU", "35"), notice[2:]))
+            _append_agent_output(output_rows, "YOU", notice[2:], clock="", width=width)
         else:
-            chat_events.append((_style("NIPUX", "36"), notice))
-    if not chat_events:
+            _append_agent_output(output_rows, "NIPUX", notice, clock="", width=width)
+    if not output_rows:
         return [
-            _muted("No chat yet."),
-            _muted("Type normally to talk. Use /run, /stop, /jobs, /history, /artifacts."),
+            _muted("No agent output yet."),
+            _muted("Type normally to talk. The worker's actions will appear here as they happen."),
         ][:rows]
-    lines: list[str] = []
-    for label, body in chat_events[-max(3, rows):]:
-        available = max(18, width - 9)
-        wrapped = textwrap.wrap(" ".join(str(body).split()), width=available) or [""]
-        lines.append(f"{_fit_ansi(label, 5)} {wrapped[0]}")
-        for continuation in wrapped[1:3]:
-            lines.append(f"{'':5} {continuation}")
-    return lines[-rows:]
+    return output_rows[-rows:]
+
+
+def _agent_output_event_parts(event: dict[str, Any], *, width: int) -> tuple[str, str, str] | None:
+    kind = str(event.get("event_type") or "")
+    title = str(event.get("title") or "").strip()
+    body = _generic_display_text(event.get("body") or "")
+    metadata = event.get("metadata") if isinstance(event.get("metadata"), dict) else {}
+    clock = _event_clock(event)
+    if kind == "operator_message":
+        return "YOU", body, clock
+    if kind == "agent_message" and title == "chat":
+        return "AGENT", body, clock
+    if kind == "agent_message":
+        return "UPDATE", body or title, clock
+    if kind == "operator_context":
+        return "ACK", title or body or "operator context updated", clock
+    if kind == "tool_call":
+        return "RUN", _tool_live_summary(title, metadata, body), clock
+    if kind == "tool_result":
+        status = str(metadata.get("status") or "completed")
+        label = "BLOCK" if status == "blocked" else "FAIL" if status == "failed" else "DONE"
+        summary = _tool_live_summary(title, metadata, body)
+        clean = _clean_step_summary(body)
+        if clean and clean != summary and title not in {"shell_exec", "web_search", "web_extract"}:
+            summary = f"{summary} - {clean}"
+        return label, summary, clock
+    if kind == "error":
+        return "FAIL", _clean_step_summary(body) or title or "error", clock
+    if kind == "artifact":
+        summary = _generic_display_text(metadata.get("summary") or "")
+        detail = title or body or "saved output"
+        if summary:
+            detail = f"{detail} - {summary}"
+        return "SAVE", detail, clock
+    if kind == "finding":
+        return "FIND", _event_title_body(title, body, fallback="finding"), clock
+    if kind == "source":
+        return "SOURCE", _event_title_body(title, body, fallback="source"), clock
+    if kind == "task":
+        status = str(metadata.get("status") or "")
+        detail = _event_title_body(title, body, fallback="task")
+        return "TASK", f"{status} {detail}".strip(), clock
+    if kind == "roadmap":
+        status = str(metadata.get("status") or "")
+        detail = _event_title_body(title, body, fallback="roadmap")
+        return "ROAD", f"{status} {detail}".strip(), clock
+    if kind == "milestone_validation":
+        status = str(metadata.get("validation_status") or metadata.get("status") or "")
+        detail = _event_title_body(title, body, fallback="milestone validation")
+        return "VALID", f"{status} {detail}".strip(), clock
+    if kind == "experiment":
+        metric = _experiment_metric_text(metadata)
+        detail = _event_title_body(title, body, fallback="experiment")
+        if metric:
+            detail = f"{detail} - {metric}"
+        return "TEST", detail, clock
+    if kind == "lesson":
+        return "LEARN", _event_title_body(title, body, fallback="lesson"), clock
+    if kind == "reflection":
+        return "PLAN", _clean_step_summary(body) or title or "reflection", clock
+    if kind == "digest":
+        return "DIGEST", _event_title_body(title, body, fallback="digest"), clock
+    if kind == "compaction":
+        return "MEMORY", _event_title_body(title, body, fallback="compact memory"), clock
+    if kind == "loop":
+        status = str(metadata.get("status") or "")
+        if title in {"turn_end", "agent_end"} and status in {"blocked", "failed"}:
+            return "BLOCK" if status == "blocked" else "FAIL", _clean_step_summary(body) or title, clock
+        return None
+    if kind == "daemon":
+        return None
+    return None
+
+
+def _append_agent_output(lines: list[str], label: str, body: Any, *, clock: str, width: int) -> None:
+    label_text = _fit_ansi(_event_badge(label), 8)
+    clock_text = _fit_ansi(_muted(clock), 5) if clock else " " * 5
+    prefix = f"{clock_text} {label_text} "
+    prefix_width = 15
+    content = _generic_display_text(body)
+    available = max(18, width - prefix_width)
+    wrapped = textwrap.wrap(content, width=available) or [""]
+    lines.append(_fit_ansi(prefix + wrapped[0], width))
+    for continuation in wrapped[1:4]:
+        lines.append(_fit_ansi(" " * prefix_width + continuation, width))
+
+
+def _event_title_body(title: str, body: str, *, fallback: str) -> str:
+    if title and body and title not in body:
+        return f"{title} - {body}"
+    return title or body or fallback
+
+
+def _experiment_metric_text(metadata: dict[str, Any]) -> str:
+    value = metadata.get("metric_value")
+    if value in (None, ""):
+        return ""
+    name = metadata.get("metric_name") or "metric"
+    unit = metadata.get("metric_unit") or ""
+    direction = metadata.get("result_direction") or metadata.get("decision") or ""
+    return " ".join(part for part in [f"{name}={value}{unit}", str(direction)] if part)
+
+
+def _event_clock(event: dict[str, Any]) -> str:
+    compact = _compact_time(str(event.get("created_at") or ""))
+    if len(compact) >= 16 and compact[10:11] == " ":
+        return compact[11:16]
+    return "" if compact == "?" else _one_line(compact, 5)
 
 
 def _right_pane_lines(
@@ -847,7 +947,7 @@ def _right_pane_lines(
     for job_line in _frame_jobs_lines(jobs, focused_job_id=job_id, daemon_running=daemon_running, width=width)[:4]:
         info_lines.append(job_line)
     info_lines.append("")
-    info_lines.append(_bold("Model Activity"))
+    info_lines.append(_bold("Recent Work"))
     activity = [_activity_text(event, width=width) for event in events]
     activity = [line for line in activity if line]
     if len(info_lines) >= rows:
@@ -2466,11 +2566,22 @@ def _event_badge(label: str) -> str:
         "AGENT": "36",
         "USER": "35",
         "FOLLOW": "35",
+        "YOU": "35",
+        "NIPUX": "36",
+        "RUN": "34",
         "TOOL": "34",
         "DONE": "32",
+        "SAVE": "32",
         "OUTPUT": "32",
         "FIND": "32",
+        "SOURCE": "36",
         "TASK": "33",
+        "ROAD": "35",
+        "VALID": "35",
+        "TEST": "33",
+        "UPDATE": "36",
+        "ACK": "36",
+        "FAIL": "31",
         "LEARN": "36",
         "PLAN": "36",
         "DIGEST": "36",
@@ -2664,7 +2775,7 @@ def _event_label(kind: str, metadata: dict[str, Any]) -> str:
     if kind == "agent_message":
         return "AGENT"
     if kind == "roadmap":
-        return "MISSION"
+        return "ROAD"
     if kind == "milestone_validation":
         return "VALID"
     if kind == "tool_call":

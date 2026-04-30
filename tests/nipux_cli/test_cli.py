@@ -334,11 +334,62 @@ def test_chat_frame_is_bounded_and_has_composer():
 
     assert len(frame.splitlines()) <= 22
     assert "Nipux CLI" in frame
-    assert "Chat" in frame
-    assert "Work / Status" in frame
-    assert "Model Activity" in frame
+    assert "Agent Output" in frame
+    assert "Control / Status" in frame
+    assert "Recent Work" in frame
+    assert "search demo" in frame
     assert "Compose" in frame
     assert "❯ hello" in frame
+
+
+def test_chat_frame_surfaces_actual_work_events():
+    snapshot = {
+        "job_id": "job_demo",
+        "job": {
+            "id": "job_demo",
+            "title": "demo job",
+            "objective": "produce visible work",
+            "status": "running",
+            "kind": "generic",
+            "metadata": {
+                "task_queue": [{"status": "open"}],
+                "roadmap": {"milestones": [{"title": "Draft", "status": "active"}]},
+            },
+        },
+        "jobs": [{"id": "job_demo", "title": "demo job", "status": "running", "kind": "generic", "metadata": {}}],
+        "steps": [],
+        "artifacts": [{"id": "art_demo"}],
+        "memory_entries": [{}],
+        "events": [
+            {"event_type": "operator_message", "body": "please keep improving", "metadata": {"mode": "steer"}},
+            {"event_type": "tool_call", "title": "web_search", "body": "", "metadata": {"input": {"arguments": {"query": "agent harness distillation"}}}},
+            {"event_type": "tool_result", "title": "web_search", "body": "web_search query='agent harness distillation' returned 5 results", "metadata": {"status": "completed", "input": {"arguments": {"query": "agent harness distillation"}}}},
+            {"event_type": "artifact", "title": "Research Paper Draft", "body": "", "metadata": {"summary": "saved first complete draft"}},
+            {"event_type": "finding", "title": "Distillation finding", "body": "tool traces improve student behavior", "metadata": {}},
+            {"event_type": "task", "title": "Compare methods", "body": "", "metadata": {"status": "open"}},
+            {"event_type": "roadmap", "title": "Paper roadmap", "body": "", "metadata": {"status": "active"}},
+            {"event_type": "milestone_validation", "title": "Draft", "body": "", "metadata": {"validation_status": "passed"}},
+            {"event_type": "experiment", "title": "Citation coverage check", "body": "", "metadata": {"metric_name": "sources", "metric_value": 18, "metric_unit": ""}},
+            {"event_type": "lesson", "title": "strategy", "body": "prefer measured updates", "metadata": {}},
+            {"event_type": "reflection", "title": "reflection", "body": "Reflection through step #10: next branch is evaluation.", "metadata": {}},
+        ],
+        "daemon": {"running": True, "metadata": {"pid": 123}},
+        "model": "model/demo",
+        "counts": {"steps": 10, "artifacts": 1, "memory": 1},
+    }
+
+    frame = _build_chat_frame(snapshot, "", [], width=150, height=34)
+
+    assert "please keep improving" in frame
+    assert "agent harness distillation" in frame
+    assert "Research Paper Draft" in frame
+    assert "Distillation finding" in frame
+    assert "Compare methods" in frame
+    assert "Paper roadmap" in frame
+    assert "passed Draft" in frame
+    assert "Citation coverage check" in frame
+    assert "prefer measured updates" in frame
+    assert "Reflection through step #10" in frame
 
 
 def test_run_reopens_completed_focused_job(monkeypatch, tmp_path, capsys):
