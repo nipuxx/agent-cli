@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Any
 from urllib.parse import urlparse
 
@@ -13,11 +15,17 @@ from nipux_cli.config import AppConfig, load_config
 from nipux_cli.compression import refresh_memory_index
 from nipux_cli.db import AgentDB
 from nipux_cli.llm import LLMResponse, LLMResponseError, OpenAIChatLLM, StepLLM
+from nipux_cli.operator_context import (
+    active_prompt_operator_entries,
+    inactive_prompt_operator_ids,
+    operator_entry_is_prompt_relevant,
+)
 from nipux_cli.source_quality import anti_bot_reason
 from nipux_cli.tools import DEFAULT_REGISTRY, ToolContext, ToolRegistry
 
 
 REFLECTION_INTERVAL_STEPS = 12
+WORKER_PROTOCOL_VERSION = "2026-04-26-measured-progress-v1"
 
 SYSTEM_PROMPT = """You are a long-running local work agent.
 
@@ -62,8 +70,17 @@ experiments, files, bugs, sources, or other reusable outputs. Dedupe against the
 finding ledger and artifacts before saving.
 Use record_tasks to maintain a durable queue of objective-neutral branches:
 open work, active branch, blocked branch, completed branch, and skipped branch.
+Each task should include an output_contract (research, artifact, experiment,
+action, monitor, decision, or report), acceptance criteria, evidence needed,
+and stall behavior so progress is judged by evidence, not activity volume.
 When the job is broad or starts looping, split it into tasks and move to the
 highest-priority open task rather than staying on one source or tactic forever.
+Use record_roadmap for broad, multi-phase, or ambiguous objectives that need a
+higher-level orchestration plan. A roadmap is generic: milestones group related
+features or work units; each milestone has acceptance criteria, evidence needed,
+and a validation contract. Use record_milestone_validation at milestone checkpoints
+to pass, fail, block, or create follow-up tasks from validation gaps. Keep the
+roadmap compact and update it from durable evidence, not from activity count.
 Use record_experiment for measurable trials, benchmarks, comparisons,
 optimization attempts, or hypothesis tests. A saved note, source, or artifact is
 not enough progress for a measurable objective: record the exact configuration,
@@ -75,10 +92,14 @@ benchmarks, repeatable experiments, and other command execution that the
 objective requires. Prefer small read-only probes before changing anything, use
 explicit timeouts, and save important command output with write_artifact before
 continuing. Do not run destructive or high-risk cyber commands.
-Operator messages marked steer are immediate constraints for the next step.
-Operator messages marked follow_up are lower-priority queued work; keep them in
-the task queue and act on them after the current active branch has a durable
-checkpoint.
+read_artifact only reads saved Nipux artifacts. Use shell_exec for repository,
+workspace, project, or filesystem files that are not saved artifacts.
+Operator messages are durable context from the human operator. Messages marked
+steer are active constraints until acknowledged or superseded. Messages marked
+follow_up are lower-priority queued work; keep them in the task queue and act on
+them after the current active branch has a durable checkpoint. Messages marked
+note are durable preferences. Use acknowledge_operator_context only after you
+have incorporated or intentionally superseded a steer/follow_up message.
 """
 
 INFORMATION_GATHERING_TOOLS = {
@@ -94,7 +115,85 @@ INFORMATION_GATHERING_TOOLS = {
     "web_search",
 }
 
-BRANCH_WORK_TOOLS = INFORMATION_GATHERING_TOOLS | {"shell_exec"}
+ARTIFACT_REVIEW_TOOLS = {"read_artifact", "search_artifacts"}
+BRANCH_WORK_TOOLS = INFORMATION_GATHERING_TOOLS | ARTIFACT_REVIEW_TOOLS | {"shell_exec"}
+LEDGER_PROGRESS_TOOLS = {
+    "guard_recovery",
+    "record_findings",
+    "record_source",
+    "record_tasks",
+    "record_roadmap",
+    "record_milestone_validation",
+    "record_experiment",
+    "record_lesson",
+}
+MEASUREMENT_RESOLUTION_TOOLS = {"record_experiment", "record_lesson", "record_tasks", "record_milestone_validation", "acknowledge_operator_context"}
+ARTIFACT_ACCOUNTING_RESOLUTION_TOOLS = LEDGER_PROGRESS_TOOLS | {"acknowledge_operator_context"}
+ARTIFACT_ACCOUNTING_BLOCKED_TOOLS = INFORMATION_GATHERING_TOOLS | {
+    "shell_exec",
+    "write_artifact",
+    "read_artifact",
+    "search_artifacts",
+    "report_update",
+}
+MEASUREMENT_BLOCKED_TOOLS = INFORMATION_GATHERING_TOOLS | {
+    "shell_exec",
+    "write_artifact",
+    "record_findings",
+    "record_source",
+    "report_update",
+}
+MILESTONE_VALIDATION_BLOCKED_TOOLS = INFORMATION_GATHERING_TOOLS | {
+    "shell_exec",
+    "write_artifact",
+    "record_findings",
+    "record_source",
+    "record_experiment",
+    "report_update",
+}
+ROADMAP_STALENESS_BLOCKED_TOOLS = INFORMATION_GATHERING_TOOLS | {
+    "shell_exec",
+    "write_artifact",
+    "record_findings",
+    "record_source",
+    "record_tasks",
+    "record_experiment",
+    "report_update",
+}
+CHURN_TOOLS = INFORMATION_GATHERING_TOOLS | ARTIFACT_REVIEW_TOOLS | {"shell_exec"}
+MEASURABLE_RESEARCH_BLOCKED_TOOLS = INFORMATION_GATHERING_TOOLS | {
+    "write_artifact",
+    "record_findings",
+    "record_source",
+    "report_update",
+}
+MEASURABLE_PROGRESS_PATTERN = re.compile(
+    r"(?i)\b("
+    r"benchmark|baseline|compare|comparison|experiment|improv(?:e|ing|ement)|increase|latency|"
+    r"measure|metric|minimi[sz]e|maximi[sz]e|optim(?:ize|ise|ization|isation)|performance|"
+    r"rate|reduce|score|speed|throughput|tune|tuning"
+    r")\b"
+)
+RECOVERABLE_GUARD_ERRORS = {
+    "artifact search loop blocked",
+    "duplicate tool call blocked",
+    "measurement obligation pending",
+    "measured progress required",
+    "progress accounting required",
+    "progress ledger update required",
+    "similar artifact search blocked",
+    "similar search query blocked",
+    "task branch required before more work",
+}
+MEASURABLE_RESEARCH_BUDGET_STEPS = 18
+MEASURABLE_ACTION_BUDGET_STEPS = 4
+PROGRAM_PROMPT_CHARS = 2000
+MEMORY_ENTRY_PROMPT_CHARS = 700
+MEMORY_PROMPT_CHARS = 1800
+RECENT_STATE_STEPS = 5
+RECENT_STATE_PROMPT_CHARS = 3000
+TIMELINE_PROMPT_EVENTS = 8
+SECTION_ITEM_CHARS = 420
 
 QUERY_STOPWORDS = {
     "and",
@@ -110,6 +209,17 @@ QUERY_STOPWORDS = {
     "the",
     "they",
     "what",
+    "with",
+}
+TEXT_TOKEN_STOPWORDS = {
+    "and",
+    "are",
+    "for",
+    "from",
+    "into",
+    "that",
+    "the",
+    "this",
     "with",
 }
 
@@ -165,22 +275,28 @@ def build_messages(
     include_unclaimed_operator_messages: bool = True,
 ) -> list[dict[str, Any]]:
     step_lines = []
-    for step in recent_steps[-8:]:
-        step_lines.append(_format_step_for_prompt(step))
-    state = "\n".join(step_lines) if step_lines else "No prior steps."
+    for step in recent_steps[-RECENT_STATE_STEPS:]:
+        step_lines.append(_clip_text(_format_step_for_prompt(step), 720))
+    state = _clip_text("\n".join(step_lines), RECENT_STATE_PROMPT_CHARS) if step_lines else "No prior steps."
     memory_lines = []
-    for entry in (memory_entries or [])[:4]:
-        refs = ", ".join(entry.get("artifact_refs") or [])
+    for entry in (memory_entries or [])[:2]:
+        refs = ", ".join((entry.get("artifact_refs") or [])[:8])
         suffix = f"\nArtifact refs: {refs}" if refs else ""
-        memory_lines.append(f"### {entry['key']}\n{entry['summary']}{suffix}")
-    memory_text = "\n\n".join(memory_lines) if memory_lines else "No compact memory yet."
-    program = program_text.strip()[:4000] if program_text else "No program.md saved yet."
+        memory_lines.append(
+            _clip_text(f"### {entry['key']}\n{entry.get('summary') or ''}{suffix}", MEMORY_ENTRY_PROMPT_CHARS)
+        )
+    memory_text = _clip_text("\n\n".join(memory_lines), MEMORY_PROMPT_CHARS) if memory_lines else "No compact memory yet."
+    program = _clip_text(program_text.strip(), PROGRAM_PROMPT_CHARS) if program_text else "No program.md saved yet."
     operator_messages = _operator_messages_for_prompt(
         job,
         active_messages=active_operator_messages or [],
         include_unclaimed=include_unclaimed_operator_messages,
     )
+    measurement_obligation = _measurement_obligation_for_prompt(job)
+    measured_progress_guard = _measured_progress_guard_for_prompt(job, recent_steps)
+    progress_accounting_guard = _progress_accounting_for_prompt(recent_steps)
     lessons = _lessons_for_prompt(job)
+    roadmap = _roadmap_for_prompt(job)
     tasks = _tasks_for_prompt(job)
     ledgers = _ledgers_for_prompt(job)
     experiments = _experiments_for_prompt(job)
@@ -195,9 +311,17 @@ def build_messages(
                 f"Job: {job['title']}\n"
                 f"Kind: {job['kind']}\n"
                 f"Objective:\n{job['objective']}\n\n"
-                f"Operator messages:\n{operator_messages}\n\n"
+                f"Workspace:\n"
+                f"- shell_exec default cwd: {os.getcwd()}\n"
+                f"- saved artifacts are separate Nipux outputs; read_artifact is only for those saved outputs\n"
+                f"- use shell_exec for workspace/project files unless the file is a saved artifact\n\n"
+                f"Operator context:\n{operator_messages}\n\n"
+                f"Pending measurement obligation:\n{measurement_obligation}\n\n"
+                f"Measured progress guard:\n{measured_progress_guard}\n\n"
+                f"Progress accounting guard:\n{progress_accounting_guard}\n\n"
                 f"Program:\n{program}\n\n"
                 f"Lessons learned:\n{lessons}\n\n"
+                f"Roadmap:\n{roadmap}\n\n"
                 f"Task queue:\n{tasks}\n\n"
                 f"Ledgers:\n{ledgers}\n\n"
                 f"Experiment ledger:\n{experiments}\n\n"
@@ -222,31 +346,45 @@ def _operator_messages_for_prompt(
     metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
     messages = metadata.get("operator_messages") if isinstance(metadata.get("operator_messages"), list) else []
     lines = []
-    active_messages = active_messages or []
+    active_messages = active_prompt_operator_entries(active_messages or [])
+    active_ids = {active.get("event_id") for active in active_messages if isinstance(active, dict)}
     if active_messages:
-        lines.append("Active queued operator messages for this turn:")
+        lines.append("Newly delivered operator messages for this turn:")
     for entry in active_messages:
         line = _operator_message_line(entry)
         if line:
             lines.append(line)
-    durable_notes = [
+    active_context = [
         entry
         for entry in messages
         if isinstance(entry, dict)
-        and (
-            str(entry.get("mode") or "steer") == "note"
-            or (include_unclaimed and not entry.get("claimed_at"))
-        )
-        and entry.get("event_id") not in {active.get("event_id") for active in active_messages}
+        and operator_entry_is_prompt_relevant(entry)
+        and (include_unclaimed or entry.get("claimed_at") or str(entry.get("mode") or "steer") == "note")
+        and entry.get("event_id") not in active_ids
     ]
-    if durable_notes:
+    if active_context:
         if lines:
-            lines.append("Other unclaimed notes or queued messages:")
-        for entry in durable_notes[-8:]:
+            lines.append("Still-active durable operator context:")
+        for entry in active_context[-6:]:
             line = _operator_message_line(entry)
             if line:
                 lines.append(line)
-    return "\n".join(lines) if lines else "No unclaimed operator steering messages."
+    return "\n".join(lines) if lines else "No active operator context."
+
+
+def _acknowledge_non_prompt_operator_context(db: AgentDB, job_id: str) -> int:
+    job = db.get_job(job_id)
+    metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
+    messages = metadata.get("operator_messages") if isinstance(metadata.get("operator_messages"), list) else []
+    message_ids = inactive_prompt_operator_ids(messages)
+    if not message_ids:
+        return 0
+    result = db.acknowledge_operator_messages(
+        job_id,
+        message_ids=message_ids,
+        summary="conversation-only message retained in history, not used as worker constraint",
+    )
+    return int(result.get("count") or 0)
 
 
 def _operator_message_line(entry: dict[str, Any]) -> str:
@@ -255,10 +393,19 @@ def _operator_message_line(entry: dict[str, Any]) -> str:
     at = str(entry.get("at") or "")
     source = str(entry.get("source") or "operator")
     mode = str(entry.get("mode") or "steer")
+    event_id = str(entry.get("event_id") or "")
     message = " ".join(str(entry.get("message") or "").split())
     if message:
-        claimed = " claimed" if entry.get("claimed_at") else ""
-        return f"- {at} {source} {mode}{claimed}: {message[:600]}"
+        states = []
+        if entry.get("claimed_at"):
+            states.append("delivered")
+        if entry.get("acknowledged_at"):
+            states.append("acknowledged")
+        if entry.get("superseded_at"):
+            states.append("superseded")
+        state_text = f" ({', '.join(states)})" if states else ""
+        id_text = f" id={event_id}" if event_id else ""
+        return f"-{id_text} {at} {source} {mode}{state_text}: {_clip_text(message, 420)}"
     return ""
 
 
@@ -268,14 +415,78 @@ def _lessons_for_prompt(job: dict[str, Any]) -> str:
     if not lessons:
         return "No durable lessons yet."
     lines = []
-    for entry in lessons[-10:]:
+    for entry in lessons[-5:]:
         if not isinstance(entry, dict):
             continue
         category = str(entry.get("category") or "memory")
         lesson = " ".join(str(entry.get("lesson") or "").split())
         if lesson:
-            lines.append(f"- {category}: {lesson[:700]}")
+            lines.append(f"- {category}: {_clip_text(lesson, SECTION_ITEM_CHARS)}")
     return "\n".join(lines) if lines else "No durable lessons yet."
+
+
+def _roadmap_for_prompt(job: dict[str, Any]) -> str:
+    metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
+    roadmap = metadata.get("roadmap") if isinstance(metadata.get("roadmap"), dict) else {}
+    if not roadmap:
+        return (
+            "No roadmap yet. If the objective is broad, multi-phase, or needs validation checkpoints, "
+            "use record_roadmap to define compact milestones, features, acceptance criteria, and validation evidence."
+        )
+    milestones = roadmap.get("milestones") if isinstance(roadmap.get("milestones"), list) else []
+    status_counts: dict[str, int] = {}
+    validation_counts: dict[str, int] = {}
+    for milestone in milestones:
+        if not isinstance(milestone, dict):
+            continue
+        status = str(milestone.get("status") or "planned")
+        validation_status = str(milestone.get("validation_status") or "not_started")
+        status_counts[status] = status_counts.get(status, 0) + 1
+        validation_counts[validation_status] = validation_counts.get(validation_status, 0) + 1
+    lines = [
+        _clip_text(
+            f"{roadmap.get('status') or 'planned'}: {roadmap.get('title') or 'Roadmap'}"
+            + (f" | current={roadmap.get('current_milestone')}" if roadmap.get("current_milestone") else ""),
+            520,
+        ),
+        "Milestone counts: " + (", ".join(f"{key}={value}" for key, value in sorted(status_counts.items())) or "none"),
+        "Validation counts: " + (", ".join(f"{key}={value}" for key, value in sorted(validation_counts.items())) or "none"),
+    ]
+    if roadmap.get("scope"):
+        lines.append("Scope: " + _clip_text(str(roadmap.get("scope") or ""), 420))
+    if roadmap.get("validation_contract"):
+        lines.append("Validation contract: " + _clip_text(str(roadmap.get("validation_contract") or ""), 520))
+    selected = [
+        milestone for milestone in milestones
+        if isinstance(milestone, dict)
+        and str(milestone.get("status") or "planned") in {"active", "validating", "planned", "blocked"}
+    ][:6]
+    if not selected:
+        selected = [milestone for milestone in milestones if isinstance(milestone, dict)][-4:]
+    for milestone in selected[:6]:
+        features = milestone.get("features") if isinstance(milestone.get("features"), list) else []
+        open_features = sum(1 for feature in features if isinstance(feature, dict) and str(feature.get("status") or "planned") in {"planned", "active"})
+        detail = " | ".join(
+            bit
+            for bit in [
+                str(milestone.get("status") or "planned"),
+                f"validation={milestone.get('validation_status') or 'not_started'}",
+                f"p={milestone.get('priority') or 0}",
+                str(milestone.get("title") or "milestone"),
+                f"features={len(features)}/{open_features} open" if features else "",
+            ]
+            if bit
+        )
+        if milestone.get("acceptance_criteria"):
+            detail += f" | accept={milestone.get('acceptance_criteria')}"
+        if milestone.get("evidence_needed"):
+            detail += f" | evidence={milestone.get('evidence_needed')}"
+        if milestone.get("validation_result"):
+            detail += f" | validation_result={milestone.get('validation_result')}"
+        if milestone.get("next_action"):
+            detail += f" | next={milestone.get('next_action')}"
+        lines.append("- " + _clip_text(detail, 620))
+    return "\n".join(lines)
 
 
 def _metadata_list(job: dict[str, Any], key: str) -> list[dict[str, Any]]:
@@ -291,7 +502,7 @@ def _tasks_for_prompt(job: dict[str, Any]) -> str:
     if not tasks:
         return (
             "No durable task queue yet. If the objective is broad, use record_tasks "
-            "to create a few concrete open branches before continuing."
+            "to create a few concrete open branches with output contracts and acceptance criteria before continuing."
         )
     status_rank = {"active": 0, "open": 1, "blocked": 2, "done": 3, "skipped": 4}
     ranked = sorted(
@@ -303,20 +514,33 @@ def _tasks_for_prompt(job: dict[str, Any]) -> str:
         status = str(task.get("status") or "open")
         counts[status] = counts.get(status, 0) + 1
     lines = ["Task counts: " + ", ".join(f"{key}={value}" for key, value in sorted(counts.items()))]
-    for task in ranked[:10]:
+    selected = [task for task in ranked if str(task.get("status") or "open") in {"active", "open"}][:6]
+    if len(selected) < 6:
+        selected.extend([task for task in ranked if str(task.get("status") or "open") == "blocked"][: 6 - len(selected)])
+    if len(selected) < 6:
+        selected.extend([task for task in ranked if task not in selected][: 6 - len(selected)])
+    for task in selected[:6]:
         bits = [
             str(task.get("status") or "open"),
             f"priority={task.get('priority') or 0}",
             str(task.get("title") or "untitled"),
         ]
+        if task.get("output_contract"):
+            bits.append(f"contract={task.get('output_contract')}")
         detail = " | ".join(bit for bit in bits if bit)
         if task.get("goal"):
             detail += f" | goal={task.get('goal')}"
+        if task.get("acceptance_criteria"):
+            detail += f" | accept={task.get('acceptance_criteria')}"
+        if task.get("evidence_needed"):
+            detail += f" | evidence={task.get('evidence_needed')}"
+        if task.get("stall_behavior"):
+            detail += f" | stall={task.get('stall_behavior')}"
         if task.get("source_hint"):
             detail += f" | source_hint={task.get('source_hint')}"
         if task.get("result"):
             detail += f" | result={task.get('result')}"
-        lines.append("- " + detail[:700])
+        lines.append("- " + _clip_text(detail, 520))
     return "\n".join(lines)
 
 
@@ -324,7 +548,7 @@ def _timeline_for_prompt(events: list[dict[str, Any]]) -> str:
     if not events:
         return "No timeline events yet."
     lines = []
-    for event in events[-18:]:
+    for event in events[-TIMELINE_PROMPT_EVENTS:]:
         event_type = str(event.get("event_type") or "event")
         if event_type == "operator_message":
             continue
@@ -334,7 +558,7 @@ def _timeline_for_prompt(events: list[dict[str, Any]]) -> str:
         detail = title if title else event_type
         if body:
             detail = f"{detail}: {body}"
-        lines.append(f"- {at} {event_type}: {detail[:700]}")
+        lines.append(f"- {at} {event_type}: {_clip_text(detail, SECTION_ITEM_CHARS)}")
     return "\n".join(lines)
 
 
@@ -361,14 +585,14 @@ def _ledgers_for_prompt(job: dict[str, Any]) -> str:
     ]
     if findings:
         lines.append("Recent findings:")
-        for finding in findings[-8:]:
+        for finding in findings[-5:]:
             bits = [
                 str(finding.get("name") or "unknown"),
                 str(finding.get("category") or "").strip(),
                 str(finding.get("location") or "").strip(),
                 f"score={finding.get('score')}" if finding.get("score") is not None else "",
             ]
-            lines.append("- " + " | ".join(bit for bit in bits if bit)[:500])
+            lines.append("- " + _clip_text(" | ".join(bit for bit in bits if bit), 360))
     if sources:
         usable_sources = [
             source
@@ -390,25 +614,27 @@ def _ledgers_for_prompt(job: dict[str, Any]) -> str:
         )
         if ranked:
             lines.append("High-yield/current sources:")
-            for source in ranked[:6]:
+            for source in ranked[:4]:
                 lines.append(
                     "- "
-                    + (
+                    + _clip_text(
                         f"{source.get('source')} type={source.get('source_type') or 'unknown'} "
                         f"score={source.get('usefulness_score')} findings={source.get('yield_count') or 0} "
-                        f"fails={source.get('fail_count') or 0} outcome={source.get('last_outcome') or ''}"
-                    )[:650]
+                        f"fails={source.get('fail_count') or 0} outcome={source.get('last_outcome') or ''}",
+                        420,
+                    )
                 )
         if low_quality_sources:
             lines.append("Low-yield/blocked source patterns to avoid:")
-            for source in low_quality_sources[-4:]:
+            for source in low_quality_sources[-3:]:
                 lines.append(
                     "- "
-                    + (
+                    + _clip_text(
                         f"{source.get('source')} type={source.get('source_type') or 'unknown'} "
                         f"score={source.get('usefulness_score')} fails={source.get('fail_count') or 0} "
-                        f"warnings={', '.join(source.get('warnings') or [])} outcome={source.get('last_outcome') or ''}"
-                    )[:650]
+                        f"warnings={', '.join(source.get('warnings') or [])} outcome={source.get('last_outcome') or ''}",
+                        420,
+                    )
                 )
     return "\n".join(lines)
 
@@ -437,14 +663,14 @@ def _experiments_for_prompt(job: dict[str, Any]) -> str:
     ]
     if best:
         lines.append("Best observed results:")
-        for experiment in best[-4:]:
+        for experiment in best[-3:]:
             metric = (
                 f"{experiment.get('metric_name') or 'metric'}={experiment.get('metric_value')}"
                 f"{experiment.get('metric_unit') or ''}"
             )
             lines.append(
                 "- "
-                + " | ".join(
+                + _clip_text(" | ".join(
                     bit
                     for bit in [
                         str(experiment.get("title") or "experiment"),
@@ -453,9 +679,9 @@ def _experiments_for_prompt(job: dict[str, Any]) -> str:
                         f"next={experiment.get('next_action')}" if experiment.get("next_action") else "",
                     ]
                     if bit
-                )[:700]
+                ), 520)
             )
-    recent = experiments[-6:]
+    recent = experiments[-4:]
     if recent:
         lines.append("Recent experiments:")
         for experiment in recent:
@@ -470,7 +696,7 @@ def _experiments_for_prompt(job: dict[str, Any]) -> str:
                 delta = f"delta={experiment.get('delta_from_previous_best')}"
             lines.append(
                 "- "
-                + " | ".join(
+                + _clip_text(" | ".join(
                     bit
                     for bit in [
                         str(experiment.get("status") or "planned"),
@@ -480,9 +706,68 @@ def _experiments_for_prompt(job: dict[str, Any]) -> str:
                         f"next={experiment.get('next_action')}" if experiment.get("next_action") else "",
                     ]
                     if bit
-                )[:700]
+                ), 520)
             )
     return "\n".join(lines)
+
+
+def _measured_progress_guard_for_prompt(job: dict[str, Any], recent_steps: list[dict[str, Any]]) -> str:
+    context = _measured_progress_guard_context(job, recent_steps)
+    if not context:
+        return "None."
+    if _as_int(context.get("shell_actions_since_last_experiment")) >= _as_int(context.get("shell_action_budget")):
+        return (
+            "This objective or active task is measurably framed, and the shell/action budget since the last experiment "
+            f"is exhausted. completed_since_last_experiment={context.get('completed_since_last_experiment')} "
+            f"shell_actions={context.get('shell_actions_since_last_experiment')} shell_budget={context.get('shell_action_budget')} "
+            f"reason={context.get('reason')}. Do not call shell_exec or do more research next. Use record_experiment "
+            "for a known result, record_tasks to create a missing experiment/monitor branch, or record_lesson if the "
+            "branch is blocked or the recent outputs were not valid measurements."
+        )
+    return (
+        "This objective or active task is measurably framed, but recent work has not produced "
+        f"new experiment records. completed_since_last_experiment={context.get('completed_since_last_experiment')} "
+        f"research_budget={context.get('research_budget')} shell_actions={context.get('shell_actions_since_last_experiment')} "
+        f"shell_budget={context.get('shell_action_budget')} reason={context.get('reason')}. "
+        "Next useful actions: run a small measuring action, call record_experiment for a known result, "
+        "or use record_tasks to create an experiment/action/monitor task with acceptance criteria and evidence."
+    )
+
+
+def _measurement_obligation_for_prompt(job: dict[str, Any]) -> str:
+    metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
+    obligation = metadata.get("pending_measurement_obligation")
+    if not isinstance(obligation, dict) or not obligation or obligation.get("resolved_at"):
+        return "None."
+    candidates = obligation.get("metric_candidates") if isinstance(obligation.get("metric_candidates"), list) else []
+    lines = [
+        f"source_step=#{obligation.get('source_step_no') or '?'} tool={obligation.get('tool') or ''}",
+        f"summary={obligation.get('summary') or ''}",
+    ]
+    command = str(obligation.get("command") or "")
+    if command:
+        lines.append(f"command={_clip_text(command, 360)}")
+    if candidates:
+        lines.append("metric_candidates=" + "; ".join(str(item) for item in candidates[:6]))
+    lines.append(
+        "Before more research or artifact churn, call record_experiment with the measured result, "
+        "record_lesson explaining why it is not a valid measurement, or record_tasks to create the missing measurement branch."
+    )
+    return "\n".join(lines)
+
+
+def _progress_accounting_for_prompt(recent_steps: list[dict[str, Any]]) -> str:
+    context = _artifact_accounting_context(recent_steps)
+    if not context:
+        return "None."
+    return (
+        "Recent saved outputs need accounting before more output/research. "
+        f"artifact_count={context.get('artifact_count')} since_step={context.get('since_step')} "
+        f"artifact_titles={'; '.join(str(title) for title in context.get('artifact_titles', [])[:4])}. "
+        "Next use record_tasks or record_roadmap to mark progress/reopen branches, "
+        "record_findings or record_source for reusable evidence, record_experiment for measured results, "
+        "record_milestone_validation for milestone checks, or record_lesson if these outputs are not useful."
+    )
 
 
 def _reflections_for_prompt(job: dict[str, Any]) -> str:
@@ -490,13 +775,53 @@ def _reflections_for_prompt(job: dict[str, Any]) -> str:
     if not reflections:
         return "No reflection checkpoints yet."
     lines = []
-    for reflection in reflections[-4:]:
+    for reflection in reflections[-2:]:
         strategy = f" strategy={reflection.get('strategy')}" if reflection.get("strategy") else ""
-        lines.append(f"- {reflection.get('summary')}{strategy}"[:700])
+        lines.append("- " + _clip_text(f"{reflection.get('summary')}{strategy}", 520))
     return "\n".join(lines)
 
 
 def _next_action_constraint(job: dict[str, Any], recent_steps: list[dict[str, Any]]) -> str:
+    measurement_obligation = _pending_measurement_obligation(job)
+    if measurement_obligation:
+        return (
+            "A pending measurement obligation is active from "
+            f"step #{measurement_obligation.get('source_step_no') or '?'}. "
+            "Resolve it with record_experiment, record_lesson explaining why it is invalid, "
+            "or record_tasks creating the missing measurement branch before more research/artifact churn."
+        )
+    artifact_accounting = _artifact_accounting_context(recent_steps)
+    if artifact_accounting:
+        return (
+            "Recent saved outputs need durable accounting. Before more artifact writing, reading, research, browsing, "
+            "or shell work, use record_tasks, record_roadmap, record_milestone_validation, record_findings, record_source, record_experiment, or record_lesson "
+            "to explain what changed and what branch is next."
+        )
+    measured_guard = _measured_progress_guard_context(job, recent_steps)
+    if measured_guard:
+        return (
+            "This job needs measured progress, not more research-only activity. "
+            "Do one of: run a small measuring command/action, call record_experiment for a known measurement, "
+            "record_tasks with an experiment/action/monitor contract, or record_lesson if measurement is blocked."
+        )
+    milestone_validation = _milestone_validation_needed(job)
+    if milestone_validation:
+        return (
+            f"Roadmap milestone '{milestone_validation.get('title')}' is ready for validation or is marked validating. "
+            "Use record_milestone_validation with evidence and pass/fail/blocker status, then create follow-up tasks for gaps."
+        )
+    roadmap_staleness = _roadmap_staleness_context(job, recent_steps)
+    if roadmap_staleness:
+        return (
+            "The roadmap has not advanced despite durable task/artifact activity. "
+            "Use record_roadmap to mark the current milestone active/done/blocked, or record_milestone_validation "
+            "if acceptance criteria can be judged from existing evidence, before more branch work."
+        )
+    if _roadmap_missing_for_broad_job(job):
+        return (
+            "The objective is broad enough to benefit from roadmap control. Use record_roadmap to define compact milestones, "
+            "features, acceptance criteria, and validation checkpoints before expanding the task queue further."
+        )
     evidence_step = _unpersisted_evidence_step(recent_steps)
     if evidence_step:
         return (
@@ -516,8 +841,85 @@ def _next_action_constraint(job: dict[str, Any], recent_steps: list[dict[str, An
         if error == "task branch required before more work":
             return "Create or reopen a task branch with record_tasks before doing more research or execution."
         if error in {"duplicate tool call blocked", "similar search query blocked", "search loop blocked"}:
+            output = step.get("output") if isinstance(step.get("output"), dict) else {}
+            blocked_tool = str(output.get("blocked_tool") or "")
+            if blocked_tool == "read_artifact":
+                return "Do not read the same artifact again. Use its content to choose a concrete next action: inspect a specific item, record findings/tasks, or write a report artifact."
+            if blocked_tool == "shell_exec":
+                return "Do not rerun the same shell discovery command. Use the prior output to inspect a specific file/item, save it, or update findings/tasks."
             return "Change source, extract an existing result, save an artifact, or record a lesson about the failed strategy."
     return "No special constraint beyond taking one bounded useful action."
+
+
+def _milestone_validation_needed(job: dict[str, Any]) -> dict[str, Any] | None:
+    metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
+    roadmap = metadata.get("roadmap") if isinstance(metadata.get("roadmap"), dict) else {}
+    milestones = roadmap.get("milestones") if isinstance(roadmap.get("milestones"), list) else []
+    for milestone in milestones:
+        if not isinstance(milestone, dict):
+            continue
+        status = str(milestone.get("status") or "planned")
+        validation_status = str(milestone.get("validation_status") or "not_started")
+        if status == "validating" or validation_status == "pending":
+            return milestone
+        features = milestone.get("features") if isinstance(milestone.get("features"), list) else []
+        if status == "active" and features and all(
+            isinstance(feature, dict) and str(feature.get("status") or "planned") in {"done", "skipped"}
+            for feature in features
+        ):
+            return milestone
+    return None
+
+
+def _roadmap_staleness_context(job: dict[str, Any], recent_steps: list[dict[str, Any]]) -> dict[str, Any] | None:
+    metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
+    roadmap = metadata.get("roadmap") if isinstance(metadata.get("roadmap"), dict) else {}
+    milestones = roadmap.get("milestones") if isinstance(roadmap.get("milestones"), list) else []
+    if not milestones:
+        return None
+    if any(step.get("tool_name") in {"record_roadmap", "record_milestone_validation"} for step in recent_steps):
+        return None
+    if any(
+        isinstance(milestone, dict)
+        and (
+            str(milestone.get("status") or "planned") != "planned"
+            or str(milestone.get("validation_status") or "not_started") != "not_started"
+        )
+        for milestone in milestones
+    ):
+        return None
+    tasks = metadata.get("task_queue") if isinstance(metadata.get("task_queue"), list) else []
+    completed_artifacts = [
+        step for step in recent_steps
+        if step.get("status") == "completed" and step.get("tool_name") == "write_artifact"
+    ]
+    task_updates = [
+        step for step in recent_steps
+        if step.get("status") == "completed" and step.get("tool_name") == "record_tasks"
+    ]
+    if len(completed_artifacts) < 2 and len(task_updates) < 2 and len(tasks) < 8:
+        return None
+    return {
+        "title": roadmap.get("title") or "Roadmap",
+        "status": roadmap.get("status") or "planned",
+        "milestone_count": len(milestones),
+        "task_count": len(tasks),
+        "artifact_count": len(completed_artifacts),
+        "task_update_count": len(task_updates),
+    }
+
+
+def _roadmap_missing_for_broad_job(job: dict[str, Any]) -> bool:
+    metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
+    if isinstance(metadata.get("roadmap"), dict):
+        return False
+    objective = str(job.get("objective") or "")
+    tasks = metadata.get("task_queue") if isinstance(metadata.get("task_queue"), list) else []
+    if len(tasks) >= 6:
+        return True
+    words = re.findall(r"[A-Za-z0-9_]+", objective)
+    broad_terms = {"build", "create", "develop", "implement", "research", "improve", "optimize", "migrate", "write", "analyze"}
+    return len(words) >= 14 and any(term in objective.lower() for term in broad_terms)
 
 
 def _task_queue_exhausted(job: dict[str, Any]) -> bool:
@@ -549,6 +951,13 @@ def _compact(value: Any, limit: int = 500) -> str:
     return text if len(text) <= limit else text[:limit] + "..."
 
 
+def _clip_text(value: Any, limit: int) -> str:
+    text = " ".join(str(value or "").split())
+    if len(text) <= limit:
+        return text
+    return text[: max(0, limit - 3)].rstrip() + "..."
+
+
 def _format_step_for_prompt(step: dict[str, Any]) -> str:
     tool = f" tool={step['tool_name']}" if step.get("tool_name") else ""
     summary = step.get("summary") or step.get("error") or ""
@@ -574,7 +983,7 @@ def _observation_for_prompt(tool_name: str | None, output: dict[str, Any]) -> st
             title = result.get("title") or "untitled"
             url = result.get("url") or ""
             titles.append(f"{title} <{url}>")
-        return f"query={output.get('query')!r}; results={'; '.join(titles)}"[:900]
+        return _clip_text(f"query={output.get('query')!r}; results={'; '.join(titles)}", 650)
     if tool_name == "web_extract":
         pages = output.get("pages") if isinstance(output.get("pages"), list) else []
         parts = []
@@ -583,30 +992,30 @@ def _observation_for_prompt(tool_name: str | None, output: dict[str, Any]) -> st
                 parts.append(f"{page.get('url')}: ERROR {page.get('error')}")
             else:
                 text = str(page.get("text") or "")
-                parts.append(f"{page.get('url')}: {text[:240]}")
-        return "; ".join(parts)[:900]
+                parts.append(f"{page.get('url')}: {_clip_text(text, 160)}")
+        return _clip_text("; ".join(parts), 650)
     if tool_name == "shell_exec":
         stdout = str(output.get("stdout") or "")
         stderr = str(output.get("stderr") or "")
         excerpt = stdout.strip() or stderr.strip()
         return (
             f"command={output.get('command')!r}; rc={output.get('returncode')}; "
-            f"duration={output.get('duration_seconds')}s; output={excerpt[:600]}"
-        )[:900]
+            f"duration={output.get('duration_seconds')}s; output={_clip_text(excerpt, 360)}"
+        )[:650]
     if tool_name == "write_artifact":
         return f"saved artifact={output.get('artifact_id')} path={output.get('path')}"
     if tool_name == "report_update":
         update = output.get("update") if isinstance(output.get("update"), dict) else {}
-        return f"agent_update={update.get('message') or ''}"[:700]
+        return _clip_text(f"agent_update={update.get('message') or ''}", 420)
     if tool_name == "record_lesson":
         lesson = output.get("lesson") if isinstance(output.get("lesson"), dict) else {}
-        return f"lesson={lesson.get('category') or 'memory'}: {lesson.get('lesson') or ''}"[:700]
+        return _clip_text(f"lesson={lesson.get('category') or 'memory'}: {lesson.get('lesson') or ''}", 420)
     if tool_name == "record_source":
         source = output.get("source") if isinstance(output.get("source"), dict) else {}
         return (
             f"source={source.get('source')} score={source.get('usefulness_score')} "
             f"findings={source.get('yield_count')} fails={source.get('fail_count')} outcome={source.get('last_outcome')}"
-        )[:700]
+        )[:420]
     if tool_name == "record_findings":
         return f"finding ledger updated added={output.get('added')} updated={output.get('updated')}"[:700]
     if tool_name == "record_experiment":
@@ -616,12 +1025,14 @@ def _observation_for_prompt(tool_name: str | None, output: dict[str, Any]) -> st
             metric = f"{experiment.get('metric_name') or 'metric'}={experiment.get('metric_value')}{experiment.get('metric_unit') or ''}"
         delta = f" delta={experiment.get('delta_from_previous_best')}" if experiment.get("delta_from_previous_best") is not None else ""
         best = " best_observed" if experiment.get("best_observed") else ""
-        return f"experiment={experiment.get('title')} status={experiment.get('status')} {metric}{delta}{best}"[:900]
+        return _clip_text(f"experiment={experiment.get('title')} status={experiment.get('status')} {metric}{delta}{best}", 520)
+    if tool_name == "acknowledge_operator_context":
+        return f"operator_context {output.get('status')} count={output.get('count')}"[:700]
     if tool_name in {"browser_click", "browser_type"} and output.get("error"):
         recovery = output.get("recovery_snapshot") if isinstance(output.get("recovery_snapshot"), dict) else {}
         candidates = _browser_candidates_for_prompt(recovery)
         suffix = f"; recovery_candidates={candidates}" if candidates else ""
-        return f"error={output.get('error')}; guidance={output.get('recovery_guidance', '')}{suffix}"[:1200]
+        return _clip_text(f"error={output.get('error')}; guidance={output.get('recovery_guidance', '')}{suffix}", 700)
     if tool_name == "browser_navigate":
         data = output.get("data") if isinstance(output.get("data"), dict) else {}
         title = data.get("title") or ""
@@ -631,7 +1042,7 @@ def _observation_for_prompt(tool_name: str | None, output: dict[str, Any]) -> st
         suffix = f"; source_warning={warning}" if warning else ""
         candidates = _browser_candidates_for_prompt(output)
         candidate_suffix = f"; candidates={candidates}" if candidates else ""
-        return f"opened {title} <{url}>; snapshot_chars={len(snapshot)}{suffix}{candidate_suffix}"[:1200]
+        return _clip_text(f"opened {title} <{url}>; snapshot_chars={len(snapshot)}{suffix}{candidate_suffix}", 700)
     if tool_name == "browser_snapshot":
         data = output.get("data") if isinstance(output.get("data"), dict) else {}
         snapshot = str(output.get("snapshot") or data.get("snapshot") or output.get("data") or "")
@@ -639,7 +1050,7 @@ def _observation_for_prompt(tool_name: str | None, output: dict[str, Any]) -> st
         suffix = f"; source_warning={warning}" if warning else ""
         candidates = _browser_candidates_for_prompt(output)
         candidate_suffix = f"; candidates={candidates}" if candidates else ""
-        return f"snapshot_chars={len(snapshot)}{suffix}{candidate_suffix}"[:1200]
+        return _clip_text(f"snapshot_chars={len(snapshot)}{suffix}{candidate_suffix}", 700)
     if output.get("error"):
         return f"error={output.get('error')}"
     return _compact(output, 700)
@@ -781,7 +1192,7 @@ def _duplicate_recent_tool_call(
     args: dict[str, Any],
     recent_steps: list[dict[str, Any]],
     *,
-    window: int = 8,
+    window: int = 24,
 ) -> dict[str, Any] | None:
     if name == "browser_snapshot":
         return None
@@ -816,6 +1227,9 @@ def _step_has_evidence(step: dict[str, Any]) -> bool:
         if anti_bot_reason(str(data.get("title") or ""), str(data.get("url") or data.get("origin") or ""), snapshot):
             return False
         return len(snapshot.strip()) >= 500
+    if tool_name == "shell_exec":
+        text = "\n".join(str(output.get(key) or "") for key in ("stdout", "stderr"))
+        return len(text.strip()) >= 1000
     return False
 
 
@@ -834,15 +1248,256 @@ def _unpersisted_evidence_step(recent_steps: list[dict[str, Any]]) -> dict[str, 
 
 
 def _recent_search_streak(recent_steps: list[dict[str, Any]]) -> int:
-    streak = 0
-    for step in reversed(_completed_recent_steps(recent_steps)):
-        tool_name = step.get("tool_name")
-        if tool_name == "web_search":
-            streak += 1
-            continue
-        if tool_name:
+    return _recent_tool_streak(recent_steps, "web_search")
+
+
+def _pending_measurement_obligation(job: dict[str, Any]) -> dict[str, Any] | None:
+    metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
+    obligation = metadata.get("pending_measurement_obligation")
+    if isinstance(obligation, dict) and obligation and not obligation.get("resolved_at"):
+        return obligation
+    return None
+
+
+def _clear_invalid_measurement_obligation(db: AgentDB, job_id: str) -> bool:
+    job = db.get_job(job_id)
+    obligation = _pending_measurement_obligation(job)
+    if not obligation:
+        return False
+    candidates = obligation.get("metric_candidates") if isinstance(obligation.get("metric_candidates"), list) else []
+    if not candidates:
+        return False
+    command = str(obligation.get("command") or "")
+    has_intent = bool(MEASUREMENT_INTENT_PATTERN.search(command))
+    if not all(_candidate_is_diagnostic_only(str(candidate), has_intent) for candidate in candidates):
+        return False
+    db.update_job_metadata(job_id, {"pending_measurement_obligation": {}})
+    db.append_agent_update(
+        job_id,
+        "Cleared measurement obligation because the output was diagnostic context, not a trial result.",
+        category="progress",
+        metadata={"cleared_measurement_obligation": obligation},
+    )
+    return True
+
+
+def _progress_churn_context(recent_steps: list[dict[str, Any]], *, window: int = 10) -> dict[str, Any] | None:
+    completed = [step for step in recent_steps if step.get("status") == "completed"]
+    tail = completed[-window:]
+    if len(tail) < 8:
+        return None
+    if any(step.get("tool_name") in LEDGER_PROGRESS_TOOLS for step in tail):
+        return None
+    churn_count = sum(1 for step in tail if step.get("tool_name") in CHURN_TOOLS)
+    if churn_count < 7:
+        return None
+    return {
+        "window": len(tail),
+        "churn_count": churn_count,
+        "since_step": tail[0].get("step_no"),
+        "tools": [step.get("tool_name") or step.get("kind") for step in tail],
+    }
+
+
+def _artifact_accounting_context(
+    recent_steps: list[dict[str, Any]],
+    *,
+    threshold: int = 3,
+    window: int = 12,
+) -> dict[str, Any] | None:
+    completed = [step for step in recent_steps if step.get("status") == "completed"]
+    tail: list[dict[str, Any]] = []
+    for step in reversed(completed[-window:]):
+        if step.get("tool_name") in LEDGER_PROGRESS_TOOLS:
             break
-    return streak
+        tail.append(step)
+    tail.reverse()
+    artifact_steps = [step for step in tail if step.get("tool_name") == "write_artifact"]
+    if len(artifact_steps) < threshold:
+        return None
+    titles = []
+    for step in artifact_steps[-5:]:
+        input_data = step.get("input") if isinstance(step.get("input"), dict) else {}
+        args = input_data.get("arguments") if isinstance(input_data.get("arguments"), dict) else {}
+        title = str(args.get("title") or step.get("summary") or f"step #{step.get('step_no')}")
+        titles.append(_clip_text(title, 120))
+    return {
+        "artifact_count": len(artifact_steps),
+        "since_step": tail[0].get("step_no") if tail else None,
+        "artifact_steps": [step.get("step_no") for step in artifact_steps],
+        "artifact_titles": titles,
+        "tools": [step.get("tool_name") or step.get("kind") for step in tail],
+    }
+
+
+def _job_requires_measured_progress(job: dict[str, Any]) -> bool:
+    text_parts = [
+        str(job.get("title") or ""),
+        str(job.get("objective") or ""),
+        str(job.get("kind") or ""),
+    ]
+    tasks = _metadata_list(job, "task_queue")
+    for task in tasks:
+        status = str(task.get("status") or "open")
+        if status in {"done", "skipped"}:
+            continue
+        contract = str(task.get("output_contract") or "")
+        if contract in {"experiment", "monitor"}:
+            return True
+        if contract == "action" and _task_text_requires_measurement(task):
+            return True
+        text_parts.extend(
+            str(task.get(key) or "")
+            for key in ("title", "goal", "acceptance_criteria", "evidence_needed", "stall_behavior")
+        )
+    return any(MEASURABLE_PROGRESS_PATTERN.search(part) for part in text_parts if part)
+
+
+def _task_text_requires_measurement(task: dict[str, Any]) -> bool:
+    return any(
+        MEASURABLE_PROGRESS_PATTERN.search(str(task.get(key) or ""))
+        for key in ("title", "goal", "acceptance_criteria", "evidence_needed", "stall_behavior")
+    )
+
+
+def _measured_progress_guard_context(
+    job: dict[str, Any],
+    recent_steps: list[dict[str, Any]],
+    *,
+    budget: int = MEASURABLE_RESEARCH_BUDGET_STEPS,
+) -> dict[str, Any] | None:
+    if not _job_requires_measured_progress(job):
+        return None
+    if _pending_measurement_obligation(job):
+        return None
+    completed = [step for step in recent_steps if step.get("status") == "completed"]
+    if not completed:
+        return None
+    last_experiment_index = -1
+    for index, step in enumerate(completed):
+        if step.get("tool_name") == "record_experiment":
+            last_experiment_index = index
+    tail = completed[last_experiment_index + 1 :]
+    branch_activity = [step for step in tail if step.get("tool_name") in BRANCH_WORK_TOOLS | {"write_artifact"}]
+    shell_actions = [step for step in tail if step.get("tool_name") == "shell_exec"]
+    if len(branch_activity) < budget and len(shell_actions) < MEASURABLE_ACTION_BUDGET_STEPS:
+        return None
+    if any(step.get("tool_name") in {"record_tasks", "record_lesson"} for step in tail[-6:]):
+        return None
+    experiments = _metadata_list(job, "experiment_ledger")
+    reason = "no experiment records yet" if not experiments else "no recent experiment update"
+    return {
+        "reason": reason,
+        "research_budget": budget,
+        "shell_action_budget": MEASURABLE_ACTION_BUDGET_STEPS,
+        "completed_since_last_experiment": len(tail),
+        "branch_activity": len(branch_activity),
+        "shell_actions_since_last_experiment": len(shell_actions),
+        "since_step": branch_activity[0].get("step_no") if branch_activity else None,
+        "tools": [step.get("tool_name") or step.get("kind") for step in branch_activity[-10:]],
+    }
+
+
+MEASUREMENT_PATTERN = re.compile(
+    r"(?i)(?:"
+    r"\b\d+(?:\.\d+)?\s*(?:%|ms|s|sec|secs|seconds|msec|us|hz|khz|mhz|ghz|kb/s|mb/s|gb/s|tb/s|"
+    r"it/s|ops/s|req/s|qps|rps|samples/s|items/s|units/s|tokens/s|tok/s|t/s)\b"
+    r"|(?:score|rate|speed|throughput|latency|accuracy|loss|error|duration|runtime|time|memory|cpu|gpu|ram)\D{0,40}\d+(?:\.\d+)?"
+    r")"
+)
+MEASUREMENT_INTENT_PATTERN = re.compile(
+    r"(?i)\b(bench(?:mark)?|compare|duration|eval(?:uate)?|experiment|hyperfine|latency|measure|metric|perf|"
+    r"profile|rate|runtime|speed|test|throughput|time|trial)\b"
+)
+DIAGNOSTIC_MEASUREMENT_PATTERN = re.compile(r"(?i)^\s*(?:cpu|gpu|memory|mem|ram)\b")
+ACTION_MEASUREMENT_PATTERN = re.compile(
+    r"(?i)^\s*(?:score|rate|speed|throughput|latency|accuracy|loss|error|duration|runtime|time)\b"
+)
+LABELED_MEASUREMENT_PATTERN = re.compile(
+    r"(?i)^\s*(?:score|rate|speed|throughput|latency|accuracy|loss|error|duration|runtime|time)\s*(?:=|:)\s*[-+]?\d"
+)
+EXPLICIT_RESULT_UNIT_PATTERN = re.compile(
+    r"(?i)\b\d+(?:\.\d+)?\s*(?:ms|msec|sec|secs|seconds|it/s|ops/s|req/s|qps|rps|samples/s|items/s|units/s|"
+    r"tokens/s|tok/s|t/s|kb/s|mb/s|gb/s|tb/s)\b"
+)
+
+
+def _measurement_candidates(output: dict[str, Any], *, command: str = "", limit: int = 8) -> list[str]:
+    text = "\n".join(
+        str(output.get(key) or "")
+        for key in ("stdout", "stderr", "result", "content")
+        if output.get(key) is not None
+    )
+    if not text.strip():
+        return []
+    command_has_measurement_intent = bool(MEASUREMENT_INTENT_PATTERN.search(command))
+    candidates: list[str] = []
+    for match in MEASUREMENT_PATTERN.finditer(text[:20000]):
+        candidate = " ".join(match.group(0).split())
+        if _candidate_is_diagnostic_only(candidate, command_has_measurement_intent):
+            continue
+        if candidate not in candidates:
+            candidates.append(candidate[:140])
+        if len(candidates) >= limit:
+            break
+    return candidates
+
+
+def _candidate_is_diagnostic_only(candidate: str, command_has_measurement_intent: bool) -> bool:
+    if command_has_measurement_intent:
+        return False
+    if DIAGNOSTIC_MEASUREMENT_PATTERN.search(candidate):
+        return True
+    if EXPLICIT_RESULT_UNIT_PATTERN.search(candidate) and not re.search(r"(?i)\b(?:cpu|gpu|ram|mem|memory)\b", candidate):
+        return False
+    if ACTION_MEASUREMENT_PATTERN.search(candidate):
+        return not bool(LABELED_MEASUREMENT_PATTERN.search(candidate))
+    return True
+
+
+def _maybe_create_measurement_obligation(
+    *,
+    db: AgentDB,
+    job_id: str,
+    step: dict[str, Any] | None,
+    tool_name: str,
+    args: dict[str, Any],
+    result: dict[str, Any],
+) -> None:
+    if tool_name != "shell_exec":
+        return
+    command = str(args.get("command") or result.get("command") or "")
+    candidates = _measurement_candidates(result, command=command)
+    if not candidates:
+        return
+    metadata = db.get_job(job_id).get("metadata")
+    if isinstance(metadata, dict):
+        existing = metadata.get("pending_measurement_obligation")
+        if isinstance(existing, dict) and existing and not existing.get("resolved_at"):
+            return
+    obligation = {
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "source_step_id": step.get("id") if step else "",
+        "source_step_no": step.get("step_no") if step else None,
+        "tool": tool_name,
+        "summary": "Tool output contains measurable-looking results that need experiment accounting.",
+        "metric_candidates": candidates,
+        "command": command[:1000],
+    }
+    db.update_job_metadata(job_id, {"pending_measurement_obligation": obligation})
+    db.append_agent_update(
+        job_id,
+        f"Measured output needs accounting: {', '.join(candidates[:3])}.",
+        category="blocked",
+        metadata={"pending_measurement_obligation": obligation},
+    )
+
+
+def _step_by_id(db: AgentDB, job_id: str, step_id: str) -> dict[str, Any] | None:
+    for step in db.list_steps(job_id=job_id):
+        if str(step.get("id") or "") == step_id:
+            return step
+    return None
 
 
 def _search_query(args: dict[str, Any]) -> str:
@@ -857,7 +1512,25 @@ def _query_tokens(query: str) -> set[str]:
     }
 
 
+def _text_tokens(value: str) -> set[str]:
+    return {
+        token
+        for token in re.findall(r"[a-z0-9]+", str(value or "").lower())
+        if len(token) > 2 and token not in TEXT_TOKEN_STOPWORDS
+    }
+
+
 def _similar_recent_search(
+    args: dict[str, Any],
+    recent_steps: list[dict[str, Any]],
+    *,
+    window: int = 12,
+) -> dict[str, Any] | None:
+    return _similar_recent_query_tool("web_search", args, recent_steps, window=window)
+
+
+def _similar_recent_query_tool(
+    tool_name: str,
     args: dict[str, Any],
     recent_steps: list[dict[str, Any]],
     *,
@@ -868,7 +1541,7 @@ def _similar_recent_search(
     if len(tokens) < 2:
         return None
     for step in reversed(_completed_recent_steps(recent_steps)[-window:]):
-        if step.get("tool_name") != "web_search":
+        if step.get("tool_name") != tool_name:
             continue
         input_data = step.get("input") or {}
         previous_args = input_data.get("arguments") if isinstance(input_data, dict) else None
@@ -884,6 +1557,67 @@ def _similar_recent_search(
     return None
 
 
+def _recent_tool_streak(recent_steps: list[dict[str, Any]], tool_name: str) -> int:
+    streak = 0
+    for step in reversed(_completed_recent_steps(recent_steps)):
+        current_tool = step.get("tool_name")
+        if current_tool == tool_name:
+            streak += 1
+            continue
+        if current_tool:
+            break
+    return streak
+
+
+def _repeated_guard_block_context(
+    recent_steps: list[dict[str, Any]],
+    *,
+    threshold: int = 3,
+    window: int = 12,
+) -> dict[str, Any] | None:
+    last_recovery_no = max(
+        (
+            int(step.get("step_no") or 0)
+            for step in recent_steps
+            if step.get("tool_name") == "guard_recovery" and step.get("status") == "completed"
+        ),
+        default=0,
+    )
+    operational_steps = [
+        step
+        for step in recent_steps
+        if int(step.get("step_no") or 0) > last_recovery_no
+        if step.get("kind") in {"tool", "recovery"} and step.get("tool_name") != "guard_recovery"
+    ]
+    tail = operational_steps[-window:]
+    latest_blocked = next((step for step in reversed(tail) if step.get("status") == "blocked"), None)
+    if not latest_blocked:
+        return None
+    output = latest_blocked.get("output") if isinstance(latest_blocked.get("output"), dict) else {}
+    error = str(output.get("error") or latest_blocked.get("error") or "")
+    if error not in RECOVERABLE_GUARD_ERRORS:
+        return None
+    count = 0
+    blocked_tools = []
+    first_step_no = None
+    for step in tail:
+        step_output = step.get("output") if isinstance(step.get("output"), dict) else {}
+        step_error = str(step_output.get("error") or step.get("error") or "")
+        if step.get("status") == "blocked" and step_error == error:
+            count += 1
+            first_step_no = first_step_no or step.get("step_no")
+            blocked_tools.append(str(step.get("tool_name") or step.get("kind") or "tool"))
+    if count < threshold:
+        return None
+    return {
+        "error": error,
+        "count": count,
+        "first_step_no": first_step_no,
+        "latest_step_no": latest_blocked.get("step_no"),
+        "blocked_tools": blocked_tools[-8:],
+    }
+
+
 def _blocked_tool_call_result(
     name: str,
     args: dict[str, Any],
@@ -892,15 +1626,118 @@ def _blocked_tool_call_result(
 ) -> tuple[dict[str, Any], str] | None:
     duplicate_step = _duplicate_recent_tool_call(name, args, recent_steps)
     if duplicate_step:
+        guidance = "Use a different query, extract one of the prior result URLs, open a result in the browser, or write an artifact."
+        if name == "read_artifact":
+            guidance = (
+                "This artifact was already read. Do not read it again; use its content to inspect a concrete item, "
+                "record findings/tasks, or write a report artifact."
+            )
+        elif name == "shell_exec":
+            guidance = (
+                "This shell command was already run. Do not rerun discovery; use the previous output to inspect a "
+                "specific file/item, write an artifact, or update findings/tasks."
+            )
         result = {
             "success": False,
             "error": "duplicate tool call blocked",
             "blocked_tool": name,
             "blocked_arguments": args,
             "previous_step": duplicate_step["id"],
-            "guidance": "Use a different query, extract one of the prior result URLs, open a result in the browser, or write an artifact.",
+            "guidance": guidance,
         }
         return result, f"blocked duplicate {name}; previous step #{duplicate_step['step_no']}"
+
+    measurement_obligation = _pending_measurement_obligation(job)
+    if measurement_obligation and name in MEASUREMENT_BLOCKED_TOOLS and name not in MEASUREMENT_RESOLUTION_TOOLS:
+        result = {
+            "success": False,
+            "error": "measurement obligation pending",
+            "blocked_tool": name,
+            "blocked_arguments": args,
+            "pending_measurement_obligation": measurement_obligation,
+            "guidance": (
+                "A recent action produced measurable output. Record it with record_experiment, "
+                "explain why it is invalid with record_lesson, or create the missing measurement branch with record_tasks "
+                "before doing more research, artifact writing, or finding/source updates."
+            ),
+        }
+        return result, f"blocked {name}; record_experiment required after measured output"
+
+    measured_progress_guard = _measured_progress_guard_context(job, recent_steps)
+    progress_churn = _progress_churn_context(recent_steps)
+    artifact_accounting = _artifact_accounting_context(recent_steps)
+    if (
+        artifact_accounting
+        and name in ARTIFACT_ACCOUNTING_BLOCKED_TOOLS
+        and name not in ARTIFACT_ACCOUNTING_RESOLUTION_TOOLS
+    ):
+        result = {
+            "success": False,
+            "error": "progress accounting required",
+            "blocked_tool": name,
+            "blocked_arguments": args,
+            "artifact_accounting": artifact_accounting,
+            "guidance": (
+                "Recent saved outputs have not been reflected in durable progress state. "
+                "Use record_tasks or record_roadmap to mark completed/open branches, "
+                "record_milestone_validation for milestone checks, record_findings or record_source "
+                "for reusable evidence, record_experiment for measurements, or record_lesson "
+                "if the outputs were low-value before continuing."
+            ),
+        }
+        return result, f"blocked {name}; progress accounting required after saved outputs"
+
+    if progress_churn and not measured_progress_guard and name in CHURN_TOOLS:
+        result = {
+            "success": False,
+            "error": "progress ledger update required",
+            "blocked_tool": name,
+            "blocked_arguments": args,
+            "progress_churn": progress_churn,
+            "guidance": (
+                "Recent activity has not changed findings, experiments, tasks, lessons, or sources. "
+                "Use a ledger tool to record progress, reject the branch, or create a pivot task before continuing."
+            ),
+        }
+        return result, f"blocked {name}; progress ledger update required"
+
+    roadmap_staleness = _roadmap_staleness_context(job, recent_steps)
+    if roadmap_staleness and name in ROADMAP_STALENESS_BLOCKED_TOOLS:
+        result = {
+            "success": False,
+            "error": "roadmap update required",
+            "blocked_tool": name,
+            "blocked_arguments": args,
+            "roadmap_staleness": roadmap_staleness,
+            "guidance": (
+                "The roadmap has not advanced despite durable task/artifact activity. "
+                "Use record_roadmap to mark milestone progress, record_milestone_validation "
+                "to judge an evidence-backed checkpoint, or record_lesson if the roadmap is wrong."
+            ),
+        }
+        return result, f"blocked {name}; roadmap update required"
+
+    milestone_validation = _milestone_validation_needed(job)
+    if milestone_validation and name in MILESTONE_VALIDATION_BLOCKED_TOOLS:
+        result = {
+            "success": False,
+            "error": "milestone validation required",
+            "blocked_tool": name,
+            "blocked_arguments": args,
+            "milestone": {
+                "title": milestone_validation.get("title"),
+                "status": milestone_validation.get("status"),
+                "validation_status": milestone_validation.get("validation_status"),
+                "acceptance_criteria": milestone_validation.get("acceptance_criteria"),
+                "evidence_needed": milestone_validation.get("evidence_needed"),
+            },
+            "guidance": (
+                "The current milestone is ready for validation. Use record_milestone_validation "
+                "with evidence and pass/fail/blocker status, read an existing artifact if needed, "
+                "or create follow-up tasks for validation gaps before starting more branch work."
+            ),
+        }
+        return result, f"blocked {name}; milestone validation required"
 
     anti_bot_context = _recent_anti_bot_context(recent_steps)
     if anti_bot_context:
@@ -949,16 +1786,36 @@ def _blocked_tool_call_result(
             return result, f"blocked misleading write_artifact; anti-bot source at step #{anti_bot_context.get('step_no')}"
 
     unpersisted_evidence = _unpersisted_evidence_step(recent_steps)
-    if unpersisted_evidence and name in INFORMATION_GATHERING_TOOLS:
+    if unpersisted_evidence and name in BRANCH_WORK_TOOLS:
         result = {
             "success": False,
             "error": "artifact required before more research",
             "blocked_tool": name,
             "blocked_arguments": args,
             "previous_step": unpersisted_evidence["id"],
-            "guidance": "Write an artifact summarizing the browser or extracted evidence before doing more search or browsing.",
+            "guidance": "Write an artifact summarizing the browser, extracted, or shell evidence before doing more search, browsing, or shell work.",
         }
         return result, f"blocked {name}; write_artifact required after evidence step #{unpersisted_evidence['step_no']}"
+
+    shell_budget_exhausted = (
+        name == "shell_exec"
+        and _as_int(measured_progress_guard.get("shell_actions_since_last_experiment")) >= MEASURABLE_ACTION_BUDGET_STEPS
+    ) if measured_progress_guard else False
+    if measured_progress_guard and (name in MEASURABLE_RESEARCH_BLOCKED_TOOLS or shell_budget_exhausted):
+        result = {
+            "success": False,
+            "error": "measured progress required",
+            "blocked_tool": name,
+            "blocked_arguments": args,
+            "measured_progress_guard": measured_progress_guard,
+            "guidance": (
+                "This job is measurably framed and has exhausted its research budget without new experiment records. "
+                "If the shell/action budget is exhausted, do not call shell_exec again; call record_experiment for a "
+                "known measurement, record_tasks with an experiment/action/monitor contract, or record_lesson if "
+                "measurement is blocked."
+            ),
+        }
+        return result, f"blocked {name}; measured progress required"
 
     if name in BRANCH_WORK_TOOLS and _task_queue_exhausted(job):
         result = {
@@ -1012,6 +1869,36 @@ def _blocked_tool_call_result(
             }
             return result, f"blocked web_search after {streak} consecutive searches"
 
+    if name == "search_artifacts":
+        similar_step = _similar_recent_query_tool("search_artifacts", args, recent_steps)
+        if similar_step:
+            result = {
+                "success": False,
+                "error": "similar artifact search blocked",
+                "blocked_tool": name,
+                "blocked_arguments": args,
+                "previous_step": similar_step["id"],
+                "guidance": (
+                    "Use a returned artifact, record what the prior artifact searches proved, "
+                    "or create the next concrete task instead of searching saved outputs again."
+                ),
+            }
+            return result, f"blocked similar search_artifacts; previous step #{similar_step['step_no']}"
+        streak = _recent_tool_streak(recent_steps, "search_artifacts")
+        if streak >= 3:
+            result = {
+                "success": False,
+                "error": "artifact search loop blocked",
+                "blocked_tool": name,
+                "blocked_arguments": args,
+                "recent_artifact_search_streak": streak,
+                "guidance": (
+                    "Stop searching saved outputs. Read a specific returned artifact, update tasks/findings/lessons, "
+                    "or write the next report artifact from already-read evidence."
+                ),
+            }
+            return result, f"blocked search_artifacts after {streak} consecutive artifact searches"
+
     return None
 
 
@@ -1052,6 +1939,18 @@ def _summarize_tool_result(name: str, args: dict[str, Any], result: dict[str, An
         )
     if name == "record_tasks":
         return f"record_tasks updated queue: {result.get('added', 0)} new, {result.get('updated', 0)} updated"
+    if name == "record_roadmap":
+        roadmap = result.get("roadmap") if isinstance(result.get("roadmap"), dict) else {}
+        return (
+            f"record_roadmap {roadmap.get('status')}: {roadmap.get('title')} "
+            f"milestones={len(roadmap.get('milestones') or [])}"
+        )
+    if name == "record_milestone_validation":
+        validation = result.get("validation") if isinstance(result.get("validation"), dict) else {}
+        return (
+            f"record_milestone_validation {validation.get('validation_status')}: "
+            f"{validation.get('title')} followups={len(result.get('follow_up_tasks') or [])}"
+        )
     if name == "record_experiment":
         experiment = result.get("experiment") if isinstance(result.get("experiment"), dict) else {}
         metric = ""
@@ -1059,6 +1958,8 @@ def _summarize_tool_result(name: str, args: dict[str, Any], result: dict[str, An
             metric = f" {experiment.get('metric_name') or 'metric'}={experiment.get('metric_value')}{experiment.get('metric_unit') or ''}"
         best = " best" if experiment.get("best_observed") else ""
         return f"record_experiment {experiment.get('status')}: {experiment.get('title')}{metric}{best}"
+    if name == "acknowledge_operator_context":
+        return f"acknowledge_operator_context {result.get('status')} count={result.get('count', 0)}"
     if name == "browser_navigate":
         data = result.get("data") if isinstance(result.get("data"), dict) else {}
         title = data.get("title") or ""
@@ -1205,6 +2106,25 @@ def _run_reflection_step(
     tasks = metadata.get("task_queue") if isinstance(metadata.get("task_queue"), list) else []
     experiments = metadata.get("experiment_ledger") if isinstance(metadata.get("experiment_ledger"), list) else []
     lessons = metadata.get("lessons") if isinstance(metadata.get("lessons"), list) else []
+    roadmap = metadata.get("roadmap") if isinstance(metadata.get("roadmap"), dict) else {}
+    milestones = roadmap.get("milestones") if isinstance(roadmap.get("milestones"), list) else []
+    validating_milestones = [
+        milestone for milestone in milestones
+        if isinstance(milestone, dict)
+        and (
+            str(milestone.get("status") or "planned") == "validating"
+            or str(milestone.get("validation_status") or "not_started") == "pending"
+        )
+    ]
+    operator_messages = metadata.get("operator_messages") if isinstance(metadata.get("operator_messages"), list) else []
+    active_operator_messages = [
+        entry for entry in operator_messages
+        if isinstance(entry, dict)
+        and str(entry.get("mode") or "steer") in {"steer", "follow_up"}
+        and not entry.get("acknowledged_at")
+        and not entry.get("superseded_at")
+    ]
+    pending_measurement = _pending_measurement_obligation(job)
     artifacts = db.list_artifacts(job_id, limit=12)
     failures = [step for step in recent_steps[-REFLECTION_INTERVAL_STEPS:] if step.get("status") == "failed" or step.get("status") == "blocked"]
     step_no = _max_step_no(recent_steps)
@@ -1236,14 +2156,19 @@ def _run_reflection_step(
         )
     summary = (
         f"Reflection through step #{step_no}: {len(findings)} findings, {len(sources)} sources, "
-        f"{len(tasks)} tasks, {len(experiments)} experiments, {len(lessons)} lessons, "
+        f"{len(tasks)} tasks, {len(experiments)} experiments, {len(milestones)} roadmap milestones, "
+        f"{len(lessons)} lessons, "
+        f"{len(active_operator_messages)} active operator messages, "
         f"{len(finding_batches)} recent finding artifacts, {len(failures)} recent blocked/failed steps. "
         f"Best source direction: {source_text}. Best measured result: {best_experiment_text}."
+        + (f" Roadmap '{roadmap.get('title')}' has {len(validating_milestones)} milestone(s) needing validation." if roadmap else "")
+        + (" Pending measurement obligation needs resolution." if pending_measurement else "")
     )
     strategy = (
         "Prioritize source types that have yielded durable findings or artifacts; "
         "downgrade repetitive, blocked, or low-evidence paths that do not advance the objective. "
-        "For measurable work, convert ideas into record_experiment trials and choose the next branch from the best observed result."
+        "For measurable work, convert ideas into record_experiment trials and choose the next branch from the best observed result. "
+        "For broad work, keep roadmap milestones compact and validate milestones from evidence before expanding scope."
     )
     reflection = db.append_reflection(
         job_id,
@@ -1255,7 +2180,11 @@ def _run_reflection_step(
             "source_count": len(sources),
             "task_count": len(tasks),
             "experiment_count": len(experiments),
+            "roadmap_milestone_count": len(milestones),
+            "roadmap_validation_needed_count": len(validating_milestones),
             "measured_experiment_count": len(measured_experiments),
+            "active_operator_message_count": len(active_operator_messages),
+            "pending_measurement_obligation": bool(pending_measurement),
         },
     )
     db.append_lesson(job_id, strategy, category="strategy", confidence=0.75, metadata={"source": "reflection", "through_step": step_no})
@@ -1266,6 +2195,65 @@ def _run_reflection_step(
     _emit_loop_end(db, job_id, run_id, status="completed", step_id=step_id, tool_name="reflect", detail=summary)
     refresh_memory_index(db, job_id)
     return StepExecution(job_id=job_id, run_id=run_id, step_id=step_id, tool_name="reflect", status="completed", result=result)
+
+
+def _run_guard_recovery_step(
+    context: dict[str, Any],
+    *,
+    db: AgentDB,
+    job_id: str,
+    run_id: str,
+) -> StepExecution:
+    error = str(context.get("error") or "recoverable guard")
+    step_id = db.add_step(job_id=job_id, run_id=run_id, kind="recovery", tool_name="guard_recovery")
+    lesson = db.append_lesson(
+        job_id,
+        (
+            f"Repeated guard block '{error}' occurred {context.get('count')} times. "
+            "Do not retry the same blocked tool pattern; update durable progress state, create a new branch, "
+            "or explicitly reject the branch before continuing."
+        ),
+        category="strategy",
+        confidence=0.75,
+        metadata={"guard_recovery": context},
+    )
+    task = db.append_task_record(
+        job_id,
+        title=f"Resolve guard: {error}",
+        status="open",
+        priority=9,
+        goal="Convert the repeated guard block into durable progress before retrying the blocked action.",
+        output_contract="decision",
+        acceptance_criteria=(
+            "Use record_tasks, record_findings, record_source, record_experiment, or record_lesson to state what "
+            "changed, what branch is rejected, or what concrete branch should run next."
+        ),
+        evidence_needed=f"Recent blocked tools: {', '.join(context.get('blocked_tools') or [])}",
+        stall_behavior="If the same guard appears again, pivot to a different branch or record the branch as blocked.",
+        metadata={"guard_recovery": context},
+    )
+    message = (
+        f"Guard recovery opened a task after repeated '{error}' blocks "
+        f"from step #{context.get('first_step_no')} to #{context.get('latest_step_no')}."
+    )
+    update = db.append_agent_update(
+        job_id,
+        message,
+        category="blocked",
+        metadata={"guard_recovery": context, "task_key": task.get("key"), "lesson_key": lesson.get("key")},
+    )
+    result = {
+        "success": True,
+        "guard_recovery": context,
+        "lesson": lesson,
+        "task": task,
+        "update": update,
+    }
+    db.finish_step(step_id, status="completed", summary=message, output_data=result)
+    db.finish_run(run_id, "completed")
+    _emit_loop_end(db, job_id, run_id, status="completed", step_id=step_id, tool_name="guard_recovery", detail=message)
+    refresh_memory_index(db, job_id)
+    return StepExecution(job_id=job_id, run_id=run_id, step_id=step_id, tool_name="guard_recovery", status="completed", result=result)
 
 
 def _evidence_checkpoint_content(evidence_step: dict[str, Any]) -> str:
@@ -1365,14 +2353,118 @@ def _auto_record_tool_source_quality(
     tool_name: str | None,
     result: dict[str, Any],
 ) -> None:
-    if tool_name not in {"browser_navigate", "browser_snapshot"}:
+    if tool_name == "web_extract":
+        pages = result.get("pages") if isinstance(result.get("pages"), list) else []
+        for page in pages[:12]:
+            if not isinstance(page, dict):
+                continue
+            url = str(page.get("url") or "").strip()
+            if not url:
+                continue
+            text = str(page.get("text") or "")
+            error = str(page.get("error") or "")
+            if error:
+                db.append_source_record(
+                    job_id,
+                    url,
+                    source_type="web_extract",
+                    usefulness_score=0.1,
+                    fail_count_delta=1,
+                    warnings=[error[:180]],
+                    outcome=f"extract failed: {error[:180]}",
+                    metadata={"auto_from_tool": "web_extract"},
+                )
+                continue
+            score = 0.35
+            if len(text.strip()) >= 500:
+                score = 0.55
+            if len(text.strip()) >= 3000:
+                score = 0.7
+            db.append_source_record(
+                job_id,
+                url,
+                source_type="web_extract",
+                usefulness_score=score,
+                yield_count=0,
+                outcome=f"extracted {len(text.strip())} chars for possible use",
+                metadata={"auto_from_tool": "web_extract"},
+            )
         return
-    context = _browser_warning_context(result)
-    if not context:
-        return
-    result["source_warning"] = context["reason"]
-    result["source_url"] = context.get("url") or ""
-    _auto_record_blocked_source(db=db, job_id=job_id, context=context, blocked_tool=tool_name or "browser")
+    if tool_name in {"browser_navigate", "browser_snapshot"}:
+        context = _browser_warning_context(result)
+        if not context:
+            return
+        result["source_warning"] = context["reason"]
+        result["source_url"] = context.get("url") or ""
+        _auto_record_blocked_source(db=db, job_id=job_id, context=context, blocked_tool=tool_name or "browser")
+
+
+def _auto_reconcile_artifact_tasks(
+    *,
+    db: AgentDB,
+    job_id: str,
+    args: dict[str, Any],
+    result: dict[str, Any],
+) -> list[dict[str, Any]]:
+    artifact_id = str(result.get("artifact_id") or "")
+    if not artifact_id:
+        return []
+    artifact_title = str(args.get("title") or "")
+    artifact_summary = str(args.get("summary") or "")
+    artifact_content = str(args.get("content") or "")
+    artifact_text = " ".join([artifact_title, artifact_summary, artifact_content[:4000]])
+    artifact_tokens = _text_tokens(artifact_text)
+    if len(artifact_tokens) < 2:
+        return []
+    job = db.get_job(job_id)
+    reconciled = []
+    for task in _metadata_list(job, "task_queue"):
+        status = str(task.get("status") or "open").strip().lower()
+        if status not in {"open", "active"}:
+            continue
+        contract = str(task.get("output_contract") or "").strip().lower()
+        if contract in {"experiment", "action", "monitor"}:
+            continue
+        task_text = " ".join(
+            str(task.get(key) or "")
+            for key in ("title", "goal", "acceptance_criteria", "evidence_needed", "source_hint")
+        )
+        task_tokens = _text_tokens(task_text)
+        if len(task_tokens) < 2:
+            continue
+        overlap = task_tokens & artifact_tokens
+        needed = max(2, min(4, (len(task_tokens) + 1) // 2))
+        if len(overlap) < needed:
+            continue
+        updated = db.append_task_record(
+            job_id,
+            title=str(task.get("title") or ""),
+            status="done",
+            priority=_as_int(task.get("priority")),
+            goal=str(task.get("goal") or ""),
+            source_hint=str(task.get("source_hint") or ""),
+            result=f"Saved output {artifact_id}: {_clip_text(artifact_title or artifact_summary, 180)}",
+            parent=str(task.get("parent") or ""),
+            output_contract=contract,
+            acceptance_criteria=str(task.get("acceptance_criteria") or ""),
+            evidence_needed=str(task.get("evidence_needed") or ""),
+            stall_behavior=str(task.get("stall_behavior") or ""),
+            metadata={
+                **(task.get("metadata") if isinstance(task.get("metadata"), dict) else {}),
+                "auto_reconciled_from_artifact": artifact_id,
+                "matched_tokens": sorted(overlap)[:12],
+            },
+        )
+        reconciled.append(updated)
+    if reconciled:
+        titles = ", ".join(str(task.get("title") or "") for task in reconciled[:4])
+        db.append_agent_update(
+            job_id,
+            f"Task progress reconciled from saved output {artifact_id}: {titles}.",
+            category="plan",
+            metadata={"artifact_id": artifact_id, "task_count": len(reconciled)},
+        )
+    return reconciled
 
 
 def _auto_checkpoint_update(
@@ -1405,6 +2497,142 @@ def _auto_checkpoint_update(
     db.append_agent_update(job_id, message, category=category, metadata={"step_no": step_no, "tool": tool_name})
 
 
+def _execute_tool_call(
+    call: Any,
+    *,
+    job: dict[str, Any],
+    recent_steps: list[dict[str, Any]],
+    config: AppConfig,
+    db: AgentDB,
+    artifacts: ArtifactStore,
+    registry: ToolRegistry,
+    job_id: str,
+    run_id: str,
+) -> tuple[StepExecution, bool, str, str | None]:
+    step_id = db.add_step(
+        job_id=job_id,
+        run_id=run_id,
+        kind="tool",
+        tool_name=call.name,
+        input_data={"tool_call_id": call.id, "arguments": call.arguments},
+    )
+    blocked = _blocked_tool_call_result(call.name, call.arguments, recent_steps, job)
+    if blocked:
+        result, summary = blocked
+        result = {**result, "success": True, "recoverable": True}
+        evidence_checkpoint = None
+        if result.get("error") == "artifact required before more research":
+            evidence_step = next(
+                (step for step in recent_steps if step.get("id") == result.get("previous_step")),
+                None,
+            )
+            if evidence_step:
+                evidence_checkpoint = _auto_persist_evidence(
+                    db=db,
+                    artifacts=artifacts,
+                    job_id=job_id,
+                    run_id=run_id,
+                    step_id=step_id,
+                    blocked_tool=call.name,
+                    evidence_step=evidence_step,
+                )
+                result["auto_checkpoint"] = evidence_checkpoint
+                summary = f"blocked {call.name}; auto-saved evidence checkpoint {evidence_checkpoint['artifact_id']}"
+        anti_bot_source = result.get("anti_bot_source") if isinstance(result.get("anti_bot_source"), dict) else None
+        if anti_bot_source:
+            result["auto_source_record"] = _auto_record_blocked_source(
+                db=db,
+                job_id=job_id,
+                context=anti_bot_source,
+                blocked_tool=call.name,
+            )
+        known_bad_source = result.get("known_bad_source") if isinstance(result.get("known_bad_source"), dict) else None
+        if known_bad_source:
+            db.append_agent_update(
+                job_id,
+                f"Source ledger blocked retry of {known_bad_source.get('source')}; choosing a different route next.",
+                category="blocked",
+                metadata={"source": known_bad_source, "blocked_tool": call.name},
+            )
+        db.finish_step(
+            step_id,
+            status="blocked",
+            summary=summary,
+            output_data=result,
+            error=None,
+        )
+        return (
+            StepExecution(job_id=job_id, run_id=run_id, step_id=step_id, tool_name=call.name, status="blocked", result=result),
+            True,
+            summary,
+            None,
+        )
+
+    ctx = ToolContext(
+        config=config,
+        db=db,
+        artifacts=artifacts,
+        job_id=job_id,
+        run_id=run_id,
+        step_id=step_id,
+        task_id=job_id,
+    )
+    try:
+        raw_result = registry.handle(call.name, call.arguments, ctx)
+        result = _parse_tool_result(raw_result)
+        ok = bool(result.get("success", True)) and not result.get("error")
+        status = "completed" if ok else "failed"
+        if ok:
+            _auto_record_tool_source_quality(db=db, job_id=job_id, tool_name=call.name, result=result)
+        summary = _summarize_tool_result(call.name, call.arguments, result, ok=ok)
+        db.finish_step(step_id, status=status, summary=summary, output_data=result, error=result.get("error"))
+        if ok:
+            finished_step = _step_by_id(db, job_id, step_id)
+            _maybe_create_measurement_obligation(
+                db=db,
+                job_id=job_id,
+                step=finished_step,
+                tool_name=call.name,
+                args=call.arguments,
+                result=result,
+            )
+            _auto_checkpoint_update(
+                db=db,
+                job_id=job_id,
+                step_no=(finished_step or db.list_steps(job_id=job_id)[-1])["step_no"],
+                tool_name=call.name,
+                args=call.arguments,
+                result=result,
+            )
+            if call.name == "write_artifact":
+                reconciled_tasks = _auto_reconcile_artifact_tasks(
+                    db=db,
+                    job_id=job_id,
+                    args=call.arguments,
+                    result=result,
+                )
+                if reconciled_tasks:
+                    result["auto_reconciled_tasks"] = [
+                        {"title": task.get("title"), "status": task.get("status")}
+                        for task in reconciled_tasks[:8]
+                    ]
+        return (
+            StepExecution(job_id=job_id, run_id=run_id, step_id=step_id, tool_name=call.name, status=status, result=result),
+            status != "completed",
+            summary,
+            result.get("error") if status == "failed" else None,
+        )
+    except Exception as exc:
+        result = _error_result(exc)
+        db.finish_step(step_id, status="failed", summary=f"{call.name} raised", output_data=result, error=str(exc))
+        return (
+            StepExecution(job_id=job_id, run_id=run_id, step_id=step_id, tool_name=call.name, status="failed", result=result),
+            True,
+            str(exc),
+            str(exc),
+        )
+
+
 def run_one_step(
     job_id: str,
     *,
@@ -1420,11 +2648,18 @@ def run_one_step(
     try:
         artifacts = ArtifactStore(config.runtime.home, db=db)
         job = db.get_job(job_id)
+        if _acknowledge_non_prompt_operator_context(db, job_id):
+            job = db.get_job(job_id)
+        if _clear_invalid_measurement_obligation(db, job_id):
+            job = db.get_job(job_id)
         run_id = db.start_run(job_id, model=config.model.model)
         _emit_loop_start(db, job_id, run_id)
         recent_steps = db.list_steps(job_id=job_id)
         if _should_reflect(job, recent_steps):
             return _run_reflection_step(job, recent_steps, db=db, job_id=job_id, run_id=run_id)
+        guard_recovery = _repeated_guard_block_context(recent_steps)
+        if guard_recovery:
+            return _run_guard_recovery_step(guard_recovery, db=db, job_id=job_id, run_id=run_id)
         active_operator_messages = _claim_operator_queue(db, job_id)
         if active_operator_messages:
             job = db.get_job(job_id)
@@ -1459,101 +2694,47 @@ def run_one_step(
         _emit_assistant_message_event(db, job_id, run_id, response)
 
         if response.tool_calls:
-            call = response.tool_calls[0]
-            step_id = db.add_step(
-                job_id=job_id,
-                run_id=run_id,
-                kind="tool",
-                tool_name=call.name,
-                input_data={"tool_call_id": call.id, "arguments": call.arguments},
-            )
-            blocked = _blocked_tool_call_result(call.name, call.arguments, recent_steps, job)
-            if blocked:
-                result, summary = blocked
-                result = {**result, "success": True, "recoverable": True}
-                evidence_checkpoint = None
-                if result.get("error") == "artifact required before more research":
-                    evidence_step = next(
-                        (step for step in recent_steps if step.get("id") == result.get("previous_step")),
-                        None,
-                    )
-                    if evidence_step:
-                        evidence_checkpoint = _auto_persist_evidence(
-                            db=db,
-                            artifacts=artifacts,
-                            job_id=job_id,
-                            run_id=run_id,
-                            step_id=step_id,
-                            blocked_tool=call.name,
-                            evidence_step=evidence_step,
-                        )
-                        result["auto_checkpoint"] = evidence_checkpoint
-                        summary = f"blocked {call.name}; auto-saved evidence checkpoint {evidence_checkpoint['artifact_id']}"
-                anti_bot_source = result.get("anti_bot_source") if isinstance(result.get("anti_bot_source"), dict) else None
-                if anti_bot_source:
-                    result["auto_source_record"] = _auto_record_blocked_source(
-                        db=db,
-                        job_id=job_id,
-                        context=anti_bot_source,
-                        blocked_tool=call.name,
-                    )
-                known_bad_source = result.get("known_bad_source") if isinstance(result.get("known_bad_source"), dict) else None
-                if known_bad_source:
-                    db.append_agent_update(
-                        job_id,
-                        f"Source ledger blocked retry of {known_bad_source.get('source')}; choosing a different route next.",
-                        category="blocked",
-                        metadata={"source": known_bad_source, "blocked_tool": call.name},
-                    )
-                db.finish_step(
-                    step_id,
-                    status="blocked",
-                    summary=summary,
-                    output_data=result,
-                    error=None,
+            executions: list[StepExecution] = []
+            details: list[str] = []
+            run_error: str | None = None
+            for call in response.tool_calls:
+                current_job = db.get_job(job_id)
+                current_recent_steps = db.list_steps(job_id=job_id)
+                execution, stop_batch, detail, error = _execute_tool_call(
+                    call,
+                    job=current_job,
+                    recent_steps=current_recent_steps,
+                    config=config,
+                    db=db,
+                    artifacts=artifacts,
+                    registry=registry,
+                    job_id=job_id,
+                    run_id=run_id,
                 )
-                db.finish_run(run_id, "completed")
-                _emit_loop_end(db, job_id, run_id, status="blocked", step_id=step_id, tool_name=call.name, detail=summary)
-                refresh_memory_index(db, job_id)
-                return StepExecution(job_id=job_id, run_id=run_id, step_id=step_id, tool_name=call.name, status="blocked", result=result)
-            ctx = ToolContext(
-                config=config,
-                db=db,
-                artifacts=artifacts,
-                job_id=job_id,
-                run_id=run_id,
-                step_id=step_id,
-                task_id=job_id,
+                executions.append(execution)
+                details.append(detail)
+                if error:
+                    run_error = error
+                if stop_batch:
+                    break
+
+            final_execution = executions[-1]
+            run_status = "failed" if any(item.status == "failed" for item in executions) else "completed"
+            db.finish_run(run_id, run_status, error=run_error)
+            detail = f"executed {len(executions)}/{len(response.tool_calls)} tool calls"
+            if details:
+                detail = f"{detail}; last: {details[-1]}"
+            _emit_loop_end(
+                db,
+                job_id,
+                run_id,
+                status=final_execution.status,
+                step_id=final_execution.step_id,
+                tool_name=final_execution.tool_name,
+                detail=detail,
             )
-            try:
-                raw_result = registry.handle(call.name, call.arguments, ctx)
-                result = _parse_tool_result(raw_result)
-                ok = bool(result.get("success", True)) and not result.get("error")
-                status = "completed" if ok else "failed"
-                if ok:
-                    _auto_record_tool_source_quality(db=db, job_id=job_id, tool_name=call.name, result=result)
-                summary = _summarize_tool_result(call.name, call.arguments, result, ok=ok)
-                db.finish_step(step_id, status=status, summary=summary, output_data=result, error=result.get("error"))
-                db.finish_run(run_id, "completed" if ok else "failed", error=result.get("error"))
-                _emit_loop_end(db, job_id, run_id, status=status, step_id=step_id, tool_name=call.name, detail=summary)
-                if ok:
-                    _auto_checkpoint_update(
-                        db=db,
-                        job_id=job_id,
-                        step_no=db.list_steps(job_id=job_id)[-1]["step_no"],
-                        tool_name=call.name,
-                        args=call.arguments,
-                        result=result,
-                    )
-                refresh_memory_index(db, job_id)
-                return StepExecution(job_id=job_id, run_id=run_id, step_id=step_id, tool_name=call.name, status=status, result=result)
-            except Exception as exc:
-                result = _error_result(exc)
-                db.finish_step(step_id, status="failed", summary=f"{call.name} raised", output_data=result, error=str(exc))
-                db.finish_run(run_id, "failed", error=str(exc))
-                _emit_loop_end(db, job_id, run_id, status="failed", step_id=step_id, tool_name=call.name, detail=str(exc))
-                refresh_memory_index(db, job_id)
-                return StepExecution(job_id=job_id, run_id=run_id, step_id=step_id, tool_name=call.name, status="failed", result=result)
+            refresh_memory_index(db, job_id)
+            return final_execution
 
         step_id = db.add_step(
             job_id=job_id,

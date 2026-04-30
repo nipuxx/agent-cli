@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta, timezone
+
 from nipux_cli.artifacts import ArtifactStore
 from nipux_cli.config import AppConfig, RuntimeConfig
 from nipux_cli.dashboard import collect_dashboard_state, render_dashboard, render_overview
@@ -9,7 +11,7 @@ def test_dashboard_collects_jobs_steps_and_artifacts(tmp_path):
     db = AgentDB(tmp_path / "state.db")
     try:
         job_id = db.create_job("Research topic every morning", title="research", kind="generic")
-        run_id = db.start_run(job_id, model="fake-qwen")
+        run_id = db.start_run(job_id, model="fake-model")
         step_id = db.add_step(
             job_id=job_id,
             run_id=run_id,
@@ -59,5 +61,26 @@ def test_overview_marks_stopped_daemon_as_not_advancing(tmp_path):
         overview = render_overview(state, width=100)
 
         assert "job will not advance" in overview
+    finally:
+        db.close()
+
+
+def test_overview_marks_old_heartbeat_as_busy_for_running_step(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Measure a process", title="measure")
+        run_id = db.start_run(job_id, model="fake-model")
+        db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec", status="running")
+        state = collect_dashboard_state(db, config, job_id=job_id)
+        state["daemon"]["running"] = True
+        state["daemon"]["metadata"] = {
+            "last_heartbeat": (datetime.now(timezone.utc) - timedelta(seconds=180)).isoformat(),
+        }
+
+        overview = render_overview(state, width=100)
+
+        assert "busy #1 shell_exec" in overview
+        assert "heartbeat 180s ago (stale)" not in overview
     finally:
         db.close()

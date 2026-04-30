@@ -8,6 +8,8 @@ venv/
 __pycache__/
 *.py[cod]
 *.egg-info/
+build/
+dist/
 
 .pytest_cache/
 .ruff_cache/
@@ -21,8 +23,15 @@ data/
 ignored/
 
 # Local runtime state, if pointed inside the checkout.
+.nipux/
 .naked-agent/
 naked-agent-state/
+state.db
+state.db-*
+*.sqlite
+*.sqlite3
+*.db
+*.db-*
 
 # Browser automation installs and caches.
 agent-browser/

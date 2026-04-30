@@ -17,7 +17,8 @@ def test_daily_digest_includes_ledgers_lessons_sources_and_strategy(tmp_path):
         body = render_daily_digest(db)
         result = write_daily_digest(config, db, day="2026-04-25")
 
-        assert "Counts: 1 findings, 1 sources, 1 tasks, 1 lessons" in body
+        assert "Counts: 1 findings, 1 sources, 1 tasks, 0 experiments, 1 lessons" in body
+        assert "Experiments:" in body
         assert "Acme Finding" in body
         assert "Explore primary sources" in body
         assert "Low-evidence pages are not finding sources." in body

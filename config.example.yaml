@@ -1,0 +1,19 @@
+model:
+  name: openai/gpt-4.1-mini
+  base_url: https://openrouter.ai/api/v1
+  api_key_env: OPENROUTER_API_KEY
+  context_length: 262144
+runtime:
+  max_step_seconds: 600
+  max_steps_per_run: 1
+  artifact_inline_char_limit: 12000
+  daily_digest_enabled: true
+  daily_digest_time: "08:00"
+email:
+  enabled: false
+  smtp_host: ""
+  smtp_port: 587
+  username: ""
+  password_env: NIPUX_EMAIL_PASSWORD
+  from_addr: ""
+  to_addr: ""

@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from nipux_cli.config import DEFAULT_CONTEXT_LENGTH, load_config
+from nipux_cli.config import DEFAULT_CONTEXT_LENGTH, default_config_yaml, load_config
 
 
 def test_load_config_defaults_to_local_model(tmp_path, monkeypatch):
@@ -54,11 +54,11 @@ email:
 def test_load_config_reads_local_env_file(tmp_path, monkeypatch):
     monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
     monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
-    (tmp_path / ".env").write_text("OPENROUTER_API_KEY=secret-test-key\n", encoding="utf-8")
+    (tmp_path / ".env").write_text("OPENROUTER_API_KEY" + "=secret-test-key\n", encoding="utf-8")
     (tmp_path / "config.yaml").write_text(
         """
 model:
-  name: qwen/qwen3.5-27b
+  name: provider/test-model
   base_url: https://openrouter.ai/api/v1
   api_key_env: OPENROUTER_API_KEY
 """,
@@ -68,3 +68,18 @@ model:
     config = load_config()
 
     assert config.model.api_key == "secret-test-key"
+
+
+def test_default_config_yaml_allows_provider_template_without_secret():
+    text = default_config_yaml(
+        model="provider/model",
+        base_url="https://openrouter.ai/api/v1/",
+        api_key_env="OPENROUTER_API_KEY",
+        context_length=8192,
+    )
+
+    assert "name: provider/model" in text
+    assert "base_url: https://openrouter.ai/api/v1" in text
+    assert "api_key_env: OPENROUTER_API_KEY" in text
+    assert "context_length: 8192" in text
+    assert "sk-" not in text

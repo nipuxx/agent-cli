@@ -60,7 +60,6 @@ class OpenAIChatLLM:
             model=self.config.model,
             messages=messages,
             tools=tools,
-            tool_choice="auto",
         )
         choices = response.choices or []
         if not choices:

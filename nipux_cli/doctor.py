@@ -9,6 +9,7 @@ import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 from nipux_cli.config import AppConfig, load_config
 from nipux_cli.db import AgentDB
@@ -53,6 +54,21 @@ def _check_tool_surface() -> Check:
     return Check("tool_surface", True, f"{len(names)} tools: {', '.join(names)}")
 
 
+def _check_model_config(config: AppConfig) -> Check:
+    base_url = config.model.base_url
+    host = (urlparse(base_url).hostname or "").lower()
+    local_hosts = {"", "localhost", "127.0.0.1", "::1", "0.0.0.0"}
+    if host in local_hosts or host.endswith(".local"):
+        return Check("model_config", True, f"{config.model.model} at {base_url}")
+    if config.model.api_key:
+        return Check("model_config", True, f"{config.model.model} at {base_url}; key read from {config.model.api_key_env}")
+    return Check(
+        "model_config",
+        False,
+        f"{config.model.api_key_env} is not set for remote endpoint {base_url}; put it in the shell or ~/.nipux/.env",
+    )
+
+
 def _check_browser_runtime() -> Check:
     direct = shutil.which("agent-browser")
     if direct:
@@ -84,22 +100,77 @@ def _check_model_endpoint(config: AppConfig) -> Check:
             available = _model_available(data, config.model.model)
             if available is False:
                 return Check("model_endpoint", False, f"{config.model.model} not found at {url}; models={count}")
-            return Check("model_endpoint", True, f"{url} returned models={count}; {config.model.model} available")
+            generation = _check_model_generation(config)
+            if not generation.ok:
+                return generation
+            return Check("model_endpoint", True, f"{url} returned models={count}; {config.model.model} available; generation accepted")
         except json.JSONDecodeError:
-            return Check("model_endpoint", True, f"{url} responded")
+            generation = _check_model_generation(config)
+            if not generation.ok:
+                return generation
+            return Check("model_endpoint", True, f"{url} responded; generation accepted")
     except (urllib.error.URLError, TimeoutError, OSError) as exc:
         return Check("model_endpoint", False, f"{url}: {exc}")
+
+
+def _check_model_generation(config: AppConfig) -> Check:
+    url = config.model.base_url.rstrip("/") + "/chat/completions"
+    payload = {
+        "model": config.model.model,
+        "messages": [{"role": "user", "content": "Reply with exactly: ok"}],
+        "max_tokens": 8,
+        "temperature": 0,
+        "tools": [
+            {
+                "type": "function",
+                "function": {
+                    "name": "noop",
+                    "description": "No-op model readiness probe.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {"reason": {"type": "string"}},
+                        "required": ["reason"],
+                    },
+                },
+            }
+        ],
+    }
+    request = urllib.request.Request(
+        url,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            "Authorization": f"Bearer {config.model.api_key or 'local-no-key'}",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=15) as response:
+            body = response.read(64_000).decode("utf-8", errors="replace")
+        data = json.loads(body)
+        choices = data.get("choices") if isinstance(data, dict) else None
+        if isinstance(choices, list) and choices:
+            return Check("model_generation", True, f"{url} accepted chat/tool request")
+        return Check("model_generation", False, f"{url} returned no choices")
+    except urllib.error.HTTPError as exc:
+        body = exc.read(2048).decode("utf-8", errors="replace")
+        detail = _extract_error_message(body) or str(exc)
+        return Check("model_generation", False, f"{url}: {detail}")
+    except (json.JSONDecodeError, urllib.error.URLError, TimeoutError, OSError) as exc:
+        return Check("model_generation", False, f"{url}: {exc}")
 
 
 def _check_openrouter_auth(config: AppConfig) -> Check | None:
     if "openrouter.ai" not in config.model.base_url:
         return None
+    if not config.model.api_key:
+        return Check("model_auth", False, "OpenRouter API key is not set")
     url = "https://openrouter.ai/api/v1/key"
     request = urllib.request.Request(url, headers={"Authorization": f"Bearer {config.model.api_key}"})
     try:
         with urllib.request.urlopen(request, timeout=5) as response:
             response.read(2048)
-        return Check("model_auth", True, "API key accepted by OpenRouter")
+        return Check("model_auth", True, "OpenRouter API key accepted")
     except urllib.error.HTTPError as exc:
         body = exc.read(512).decode("utf-8", errors="replace")
         detail = _extract_error_message(body) or str(exc)
@@ -131,6 +202,7 @@ def run_doctor(*, config: AppConfig | None = None, check_model: bool = False) ->
     checks = [
         _check_writable_dir(config.runtime.home),
         _check_db(config),
+        _check_model_config(config),
         _check_tool_surface(),
         _check_browser_runtime(),
     ]

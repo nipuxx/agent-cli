@@ -57,6 +57,7 @@ def test_cli_has_operator_commands():
     assert parser.parse_args(["chat", "research", "finder"]).func.__name__ == "cmd_chat"
     assert parser.parse_args(["start", "--poll-seconds", "1"]).func.__name__ == "cmd_start"
     assert parser.parse_args(["stop"]).func.__name__ == "cmd_stop"
+    assert parser.parse_args(["restart"]).func.__name__ == "cmd_restart"
     assert parser.parse_args(["stop", "research", "finder"]).func.__name__ == "cmd_stop"
     assert parser.parse_args(["stop", "research", "finder"]).job_id == ["research", "finder"]
     assert parser.parse_args(["ls"]).func.__name__ == "cmd_jobs"
@@ -69,6 +70,7 @@ def test_cli_has_operator_commands():
     assert parser.parse_args(["learn", "low-evidence", "pages", "are", "bad"]).func.__name__ == "cmd_learn"
     assert parser.parse_args(["findings"]).func.__name__ == "cmd_findings"
     assert parser.parse_args(["tasks"]).func.__name__ == "cmd_tasks"
+    assert parser.parse_args(["roadmap"]).func.__name__ == "cmd_roadmap"
     assert parser.parse_args(["experiments"]).func.__name__ == "cmd_experiments"
     assert parser.parse_args(["sources"]).func.__name__ == "cmd_sources"
     assert parser.parse_args(["memory"]).func.__name__ == "cmd_memory"
@@ -78,6 +80,23 @@ def test_cli_has_operator_commands():
     assert parser.parse_args(["service", "status"]).func.__name__ == "cmd_service"
     assert parser.parse_args(["work", "--steps", "2", "--fake"]).func.__name__ == "cmd_work"
     assert parser.parse_args(["run", "--no-follow"]).func.__name__ == "cmd_run"
+
+
+def test_init_openrouter_writes_secret_free_config_and_env_template(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+
+    main(["init", "--openrouter", "--model", "provider/model"])
+
+    out = capsys.readouterr().out
+    config_text = (tmp_path / "config.yaml").read_text(encoding="utf-8")
+    env_text = (tmp_path / ".env").read_text(encoding="utf-8")
+    assert "Wrote" in out
+    assert "name: provider/model" in config_text
+    assert "base_url: https://openrouter.ai/api/v1" in config_text
+    assert "api_key_env: OPENROUTER_API_KEY" in config_text
+    assert "sk-" not in config_text
+    assert env_text.strip().endswith("OPENROUTER_API_KEY" + "=")
+    assert "sk-" not in env_text
 
 
 def test_shell_freeform_text_adds_operator_message(monkeypatch, tmp_path, capsys):
@@ -336,6 +355,35 @@ def test_shell_ls_alias_lists_jobs_instead_of_steering(monkeypatch, tmp_path, ca
     assert "queued for" not in out
 
 
+def test_roadmap_command_renders_roadmap(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Broad work", title="broad")
+        db.append_roadmap_record(
+            job_id,
+            title="Broad Roadmap",
+            status="active",
+            current_milestone="Foundation",
+            milestones=[{
+                "title": "Foundation",
+                "status": "validating",
+                "validation_status": "pending",
+                "features": [{"title": "First feature", "status": "done"}],
+            }],
+        )
+    finally:
+        db.close()
+
+    main(["roadmap", "broad"])
+
+    out = capsys.readouterr().out
+    assert "roadmap broad" in out
+    assert "Broad Roadmap" in out
+    assert "Foundation" in out
+    assert "validation=pending" in out
+
+
 def test_shell_focus_controls_default_steering_job(monkeypatch, tmp_path, capsys):
     monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
     db = AgentDB(tmp_path / "state.db")
@@ -519,9 +567,10 @@ def test_chat_frame_is_bounded_and_has_composer():
 
     assert len(frame.splitlines()) <= 22
     assert "Nipux CLI" in frame
-    assert "Nipux Chat" in frame
-    assert "Jobs / Status" in frame
-    assert "Model Activity" in frame
+    assert "Agent Output" in frame
+    assert "Control / Status" in frame
+    assert "Recent Work" in frame
+    assert "search demo" in frame
     assert "Compose" in frame
     assert "❯ hello" in frame
     assert "Plan drafted with 2 items" in frame
@@ -597,6 +646,56 @@ def test_plain_chat_control_intent_does_not_queue_operator_context(monkeypatch, 
         db.close()
 
 
+def test_chat_frame_surfaces_actual_work_events():
+    snapshot = {
+        "job_id": "job_demo",
+        "job": {
+            "id": "job_demo",
+            "title": "demo job",
+            "objective": "produce visible work",
+            "status": "running",
+            "kind": "generic",
+            "metadata": {
+                "task_queue": [{"status": "open"}],
+                "roadmap": {"milestones": [{"title": "Draft", "status": "active"}]},
+            },
+        },
+        "jobs": [{"id": "job_demo", "title": "demo job", "status": "running", "kind": "generic", "metadata": {}}],
+        "steps": [],
+        "artifacts": [{"id": "art_demo"}],
+        "memory_entries": [{}],
+        "events": [
+            {"event_type": "operator_message", "body": "please keep improving", "metadata": {"mode": "steer"}},
+            {"event_type": "tool_call", "title": "web_search", "body": "", "metadata": {"input": {"arguments": {"query": "agent harness distillation"}}}},
+            {"event_type": "tool_result", "title": "web_search", "body": "web_search query='agent harness distillation' returned 5 results", "metadata": {"status": "completed", "input": {"arguments": {"query": "agent harness distillation"}}}},
+            {"event_type": "artifact", "title": "Research Paper Draft", "body": "", "metadata": {"summary": "saved first complete draft"}},
+            {"event_type": "finding", "title": "Distillation finding", "body": "tool traces improve student behavior", "metadata": {}},
+            {"event_type": "task", "title": "Compare methods", "body": "", "metadata": {"status": "open"}},
+            {"event_type": "roadmap", "title": "Paper roadmap", "body": "", "metadata": {"status": "active"}},
+            {"event_type": "milestone_validation", "title": "Draft", "body": "", "metadata": {"validation_status": "passed"}},
+            {"event_type": "experiment", "title": "Citation coverage check", "body": "", "metadata": {"metric_name": "sources", "metric_value": 18, "metric_unit": ""}},
+            {"event_type": "lesson", "title": "strategy", "body": "prefer measured updates", "metadata": {}},
+            {"event_type": "reflection", "title": "reflection", "body": "Reflection through step #10: next branch is evaluation.", "metadata": {}},
+        ],
+        "daemon": {"running": True, "metadata": {"pid": 123}},
+        "model": "model/demo",
+        "counts": {"steps": 10, "artifacts": 1, "memory": 1},
+    }
+
+    frame = _build_chat_frame(snapshot, "", [], width=150, height=34)
+
+    assert "please keep improving" in frame
+    assert "agent harness distillation" in frame
+    assert "Research Paper Draft" in frame
+    assert "Distillation finding" in frame
+    assert "Compare methods" in frame
+    assert "Paper roadmap" in frame
+    assert "passed Draft" in frame
+    assert "Citation coverage check" in frame
+    assert "prefer measured updates" in frame
+    assert "Reflection through step #10" in frame
+
+
 def test_run_reopens_completed_focused_job(monkeypatch, tmp_path, capsys):
     monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
     parser = build_parser()
@@ -644,7 +743,8 @@ def test_create_sets_new_job_as_shell_focus(monkeypatch, tmp_path, capsys):
     db = AgentDB(tmp_path / "state.db")
     try:
         job = db.get_job("new-research")
-        assert job["status"] == "planning"
+        assert job["status"] == "queued"
+        assert job["metadata"]["planning_status"] == "auto_accepted"
         assert job["metadata"]["planning"]["questions"]
         assert job["metadata"]["task_queue"]
     finally:
@@ -786,7 +886,8 @@ def test_chat_can_spawn_new_job_from_plain_message(monkeypatch, tmp_path, capsys
         assert len(jobs) == 2
         created = [job for job in jobs if job["id"] != original_id][0]
         assert "monitor nightly benchmarks" in created["objective"]
-        assert created["status"] == "planning"
+        assert created["status"] == "queued"
+        assert created["metadata"]["planning_status"] == "auto_accepted"
         assert "should not call model" not in out
         assert "Created job" in out
     finally:

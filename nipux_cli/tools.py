@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import signal
 import subprocess
 import time
 from dataclasses import dataclass
@@ -75,11 +76,41 @@ def _write_artifact(args: dict[str, Any], ctx: ToolContext) -> str:
 
 
 def _read_artifact(args: dict[str, Any], ctx: ToolContext) -> str:
-    artifact_id = str(args.get("artifact_id") or args.get("path") or "")
-    if not artifact_id:
+    artifact_ref = str(args.get("artifact_id") or args.get("path") or args.get("title") or args.get("ref") or "")
+    if not artifact_ref:
         return _json({"success": False, "error": "artifact_id is required"})
-    content = ctx.artifacts.read_text(artifact_id)
-    return _json({"success": True, "artifact_id": artifact_id, "content": content})
+    resolved = _resolve_artifact_ref(ctx, artifact_ref)
+    if not resolved:
+        return _json({"success": False, "error": f"artifact not found: {artifact_ref}"})
+    try:
+        content = ctx.artifacts.read_text(resolved["id"])
+    except (OSError, KeyError, ValueError) as exc:
+        return _json({"success": False, "artifact_id": resolved["id"], "error": str(exc)})
+    return _json({"success": True, "artifact_id": resolved["id"], "title": resolved.get("title"), "path": resolved.get("path"), "content": content})
+
+
+def _resolve_artifact_ref(ctx: ToolContext, artifact_ref: str) -> dict[str, Any] | None:
+    ref = artifact_ref.strip().strip("'\"")
+    if not ref:
+        return None
+    artifacts = ctx.db.list_artifacts(ctx.job_id, limit=250)
+    for artifact in artifacts:
+        if ref == artifact.get("id") or ref == str(artifact.get("path") or ""):
+            return artifact
+    if ref.isdigit():
+        index = int(ref) - 1
+        if 0 <= index < len(artifacts):
+            return artifacts[index]
+    lowered = ref.lower()
+    for artifact in artifacts:
+        title = str(artifact.get("title") or "").lower()
+        if lowered == title:
+            return artifact
+    for artifact in artifacts:
+        haystack = " ".join(str(artifact.get(key) or "") for key in ("title", "summary", "path")).lower()
+        if lowered and lowered in haystack:
+            return artifact
+    return None
 
 
 def _search_artifacts(args: dict[str, Any], ctx: ToolContext) -> str:
@@ -331,6 +362,102 @@ def _record_tasks(args: dict[str, Any], ctx: ToolContext) -> str:
     return _json({"success": True, "job_id": ctx.job_id, "added": added, "updated": updated, "tasks": stored})
 
 
+def _record_roadmap(args: dict[str, Any], ctx: ToolContext) -> str:
+    title = str(args.get("title") or args.get("name") or "").strip()
+    if not title:
+        return _json({"success": False, "error": "title is required"})
+    milestones_arg = args.get("milestones")
+    milestones = [item for item in milestones_arg if isinstance(item, dict)] if isinstance(milestones_arg, list) else []
+    roadmap = ctx.db.append_roadmap_record(
+        ctx.job_id,
+        title=title,
+        status=str(args.get("status") or "planned"),
+        objective=str(args.get("objective") or ""),
+        scope=str(args.get("scope") or ""),
+        current_milestone=str(args.get("current_milestone") or ""),
+        validation_contract=str(args.get("validation_contract") or ""),
+        milestones=milestones,
+        metadata=args.get("metadata") if isinstance(args.get("metadata"), dict) else {},
+    )
+    ctx.db.append_agent_update(
+        ctx.job_id,
+        (
+            f"Roadmap updated: {roadmap.get('status')} with "
+            f"{len(roadmap.get('milestones') or [])} milestones."
+        ),
+        category="plan",
+        metadata={
+            "roadmap_title": roadmap.get("title"),
+            "roadmap_status": roadmap.get("status"),
+            "milestone_count": len(roadmap.get("milestones") or []),
+            "current_milestone": roadmap.get("current_milestone"),
+        },
+    )
+    return _json({"success": True, "job_id": ctx.job_id, "roadmap": roadmap})
+
+
+def _record_milestone_validation(args: dict[str, Any], ctx: ToolContext) -> str:
+    milestone = str(args.get("milestone") or args.get("milestone_title") or "").strip()
+    if not milestone:
+        return _json({"success": False, "error": "milestone is required"})
+    raw_issues = args.get("issues")
+    issues = [str(item) for item in raw_issues if str(item).strip()] if isinstance(raw_issues, list) else []
+    validation = ctx.db.append_milestone_validation_record(
+        ctx.job_id,
+        milestone=milestone,
+        validation_status=str(args.get("validation_status") or args.get("status") or "pending"),
+        result=str(args.get("result") or args.get("summary") or ""),
+        evidence=str(args.get("evidence") or args.get("evidence_artifact") or ""),
+        issues=issues,
+        next_action=str(args.get("next_action") or ""),
+        metadata=args.get("metadata") if isinstance(args.get("metadata"), dict) else {},
+    )
+    follow_up_items = args.get("follow_up_tasks") if isinstance(args.get("follow_up_tasks"), list) else []
+    follow_up_tasks = []
+    for task in follow_up_items[:25]:
+        if not isinstance(task, dict):
+            continue
+        title = str(task.get("title") or task.get("name") or "").strip()
+        if not title:
+            continue
+        priority_arg = task.get("priority")
+        priority = int(priority_arg) if isinstance(priority_arg, (int, float)) else 0
+        follow_up_tasks.append(ctx.db.append_task_record(
+            ctx.job_id,
+            title=title,
+            status=str(task.get("status") or "open"),
+            priority=priority,
+            goal=str(task.get("goal") or task.get("description") or ""),
+            source_hint=str(task.get("source_hint") or task.get("source") or ""),
+            result=str(task.get("result") or task.get("outcome") or ""),
+            parent=str(task.get("parent") or milestone),
+            output_contract=str(task.get("output_contract") or task.get("contract") or "action"),
+            acceptance_criteria=str(task.get("acceptance_criteria") or ""),
+            evidence_needed=str(task.get("evidence_needed") or ""),
+            stall_behavior=str(task.get("stall_behavior") or ""),
+            metadata=task.get("metadata") if isinstance(task.get("metadata"), dict) else {"source": "milestone_validation"},
+        ))
+    ctx.db.append_agent_update(
+        ctx.job_id,
+        (
+            f"Milestone validation {validation.get('validation_status')}: "
+            f"{validation.get('title') or milestone}; follow-up tasks {len(follow_up_tasks)}."
+        ),
+        category="plan",
+        metadata={
+            "milestone": validation.get("title") or milestone,
+            "validation_status": validation.get("validation_status"),
+            "follow_up_tasks": len(follow_up_tasks),
+        },
+    )
+    return _json({
+        "success": True,
+        "job_id": ctx.job_id,
+        "validation": validation,
+        "follow_up_tasks": follow_up_tasks,
+    })
+
+
 def _record_experiment(args: dict[str, Any], ctx: ToolContext) -> str:
     title = str(args.get("title") or args.get("name") or "").strip()
     if not title:
@@ -469,18 +596,25 @@ def _shell_exec(args: dict[str, Any], ctx: ToolContext) -> str:
         env["NIPUX_RUN_ID"] = ctx.run_id
     started = time.monotonic()
     try:
-        completed = subprocess.run(
+        process = subprocess.Popen(
             command,
             shell=True,
             executable=shell,
             cwd=str(Path(cwd).expanduser()) if cwd else None,
             env=env,
-            capture_output=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             text=True,
-            timeout=timeout,
-            check=False,
+            start_new_session=True,
         )
-    except subprocess.TimeoutExpired as exc:
+        stdout, stderr = process.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        _terminate_process_group(process)
+        try:
+            stdout, stderr = process.communicate(timeout=2)
+        except subprocess.TimeoutExpired:
+            _kill_process_group(process)
+            stdout, stderr = process.communicate()
         return _json({
             "success": False,
             "error": f"command timed out after {timeout:.1f}s",
@@ -490,18 +624,47 @@ def _shell_exec(args: dict[str, Any], ctx: ToolContext) -> str:
             "timeout_seconds": timeout,
             "duration_seconds": round(time.monotonic() - started, 3),
             "returncode": None,
-            "stdout": _truncate_output(exc.stdout, max_chars),
-            "stderr": _truncate_output(exc.stderr, max_chars),
+            "stdout": _truncate_output(stdout, max_chars),
+            "stderr": _truncate_output(stderr, max_chars),
         })
+    error = _shell_error(process.returncode, stdout, stderr)
     return _json({
-        "success": completed.returncode == 0,
+        "success": process.returncode == 0,
+        "error": error,
         "command": command,
         "cwd": cwd or os.getcwd(),
         "duration_seconds": round(time.monotonic() - started, 3),
-        "returncode": completed.returncode,
-        "stdout": _truncate_output(completed.stdout, max_chars),
-        "stderr": _truncate_output(completed.stderr, max_chars),
+        "returncode": process.returncode,
+        "stdout": _truncate_output(stdout, max_chars),
+        "stderr": _truncate_output(stderr, max_chars),
     })
+
+
+def _shell_error(returncode: int | None, stdout: str, stderr: str) -> str:
+    if returncode == 0:
+        return ""
+    combined = "\n".join(part.strip() for part in (stderr, stdout) if part and part.strip())
+    lowered = combined.lower()
+    if "sudo:" in lowered and ("password" in lowered or "terminal is required" in lowered):
+        return "command requires interactive sudo/password; configure non-interactive privileges or choose a non-sudo path"
+    if "permission denied" in lowered:
+        return "command failed with permission denied"
+    excerpt = " ".join(combined.split())[:500] if combined else "no output"
+    return f"command exited with status {returncode}: {excerpt}"
+
+
+def _terminate_process_group(process: subprocess.Popen[str]) -> None:
+    try:
+        os.killpg(process.pid, signal.SIGTERM)
+    except ProcessLookupError:
+        return
+
+
+def _kill_process_group(process: subprocess.Popen[str]) -> None:
+    try:
+        os.killpg(process.pid, signal.SIGKILL)
+    except ProcessLookupError:
+        return
 
 
 def _truncate_output(value: Any, max_chars: int) -> str:
@@ -627,10 +790,15 @@ SUPPORT_SCHEMAS: list[ToolSpec] = [
         },
         "required": ["content"],
     }, _write_artifact),
-    ToolSpec("read_artifact", "Read an exact artifact by artifact_id.", {
+    ToolSpec("read_artifact", "Read a saved artifact by artifact_id, visible number, exact saved path, or title.", {
         "type": "object",
-        "properties": {"artifact_id": {"type": "string"}},
-        "required": ["artifact_id"],
+        "properties": {
+            "artifact_id": {"type": "string", "description": "Artifact id, visible number, saved path, or title."},
+            "path": {"type": "string"},
+            "title": {"type": "string"},
+            "ref": {"type": "string"},
+        },
+        "required": [],
     }, _read_artifact),
     ToolSpec("search_artifacts", "Search stored artifacts for exact evidence from prior steps.", {
         "type": "object",
@@ -758,6 +926,94 @@ SUPPORT_SCHEMAS: list[ToolSpec] = [
         },
         "required": ["tasks"],
     }, _record_tasks),
+    ToolSpec("record_roadmap", "Create or update a generic roadmap for broad work: milestones, features, success criteria, validation contract, scope, and current roadmap state. Use this before or during long-running work when task lists need higher-level structure.", {
+        "type": "object",
+        "properties": {
+            "title": {"type": "string"},
+            "status": {"type": "string", "enum": ["planned", "active", "validating", "done", "blocked", "paused"], "default": "planned"},
+            "objective": {"type": "string"},
+            "scope": {"type": "string"},
+            "current_milestone": {"type": "string"},
+            "validation_contract": {"type": "string"},
+            "milestones": {
+                "type": "array",
+                "maxItems": 100,
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "key": {"type": "string"},
+                        "title": {"type": "string"},
+                        "status": {"type": "string", "enum": ["planned", "active", "validating", "done", "blocked", "skipped"], "default": "planned"},
+                        "priority": {"type": "integer", "default": 0},
+                        "goal": {"type": "string"},
+                        "acceptance_criteria": {"type": "string"},
+                        "evidence_needed": {"type": "string"},
+                        "validation_status": {"type": "string", "enum": ["not_started", "pending", "passed", "failed", "blocked"], "default": "not_started"},
+                        "validation_result": {"type": "string"},
+                        "next_action": {"type": "string"},
+                        "features": {
+                            "type": "array",
+                            "maxItems": 100,
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "key": {"type": "string"},
+                                    "title": {"type": "string"},
+                                    "status": {"type": "string", "enum": ["planned", "active", "done", "blocked", "skipped"], "default": "planned"},
+                                    "goal": {"type": "string"},
+                                    "output_contract": {"type": "string", "enum": ["research", "artifact", "experiment", "action", "monitor", "decision", "report", "validation"]},
+                                    "acceptance_criteria": {"type": "string"},
+                                    "evidence_needed": {"type": "string"},
+                                    "result": {"type": "string"},
+                                    "metadata": {"type": "object"},
+                                },
+                                "required": ["title"],
+                            },
+                        },
+                        "metadata": {"type": "object"},
+                    },
+                    "required": ["title"],
+                },
+            },
+            "metadata": {"type": "object"},
+        },
+        "required": ["title"],
+    }, _record_roadmap),
+    ToolSpec("record_milestone_validation", "Record validation for a roadmap milestone and optionally create follow-up tasks for gaps. Use fresh evidence, acceptance criteria, and clear pass/fail/blocker reasons.", {
+        "type": "object",
+        "properties": {
+            "milestone": {"type": "string"},
+            "validation_status": {"type": "string", "enum": ["pending", "passed", "failed", "blocked"], "default": "pending"},
+            "result": {"type": "string"},
+            "evidence": {"type": "string"},
+            "issues": {"type": "array", "items": {"type": "string"}},
+            "next_action": {"type": "string"},
+            "follow_up_tasks": {
+                "type": "array",
+                "maxItems": 25,
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "title": {"type": "string"},
+                        "status": {"type": "string", "enum": ["open", "active", "done", "blocked", "skipped"], "default": "open"},
+                        "priority": {"type": "integer", "default": 0},
+                        "goal": {"type": "string"},
+                        "source_hint": {"type": "string"},
+                        "result": {"type": "string"},
+                        "parent": {"type": "string"},
+                        "output_contract": {"type": "string", "enum": ["research", "artifact", "experiment", "action", "monitor", "decision", "report"]},
+                        "acceptance_criteria": {"type": "string"},
+                        "evidence_needed": {"type": "string"},
+                        "stall_behavior": {"type": "string"},
+                        "metadata": {"type": "object"},
+                    },
+                    "required": ["title"],
+                },
+            },
+            "metadata": {"type": "object"},
+        },
+        "required": ["milestone", "validation_status"],
+    }, _record_milestone_validation),
     ToolSpec("record_experiment", "Track a measurable trial, benchmark, comparison, hypothesis test, or optimization attempt. Use this after any command or source produces a concrete result so future steps compare against the best observed result instead of treating notes as progress.", {
         "type": "object",
         "properties": {

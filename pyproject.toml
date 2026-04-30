@@ -5,15 +5,30 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "nipux"
 version = "0.1.0"
-description = "A barebones local-model browser worker that runs restartable background jobs"
+description = "A restartable CLI worker for long-running agent jobs"
 readme = "README.md"
 requires-python = ">=3.11"
 authors = [{ name = "Nipux" }]
-license = { text = "MIT" }
+license = "MIT"
+keywords = ["agent", "cli", "automation", "daemon", "openai-compatible"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Software Development :: Libraries :: Application Frameworks",
+]
 dependencies = [
   "openai>=2.21.0,<3",
   "pyyaml>=6.0.2,<7",
 ]
+
+[project.urls]
+Homepage = "https://nepox.com"
+Source = "https://github.com/nipuxx/agent-cli"
+Issues = "https://github.com/nipuxx/agent-cli/issues"
 
 [project.optional-dependencies]
 dev = ["pytest>=9.0.2,<10", "ruff"]

@@ -19,7 +19,10 @@ def test_static_tool_surface_is_barebones():
     assert "record_source" in DEFAULT_REGISTRY.names()
     assert "record_findings" in DEFAULT_REGISTRY.names()
     assert "record_tasks" in DEFAULT_REGISTRY.names()
+    assert "record_roadmap" in DEFAULT_REGISTRY.names()
+    assert "record_milestone_validation" in DEFAULT_REGISTRY.names()
     assert "record_experiment" in DEFAULT_REGISTRY.names()
+    assert "acknowledge_operator_context" in DEFAULT_REGISTRY.names()
 
 
 def test_artifact_tools_roundtrip(tmp_path):
@@ -37,6 +40,15 @@ def test_artifact_tools_roundtrip(tmp_path):
 
         read_raw = DEFAULT_REGISTRY.handle("read_artifact", {"artifact_id": result["artifact_id"]}, ctx)
         assert json.loads(read_raw)["content"] == "needle text"
+
+        path_raw = DEFAULT_REGISTRY.handle("read_artifact", {"artifact_id": result["path"]}, ctx)
+        assert json.loads(path_raw)["artifact_id"] == result["artifact_id"]
+
+        title_raw = DEFAULT_REGISTRY.handle("read_artifact", {"title": "Evidence"}, ctx)
+        assert json.loads(title_raw)["content"] == "needle text"
+
+        number_raw = DEFAULT_REGISTRY.handle("read_artifact", {"artifact_id": "1"}, ctx)
+        assert json.loads(number_raw)["content"] == "needle text"
 
         search_raw = DEFAULT_REGISTRY.handle("search_artifacts", {"query": "needle"}, ctx)
         assert json.loads(search_raw)["results"][0]["id"] == result["artifact_id"]
@@ -63,6 +75,25 @@ def test_shell_exec_tool_runs_bounded_command(tmp_path):
         db.close()
 
 
+def test_shell_exec_timeout_kills_process_group(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Run command")
+        run_id = db.start_run(job_id, model="fake")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec")
+        ctx = ToolContext(config=config, db=db, artifacts=ArtifactStore(tmp_path, db), job_id=job_id, run_id=run_id, step_id=step_id)
+
+        raw = DEFAULT_REGISTRY.handle("shell_exec", {"command": "sleep 5 | cat", "timeout_seconds": 1}, ctx)
+        result = json.loads(raw)
+
+        assert result["success"] is False
+        assert result["timed_out"] is True
+        assert result["duration_seconds"] < 4
+    finally:
+        db.close()
+
+
 def test_shell_exec_does_not_attach_local_ssh_config(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")
@@ -76,6 +107,28 @@ def test_shell_exec_does_not_attach_local_ssh_config(tmp_path):
         result = json.loads(raw)
 
         assert "ssh_config" not in result
+    finally:
+        db.close()
+
+
+def test_shell_exec_reports_nonzero_stderr_as_error(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Run command")
+        run_id = db.start_run(job_id, model="fake")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec")
+        ctx = ToolContext(config=config, db=db, artifacts=ArtifactStore(tmp_path, db), job_id=job_id, run_id=run_id, step_id=step_id)
+
+        raw = DEFAULT_REGISTRY.handle(
+            "shell_exec",
+            {"command": "printf 'sudo: a terminal is required to read the password\\n' >&2; exit 1", "timeout_seconds": 5},
+            ctx,
+        )
+        result = json.loads(raw)
+
+        assert result["success"] is False
+        assert "interactive sudo/password" in result["error"]
     finally:
         db.close()
 
@@ -226,6 +279,136 @@ def test_record_tasks_tool_updates_task_queue(tmp_path):
         db.close()
 
 
+def test_record_roadmap_tool_updates_roadmap(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Build a broad generic outcome")
+        run_id = db.start_run(job_id, model="fake")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="record_roadmap")
+        ctx = ToolContext(config=config, db=db, artifacts=ArtifactStore(tmp_path, db), job_id=job_id, run_id=run_id, step_id=step_id)
+
+        raw = DEFAULT_REGISTRY.handle(
+            "record_roadmap",
+            {
+                "title": "Generic Roadmap",
+                "status": "active",
+                "scope": "Coordinate broad work through milestones.",
+                "current_milestone": "Foundation",
+                "validation_contract": "Each milestone needs evidence.",
+                "milestones": [{
+                    "title": "Foundation",
+                    "status": "active",
+                    "priority": 7,
+                    "acceptance_criteria": "first durable output exists",
+                    "evidence_needed": "artifact and ledger update",
+                    "features": [{
+                        "title": "Create first checkpoint",
+                        "status": "active",
+                        "output_contract": "artifact",
+                    }],
+                }],
+            },
+            ctx,
+        )
+        result = json.loads(raw)
+        job = db.get_job(job_id)
+        roadmap = job["metadata"]["roadmap"]
+
+        assert result["success"] is True
+        assert roadmap["title"] == "Generic Roadmap"
+        assert roadmap["status"] == "active"
+        assert roadmap["milestones"][0]["title"] == "Foundation"
+        assert roadmap["milestones"][0]["features"][0]["title"] == "Create first checkpoint"
+        assert job["metadata"]["last_agent_update"]["metadata"]["roadmap_status"] == "active"
+    finally:
+        db.close()
+
+
+def test_record_roadmap_dedupes_milestone_titles_even_when_keys_change(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Keep broad work coordinated")
+        run_id = db.start_run(job_id, model="fake")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="record_roadmap")
+        ctx = ToolContext(config=config, db=db, artifacts=ArtifactStore(tmp_path, db), job_id=job_id, run_id=run_id, step_id=step_id)
+
+        DEFAULT_REGISTRY.handle(
+            "record_roadmap",
+            {
+                "title": "Generic Roadmap",
+                "milestones": [{
+                    "key": "initial-key",
+                    "title": "Foundation",
+                    "status": "planned",
+                    "features": [{"key": "feature-a", "title": "First feature", "status": "planned"}],
+                }],
+            },
+            ctx,
+        )
+        DEFAULT_REGISTRY.handle(
+            "record_roadmap",
+            {
+                "title": "Generic Roadmap",
+                "milestones": [{
+                    "key": "model-invented-key",
+                    "title": "Foundation",
+                    "status": "active",
+                    "features": [{"key": "different-feature-key", "title": "First feature", "status": "done"}],
+                }],
+            },
+            ctx,
+        )
+        roadmap = db.get_job(job_id)["metadata"]["roadmap"]
+
+        assert len(roadmap["milestones"]) == 1
+        assert roadmap["milestones"][0]["status"] == "active"
+        assert len(roadmap["milestones"][0]["features"]) == 1
+        assert roadmap["milestones"][0]["features"][0]["status"] == "done"
+    finally:
+        db.close()
+
+
+def test_record_milestone_validation_creates_follow_up_tasks(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Validate broad work")
+        run_id = db.start_run(job_id, model="fake")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="record_milestone_validation")
+        ctx = ToolContext(config=config, db=db, artifacts=ArtifactStore(tmp_path, db), job_id=job_id, run_id=run_id, step_id=step_id)
+
+        raw = DEFAULT_REGISTRY.handle(
+            "record_milestone_validation",
+            {
+                "milestone": "Foundation",
+                "validation_status": "failed",
+                "result": "Missing durable evidence.",
+                "issues": ["no artifact"],
+                "next_action": "Create evidence.",
+                "follow_up_tasks": [{
+                    "title": "Produce missing evidence",
+                    "output_contract": "artifact",
+                    "acceptance_criteria": "saved output exists",
+                }],
+            },
+            ctx,
+        )
+        result = json.loads(raw)
+        job = db.get_job(job_id)
+        roadmap = job["metadata"]["roadmap"]
+
+        assert result["success"] is True
+        assert result["validation"]["validation_status"] == "failed"
+        assert result["follow_up_tasks"][0]["title"] == "Produce missing evidence"
+        assert roadmap["milestones"][0]["status"] == "blocked"
+        assert job["metadata"]["task_queue"][0]["parent"] == "Foundation"
+        assert job["metadata"]["last_agent_update"]["metadata"]["validation_status"] == "failed"
+    finally:
+        db.close()
+
+
 def test_record_experiment_tool_tracks_best_measured_result(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")
@@ -275,5 +458,67 @@ def test_record_experiment_tool_tracks_best_measured_result(tmp_path):
         assert experiments[1]["delta_from_previous_best"] == 1.5
         assert job["metadata"]["best_experiment_record"]["title"] == "second attempt"
         assert job["metadata"]["last_agent_update"]["metadata"]["best_observed"] is True
+    finally:
+        db.close()
+
+
+def test_acknowledge_operator_context_tool_marks_context(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Run with operator corrections")
+        entry = db.append_operator_message(job_id, "use the corrected target", source="chat")
+        db.claim_operator_messages(job_id, modes=("steer",), limit=1)
+        run_id = db.start_run(job_id, model="fake")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="acknowledge_operator_context")
+        ctx = ToolContext(config=config, db=db, artifacts=ArtifactStore(tmp_path, db), job_id=job_id, run_id=run_id, step_id=step_id)
+
+        raw = DEFAULT_REGISTRY.handle(
+            "acknowledge_operator_context",
+            {"message_ids": [entry["event_id"]], "summary": "correction incorporated"},
+            ctx,
+        )
+        result = json.loads(raw)
+        job = db.get_job(job_id)
+
+        assert result["success"] is True
+        assert result["count"] == 1
+        assert job["metadata"]["operator_messages"][0]["acknowledged_at"]
+        assert job["metadata"]["last_operator_context_ack"]["summary"] == "correction incorporated"
+    finally:
+        db.close()
+
+
+def test_record_tasks_accepts_generic_output_contracts(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Improve measurable process")
+        run_id = db.start_run(job_id, model="fake")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="record_tasks")
+        ctx = ToolContext(config=config, db=db, artifacts=ArtifactStore(tmp_path, db), job_id=job_id, run_id=run_id, step_id=step_id)
+
+        raw = DEFAULT_REGISTRY.handle(
+            "record_tasks",
+            {
+                "tasks": [{
+                    "title": "Run one comparison",
+                    "status": "open",
+                    "output_contract": "experiment",
+                    "acceptance_criteria": "metric recorded",
+                    "evidence_needed": "command output or artifact",
+                    "stall_behavior": "record blocker and pivot",
+                }]
+            },
+            ctx,
+        )
+        result = json.loads(raw)
+        task = db.get_job(job_id)["metadata"]["task_queue"][0]
+
+        assert result["success"] is True
+        assert task["output_contract"] == "experiment"
+        assert task["acceptance_criteria"] == "metric recorded"
+        assert task["evidence_needed"] == "command output or artifact"
+        assert task["stall_behavior"] == "record blocker and pivot"
     finally:
         db.close()

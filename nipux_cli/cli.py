@@ -21,16 +21,25 @@ from contextlib import redirect_stdout
 from io import StringIO
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 import yaml
 
 from nipux_cli.artifacts import ArtifactStore
-from nipux_cli.config import default_config_yaml, get_agent_home, load_config
+from nipux_cli.config import (
+    DEFAULT_BASE_URL,
+    DEFAULT_CONTEXT_LENGTH,
+    DEFAULT_MODEL,
+    default_config_yaml,
+    get_agent_home,
+    load_config,
+)
 from nipux_cli.daemon import Daemon, DaemonAlreadyRunning, daemon_lock_status, read_daemon_events
 from nipux_cli.dashboard import collect_dashboard_state, render_dashboard, render_overview
 from nipux_cli.db import AgentDB
 from nipux_cli.digest import render_job_digest, write_daily_digest
 from nipux_cli.doctor import run_doctor
+from nipux_cli.operator_context import active_prompt_operator_entries
 from nipux_cli.templates import program_for_job
 
 
@@ -56,12 +65,14 @@ SHELL_COMMAND_NAMES = {
     "updates",
     "findings",
     "tasks",
+    "roadmap",
     "experiments",
     "update",
     "dashboard",
     "dash",
     "start",
     "stop",
+    "restart",
     "browser-dashboard",
     "artifacts",
     "artifact",
@@ -111,6 +122,8 @@ NATURAL_COMMANDS = {
     "what has it found": "updates",
     "findings": "findings",
     "tasks": "tasks",
+    "roadmap": "roadmap",
+    "show roadmap": "roadmap",
     "show artifacts": "artifacts",
     "where are artifacts": "artifacts",
     "show lessons": "lessons",
@@ -221,8 +234,34 @@ def cmd_init(args: argparse.Namespace) -> None:
         print(f"Config already exists: {path}")
         return
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(default_config_yaml(), encoding="utf-8")
+    model = args.model or DEFAULT_MODEL
+    base_url = args.base_url or DEFAULT_BASE_URL
+    api_key_env = args.api_key_env or "OPENAI_API_KEY"
+    if args.openrouter:
+        base_url = args.base_url or "https://openrouter.ai/api/v1"
+        api_key_env = args.api_key_env or "OPENROUTER_API_KEY"
+        model = args.model or "openai/gpt-4.1-mini"
+    path.write_text(
+        default_config_yaml(
+            model=model,
+            base_url=base_url,
+            api_key_env=api_key_env,
+            context_length=args.context_length,
+        ),
+        encoding="utf-8",
+    )
     print(f"Wrote {path}")
+    env_path = config.runtime.home / ".env"
+    if not env_path.exists():
+        env_path.write_text(
+            f"# Optional local secrets for Nipux. This file stays outside the git repo.\n{api_key_env}=\n",
+            encoding="utf-8",
+        )
+        try:
+            env_path.chmod(0o600)
+        except OSError:
+            pass
+        print(f"Wrote {env_path} (fill {api_key_env}; do not commit secrets)")
 
 
 def cmd_create(args: argparse.Namespace) -> None:
@@ -249,8 +288,51 @@ def _create_job(
             cadence=cadence,
             metadata={"planning": plan},
         )
-        db.update_job_status(job_id, "planning", metadata_patch={"planning": plan})
+        db.update_job_status(job_id, "queued", metadata_patch={"planning": plan, "planning_status": "auto_accepted"})
         db.append_agent_update(job_id, _format_initial_plan(plan), category="plan", metadata={"planning": plan})
+        db.append_agent_update(job_id, "Plan accepted automatically. I will start working from the planned tasks.", category="plan")
+        db.append_roadmap_record(
+            job_id,
+            title=title,
+            status="planned",
+            objective=objective,
+            scope="Initial roadmap generated from the objective. Refine this as evidence and operator context arrive.",
+            current_milestone="Clarify and frame the work",
+            validation_contract=(
+                "Each milestone needs observable evidence that its acceptance criteria were met, "
+                "or a recorded blocker plus follow-up tasks."
+            ),
+            milestones=[
+                {
+                    "title": "Clarify and frame the work",
+                    "status": "planned",
+                    "priority": 10,
+                    "goal": "Turn the objective into concrete success criteria and constraints.",
+                    "acceptance_criteria": "Success criteria and first branches are explicit.",
+                    "evidence_needed": "Operator context, planning notes, or a recorded task queue.",
+                    "features": [{"title": "Capture success criteria", "status": "planned", "output_contract": "decision"}],
+                },
+                {
+                    "title": "Execute first durable branches",
+                    "status": "planned",
+                    "priority": 8,
+                    "goal": "Produce artifacts, findings, actions, or measurements that advance the objective.",
+                    "acceptance_criteria": "At least one branch produces durable evidence.",
+                    "evidence_needed": "Saved outputs plus ledger updates.",
+                    "features": [{"title": "Run the first evidence-producing branch", "status": "planned", "output_contract": "artifact"}],
+                },
+                {
+                    "title": "Validate and continue",
+                    "status": "planned",
+                    "priority": 6,
+                    "goal": "Check results against acceptance criteria and create follow-up work.",
+                    "acceptance_criteria": "Validation is passed, failed, or blocked with a next action.",
+                    "evidence_needed": "record_milestone_validation entry and follow-up tasks if needed.",
+                    "features": [{"title": "Validate the checkpoint", "status": "planned", "output_contract": "validation"}],
+                },
+            ],
+            metadata={"phase": "initial_plan"},
+        )
         for index, task in enumerate(plan["tasks"], start=1):
             db.append_task_record(
                 job_id,
@@ -1667,11 +1749,13 @@ def _build_chat_frame(
     tasks = _metadata_records(job, "task_queue")
     experiments = _metadata_records(job, "experiment_ledger")
     lessons = _metadata_records(job, "lessons")
+    roadmap = job.get("metadata", {}).get("roadmap") if isinstance(job.get("metadata"), dict) else {}
+    milestones = roadmap.get("milestones") if isinstance(roadmap, dict) and isinstance(roadmap.get("milestones"), list) else []
     open_tasks = sum(1 for task in tasks if str(task.get("status") or "open") in {"open", "active"})
     state = _job_display_state(job, bool(daemon["running"]))
     worker = _worker_label(job, bool(daemon["running"]))
     latest_step = steps[-1] if steps else None
-    left_width = max(48, int(width * 0.58))
+    left_width = max(52, int(width * 0.64))
     right_width = max(34, width - left_width - 3)
     if right_width < 34:
         right_width = 34
@@ -1685,6 +1769,7 @@ def _build_chat_frame(
         ("findings", len(findings)),
         ("sources", len(sources)),
         ("tasks", f"{len(tasks)}/{open_tasks} open"),
+        ("roadmap", len(milestones)),
         ("experiments", len(experiments)),
         ("lessons", len(lessons)),
         ("memory", counts.get("memory", len(memory_entries))),
@@ -1742,8 +1827,8 @@ def _build_chat_frame(
             rows=right_rows,
             right_view=right_view,
         )
-        right_title = "Jobs / Status"
-    lines = [*header, _two_col_title(left_width, right_width, "Nipux Chat", right_title)]
+        right_title = "Control / Status"
+    lines = [*header, _two_col_title(left_width, right_width, "Agent Output", right_title)]
     for index in range(body_rows):
         left = chat_lines[index] if index < len(chat_lines) else ""
         right = right_lines[index] if index < len(right_lines) else ""
@@ -1777,37 +1862,132 @@ def _two_col_line(left: str, right: str, *, left_width: int, right_width: int) -
 
 
 def _chat_pane_lines(events: list[dict[str, Any]], notices: list[str], *, width: int, rows: int) -> list[str]:
-    chat_events = []
+    output_rows: list[str] = []
     for event in events:
-        kind = str(event.get("event_type") or "")
-        title = str(event.get("title") or "")
-        body = _generic_display_text(event.get("body") or "")
-        if kind == "operator_message":
-            chat_events.append((_style("YOU", "35"), body))
-        elif kind == "agent_message":
-            compact = _chat_agent_message_text(title, body)
-            if compact:
-                chat_events.append((_agent_chat_label(title), compact))
-        elif kind == "error":
-            chat_events.append((_event_chat_label(kind), _friendly_error_text(body or title)))
+        rendered = _agent_output_event_parts(event, width=width)
+        if not rendered:
+            continue
+        label, body, clock = rendered
+        _append_agent_output(output_rows, label, body, clock=clock, width=width)
     for notice in notices:
         if notice.startswith("> "):
-            chat_events.append((_style("YOU", "35"), notice[2:]))
+            _append_agent_output(output_rows, "YOU", notice[2:], clock="", width=width)
         else:
-            chat_events.append((_style("NIPUX", "36"), notice))
-    if not chat_events:
+            _append_agent_output(output_rows, "NIPUX", notice, clock="", width=width)
+    if not output_rows:
         return [
-            _muted("No chat yet."),
-            _muted("Ask Nipux to create jobs, run jobs, check status, or explain the workspace."),
+            _muted("No agent output yet."),
+            _muted("Type normally to talk. The worker's actions will appear here as they happen."),
         ][:rows]
-    lines: list[str] = []
-    for label, body in chat_events[-max(3, rows) :]:
-        available = max(18, width - 9)
-        wrapped = textwrap.wrap(" ".join(str(body).split()), width=available) or [""]
-        lines.append(f"{_fit_ansi(label, 7)} {wrapped[0]}")
-        for continuation in wrapped[1:3]:
-            lines.append(f"{'':7} {continuation}")
-    return lines[-rows:]
+    return output_rows[-rows:]
+
+
+def _agent_output_event_parts(event: dict[str, Any], *, width: int) -> tuple[str, str, str] | None:
+    kind = str(event.get("event_type") or "")
+    title = str(event.get("title") or "").strip()
+    body = _generic_display_text(event.get("body") or "")
+    metadata = event.get("metadata") if isinstance(event.get("metadata"), dict) else {}
+    clock = _event_clock(event)
+    if kind == "operator_message":
+        return "YOU", body, clock
+    if kind == "agent_message":
+        compact = _chat_agent_message_text(title, body) or body or title
+        label = _strip_ansi(_agent_chat_label(title)).strip() or "AGENT"
+        return label, compact, clock
+    if kind == "operator_context":
+        return "ACK", title or body or "operator context updated", clock
+    if kind == "tool_call":
+        return "RUN", _tool_live_summary(title, metadata, body), clock
+    if kind == "tool_result":
+        status = str(metadata.get("status") or "completed")
+        label = "BLOCK" if status == "blocked" else "FAIL" if status == "failed" else "DONE"
+        summary = _tool_live_summary(title, metadata, body)
+        clean = _clean_step_summary(body)
+        if clean and clean != summary and title not in {"shell_exec", "web_search", "web_extract"}:
+            summary = f"{summary} - {clean}"
+        return label, summary, clock
+    if kind == "error":
+        return "FAIL", _clean_step_summary(body) or title or "error", clock
+    if kind == "artifact":
+        summary = _generic_display_text(metadata.get("summary") or "")
+        detail = title or body or "saved output"
+        if summary:
+            detail = f"{detail} - {summary}"
+        return "SAVE", detail, clock
+    if kind == "finding":
+        return "FIND", _event_title_body(title, body, fallback="finding"), clock
+    if kind == "source":
+        return "SOURCE", _event_title_body(title, body, fallback="source"), clock
+    if kind == "task":
+        status = str(metadata.get("status") or "")
+        detail = _event_title_body(title, body, fallback="task")
+        return "TASK", f"{status} {detail}".strip(), clock
+    if kind == "roadmap":
+        status = str(metadata.get("status") or "")
+        detail = _event_title_body(title, body, fallback="roadmap")
+        return "ROAD", f"{status} {detail}".strip(), clock
+    if kind == "milestone_validation":
+        status = str(metadata.get("validation_status") or metadata.get("status") or "")
+        detail = _event_title_body(title, body, fallback="milestone validation")
+        return "VALID", f"{status} {detail}".strip(), clock
+    if kind == "experiment":
+        metric = _experiment_metric_text(metadata)
+        detail = _event_title_body(title, body, fallback="experiment")
+        if metric:
+            detail = f"{detail} - {metric}"
+        return "TEST", detail, clock
+    if kind == "lesson":
+        return "LEARN", _event_title_body(title, body, fallback="lesson"), clock
+    if kind == "reflection":
+        return "PLAN", _clean_step_summary(body) or title or "reflection", clock
+    if kind == "digest":
+        return "DIGEST", _event_title_body(title, body, fallback="digest"), clock
+    if kind == "compaction":
+        return "MEMORY", _event_title_body(title, body, fallback="compact memory"), clock
+    if kind == "loop":
+        status = str(metadata.get("status") or "")
+        if title in {"turn_end", "agent_end"} and status in {"blocked", "failed"}:
+            return "BLOCK" if status == "blocked" else "FAIL", _clean_step_summary(body) or title, clock
+        return None
+    if kind == "daemon":
+        return None
+    return None
+
+
+def _append_agent_output(lines: list[str], label: str, body: Any, *, clock: str, width: int) -> None:
+    label_text = _fit_ansi(_event_badge(label), 8)
+    clock_text = _fit_ansi(_muted(clock), 5) if clock else " " * 5
+    prefix = f"{clock_text} {label_text} "
+    prefix_width = 15
+    content = _generic_display_text(body)
+    available = max(18, width - prefix_width)
+    wrapped = textwrap.wrap(content, width=available) or [""]
+    lines.append(_fit_ansi(prefix + wrapped[0], width))
+    for continuation in wrapped[1:4]:
+        lines.append(_fit_ansi(" " * prefix_width + continuation, width))
+
+
+def _event_title_body(title: str, body: str, *, fallback: str) -> str:
+    if title and body and title not in body:
+        return f"{title} - {body}"
+    return title or body or fallback
+
+
+def _experiment_metric_text(metadata: dict[str, Any]) -> str:
+    value = metadata.get("metric_value")
+    if value in (None, ""):
+        return ""
+    name = metadata.get("metric_name") or "metric"
+    unit = metadata.get("metric_unit") or ""
+    direction = metadata.get("result_direction") or metadata.get("decision") or ""
+    return " ".join(part for part in [f"{name}={value}{unit}", str(direction)] if part)
+
+
+def _event_clock(event: dict[str, Any]) -> str:
+    compact = _compact_time(str(event.get("created_at") or ""))
+    if len(compact) >= 16 and compact[10:11] == " ":
+        return compact[11:16]
+    return "" if compact == "?" else _one_line(compact, 5)
 
 
 def _chat_agent_message_text(title: str, body: str) -> str:
@@ -1887,6 +2067,18 @@ def _right_pane_lines(
         metrics=metrics,
         width=width,
     )
+    metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
+    active_operator = _active_operator_messages(metadata)
+    pending_measurement = (
+        metadata.get("pending_measurement_obligation")
+        if isinstance(metadata.get("pending_measurement_obligation"), dict)
+        else {}
+    )
+    if active_operator:
+        info_lines.append(f"{_muted('Operator')} {len(active_operator)} active")
+        info_lines.append(f"{_muted('Context')} {_one_line(active_operator[-1].get('message') or '', width - 8)}")
+    if pending_measurement:
+        info_lines.append(f"{_muted('Measure')} pending step #{pending_measurement.get('source_step_no') or '?'}")
     info_lines.append(
         f"{_bold('Controls')}  {_muted('new')}  {_muted('run')}  {_muted('pause')}  {_muted('jobs')}  {_muted('settings')}"
     )
@@ -1895,7 +2087,7 @@ def _right_pane_lines(
     for job_line in _frame_jobs_lines(jobs, focused_job_id=job_id, daemon_running=daemon_running, width=width)[:4]:
         info_lines.append(job_line)
     info_lines.append("")
-    info_lines.append(_bold("Model Activity"))
+    info_lines.append(_bold("Recent Work"))
     activity = [_activity_text(event, width=width) for event in events]
     activity = [line for line in activity if line]
     if len(info_lines) >= rows:
@@ -2606,6 +2798,10 @@ def cmd_tasks(args: argparse.Namespace) -> None:
             details = " | ".join(
                 value
                 for value in [
+                    f"contract={task.get('output_contract')}" if task.get("output_contract") else "",
+                    f"accept={task.get('acceptance_criteria')}" if task.get("acceptance_criteria") else "",
+                    f"evidence={task.get('evidence_needed')}" if task.get("evidence_needed") else "",
+                    f"stall={task.get('stall_behavior')}" if task.get("stall_behavior") else "",
                     str(task.get("goal") or "").strip(),
                     str(task.get("source_hint") or "").strip(),
                     str(task.get("result") or "").strip(),
@@ -2614,6 +2810,83 @@ def cmd_tasks(args: argparse.Namespace) -> None:
             )
             if details:
                 print(f"    {_one_line(details, args.chars)}")
+    finally:
+        db.close()
+
+
+def cmd_roadmap(args: argparse.Namespace) -> None:
+    db, _ = _db()
+    try:
+        job_id = _resolve_job_id(db, args.job_id)
+        if not job_id:
+            ref = _job_ref_text(args.job_id)
+            print(f"No job matched: {ref}" if ref else "No jobs found.")
+            return
+        job = db.get_job(job_id)
+        metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
+        roadmap = metadata.get("roadmap") if isinstance(metadata.get("roadmap"), dict) else {}
+        if args.json:
+            print(json.dumps(roadmap, ensure_ascii=False, indent=2, default=_json_default))
+            return
+        print(f"roadmap {job['title']}")
+        print(_rule("="))
+        if not roadmap:
+            print("none yet")
+            print("the worker can create one with record_roadmap when broad work needs milestones")
+            return
+        milestones = roadmap.get("milestones") if isinstance(roadmap.get("milestones"), list) else []
+        print(f"title: {roadmap.get('title') or 'Roadmap'}")
+        print(f"status: {roadmap.get('status') or 'planned'} | milestones: {len(milestones)}")
+        if roadmap.get("current_milestone"):
+            print(f"current: {_one_line(roadmap.get('current_milestone') or '', args.chars)}")
+        if roadmap.get("scope"):
+            print(f"scope: {_one_line(roadmap.get('scope') or '', args.chars)}")
+        if roadmap.get("validation_contract"):
+            print(f"validation: {_one_line(roadmap.get('validation_contract') or '', args.chars)}")
+        if not milestones:
+            return
+        print()
+        status_order = {"active": 0, "validating": 1, "planned": 2, "blocked": 3, "done": 4, "skipped": 5}
+        ranked = sorted(
+            [milestone for milestone in milestones if isinstance(milestone, dict)],
+            key=lambda milestone: (
+                status_order.get(str(milestone.get("status") or "planned"), 9),
+                -int(milestone.get("priority") or 0),
+                str(milestone.get("title") or ""),
+            ),
+        )
+        for index, milestone in enumerate(ranked[: args.limit], start=1):
+            status = str(milestone.get("status") or "planned")
+            validation = str(milestone.get("validation_status") or "not_started")
+            features = milestone.get("features") if isinstance(milestone.get("features"), list) else []
+            open_features = sum(
+                1 for feature in features
+                if isinstance(feature, dict) and str(feature.get("status") or "planned") in {"planned", "active"}
+            )
+            print(
+                f"{index:>2}. {status:<10} validation={validation:<11} "
+                f"p={int(milestone.get('priority') or 0):<3} {_one_line(milestone.get('title') or 'milestone', 54)}"
+            )
+            details = " | ".join(
+                value
+                for value in [
+                    f"features={len(features)}/{open_features} open" if features else "",
+                    f"accept={milestone.get('acceptance_criteria')}" if milestone.get("acceptance_criteria") else "",
+                    f"evidence={milestone.get('evidence_needed')}" if milestone.get("evidence_needed") else "",
+                    f"result={milestone.get('validation_result')}" if milestone.get("validation_result") else "",
+                    f"next={milestone.get('next_action')}" if milestone.get("next_action") else "",
+                ]
+                if value
+            )
+            if details:
+                print(f"    {_one_line(details, args.chars)}")
+            for feature in features[: min(3, args.features)]:
+                if not isinstance(feature, dict):
+                    continue
+                print(
+                    f"    - {str(feature.get('status') or 'planned'):<7} "
+                    f"{_one_line(feature.get('title') or 'feature', max(30, args.chars - 16))}"
+                )
     finally:
         db.close()
 
@@ -2729,12 +3002,27 @@ def cmd_memory(args: argparse.Namespace) -> None:
             print(f"No job matched: {ref}" if ref else "No jobs found.")
             return
         job = db.get_job(job_id)
+        metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
         lessons = _metadata_records(job, "lessons")
         reflections = _metadata_records(job, "reflections")
         compact = db.list_memory(job_id)
+        active_operator = _active_operator_messages(metadata)
+        pending_measurement = metadata.get("pending_measurement_obligation") if isinstance(metadata.get("pending_measurement_obligation"), dict) else {}
         print(f"memory {job['title']}")
         print(_rule("="))
         print(f"lessons={len(lessons)} reflections={len(reflections)} compact_entries={len(compact)}")
+        if active_operator:
+            print()
+            print("active operator context:")
+            for entry in active_operator[-min(args.limit, 8):]:
+                marker = entry.get("event_id") or "operator"
+                print(f"  {marker}: {_one_line(entry.get('message') or '', args.chars)}")
+        if pending_measurement:
+            print()
+            print(f"pending measurement: step #{pending_measurement.get('source_step_no') or '?'}")
+            candidates = pending_measurement.get("metric_candidates") if isinstance(pending_measurement.get("metric_candidates"), list) else []
+            if candidates:
+                print(f"  candidates: {_one_line(', '.join(str(item) for item in candidates[:5]), args.chars)}")
         if reflections:
             print()
             print("latest reflection:")
@@ -2773,6 +3061,9 @@ def cmd_metrics(args: argparse.Namespace) -> None:
         experiments = _metadata_records(job, "experiment_ledger")
         lessons = _metadata_records(job, "lessons")
         reflections = _metadata_records(job, "reflections")
+        metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
+        roadmap = metadata.get("roadmap") if isinstance(metadata.get("roadmap"), dict) else {}
+        milestones = roadmap.get("milestones") if isinstance(roadmap.get("milestones"), list) else []
         daemon = daemon_lock_status(config.runtime.home / "agentd.lock")
         finding_batches = [
             artifact
@@ -2789,7 +3080,9 @@ def cmd_metrics(args: argparse.Namespace) -> None:
         print(f"steps: {_step_count(steps)} | failed: {len(failed)} | blocked/recovered: {len(blocked)}")
         print(f"artifacts: {len(artifacts)} | finding_batches: {len(finding_batches)}")
         print(
-            f"findings: {len(findings)} | sources: {len(sources)} | tasks: {len(tasks)} | experiments: {len(experiments)} | lessons: {len(lessons)} | reflections: {len(reflections)}"
+            f"findings: {len(findings)} | sources: {len(sources)} | tasks: {len(tasks)} | "
+            f"milestones: {len(milestones)} | experiments: {len(experiments)} | "
+            f"lessons: {len(lessons)} | reflections: {len(reflections)}"
         )
         if sources:
             best = max(sources, key=lambda source: float(source.get("usefulness_score") or 0))
@@ -2811,13 +3104,43 @@ def cmd_metrics(args: argparse.Namespace) -> None:
         db.close()
 
 
+def _remote_model_preflight_failures(config) -> list[str]:
+    host = (urlparse(config.model.base_url).hostname or "").lower()
+    local_hosts = {"", "localhost", "127.0.0.1", "::1", "0.0.0.0"}
+    if host in local_hosts or host.endswith(".local"):
+        return []
+    blocking = {"model_config", "model_auth", "model_endpoint", "model_generation"}
+    checks = run_doctor(config=config, check_model=True)
+    return [f"{check.name}: {check.detail}" for check in checks if not check.ok and check.name in blocking]
+
+
+def _ensure_remote_model_ready_for_worker(config, *, fake: bool) -> bool:
+    if fake:
+        return True
+    failures = _remote_model_preflight_failures(config)
+    if not failures:
+        return True
+    print("model is not ready; daemon not started")
+    for failure in failures:
+        print(f"  fail {failure}")
+    print("Run `nipux doctor --check-model` after fixing the model configuration.")
+    return False
+
+
 def cmd_start(args: argparse.Namespace) -> None:
     config = load_config()
     config.ensure_dirs()
     status = daemon_lock_status(config.runtime.home / "agentd.lock")
     if status["running"]:
         metadata = status.get("metadata") or {}
-        print(f"nipux daemon already running pid={metadata.get('pid', 'unknown')}")
+        if status.get("stale"):
+            print(f"nipux daemon stale pid={metadata.get('pid', 'unknown')}; restarting")
+            _stop_daemon_process(config, wait=5.0, quiet=True)
+            time.sleep(0.5)
+        else:
+            print(f"nipux daemon already running pid={metadata.get('pid', 'unknown')}")
+            return
+    if not _ensure_remote_model_ready_for_worker(config, fake=args.fake):
         return
     log_path = Path(args.log_file).expanduser() if args.log_file else config.runtime.logs_dir / "daemon.log"
     log_path.parent.mkdir(parents=True, exist_ok=True)
@@ -2865,9 +3188,47 @@ def _start_daemon_if_needed(
     status = daemon_lock_status(config.runtime.home / "agentd.lock")
     if status["running"]:
         metadata = status.get("metadata") or {}
+        if status.get("stale"):
+            print(f"daemon stale pid={metadata.get('pid', 'unknown')}; restarting")
+            _stop_daemon_process(config, wait=5.0, quiet=True)
+            time.sleep(0.5)
+            cmd_start(argparse.Namespace(poll_seconds=poll_seconds, fake=fake, quiet=quiet, log_file=log_file))
+            return
         print(f"daemon already running pid={metadata.get('pid', 'unknown')}")
         return
     cmd_start(argparse.Namespace(poll_seconds=poll_seconds, fake=fake, quiet=quiet, log_file=log_file))
+
+
+def cmd_restart(args: argparse.Namespace) -> None:
+    config = load_config()
+    config.ensure_dirs()
+    stopped = _stop_daemon_process(config, wait=args.wait, quiet=False)
+    if stopped:
+        time.sleep(0.5)
+    cmd_start(argparse.Namespace(poll_seconds=args.poll_seconds, fake=args.fake, quiet=args.quiet, log_file=args.log_file))
+
+
+def _stop_daemon_process(config, *, wait: float, quiet: bool) -> bool:
+    status = daemon_lock_status(config.runtime.home / "agentd.lock")
+    if not status["running"]:
+        if not quiet:
+            print("nipux daemon is not running")
+        return False
+    metadata = status.get("metadata") or {}
+    pid = metadata.get("pid")
+    if not isinstance(pid, int):
+        raise SystemExit("daemon is running but lock file has no pid; stop it from the terminal that owns it")
+    os.kill(pid, signal.SIGTERM)
+    deadline = time.time() + wait
+    while time.time() < deadline:
+        if not _pid_is_alive(pid):
+            if not quiet:
+                print(f"nipux daemon stopped pid={pid}")
+            return True
+        time.sleep(0.2)
+    if not quiet:
+        print(f"sent SIGTERM to nipux daemon pid={pid}; it may still be shutting down")
+    return False
 
 
 def cmd_stop(args: argparse.Namespace) -> None:
@@ -2888,22 +3249,7 @@ def cmd_stop(args: argparse.Namespace) -> None:
             db.close()
 
     config = load_config()
-    status = daemon_lock_status(config.runtime.home / "agentd.lock")
-    if not status["running"]:
-        print("nipux daemon is not running")
-        return
-    metadata = status.get("metadata") or {}
-    pid = metadata.get("pid")
-    if not isinstance(pid, int):
-        raise SystemExit("daemon is running but lock file has no pid; stop it from the terminal that owns it")
-    os.kill(pid, signal.SIGTERM)
-    deadline = time.time() + args.wait
-    while time.time() < deadline:
-        if not _pid_is_alive(pid):
-            print(f"nipux daemon stopped pid={pid}")
-            return
-        time.sleep(0.2)
-    print(f"sent SIGTERM to nipux daemon pid={pid}; it may still be shutting down")
+    _stop_daemon_process(config, wait=args.wait, quiet=False)
 
 
 def _launch_agent_path() -> Path:
@@ -3217,6 +3563,8 @@ def _print_session_overview(
     tasks = _metadata_records(job, "task_queue")
     experiments = _metadata_records(job, "experiment_ledger")
     lessons = _metadata_records(job, "lessons")
+    roadmap = metadata.get("roadmap") if isinstance(metadata.get("roadmap"), dict) else {}
+    milestones = roadmap.get("milestones") if isinstance(roadmap.get("milestones"), list) else []
     open_tasks = sum(1 for task in tasks if str(task.get("status") or "open") in {"open", "active"})
     state = _job_display_state(job, daemon_running)
     worker = _worker_label(job, daemon_running)
@@ -3252,6 +3600,7 @@ def _print_session_overview(
             ("findings", len(findings)),
             ("sources", len(sources)),
             ("tasks", f"{len(tasks)} ({open_tasks} open)"),
+            ("roadmap", len(milestones)),
             ("experiments", len(experiments)),
             ("lessons", len(lessons)),
             ("memory", len(memory_entries)),
@@ -3339,6 +3688,8 @@ def _minimal_live_event_line(event: dict[str, Any], *, chars: int = 92) -> str:
         return ""
     if kind == "agent_message" and title == "chat":
         return ""
+    if kind == "operator_context":
+        return _one_line(f"operator {title or body}", chars)
     if kind == "tool_call":
         return _one_line("start " + _tool_live_summary(title, metadata, body), chars)
     if kind == "tool_result":
@@ -3354,6 +3705,10 @@ def _minimal_live_event_line(event: dict[str, Any], *, chars: int = 92) -> str:
         return _one_line(f"source {title or body}", chars)
     if kind == "task":
         return _one_line(f"task {title or body}", chars)
+    if kind == "roadmap":
+        return _one_line(f"roadmap {title or body}", chars)
+    if kind == "milestone_validation":
+        return _one_line(f"validate {title or body}", chars)
     if kind == "experiment":
         return _one_line(f"experiment {title or body}", chars)
     if kind == "lesson":
@@ -3405,6 +3760,14 @@ def _tool_live_summary(tool: str, metadata: dict[str, Any], body: str) -> str:
         return "record findings"
     if tool == "record_tasks":
         return "update tasks"
+    if tool == "record_roadmap":
+        return "update roadmap"
+    if tool == "record_milestone_validation":
+        return "validate roadmap"
+    if tool == "record_experiment":
+        return "record experiment"
+    if tool == "acknowledge_operator_context":
+        return "ack operator"
     if tool == "report_update":
         return "report update"
     if tool == "read_artifact":
@@ -3529,11 +3892,22 @@ def _event_badge(label: str) -> str:
         "AGENT": "36",
         "USER": "35",
         "FOLLOW": "35",
+        "YOU": "35",
+        "NIPUX": "36",
+        "RUN": "34",
         "TOOL": "34",
         "DONE": "32",
+        "SAVE": "32",
         "OUTPUT": "32",
         "FIND": "32",
+        "SOURCE": "36",
         "TASK": "33",
+        "ROAD": "35",
+        "VALID": "35",
+        "TEST": "33",
+        "UPDATE": "36",
+        "ACK": "36",
+        "FAIL": "31",
         "LEARN": "36",
         "PLAN": "36",
         "DIGEST": "36",
@@ -3701,6 +4075,8 @@ def _event_display_parts(event: dict[str, Any], *, chars: int, full: bool = Fals
             access = f"open: /artifact {shlex.quote(title)}"
     if kind == "operator_message" and metadata.get("mode"):
         title = f"{title or 'operator'} {metadata.get('mode')}"
+    if kind == "operator_context":
+        body = body or f"{metadata.get('count') or 0} message(s)"
     if kind in {"tool_call", "tool_result", "error"} and metadata.get("step_no"):
         title = f"#{metadata.get('step_no')} {title}".strip()
     if not body and kind == "artifact" and metadata.get("path"):
@@ -3709,6 +4085,10 @@ def _event_display_parts(event: dict[str, Any], *, chars: int, full: bool = Fals
         body = str(metadata.get("category") or "")
     if not body and kind == "task" and metadata.get("status"):
         body = str(metadata.get("status") or "")
+    if not body and kind == "roadmap" and metadata.get("status"):
+        body = str(metadata.get("status") or "")
+    if not body and kind == "milestone_validation" and metadata.get("validation_status"):
+        body = str(metadata.get("validation_status") or "")
     if not body and kind == "experiment":
         metric_value = metadata.get("metric_value")
         if metric_value is not None:
@@ -3729,8 +4109,14 @@ def _event_label(kind: str, metadata: dict[str, Any]) -> str:
     if kind == "operator_message":
         mode = str(metadata.get("mode") or "")
         return "FOLLOW" if mode == "follow_up" else "USER"
+    if kind == "operator_context":
+        return "ACK"
     if kind == "agent_message":
         return "AGENT"
+    if kind == "roadmap":
+        return "ROAD"
+    if kind == "milestone_validation":
+        return "VALID"
     if kind == "tool_call":
         return "TOOL"
     if kind.startswith("tool_result"):
@@ -3836,7 +4222,8 @@ def _daemon_state_line(lock: dict[str, Any]) -> str:
     metadata = lock.get("metadata") if isinstance(lock.get("metadata"), dict) else {}
     if lock.get("running"):
         pid = metadata.get("pid") or "unknown"
-        return f"running pid={pid}"
+        stale = " stale-runtime" if lock.get("stale") else ""
+        return f"running pid={pid}{stale}"
     return "stopped (start with: nipux start)"
 
 
@@ -3999,6 +4386,16 @@ def _metadata_records(job: dict[str, Any], key: str) -> list[dict[str, Any]]:
     metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
     values = metadata.get(key) if isinstance(metadata.get(key), list) else []
     return [entry for entry in values if isinstance(entry, dict)]
+
+
+def _active_operator_messages(metadata: dict[str, Any]) -> list[dict[str, Any]]:
+    messages = metadata.get("operator_messages") if isinstance(metadata.get("operator_messages"), list) else []
+    return [
+        entry for entry in messages
+        if isinstance(entry, dict)
+        and entry in active_prompt_operator_entries(messages)
+        and str(entry.get("mode") or "steer") in {"steer", "follow_up"}
+    ]
 
 
 def _print_lessons(job: dict[str, Any], *, limit: int, chars: int) -> None:
@@ -4444,7 +4841,10 @@ def cmd_daily_digest(args: argparse.Namespace) -> None:
 
 
 def cmd_daemon(args: argparse.Namespace) -> None:
-    daemon = Daemon.open()
+    config = load_config()
+    if not _ensure_remote_model_ready_for_worker(config, fake=args.fake):
+        raise SystemExit(2)
+    daemon = Daemon.open(config=config)
     try:
         if args.once:
             result = daemon.run_once(fake=args.fake, verbose=args.verbose)
@@ -4484,9 +4884,9 @@ def _chat_handle_line(job_id: str, line: str, *, reply_fn=None) -> bool:
         print("Chat commands:")
         print("  /jobs /focus JOB_TITLE /switch JOB_TITLE /new OBJECTIVE /delete [JOB_TITLE]")
         print("  /history /events /activity /outputs /updates /status /health")
-        print("  /artifacts /artifact QUERY /findings /tasks /experiments /sources /memory /metrics /lessons")
+        print("  /artifacts /artifact QUERY /findings /tasks /roadmap /experiments /sources /memory /metrics /lessons")
         print("  /settings")
-        print("  /run /work N /work-verbose N /stop /pause [note] /resume /cancel [note]")
+        print("  /run /restart /work N /work-verbose N /stop /pause [note] /resume /cancel [note]")
         print("  /learn LESSON /note MESSAGE /follow MESSAGE /digest /clear /exit")
         print("Plain text gets a model reply and is saved as model-visible steering.")
         return True
@@ -4562,6 +4962,9 @@ def _chat_handle_line(job_id: str, line: str, *, reply_fn=None) -> bool:
         if command == "tasks":
             cmd_tasks(argparse.Namespace(job_id=job_id, limit=20, chars=220, status=None, json=False))
             return True
+        if command == "roadmap":
+            cmd_roadmap(argparse.Namespace(job_id=job_id, limit=20, features=3, chars=220, json=False))
+            return True
         if command == "experiments":
             cmd_experiments(argparse.Namespace(job_id=job_id, limit=20, chars=220, status=None, json=False))
             return True
@@ -4627,6 +5030,15 @@ def _chat_handle_line(job_id: str, line: str, *, reply_fn=None) -> bool:
                     no_follow=True,
                 )
             )
+            return True
+        if command == "restart":
+            cmd_restart(argparse.Namespace(
+                poll_seconds=0.0,
+                wait=5.0,
+                fake=False,
+                quiet=False,
+                log_file=None,
+            ))
             return True
         if command in {"work", "work-verbose"}:
             steps = int(rest[0]) if rest and rest[0].isdigit() else 1
@@ -4902,6 +5314,7 @@ def _build_chat_messages(db: AgentDB, job: dict[str, Any], message: str) -> list
     sources = metadata.get("source_ledger") if isinstance(metadata.get("source_ledger"), list) else []
     tasks = metadata.get("task_queue") if isinstance(metadata.get("task_queue"), list) else []
     experiments = metadata.get("experiment_ledger") if isinstance(metadata.get("experiment_ledger"), list) else []
+    roadmap = metadata.get("roadmap") if isinstance(metadata.get("roadmap"), dict) else {}
     step_lines = "\n".join(
         f"- #{step['step_no']} {step['status']} {step.get('tool_name') or step['kind']}: {_clean_step_summary(step.get('summary') or step.get('error') or '')}"
         for step in steps
@@ -4913,7 +5326,7 @@ def _build_chat_messages(db: AgentDB, job: dict[str, Any], message: str) -> list
     )
     steering_lines = "\n".join(
         f"- {entry.get('source', 'operator')} {entry.get('mode', 'steer')}: {entry.get('message', '')}"
-        for entry in operator_messages[-8:]
+        for entry in active_prompt_operator_entries(operator_messages)[-6:]
         if isinstance(entry, dict)
     )
     update_lines = "\n".join(
@@ -4936,6 +5349,22 @@ def _build_chat_messages(db: AgentDB, job: dict[str, Any], message: str) -> list
         for entry in tasks[-10:]
         if isinstance(entry, dict)
     )
+    milestone_lines = ""
+    if roadmap:
+        milestones = roadmap.get("milestones") if isinstance(roadmap.get("milestones"), list) else []
+        milestone_lines = "\n".join(
+            (
+                f"- {entry.get('status') or 'planned'} validation={entry.get('validation_status') or 'not_started'} "
+                f"p={entry.get('priority') or 0}: {entry.get('title')}"
+            )
+            for entry in milestones[-8:]
+            if isinstance(entry, dict)
+        )
+        roadmap_header = (
+            f"{roadmap.get('status') or 'planned'}: {roadmap.get('title') or 'Roadmap'}"
+            + (f" current={roadmap.get('current_milestone')}" if roadmap.get("current_milestone") else "")
+        )
+        milestone_lines = f"{roadmap_header}\n{milestone_lines}".strip()
     experiment_lines = "\n".join(
         (
             f"- {entry.get('status') or 'planned'}: {entry.get('title')}"
@@ -4976,6 +5405,7 @@ def _build_chat_messages(db: AgentDB, job: dict[str, Any], message: str) -> list
                 f"Latest artifacts:\n{artifact_lines or 'None yet.'}\n\n"
                 f"Finding ledger:\n{finding_lines or 'None yet.'}\n\n"
                 f"Task queue:\n{task_lines or 'None yet.'}\n\n"
+                f"Roadmap:\n{milestone_lines or 'None yet.'}\n\n"
                 f"Experiment ledger:\n{experiment_lines or 'None yet.'}\n\n"
                 f"Source ledger:\n{source_lines or 'None yet.'}\n\n"
                 f"Lessons learned:\n{lesson_lines or 'None yet.'}\n\n"
@@ -5105,6 +5535,7 @@ def _print_shell_help() -> None:
         "outputs [JOB_TITLE] --verbose",
         "findings [JOB_TITLE]",
         "tasks [JOB_TITLE]",
+        "roadmap [JOB_TITLE]",
         "experiments [JOB_TITLE]",
         "sources [JOB_TITLE]",
         "memory [JOB_TITLE]",
@@ -5120,6 +5551,7 @@ def _print_shell_help() -> None:
         "work [JOB_TITLE] --steps N [--verbose]",
         "run [JOB_TITLE] --poll-seconds N",
         "start --poll-seconds N",
+        "restart --poll-seconds N",
         "stop  # daemon",
         "stop [JOB_TITLE]  # pause job",
     ):
@@ -5209,6 +5641,11 @@ def build_parser() -> argparse.ArgumentParser:
     init = sub.add_parser("init")
     init.add_argument("--path")
     init.add_argument("--force", action="store_true")
+    init.add_argument("--openrouter", action="store_true", help="Write an OpenRouter config that reads OPENROUTER_API_KEY")
+    init.add_argument("--model", help="Model name to write into config.yaml")
+    init.add_argument("--base-url", help="OpenAI-compatible API base URL")
+    init.add_argument("--api-key-env", help="Environment variable that stores the API key")
+    init.add_argument("--context-length", type=int, default=DEFAULT_CONTEXT_LENGTH)
     init.set_defaults(func=cmd_init)
 
     create = sub.add_parser("create")
@@ -5320,6 +5757,14 @@ def build_parser() -> argparse.ArgumentParser:
     stop.add_argument("--wait", type=float, default=5.0)
     stop.set_defaults(func=cmd_stop)
 
+    restart = sub.add_parser("restart")
+    restart.add_argument("--poll-seconds", type=float, default=0.0)
+    restart.add_argument("--wait", type=float, default=5.0)
+    restart.add_argument("--fake", action="store_true", help="Use deterministic fake model responses")
+    restart.add_argument("--quiet", action="store_true", help="Write fewer daemon log lines")
+    restart.add_argument("--log-file")
+    restart.set_defaults(func=cmd_restart)
+
     browser_dashboard = sub.add_parser("browser-dashboard")
     browser_dashboard.add_argument("--port", type=int, default=4848)
     browser_dashboard.add_argument("--foreground", action="store_true")
@@ -5379,6 +5824,14 @@ def build_parser() -> argparse.ArgumentParser:
     tasks.add_argument("--status", nargs="+")
     tasks.add_argument("--json", action="store_true")
     tasks.set_defaults(func=cmd_tasks)
+
+    roadmap = sub.add_parser("roadmap")
+    roadmap.add_argument("job_id", nargs="*")
+    roadmap.add_argument("--limit", type=int, default=25)
+    roadmap.add_argument("--features", type=int, default=3)
+    roadmap.add_argument("--chars", type=int, default=220)
+    roadmap.add_argument("--json", action="store_true")
+    roadmap.set_defaults(func=cmd_roadmap)
 
     experiments = sub.add_parser("experiments")
     experiments.add_argument("job_id", nargs="*")
