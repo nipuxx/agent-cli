@@ -362,6 +362,102 @@ def _record_tasks(args: dict[str, Any], ctx: ToolContext) -> str:
     return _json({"success": True, "job_id": ctx.job_id, "added": added, "updated": updated, "tasks": stored})
 
 
+def _record_mission(args: dict[str, Any], ctx: ToolContext) -> str:
+    title = str(args.get("title") or args.get("name") or "").strip()
+    if not title:
+        return _json({"success": False, "error": "title is required"})
+    milestones_arg = args.get("milestones")
+    milestones = [item for item in milestones_arg if isinstance(item, dict)] if isinstance(milestones_arg, list) else []
+    mission = ctx.db.append_mission_record(
+        ctx.job_id,
+        title=title,
+        status=str(args.get("status") or "planned"),
+        objective=str(args.get("objective") or ""),
+        scope=str(args.get("scope") or ""),
+        current_milestone=str(args.get("current_milestone") or ""),
+        validation_contract=str(args.get("validation_contract") or ""),
+        milestones=milestones,
+        metadata=args.get("metadata") if isinstance(args.get("metadata"), dict) else {},
+    )
+    ctx.db.append_agent_update(
+        ctx.job_id,
+        (
+            f"Mission updated: {mission.get('status')} with "
+            f"{len(mission.get('milestones') or [])} milestones."
+        ),
+        category="plan",
+        metadata={
+            "mission_title": mission.get("title"),
+            "mission_status": mission.get("status"),
+            "milestone_count": len(mission.get("milestones") or []),
+            "current_milestone": mission.get("current_milestone"),
+        },
+    )
+    return _json({"success": True, "job_id": ctx.job_id, "mission": mission})
+
+
+def _record_mission_validation(args: dict[str, Any], ctx: ToolContext) -> str:
+    milestone = str(args.get("milestone") or args.get("milestone_title") or "").strip()
+    if not milestone:
+        return _json({"success": False, "error": "milestone is required"})
+    raw_issues = args.get("issues")
+    issues = [str(item) for item in raw_issues if str(item).strip()] if isinstance(raw_issues, list) else []
+    validation = ctx.db.append_mission_validation_record(
+        ctx.job_id,
+        milestone=milestone,
+        validation_status=str(args.get("validation_status") or args.get("status") or "pending"),
+        result=str(args.get("result") or args.get("summary") or ""),
+        evidence=str(args.get("evidence") or args.get("evidence_artifact") or ""),
+        issues=issues,
+        next_action=str(args.get("next_action") or ""),
+        metadata=args.get("metadata") if isinstance(args.get("metadata"), dict) else {},
+    )
+    follow_up_items = args.get("follow_up_tasks") if isinstance(args.get("follow_up_tasks"), list) else []
+    follow_up_tasks = []
+    for task in follow_up_items[:25]:
+        if not isinstance(task, dict):
+            continue
+        title = str(task.get("title") or task.get("name") or "").strip()
+        if not title:
+            continue
+        priority_arg = task.get("priority")
+        priority = int(priority_arg) if isinstance(priority_arg, (int, float)) else 0
+        follow_up_tasks.append(ctx.db.append_task_record(
+            ctx.job_id,
+            title=title,
+            status=str(task.get("status") or "open"),
+            priority=priority,
+            goal=str(task.get("goal") or task.get("description") or ""),
+            source_hint=str(task.get("source_hint") or task.get("source") or ""),
+            result=str(task.get("result") or task.get("outcome") or ""),
+            parent=str(task.get("parent") or milestone),
+            output_contract=str(task.get("output_contract") or task.get("contract") or "action"),
+            acceptance_criteria=str(task.get("acceptance_criteria") or ""),
+            evidence_needed=str(task.get("evidence_needed") or ""),
+            stall_behavior=str(task.get("stall_behavior") or ""),
+            metadata=task.get("metadata") if isinstance(task.get("metadata"), dict) else {"source": "mission_validation"},
+        ))
+    ctx.db.append_agent_update(
+        ctx.job_id,
+        (
+            f"Mission validation {validation.get('validation_status')}: "
+            f"{validation.get('title') or milestone}; follow-up tasks {len(follow_up_tasks)}."
+        ),
+        category="plan",
+        metadata={
+            "milestone": validation.get("title") or milestone,
+            "validation_status": validation.get("validation_status"),
+            "follow_up_tasks": len(follow_up_tasks),
+        },
+    )
+    return _json({
+        "success": True,
+        "job_id": ctx.job_id,
+        "validation": validation,
+        "follow_up_tasks": follow_up_tasks,
+    })
+
+
 def _record_experiment(args: dict[str, Any], ctx: ToolContext) -> str:
     title = str(args.get("title") or args.get("name") or "").strip()
     if not title:
@@ -830,6 +926,94 @@ SUPPORT_SCHEMAS: list[ToolSpec] = [
         },
         "required": ["tasks"],
     }, _record_tasks),
+    ToolSpec("record_mission", "Create or update a generic mission plan for broad work: milestones, features, success criteria, validation contract, scope, and current mission state. Use this before or during long-running work when task lists need higher-level structure.", {
+        "type": "object",
+        "properties": {
+            "title": {"type": "string"},
+            "status": {"type": "string", "enum": ["planned", "active", "validating", "done", "blocked", "paused"], "default": "planned"},
+            "objective": {"type": "string"},
+            "scope": {"type": "string"},
+            "current_milestone": {"type": "string"},
+            "validation_contract": {"type": "string"},
+            "milestones": {
+                "type": "array",
+                "maxItems": 100,
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "key": {"type": "string"},
+                        "title": {"type": "string"},
+                        "status": {"type": "string", "enum": ["planned", "active", "validating", "done", "blocked", "skipped"], "default": "planned"},
+                        "priority": {"type": "integer", "default": 0},
+                        "goal": {"type": "string"},
+                        "acceptance_criteria": {"type": "string"},
+                        "evidence_needed": {"type": "string"},
+                        "validation_status": {"type": "string", "enum": ["not_started", "pending", "passed", "failed", "blocked"], "default": "not_started"},
+                        "validation_result": {"type": "string"},
+                        "next_action": {"type": "string"},
+                        "features": {
+                            "type": "array",
+                            "maxItems": 100,
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "key": {"type": "string"},
+                                    "title": {"type": "string"},
+                                    "status": {"type": "string", "enum": ["planned", "active", "done", "blocked", "skipped"], "default": "planned"},
+                                    "goal": {"type": "string"},
+                                    "output_contract": {"type": "string", "enum": ["research", "artifact", "experiment", "action", "monitor", "decision", "report", "validation"]},
+                                    "acceptance_criteria": {"type": "string"},
+                                    "evidence_needed": {"type": "string"},
+                                    "result": {"type": "string"},
+                                    "metadata": {"type": "object"},
+                                },
+                                "required": ["title"],
+                            },
+                        },
+                        "metadata": {"type": "object"},
+                    },
+                    "required": ["title"],
+                },
+            },
+            "metadata": {"type": "object"},
+        },
+        "required": ["title"],
+    }, _record_mission),
+    ToolSpec("record_mission_validation", "Record validation for a mission milestone and optionally create follow-up tasks for gaps. Use fresh evidence, acceptance criteria, and clear pass/fail/blocker reasons.", {
+        "type": "object",
+        "properties": {
+            "milestone": {"type": "string"},
+            "validation_status": {"type": "string", "enum": ["pending", "passed", "failed", "blocked"], "default": "pending"},
+            "result": {"type": "string"},
+            "evidence": {"type": "string"},
+            "issues": {"type": "array", "items": {"type": "string"}},
+            "next_action": {"type": "string"},
+            "follow_up_tasks": {
+                "type": "array",
+                "maxItems": 25,
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "title": {"type": "string"},
+                        "status": {"type": "string", "enum": ["open", "active", "done", "blocked", "skipped"], "default": "open"},
+                        "priority": {"type": "integer", "default": 0},
+                        "goal": {"type": "string"},
+                        "source_hint": {"type": "string"},
+                        "result": {"type": "string"},
+                        "parent": {"type": "string"},
+                        "output_contract": {"type": "string", "enum": ["research", "artifact", "experiment", "action", "monitor", "decision", "report"]},
+                        "acceptance_criteria": {"type": "string"},
+                        "evidence_needed": {"type": "string"},
+                        "stall_behavior": {"type": "string"},
+                        "metadata": {"type": "object"},
+                    },
+                    "required": ["title"],
+                },
+            },
+            "metadata": {"type": "object"},
+        },
+        "required": ["milestone", "validation_status"],
+    }, _record_mission_validation),
     ToolSpec("record_experiment", "Track a measurable trial, benchmark, comparison, hypothesis test, or optimization attempt. Use this after any command or source produces a concrete result so future steps compare against the best observed result instead of treating notes as progress.", {
         "type": "object",
         "properties": {

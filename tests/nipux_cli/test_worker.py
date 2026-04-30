@@ -1392,6 +1392,53 @@ def test_prompt_tells_model_to_open_new_branch_when_tasks_are_exhausted():
     assert "use record_tasks to open the next concrete branch" in content
 
 
+def test_prompt_includes_mission_control_and_validation_constraints():
+    job = {
+        "title": "broad work",
+        "kind": "generic",
+        "objective": "build a broad durable outcome",
+        "metadata": {
+            "mission_control": {
+                "title": "Broad Mission",
+                "status": "active",
+                "current_milestone": "Foundation",
+                "validation_contract": "check observable evidence",
+                "milestones": [{
+                    "title": "Foundation",
+                    "status": "validating",
+                    "validation_status": "pending",
+                    "acceptance_criteria": "evidence exists",
+                    "evidence_needed": "saved output",
+                    "features": [{"title": "First feature", "status": "done"}],
+                }],
+            },
+        },
+    }
+
+    messages = build_messages(job, [])
+    content = messages[-1]["content"]
+
+    assert "Mission control:" in content
+    assert "Broad Mission" in content
+    assert "validation=pending" in content
+    assert "Use record_mission_validation" in content
+
+
+def test_prompt_suggests_mission_for_broad_jobs_without_one():
+    job = {
+        "title": "broad work",
+        "kind": "generic",
+        "objective": "research and implement a broad multi phase system with validation and durable output",
+        "metadata": {},
+    }
+
+    messages = build_messages(job, [])
+    content = messages[-1]["content"]
+
+    assert "No mission plan yet" in content
+    assert "use record_mission" in content
+
+
 def test_run_one_step_blocks_branch_work_when_tasks_are_exhausted(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

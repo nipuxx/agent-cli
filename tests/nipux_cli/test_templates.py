@@ -10,4 +10,6 @@ def test_generic_template_pushes_artifacts_and_updates():
     assert "record_source" in program
     assert "record_findings" in program
     assert "record_tasks" in program
+    assert "record_mission" in program
+    assert "record_mission_validation" in program
     assert "record_findings" in program

@@ -168,6 +168,11 @@ def _norm_key(value: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")[:120]
 
 
+def _clean_status(value: str, allowed: set[str], default: str) -> str:
+    status = (value.strip().lower() or default).replace(" ", "_")
+    return status if status in allowed else default
+
+
 def _experiment_metric_value(entry: dict[str, Any]) -> float | None:
     try:
         value = entry.get("metric_value")
@@ -1277,6 +1282,336 @@ class AgentDB:
             current["event_id"] = event["id"]
             job_metadata["finding_ledger"] = findings[-1000:]
             job_metadata["last_finding_record"] = current
+            conn.execute(
+                "UPDATE jobs SET updated_at = ?, metadata_json = ? WHERE id = ?",
+                (now, _json_dumps(job_metadata), job_id),
+            )
+            return current
+
+        return self._write(op)
+
+    def append_mission_record(
+        self,
+        job_id: str,
+        *,
+        title: str,
+        status: str = "planned",
+        objective: str = "",
+        scope: str = "",
+        current_milestone: str = "",
+        validation_contract: str = "",
+        milestones: list[dict[str, Any]] | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        now = utc_now()
+        title = title.strip()
+        if not title:
+            raise ValueError("title is required")
+        status = _clean_status(status, {"planned", "active", "validating", "done", "blocked", "paused"}, "planned")
+        milestone_items = milestones if isinstance(milestones, list) else []
+
+        def merge_feature(existing_features: list[dict[str, Any]], feature: dict[str, Any]) -> tuple[dict[str, Any] | None, bool]:
+            feature_title = str(feature.get("title") or feature.get("name") or "").strip()
+            if not feature_title:
+                return None, False
+            feature_key = _norm_key(str(feature.get("key") or feature_title))
+            current = next((entry for entry in existing_features if entry.get("key") == feature_key), None)
+            created = current is None
+            if current is None:
+                current = {
+                    "key": feature_key,
+                    "title": feature_title,
+                    "status": _clean_status(str(feature.get("status") or "planned"), {"planned", "active", "done", "blocked", "skipped"}, "planned"),
+                    "goal": str(feature.get("goal") or feature.get("description") or "").strip(),
+                    "output_contract": str(feature.get("output_contract") or feature.get("contract") or "").strip().lower().replace(" ", "_"),
+                    "acceptance_criteria": str(feature.get("acceptance_criteria") or "").strip(),
+                    "evidence_needed": str(feature.get("evidence_needed") or "").strip(),
+                    "result": str(feature.get("result") or feature.get("outcome") or "").strip(),
+                    "metadata": feature.get("metadata") if isinstance(feature.get("metadata"), dict) else {},
+                    "created_at": now,
+                }
+                existing_features.append(current)
+            else:
+                current["status"] = _clean_status(str(feature.get("status") or current.get("status") or "planned"), {"planned", "active", "done", "blocked", "skipped"}, "planned")
+                for field, value in {
+                    "title": feature_title,
+                    "goal": str(feature.get("goal") or feature.get("description") or "").strip(),
+                    "output_contract": str(feature.get("output_contract") or feature.get("contract") or "").strip().lower().replace(" ", "_"),
+                    "acceptance_criteria": str(feature.get("acceptance_criteria") or "").strip(),
+                    "evidence_needed": str(feature.get("evidence_needed") or "").strip(),
+                    "result": str(feature.get("result") or feature.get("outcome") or "").strip(),
+                }.items():
+                    if value:
+                        current[field] = value
+                if isinstance(feature.get("metadata"), dict):
+                    merged = current.get("metadata") if isinstance(current.get("metadata"), dict) else {}
+                    merged.update(feature["metadata"])
+                    current["metadata"] = merged
+            if current.get("output_contract") not in {"research", "artifact", "experiment", "action", "monitor", "decision", "report", "validation"}:
+                current["output_contract"] = ""
+            current["updated_at"] = now
+            current["created"] = created
+            return current, created
+
+        def op(conn: sqlite3.Connection) -> dict[str, Any]:
+            row = conn.execute("SELECT objective, metadata_json FROM jobs WHERE id = ?", (job_id,)).fetchone()
+            if row is None:
+                raise KeyError(f"Job not found: {job_id}")
+            job_metadata = json.loads(row["metadata_json"] or "{}")
+            mission = job_metadata.get("mission_control")
+            created = not isinstance(mission, dict)
+            if created:
+                mission = {
+                    "key": _norm_key(title),
+                    "title": title,
+                    "status": status,
+                    "objective": objective.strip() or str(row["objective"] or "").strip(),
+                    "scope": scope.strip(),
+                    "validation_contract": validation_contract.strip(),
+                    "current_milestone": current_milestone.strip(),
+                    "milestones": [],
+                    "metadata": metadata or {},
+                    "created_at": now,
+                }
+            else:
+                mission["title"] = title or mission.get("title") or "Mission"
+                mission["status"] = status
+                for field, value in {
+                    "objective": objective.strip(),
+                    "scope": scope.strip(),
+                    "validation_contract": validation_contract.strip(),
+                    "current_milestone": current_milestone.strip(),
+                }.items():
+                    if value:
+                        mission[field] = value
+                if metadata:
+                    merged_metadata = mission.get("metadata") if isinstance(mission.get("metadata"), dict) else {}
+                    merged_metadata.update(metadata)
+                    mission["metadata"] = merged_metadata
+
+            stored_milestones = mission.get("milestones") if isinstance(mission.get("milestones"), list) else []
+            added_milestones = 0
+            updated_milestones = 0
+            added_features = 0
+            updated_features = 0
+            touched: list[dict[str, Any]] = []
+            for milestone in milestone_items[:100]:
+                if not isinstance(milestone, dict):
+                    continue
+                milestone_title = str(milestone.get("title") or milestone.get("name") or "").strip()
+                if not milestone_title:
+                    continue
+                milestone_key = _norm_key(str(milestone.get("key") or milestone_title))
+                current = next((entry for entry in stored_milestones if entry.get("key") == milestone_key), None)
+                milestone_created = current is None
+                if current is None:
+                    current = {
+                        "key": milestone_key,
+                        "title": milestone_title,
+                        "status": _clean_status(str(milestone.get("status") or "planned"), {"planned", "active", "validating", "done", "blocked", "skipped"}, "planned"),
+                        "priority": int(milestone.get("priority") or 0),
+                        "goal": str(milestone.get("goal") or milestone.get("description") or "").strip(),
+                        "acceptance_criteria": str(milestone.get("acceptance_criteria") or "").strip(),
+                        "evidence_needed": str(milestone.get("evidence_needed") or "").strip(),
+                        "validation_status": _clean_status(str(milestone.get("validation_status") or "not_started"), {"not_started", "pending", "passed", "failed", "blocked"}, "not_started"),
+                        "validation_result": str(milestone.get("validation_result") or "").strip(),
+                        "next_action": str(milestone.get("next_action") or "").strip(),
+                        "features": [],
+                        "metadata": milestone.get("metadata") if isinstance(milestone.get("metadata"), dict) else {},
+                        "created_at": now,
+                    }
+                    stored_milestones.append(current)
+                    added_milestones += 1
+                else:
+                    updated_milestones += 1
+                    current["status"] = _clean_status(str(milestone.get("status") or current.get("status") or "planned"), {"planned", "active", "validating", "done", "blocked", "skipped"}, "planned")
+                    if "priority" in milestone:
+                        current["priority"] = int(milestone.get("priority") or 0)
+                    for field, value in {
+                        "title": milestone_title,
+                        "goal": str(milestone.get("goal") or milestone.get("description") or "").strip(),
+                        "acceptance_criteria": str(milestone.get("acceptance_criteria") or "").strip(),
+                        "evidence_needed": str(milestone.get("evidence_needed") or "").strip(),
+                        "validation_status": _clean_status(str(milestone.get("validation_status") or ""), {"not_started", "pending", "passed", "failed", "blocked"}, ""),
+                        "validation_result": str(milestone.get("validation_result") or "").strip(),
+                        "next_action": str(milestone.get("next_action") or "").strip(),
+                    }.items():
+                        if value:
+                            current[field] = value
+                    if isinstance(milestone.get("metadata"), dict):
+                        merged_metadata = current.get("metadata") if isinstance(current.get("metadata"), dict) else {}
+                        merged_metadata.update(milestone["metadata"])
+                        current["metadata"] = merged_metadata
+                feature_items = milestone.get("features") if isinstance(milestone.get("features"), list) else []
+                features = current.get("features") if isinstance(current.get("features"), list) else []
+                for feature in feature_items[:100]:
+                    if not isinstance(feature, dict):
+                        continue
+                    stored_feature, feature_created = merge_feature(features, feature)
+                    if stored_feature is None:
+                        continue
+                    if feature_created:
+                        added_features += 1
+                    else:
+                        updated_features += 1
+                current["features"] = features[-500:]
+                current["updated_at"] = now
+                current["created"] = milestone_created
+                touched.append(current)
+
+            mission["milestones"] = stored_milestones[-500:]
+            mission["updated_at"] = now
+            mission["created"] = created
+            mission["added_milestones"] = added_milestones
+            mission["updated_milestones"] = updated_milestones
+            mission["added_features"] = added_features
+            mission["updated_features"] = updated_features
+            event = _insert_event(
+                conn,
+                job_id=job_id,
+                event_type="mission",
+                title=mission.get("title") or title,
+                body=f"{mission.get('status')} | milestones +{added_milestones}/~{updated_milestones} | features +{added_features}/~{updated_features}",
+                metadata={
+                    "created": created,
+                    "status": mission.get("status"),
+                    "current_milestone": mission.get("current_milestone"),
+                    "milestone_count": len(mission.get("milestones") or []),
+                    "added_milestones": added_milestones,
+                    "updated_milestones": updated_milestones,
+                    "added_features": added_features,
+                    "updated_features": updated_features,
+                },
+                created_at=now,
+            )
+            mission["event_id"] = event["id"]
+            job_metadata["mission_control"] = mission
+            job_metadata["last_mission_record"] = {
+                "at": now,
+                "event_id": event["id"],
+                "title": mission.get("title"),
+                "status": mission.get("status"),
+                "milestones": touched[-10:],
+            }
+            conn.execute(
+                "UPDATE jobs SET updated_at = ?, metadata_json = ? WHERE id = ?",
+                (now, _json_dumps(job_metadata), job_id),
+            )
+            return mission
+
+        return self._write(op)
+
+    def append_mission_validation_record(
+        self,
+        job_id: str,
+        *,
+        milestone: str,
+        validation_status: str = "pending",
+        result: str = "",
+        evidence: str = "",
+        issues: list[str] | None = None,
+        next_action: str = "",
+        metadata: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        now = utc_now()
+        milestone = milestone.strip()
+        if not milestone:
+            raise ValueError("milestone is required")
+        validation_status = _clean_status(validation_status, {"pending", "passed", "failed", "blocked"}, "pending")
+        issue_values = [str(issue).strip() for issue in (issues or []) if str(issue).strip()]
+        milestone_key = _norm_key(milestone)
+
+        def op(conn: sqlite3.Connection) -> dict[str, Any]:
+            row = conn.execute("SELECT objective, metadata_json FROM jobs WHERE id = ?", (job_id,)).fetchone()
+            if row is None:
+                raise KeyError(f"Job not found: {job_id}")
+            job_metadata = json.loads(row["metadata_json"] or "{}")
+            mission = job_metadata.get("mission_control")
+            if not isinstance(mission, dict):
+                mission = {
+                    "key": _norm_key(str(row["objective"] or "mission")),
+                    "title": "Mission",
+                    "status": "active",
+                    "objective": str(row["objective"] or ""),
+                    "scope": "",
+                    "validation_contract": "",
+                    "current_milestone": milestone,
+                    "milestones": [],
+                    "metadata": {},
+                    "created_at": now,
+                }
+            milestones = mission.get("milestones") if isinstance(mission.get("milestones"), list) else []
+            current = next(
+                (
+                    entry for entry in milestones
+                    if entry.get("key") == milestone_key
+                    or _norm_key(str(entry.get("title") or "")) == milestone_key
+                ),
+                None,
+            )
+            created = current is None
+            if current is None:
+                current = {
+                    "key": milestone_key,
+                    "title": milestone,
+                    "status": "validating" if validation_status == "pending" else ("done" if validation_status == "passed" else "blocked"),
+                    "priority": 0,
+                    "goal": "",
+                    "acceptance_criteria": "",
+                    "evidence_needed": "",
+                    "features": [],
+                    "metadata": {},
+                    "created_at": now,
+                }
+                milestones.append(current)
+            current["validation_status"] = validation_status
+            current["validation_result"] = result.strip()
+            current["validation_evidence"] = evidence.strip()
+            current["validation_issues"] = issue_values
+            current["next_action"] = next_action.strip()
+            if validation_status == "passed":
+                current["status"] = "done"
+            elif validation_status == "pending":
+                current["status"] = "validating"
+            elif validation_status in {"failed", "blocked"}:
+                current["status"] = "blocked"
+            if metadata:
+                merged_metadata = current.get("metadata") if isinstance(current.get("metadata"), dict) else {}
+                merged_metadata.update(metadata)
+                current["metadata"] = merged_metadata
+            current["updated_at"] = now
+            current["created"] = created
+            mission["milestones"] = milestones[-500:]
+            mission["status"] = "active" if validation_status in {"failed", "blocked"} else ("validating" if validation_status == "pending" else mission.get("status") or "active")
+            mission["current_milestone"] = current.get("title") or milestone
+            mission["updated_at"] = now
+            event = _insert_event(
+                conn,
+                job_id=job_id,
+                event_type="mission_validation",
+                title=current.get("title") or milestone,
+                body=result.strip() or validation_status,
+                metadata={
+                    "created": created,
+                    "validation_status": validation_status,
+                    "evidence": evidence.strip(),
+                    "issues": issue_values,
+                    "next_action": next_action.strip(),
+                    **(metadata or {}),
+                },
+                created_at=now,
+            )
+            current["validation_event_id"] = event["id"]
+            job_metadata["mission_control"] = mission
+            job_metadata["last_mission_validation"] = {
+                "at": now,
+                "event_id": event["id"],
+                "milestone": current.get("title"),
+                "validation_status": validation_status,
+                "result": result.strip(),
+                "issues": issue_values,
+                "next_action": next_action.strip(),
+            }
             conn.execute(
                 "UPDATE jobs SET updated_at = ?, metadata_json = ? WHERE id = ?",
                 (now, _json_dumps(job_metadata), job_id),

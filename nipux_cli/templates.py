@@ -24,6 +24,8 @@ def _generic_template(*, title: str, objective: str) -> str:
 - Use report_update for short progress notes or blocked-state notes.
 - Use record_lesson when a source, mistake, operator preference, or strategy should affect future steps.
 - Use record_source and record_findings when those tools are available so the job improves its ledgers over time.
+- Use record_mission for broad work that needs milestones, feature groups, validation contracts, and mission-level checkpoints.
+- Use record_mission_validation to validate milestones from evidence and create follow-up tasks when validation fails or blocks.
 - Use record_tasks to split broad objectives into durable branches with output contracts, acceptance criteria, required evidence, and stall behavior.
 - Use record_experiment whenever a branch produces measured results, comparisons, benchmarks, scores, or optimization data.
 - Use acknowledge_operator_context after incorporating or superseding active operator steering.
@@ -46,6 +48,8 @@ def _research_paper_template(*, title: str, objective: str) -> str:
 - Separate facts from hypotheses.
 - Produce drafts only after evidence artifacts exist.
 - Use report_update for brief progress, gap, or blocked-source notes.
+- Use record_mission for the paper outline, evidence milestones, draft milestones, and validation checkpoints.
+- Use record_mission_validation when a section or draft milestone has enough evidence to judge.
 - Use record_tasks to track source clusters, sections, and unresolved evidence gaps with output contracts and acceptance criteria.
 - Use acknowledge_operator_context after incorporating or superseding active operator steering.
 
