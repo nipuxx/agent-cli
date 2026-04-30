@@ -1290,7 +1290,7 @@ class AgentDB:
 
         return self._write(op)
 
-    def append_mission_record(
+    def append_roadmap_record(
         self,
         job_id: str,
         *,
@@ -1358,10 +1358,10 @@ class AgentDB:
             if row is None:
                 raise KeyError(f"Job not found: {job_id}")
             job_metadata = json.loads(row["metadata_json"] or "{}")
-            mission = job_metadata.get("mission_control")
-            created = not isinstance(mission, dict)
+            roadmap = job_metadata.get("roadmap")
+            created = not isinstance(roadmap, dict)
             if created:
-                mission = {
+                roadmap = {
                     "key": _norm_key(title),
                     "title": title,
                     "status": status,
@@ -1374,8 +1374,8 @@ class AgentDB:
                     "created_at": now,
                 }
             else:
-                mission["title"] = title or mission.get("title") or "Mission"
-                mission["status"] = status
+                roadmap["title"] = title or roadmap.get("title") or "Roadmap"
+                roadmap["status"] = status
                 for field, value in {
                     "objective": objective.strip(),
                     "scope": scope.strip(),
@@ -1383,13 +1383,13 @@ class AgentDB:
                     "current_milestone": current_milestone.strip(),
                 }.items():
                     if value:
-                        mission[field] = value
+                        roadmap[field] = value
                 if metadata:
-                    merged_metadata = mission.get("metadata") if isinstance(mission.get("metadata"), dict) else {}
+                    merged_metadata = roadmap.get("metadata") if isinstance(roadmap.get("metadata"), dict) else {}
                     merged_metadata.update(metadata)
-                    mission["metadata"] = merged_metadata
+                    roadmap["metadata"] = merged_metadata
 
-            stored_milestones = mission.get("milestones") if isinstance(mission.get("milestones"), list) else []
+            stored_milestones = roadmap.get("milestones") if isinstance(roadmap.get("milestones"), list) else []
             added_milestones = 0
             updated_milestones = 0
             added_features = 0
@@ -1459,24 +1459,24 @@ class AgentDB:
                 current["created"] = milestone_created
                 touched.append(current)
 
-            mission["milestones"] = stored_milestones[-500:]
-            mission["updated_at"] = now
-            mission["created"] = created
-            mission["added_milestones"] = added_milestones
-            mission["updated_milestones"] = updated_milestones
-            mission["added_features"] = added_features
-            mission["updated_features"] = updated_features
+            roadmap["milestones"] = stored_milestones[-500:]
+            roadmap["updated_at"] = now
+            roadmap["created"] = created
+            roadmap["added_milestones"] = added_milestones
+            roadmap["updated_milestones"] = updated_milestones
+            roadmap["added_features"] = added_features
+            roadmap["updated_features"] = updated_features
             event = _insert_event(
                 conn,
                 job_id=job_id,
-                event_type="mission",
-                title=mission.get("title") or title,
-                body=f"{mission.get('status')} | milestones +{added_milestones}/~{updated_milestones} | features +{added_features}/~{updated_features}",
+                event_type="roadmap",
+                title=roadmap.get("title") or title,
+                body=f"{roadmap.get('status')} | milestones +{added_milestones}/~{updated_milestones} | features +{added_features}/~{updated_features}",
                 metadata={
                     "created": created,
-                    "status": mission.get("status"),
-                    "current_milestone": mission.get("current_milestone"),
-                    "milestone_count": len(mission.get("milestones") or []),
+                    "status": roadmap.get("status"),
+                    "current_milestone": roadmap.get("current_milestone"),
+                    "milestone_count": len(roadmap.get("milestones") or []),
                     "added_milestones": added_milestones,
                     "updated_milestones": updated_milestones,
                     "added_features": added_features,
@@ -1484,24 +1484,24 @@ class AgentDB:
                 },
                 created_at=now,
             )
-            mission["event_id"] = event["id"]
-            job_metadata["mission_control"] = mission
-            job_metadata["last_mission_record"] = {
+            roadmap["event_id"] = event["id"]
+            job_metadata["roadmap"] = roadmap
+            job_metadata["last_roadmap_record"] = {
                 "at": now,
                 "event_id": event["id"],
-                "title": mission.get("title"),
-                "status": mission.get("status"),
+                "title": roadmap.get("title"),
+                "status": roadmap.get("status"),
                 "milestones": touched[-10:],
             }
             conn.execute(
                 "UPDATE jobs SET updated_at = ?, metadata_json = ? WHERE id = ?",
                 (now, _json_dumps(job_metadata), job_id),
             )
-            return mission
+            return roadmap
 
         return self._write(op)
 
-    def append_mission_validation_record(
+    def append_milestone_validation_record(
         self,
         job_id: str,
         *,
@@ -1526,11 +1526,11 @@ class AgentDB:
             if row is None:
                 raise KeyError(f"Job not found: {job_id}")
             job_metadata = json.loads(row["metadata_json"] or "{}")
-            mission = job_metadata.get("mission_control")
-            if not isinstance(mission, dict):
-                mission = {
-                    "key": _norm_key(str(row["objective"] or "mission")),
-                    "title": "Mission",
+            roadmap = job_metadata.get("roadmap")
+            if not isinstance(roadmap, dict):
+                roadmap = {
+                    "key": _norm_key(str(row["objective"] or "roadmap")),
+                    "title": "Roadmap",
                     "status": "active",
                     "objective": str(row["objective"] or ""),
                     "scope": "",
@@ -1540,7 +1540,7 @@ class AgentDB:
                     "metadata": {},
                     "created_at": now,
                 }
-            milestones = mission.get("milestones") if isinstance(mission.get("milestones"), list) else []
+            milestones = roadmap.get("milestones") if isinstance(roadmap.get("milestones"), list) else []
             current = next(
                 (
                     entry for entry in milestones
@@ -1581,14 +1581,14 @@ class AgentDB:
                 current["metadata"] = merged_metadata
             current["updated_at"] = now
             current["created"] = created
-            mission["milestones"] = milestones[-500:]
-            mission["status"] = "active" if validation_status in {"failed", "blocked"} else ("validating" if validation_status == "pending" else mission.get("status") or "active")
-            mission["current_milestone"] = current.get("title") or milestone
-            mission["updated_at"] = now
+            roadmap["milestones"] = milestones[-500:]
+            roadmap["status"] = "active" if validation_status in {"failed", "blocked"} else ("validating" if validation_status == "pending" else roadmap.get("status") or "active")
+            roadmap["current_milestone"] = current.get("title") or milestone
+            roadmap["updated_at"] = now
             event = _insert_event(
                 conn,
                 job_id=job_id,
-                event_type="mission_validation",
+                event_type="milestone_validation",
                 title=current.get("title") or milestone,
                 body=result.strip() or validation_status,
                 metadata={
@@ -1602,8 +1602,8 @@ class AgentDB:
                 created_at=now,
             )
             current["validation_event_id"] = event["id"]
-            job_metadata["mission_control"] = mission
-            job_metadata["last_mission_validation"] = {
+            job_metadata["roadmap"] = roadmap
+            job_metadata["last_milestone_validation"] = {
                 "at": now,
                 "event_id": event["id"],
                 "milestone": current.get("title"),

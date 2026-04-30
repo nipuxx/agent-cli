@@ -75,12 +75,12 @@ action, monitor, decision, or report), acceptance criteria, evidence needed,
 and stall behavior so progress is judged by evidence, not activity volume.
 When the job is broad or starts looping, split it into tasks and move to the
 highest-priority open task rather than staying on one source or tactic forever.
-Use record_mission for broad, multi-phase, or ambiguous objectives that need a
-higher-level orchestration plan. A mission is generic: milestones group related
+Use record_roadmap for broad, multi-phase, or ambiguous objectives that need a
+higher-level orchestration plan. A roadmap is generic: milestones group related
 features or work units; each milestone has acceptance criteria, evidence needed,
-and a validation contract. Use record_mission_validation at milestone checkpoints
+and a validation contract. Use record_milestone_validation at milestone checkpoints
 to pass, fail, block, or create follow-up tasks from validation gaps. Keep the
-mission plan compact and update it from durable evidence, not from activity count.
+roadmap compact and update it from durable evidence, not from activity count.
 Use record_experiment for measurable trials, benchmarks, comparisons,
 optimization attempts, or hypothesis tests. A saved note, source, or artifact is
 not enough progress for a measurable objective: record the exact configuration,
@@ -122,12 +122,12 @@ LEDGER_PROGRESS_TOOLS = {
     "record_findings",
     "record_source",
     "record_tasks",
-    "record_mission",
-    "record_mission_validation",
+    "record_roadmap",
+    "record_milestone_validation",
     "record_experiment",
     "record_lesson",
 }
-MEASUREMENT_RESOLUTION_TOOLS = {"record_experiment", "record_lesson", "record_tasks", "record_mission_validation", "acknowledge_operator_context"}
+MEASUREMENT_RESOLUTION_TOOLS = {"record_experiment", "record_lesson", "record_tasks", "record_milestone_validation", "acknowledge_operator_context"}
 ARTIFACT_ACCOUNTING_RESOLUTION_TOOLS = LEDGER_PROGRESS_TOOLS | {"acknowledge_operator_context"}
 ARTIFACT_ACCOUNTING_BLOCKED_TOOLS = INFORMATION_GATHERING_TOOLS | {
     "shell_exec",
@@ -141,6 +141,14 @@ MEASUREMENT_BLOCKED_TOOLS = INFORMATION_GATHERING_TOOLS | {
     "write_artifact",
     "record_findings",
     "record_source",
+    "report_update",
+}
+MILESTONE_VALIDATION_BLOCKED_TOOLS = INFORMATION_GATHERING_TOOLS | {
+    "shell_exec",
+    "write_artifact",
+    "record_findings",
+    "record_source",
+    "record_experiment",
     "report_update",
 }
 CHURN_TOOLS = INFORMATION_GATHERING_TOOLS | ARTIFACT_REVIEW_TOOLS | {"shell_exec"}
@@ -279,7 +287,7 @@ def build_messages(
     measured_progress_guard = _measured_progress_guard_for_prompt(job, recent_steps)
     progress_accounting_guard = _progress_accounting_for_prompt(recent_steps)
     lessons = _lessons_for_prompt(job)
-    mission = _mission_for_prompt(job)
+    roadmap = _roadmap_for_prompt(job)
     tasks = _tasks_for_prompt(job)
     ledgers = _ledgers_for_prompt(job)
     experiments = _experiments_for_prompt(job)
@@ -304,7 +312,7 @@ def build_messages(
                 f"Progress accounting guard:\n{progress_accounting_guard}\n\n"
                 f"Program:\n{program}\n\n"
                 f"Lessons learned:\n{lessons}\n\n"
-                f"Mission control:\n{mission}\n\n"
+                f"Roadmap:\n{roadmap}\n\n"
                 f"Task queue:\n{tasks}\n\n"
                 f"Ledgers:\n{ledgers}\n\n"
                 f"Experiment ledger:\n{experiments}\n\n"
@@ -408,15 +416,15 @@ def _lessons_for_prompt(job: dict[str, Any]) -> str:
     return "\n".join(lines) if lines else "No durable lessons yet."
 
 
-def _mission_for_prompt(job: dict[str, Any]) -> str:
+def _roadmap_for_prompt(job: dict[str, Any]) -> str:
     metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
-    mission = metadata.get("mission_control") if isinstance(metadata.get("mission_control"), dict) else {}
-    if not mission:
+    roadmap = metadata.get("roadmap") if isinstance(metadata.get("roadmap"), dict) else {}
+    if not roadmap:
         return (
-            "No mission plan yet. If the objective is broad, multi-phase, or needs validation checkpoints, "
-            "use record_mission to define compact milestones, features, acceptance criteria, and validation evidence."
+            "No roadmap yet. If the objective is broad, multi-phase, or needs validation checkpoints, "
+            "use record_roadmap to define compact milestones, features, acceptance criteria, and validation evidence."
         )
-    milestones = mission.get("milestones") if isinstance(mission.get("milestones"), list) else []
+    milestones = roadmap.get("milestones") if isinstance(roadmap.get("milestones"), list) else []
     status_counts: dict[str, int] = {}
     validation_counts: dict[str, int] = {}
     for milestone in milestones:
@@ -428,17 +436,17 @@ def _mission_for_prompt(job: dict[str, Any]) -> str:
         validation_counts[validation_status] = validation_counts.get(validation_status, 0) + 1
     lines = [
         _clip_text(
-            f"{mission.get('status') or 'planned'}: {mission.get('title') or 'Mission'}"
-            + (f" | current={mission.get('current_milestone')}" if mission.get("current_milestone") else ""),
+            f"{roadmap.get('status') or 'planned'}: {roadmap.get('title') or 'Roadmap'}"
+            + (f" | current={roadmap.get('current_milestone')}" if roadmap.get("current_milestone") else ""),
             520,
         ),
         "Milestone counts: " + (", ".join(f"{key}={value}" for key, value in sorted(status_counts.items())) or "none"),
         "Validation counts: " + (", ".join(f"{key}={value}" for key, value in sorted(validation_counts.items())) or "none"),
     ]
-    if mission.get("scope"):
-        lines.append("Scope: " + _clip_text(str(mission.get("scope") or ""), 420))
-    if mission.get("validation_contract"):
-        lines.append("Validation contract: " + _clip_text(str(mission.get("validation_contract") or ""), 520))
+    if roadmap.get("scope"):
+        lines.append("Scope: " + _clip_text(str(roadmap.get("scope") or ""), 420))
+    if roadmap.get("validation_contract"):
+        lines.append("Validation contract: " + _clip_text(str(roadmap.get("validation_contract") or ""), 520))
     selected = [
         milestone for milestone in milestones
         if isinstance(milestone, dict)
@@ -747,9 +755,9 @@ def _progress_accounting_for_prompt(recent_steps: list[dict[str, Any]]) -> str:
         "Recent saved outputs need accounting before more output/research. "
         f"artifact_count={context.get('artifact_count')} since_step={context.get('since_step')} "
         f"artifact_titles={'; '.join(str(title) for title in context.get('artifact_titles', [])[:4])}. "
-        "Next use record_tasks or record_mission to mark progress/reopen branches, "
+        "Next use record_tasks or record_roadmap to mark progress/reopen branches, "
         "record_findings or record_source for reusable evidence, record_experiment for measured results, "
-        "record_mission_validation for milestone checks, or record_lesson if these outputs are not useful."
+        "record_milestone_validation for milestone checks, or record_lesson if these outputs are not useful."
     )
 
 
@@ -777,7 +785,7 @@ def _next_action_constraint(job: dict[str, Any], recent_steps: list[dict[str, An
     if artifact_accounting:
         return (
             "Recent saved outputs need durable accounting. Before more artifact writing, reading, research, browsing, "
-            "or shell work, use record_tasks, record_mission, record_mission_validation, record_findings, record_source, record_experiment, or record_lesson "
+            "or shell work, use record_tasks, record_roadmap, record_milestone_validation, record_findings, record_source, record_experiment, or record_lesson "
             "to explain what changed and what branch is next."
         )
     measured_guard = _measured_progress_guard_context(job, recent_steps)
@@ -787,15 +795,15 @@ def _next_action_constraint(job: dict[str, Any], recent_steps: list[dict[str, An
             "Do one of: run a small measuring command/action, call record_experiment for a known measurement, "
             "record_tasks with an experiment/action/monitor contract, or record_lesson if measurement is blocked."
         )
-    mission_validation = _mission_validation_needed(job)
-    if mission_validation:
+    milestone_validation = _milestone_validation_needed(job)
+    if milestone_validation:
         return (
-            f"Mission milestone '{mission_validation.get('title')}' is ready for validation or is marked validating. "
-            "Use record_mission_validation with evidence and pass/fail/blocker status, then create follow-up tasks for gaps."
+            f"Roadmap milestone '{milestone_validation.get('title')}' is ready for validation or is marked validating. "
+            "Use record_milestone_validation with evidence and pass/fail/blocker status, then create follow-up tasks for gaps."
         )
-    if _mission_missing_for_broad_job(job):
+    if _roadmap_missing_for_broad_job(job):
         return (
-            "The objective is broad enough to benefit from mission control. Use record_mission to define compact milestones, "
+            "The objective is broad enough to benefit from roadmap control. Use record_roadmap to define compact milestones, "
             "features, acceptance criteria, and validation checkpoints before expanding the task queue further."
         )
     evidence_step = _unpersisted_evidence_step(recent_steps)
@@ -827,10 +835,10 @@ def _next_action_constraint(job: dict[str, Any], recent_steps: list[dict[str, An
     return "No special constraint beyond taking one bounded useful action."
 
 
-def _mission_validation_needed(job: dict[str, Any]) -> dict[str, Any] | None:
+def _milestone_validation_needed(job: dict[str, Any]) -> dict[str, Any] | None:
     metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
-    mission = metadata.get("mission_control") if isinstance(metadata.get("mission_control"), dict) else {}
-    milestones = mission.get("milestones") if isinstance(mission.get("milestones"), list) else []
+    roadmap = metadata.get("roadmap") if isinstance(metadata.get("roadmap"), dict) else {}
+    milestones = roadmap.get("milestones") if isinstance(roadmap.get("milestones"), list) else []
     for milestone in milestones:
         if not isinstance(milestone, dict):
             continue
@@ -847,9 +855,9 @@ def _mission_validation_needed(job: dict[str, Any]) -> dict[str, Any] | None:
     return None
 
 
-def _mission_missing_for_broad_job(job: dict[str, Any]) -> bool:
+def _roadmap_missing_for_broad_job(job: dict[str, Any]) -> bool:
     metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
-    if isinstance(metadata.get("mission_control"), dict):
+    if isinstance(metadata.get("roadmap"), dict):
         return False
     objective = str(job.get("objective") or "")
     tasks = metadata.get("task_queue") if isinstance(metadata.get("task_queue"), list) else []
@@ -1617,8 +1625,8 @@ def _blocked_tool_call_result(
             "artifact_accounting": artifact_accounting,
             "guidance": (
                 "Recent saved outputs have not been reflected in durable progress state. "
-                "Use record_tasks or record_mission to mark completed/open branches, "
-                "record_mission_validation for milestone checks, record_findings or record_source "
+                "Use record_tasks or record_roadmap to mark completed/open branches, "
+                "record_milestone_validation for milestone checks, record_findings or record_source "
                 "for reusable evidence, record_experiment for measurements, or record_lesson "
                 "if the outputs were low-value before continuing."
             ),
@@ -1638,6 +1646,28 @@ def _blocked_tool_call_result(
             ),
         }
         return result, f"blocked {name}; progress ledger update required"
+
+    milestone_validation = _milestone_validation_needed(job)
+    if milestone_validation and name in MILESTONE_VALIDATION_BLOCKED_TOOLS:
+        result = {
+            "success": False,
+            "error": "milestone validation required",
+            "blocked_tool": name,
+            "blocked_arguments": args,
+            "milestone": {
+                "title": milestone_validation.get("title"),
+                "status": milestone_validation.get("status"),
+                "validation_status": milestone_validation.get("validation_status"),
+                "acceptance_criteria": milestone_validation.get("acceptance_criteria"),
+                "evidence_needed": milestone_validation.get("evidence_needed"),
+            },
+            "guidance": (
+                "The current milestone is ready for validation. Use record_milestone_validation "
+                "with evidence and pass/fail/blocker status, read an existing artifact if needed, "
+                "or create follow-up tasks for validation gaps before starting more branch work."
+            ),
+        }
+        return result, f"blocked {name}; milestone validation required"
 
     anti_bot_context = _recent_anti_bot_context(recent_steps)
     if anti_bot_context:
@@ -1839,16 +1869,16 @@ def _summarize_tool_result(name: str, args: dict[str, Any], result: dict[str, An
         )
     if name == "record_tasks":
         return f"record_tasks updated queue: {result.get('added', 0)} new, {result.get('updated', 0)} updated"
-    if name == "record_mission":
-        mission = result.get("mission") if isinstance(result.get("mission"), dict) else {}
+    if name == "record_roadmap":
+        roadmap = result.get("roadmap") if isinstance(result.get("roadmap"), dict) else {}
         return (
-            f"record_mission {mission.get('status')}: {mission.get('title')} "
-            f"milestones={len(mission.get('milestones') or [])}"
+            f"record_roadmap {roadmap.get('status')}: {roadmap.get('title')} "
+            f"milestones={len(roadmap.get('milestones') or [])}"
         )
-    if name == "record_mission_validation":
+    if name == "record_milestone_validation":
         validation = result.get("validation") if isinstance(result.get("validation"), dict) else {}
         return (
-            f"record_mission_validation {validation.get('validation_status')}: "
+            f"record_milestone_validation {validation.get('validation_status')}: "
             f"{validation.get('title')} followups={len(result.get('follow_up_tasks') or [])}"
         )
     if name == "record_experiment":
@@ -2006,8 +2036,8 @@ def _run_reflection_step(
     tasks = metadata.get("task_queue") if isinstance(metadata.get("task_queue"), list) else []
     experiments = metadata.get("experiment_ledger") if isinstance(metadata.get("experiment_ledger"), list) else []
     lessons = metadata.get("lessons") if isinstance(metadata.get("lessons"), list) else []
-    mission = metadata.get("mission_control") if isinstance(metadata.get("mission_control"), dict) else {}
-    milestones = mission.get("milestones") if isinstance(mission.get("milestones"), list) else []
+    roadmap = metadata.get("roadmap") if isinstance(metadata.get("roadmap"), dict) else {}
+    milestones = roadmap.get("milestones") if isinstance(roadmap.get("milestones"), list) else []
     validating_milestones = [
         milestone for milestone in milestones
         if isinstance(milestone, dict)
@@ -2056,19 +2086,19 @@ def _run_reflection_step(
         )
     summary = (
         f"Reflection through step #{step_no}: {len(findings)} findings, {len(sources)} sources, "
-        f"{len(tasks)} tasks, {len(experiments)} experiments, {len(milestones)} mission milestones, "
+        f"{len(tasks)} tasks, {len(experiments)} experiments, {len(milestones)} roadmap milestones, "
         f"{len(lessons)} lessons, "
         f"{len(active_operator_messages)} active operator messages, "
         f"{len(finding_batches)} recent finding artifacts, {len(failures)} recent blocked/failed steps. "
         f"Best source direction: {source_text}. Best measured result: {best_experiment_text}."
-        + (f" Mission '{mission.get('title')}' has {len(validating_milestones)} milestone(s) needing validation." if mission else "")
+        + (f" Roadmap '{roadmap.get('title')}' has {len(validating_milestones)} milestone(s) needing validation." if roadmap else "")
         + (" Pending measurement obligation needs resolution." if pending_measurement else "")
     )
     strategy = (
         "Prioritize source types that have yielded durable findings or artifacts; "
         "downgrade repetitive, blocked, or low-evidence paths that do not advance the objective. "
         "For measurable work, convert ideas into record_experiment trials and choose the next branch from the best observed result. "
-        "For broad work, keep mission milestones compact and validate milestones from evidence before expanding scope."
+        "For broad work, keep roadmap milestones compact and validate milestones from evidence before expanding scope."
     )
     reflection = db.append_reflection(
         job_id,
@@ -2080,8 +2110,8 @@ def _run_reflection_step(
             "source_count": len(sources),
             "task_count": len(tasks),
             "experiment_count": len(experiments),
-            "mission_milestone_count": len(milestones),
-            "mission_validation_needed_count": len(validating_milestones),
+            "roadmap_milestone_count": len(milestones),
+            "roadmap_validation_needed_count": len(validating_milestones),
             "measured_experiment_count": len(measured_experiments),
             "active_operator_message_count": len(active_operator_messages),
             "pending_measurement_obligation": bool(pending_measurement),

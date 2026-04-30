@@ -56,8 +56,7 @@ def test_cli_has_operator_commands():
     assert parser.parse_args(["learn", "low-evidence", "pages", "are", "bad"]).func.__name__ == "cmd_learn"
     assert parser.parse_args(["findings"]).func.__name__ == "cmd_findings"
     assert parser.parse_args(["tasks"]).func.__name__ == "cmd_tasks"
-    assert parser.parse_args(["missions"]).func.__name__ == "cmd_missions"
-    assert parser.parse_args(["mission"]).func.__name__ == "cmd_missions"
+    assert parser.parse_args(["roadmap"]).func.__name__ == "cmd_roadmap"
     assert parser.parse_args(["experiments"]).func.__name__ == "cmd_experiments"
     assert parser.parse_args(["sources"]).func.__name__ == "cmd_sources"
     assert parser.parse_args(["memory"]).func.__name__ == "cmd_memory"
@@ -145,14 +144,14 @@ def test_shell_ls_alias_lists_jobs_instead_of_steering(monkeypatch, tmp_path, ca
     assert "queued for" not in out
 
 
-def test_missions_command_renders_mission_control(monkeypatch, tmp_path, capsys):
+def test_roadmap_command_renders_roadmap(monkeypatch, tmp_path, capsys):
     monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
     db = AgentDB(tmp_path / "state.db")
     try:
         job_id = db.create_job("Broad work", title="broad")
-        db.append_mission_record(
+        db.append_roadmap_record(
             job_id,
-            title="Broad Mission",
+            title="Broad Roadmap",
             status="active",
             current_milestone="Foundation",
             milestones=[{
@@ -165,11 +164,11 @@ def test_missions_command_renders_mission_control(monkeypatch, tmp_path, capsys)
     finally:
         db.close()
 
-    main(["missions", "broad"])
+    main(["roadmap", "broad"])
 
     out = capsys.readouterr().out
-    assert "mission broad" in out
-    assert "Broad Mission" in out
+    assert "roadmap broad" in out
+    assert "Broad Roadmap" in out
     assert "Foundation" in out
     assert "validation=pending" in out
 

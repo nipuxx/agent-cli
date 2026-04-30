@@ -362,13 +362,13 @@ def _record_tasks(args: dict[str, Any], ctx: ToolContext) -> str:
     return _json({"success": True, "job_id": ctx.job_id, "added": added, "updated": updated, "tasks": stored})
 
 
-def _record_mission(args: dict[str, Any], ctx: ToolContext) -> str:
+def _record_roadmap(args: dict[str, Any], ctx: ToolContext) -> str:
     title = str(args.get("title") or args.get("name") or "").strip()
     if not title:
         return _json({"success": False, "error": "title is required"})
     milestones_arg = args.get("milestones")
     milestones = [item for item in milestones_arg if isinstance(item, dict)] if isinstance(milestones_arg, list) else []
-    mission = ctx.db.append_mission_record(
+    roadmap = ctx.db.append_roadmap_record(
         ctx.job_id,
         title=title,
         status=str(args.get("status") or "planned"),
@@ -382,27 +382,27 @@ def _record_mission(args: dict[str, Any], ctx: ToolContext) -> str:
     ctx.db.append_agent_update(
         ctx.job_id,
         (
-            f"Mission updated: {mission.get('status')} with "
-            f"{len(mission.get('milestones') or [])} milestones."
+            f"Roadmap updated: {roadmap.get('status')} with "
+            f"{len(roadmap.get('milestones') or [])} milestones."
         ),
         category="plan",
         metadata={
-            "mission_title": mission.get("title"),
-            "mission_status": mission.get("status"),
-            "milestone_count": len(mission.get("milestones") or []),
-            "current_milestone": mission.get("current_milestone"),
+            "roadmap_title": roadmap.get("title"),
+            "roadmap_status": roadmap.get("status"),
+            "milestone_count": len(roadmap.get("milestones") or []),
+            "current_milestone": roadmap.get("current_milestone"),
         },
     )
-    return _json({"success": True, "job_id": ctx.job_id, "mission": mission})
+    return _json({"success": True, "job_id": ctx.job_id, "roadmap": roadmap})
 
 
-def _record_mission_validation(args: dict[str, Any], ctx: ToolContext) -> str:
+def _record_milestone_validation(args: dict[str, Any], ctx: ToolContext) -> str:
     milestone = str(args.get("milestone") or args.get("milestone_title") or "").strip()
     if not milestone:
         return _json({"success": False, "error": "milestone is required"})
     raw_issues = args.get("issues")
     issues = [str(item) for item in raw_issues if str(item).strip()] if isinstance(raw_issues, list) else []
-    validation = ctx.db.append_mission_validation_record(
+    validation = ctx.db.append_milestone_validation_record(
         ctx.job_id,
         milestone=milestone,
         validation_status=str(args.get("validation_status") or args.get("status") or "pending"),
@@ -435,12 +435,12 @@ def _record_mission_validation(args: dict[str, Any], ctx: ToolContext) -> str:
             acceptance_criteria=str(task.get("acceptance_criteria") or ""),
             evidence_needed=str(task.get("evidence_needed") or ""),
             stall_behavior=str(task.get("stall_behavior") or ""),
-            metadata=task.get("metadata") if isinstance(task.get("metadata"), dict) else {"source": "mission_validation"},
+            metadata=task.get("metadata") if isinstance(task.get("metadata"), dict) else {"source": "milestone_validation"},
         ))
     ctx.db.append_agent_update(
         ctx.job_id,
         (
-            f"Mission validation {validation.get('validation_status')}: "
+            f"Milestone validation {validation.get('validation_status')}: "
             f"{validation.get('title') or milestone}; follow-up tasks {len(follow_up_tasks)}."
         ),
         category="plan",
@@ -926,7 +926,7 @@ SUPPORT_SCHEMAS: list[ToolSpec] = [
         },
         "required": ["tasks"],
     }, _record_tasks),
-    ToolSpec("record_mission", "Create or update a generic mission plan for broad work: milestones, features, success criteria, validation contract, scope, and current mission state. Use this before or during long-running work when task lists need higher-level structure.", {
+    ToolSpec("record_roadmap", "Create or update a generic roadmap for broad work: milestones, features, success criteria, validation contract, scope, and current roadmap state. Use this before or during long-running work when task lists need higher-level structure.", {
         "type": "object",
         "properties": {
             "title": {"type": "string"},
@@ -978,8 +978,8 @@ SUPPORT_SCHEMAS: list[ToolSpec] = [
             "metadata": {"type": "object"},
         },
         "required": ["title"],
-    }, _record_mission),
-    ToolSpec("record_mission_validation", "Record validation for a mission milestone and optionally create follow-up tasks for gaps. Use fresh evidence, acceptance criteria, and clear pass/fail/blocker reasons.", {
+    }, _record_roadmap),
+    ToolSpec("record_milestone_validation", "Record validation for a roadmap milestone and optionally create follow-up tasks for gaps. Use fresh evidence, acceptance criteria, and clear pass/fail/blocker reasons.", {
         "type": "object",
         "properties": {
             "milestone": {"type": "string"},
@@ -1013,7 +1013,7 @@ SUPPORT_SCHEMAS: list[ToolSpec] = [
             "metadata": {"type": "object"},
         },
         "required": ["milestone", "validation_status"],
-    }, _record_mission_validation),
+    }, _record_milestone_validation),
     ToolSpec("record_experiment", "Track a measurable trial, benchmark, comparison, hypothesis test, or optimization attempt. Use this after any command or source produces a concrete result so future steps compare against the best observed result instead of treating notes as progress.", {
         "type": "object",
         "properties": {

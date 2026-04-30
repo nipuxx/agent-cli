@@ -19,8 +19,8 @@ def test_static_tool_surface_is_barebones():
     assert "record_source" in DEFAULT_REGISTRY.names()
     assert "record_findings" in DEFAULT_REGISTRY.names()
     assert "record_tasks" in DEFAULT_REGISTRY.names()
-    assert "record_mission" in DEFAULT_REGISTRY.names()
-    assert "record_mission_validation" in DEFAULT_REGISTRY.names()
+    assert "record_roadmap" in DEFAULT_REGISTRY.names()
+    assert "record_milestone_validation" in DEFAULT_REGISTRY.names()
     assert "record_experiment" in DEFAULT_REGISTRY.names()
     assert "acknowledge_operator_context" in DEFAULT_REGISTRY.names()
 
@@ -279,19 +279,19 @@ def test_record_tasks_tool_updates_task_queue(tmp_path):
         db.close()
 
 
-def test_record_mission_tool_updates_mission_control(tmp_path):
+def test_record_roadmap_tool_updates_roadmap(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")
     try:
         job_id = db.create_job("Build a broad generic outcome")
         run_id = db.start_run(job_id, model="fake")
-        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="record_mission")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="record_roadmap")
         ctx = ToolContext(config=config, db=db, artifacts=ArtifactStore(tmp_path, db), job_id=job_id, run_id=run_id, step_id=step_id)
 
         raw = DEFAULT_REGISTRY.handle(
-            "record_mission",
+            "record_roadmap",
             {
-                "title": "Generic Mission",
+                "title": "Generic Roadmap",
                 "status": "active",
                 "scope": "Coordinate broad work through milestones.",
                 "current_milestone": "Foundation",
@@ -313,29 +313,29 @@ def test_record_mission_tool_updates_mission_control(tmp_path):
         )
         result = json.loads(raw)
         job = db.get_job(job_id)
-        mission = job["metadata"]["mission_control"]
+        roadmap = job["metadata"]["roadmap"]
 
         assert result["success"] is True
-        assert mission["title"] == "Generic Mission"
-        assert mission["status"] == "active"
-        assert mission["milestones"][0]["title"] == "Foundation"
-        assert mission["milestones"][0]["features"][0]["title"] == "Create first checkpoint"
-        assert job["metadata"]["last_agent_update"]["metadata"]["mission_status"] == "active"
+        assert roadmap["title"] == "Generic Roadmap"
+        assert roadmap["status"] == "active"
+        assert roadmap["milestones"][0]["title"] == "Foundation"
+        assert roadmap["milestones"][0]["features"][0]["title"] == "Create first checkpoint"
+        assert job["metadata"]["last_agent_update"]["metadata"]["roadmap_status"] == "active"
     finally:
         db.close()
 
 
-def test_record_mission_validation_creates_follow_up_tasks(tmp_path):
+def test_record_milestone_validation_creates_follow_up_tasks(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")
     try:
         job_id = db.create_job("Validate broad work")
         run_id = db.start_run(job_id, model="fake")
-        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="record_mission_validation")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="record_milestone_validation")
         ctx = ToolContext(config=config, db=db, artifacts=ArtifactStore(tmp_path, db), job_id=job_id, run_id=run_id, step_id=step_id)
 
         raw = DEFAULT_REGISTRY.handle(
-            "record_mission_validation",
+            "record_milestone_validation",
             {
                 "milestone": "Foundation",
                 "validation_status": "failed",
@@ -352,12 +352,12 @@ def test_record_mission_validation_creates_follow_up_tasks(tmp_path):
         )
         result = json.loads(raw)
         job = db.get_job(job_id)
-        mission = job["metadata"]["mission_control"]
+        roadmap = job["metadata"]["roadmap"]
 
         assert result["success"] is True
         assert result["validation"]["validation_status"] == "failed"
         assert result["follow_up_tasks"][0]["title"] == "Produce missing evidence"
-        assert mission["milestones"][0]["status"] == "blocked"
+        assert roadmap["milestones"][0]["status"] == "blocked"
         assert job["metadata"]["task_queue"][0]["parent"] == "Foundation"
         assert job["metadata"]["last_agent_update"]["metadata"]["validation_status"] == "failed"
     finally:

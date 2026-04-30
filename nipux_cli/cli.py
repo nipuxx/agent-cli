@@ -56,8 +56,7 @@ SHELL_COMMAND_NAMES = {
     "updates",
     "findings",
     "tasks",
-    "missions",
-    "mission",
+    "roadmap",
     "experiments",
     "update",
     "dashboard",
@@ -114,16 +113,14 @@ NATURAL_COMMANDS = {
     "what has it found": "updates",
     "findings": "findings",
     "tasks": "tasks",
-    "missions": "missions",
-    "show missions": "missions",
-    "mission": "missions",
+    "roadmap": "roadmap",
+    "show roadmap": "roadmap",
     "show artifacts": "artifacts",
     "where are artifacts": "artifacts",
     "show lessons": "lessons",
     "what did it learn": "lessons",
     "show findings": "findings",
     "show tasks": "tasks",
-    "show mission": "missions",
     "show experiments": "experiments",
     "show sources": "sources",
     "show memory": "memory",
@@ -210,12 +207,12 @@ def _create_job(*, objective: str, title: str | None = None, kind: str = "generi
         db.update_job_status(job_id, "queued", metadata_patch={"planning": plan, "planning_status": "auto_accepted"})
         db.append_agent_update(job_id, _format_initial_plan(plan), category="plan", metadata={"planning": plan})
         db.append_agent_update(job_id, "Plan accepted automatically. I will start working from the planned tasks.", category="plan")
-        db.append_mission_record(
+        db.append_roadmap_record(
             job_id,
             title=title,
             status="planned",
             objective=objective,
-            scope="Initial mission plan generated from the objective. Refine this as evidence and operator context arrive.",
+            scope="Initial roadmap generated from the objective. Refine this as evidence and operator context arrive.",
             current_milestone="Clarify and frame the work",
             validation_contract=(
                 "Each milestone needs observable evidence that its acceptance criteria were met, "
@@ -246,7 +243,7 @@ def _create_job(*, objective: str, title: str | None = None, kind: str = "generi
                     "priority": 6,
                     "goal": "Check results against acceptance criteria and create follow-up work.",
                     "acceptance_criteria": "Validation is passed, failed, or blocked with a next action.",
-                    "evidence_needed": "record_mission_validation entry and follow-up tasks if needed.",
+                    "evidence_needed": "record_milestone_validation entry and follow-up tasks if needed.",
                     "features": [{"title": "Validate the checkpoint", "status": "planned", "output_contract": "validation"}],
                 },
             ],
@@ -701,8 +698,8 @@ def _build_chat_frame(snapshot: dict[str, Any], input_buffer: str, notices: list
     tasks = _metadata_records(job, "task_queue")
     experiments = _metadata_records(job, "experiment_ledger")
     lessons = _metadata_records(job, "lessons")
-    mission = job.get("metadata", {}).get("mission_control") if isinstance(job.get("metadata"), dict) else {}
-    milestones = mission.get("milestones") if isinstance(mission, dict) and isinstance(mission.get("milestones"), list) else []
+    roadmap = job.get("metadata", {}).get("roadmap") if isinstance(job.get("metadata"), dict) else {}
+    milestones = roadmap.get("milestones") if isinstance(roadmap, dict) and isinstance(roadmap.get("milestones"), list) else []
     open_tasks = sum(1 for task in tasks if str(task.get("status") or "open") in {"open", "active"})
     state = _job_display_state(job, bool(daemon["running"]))
     worker = _worker_label(job, bool(daemon["running"]))
@@ -721,7 +718,7 @@ def _build_chat_frame(snapshot: dict[str, Any], input_buffer: str, notices: list
         ("findings", len(findings)),
         ("sources", len(sources)),
         ("tasks", f"{len(tasks)}/{open_tasks} open"),
-        ("missions", len(milestones)),
+        ("roadmap", len(milestones)),
         ("experiments", len(experiments)),
         ("lessons", len(lessons)),
         ("memory", counts.get("memory", len(memory_entries))),
@@ -1438,7 +1435,7 @@ def cmd_tasks(args: argparse.Namespace) -> None:
         db.close()
 
 
-def cmd_missions(args: argparse.Namespace) -> None:
+def cmd_roadmap(args: argparse.Namespace) -> None:
     db, _ = _db()
     try:
         job_id = _resolve_job_id(db, args.job_id)
@@ -1448,25 +1445,25 @@ def cmd_missions(args: argparse.Namespace) -> None:
             return
         job = db.get_job(job_id)
         metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
-        mission = metadata.get("mission_control") if isinstance(metadata.get("mission_control"), dict) else {}
+        roadmap = metadata.get("roadmap") if isinstance(metadata.get("roadmap"), dict) else {}
         if args.json:
-            print(json.dumps(mission, ensure_ascii=False, indent=2, default=_json_default))
+            print(json.dumps(roadmap, ensure_ascii=False, indent=2, default=_json_default))
             return
-        print(f"mission {job['title']}")
+        print(f"roadmap {job['title']}")
         print(_rule("="))
-        if not mission:
+        if not roadmap:
             print("none yet")
-            print("the worker can create one with record_mission when broad work needs milestones")
+            print("the worker can create one with record_roadmap when broad work needs milestones")
             return
-        milestones = mission.get("milestones") if isinstance(mission.get("milestones"), list) else []
-        print(f"title: {mission.get('title') or 'Mission'}")
-        print(f"status: {mission.get('status') or 'planned'} | milestones: {len(milestones)}")
-        if mission.get("current_milestone"):
-            print(f"current: {_one_line(mission.get('current_milestone') or '', args.chars)}")
-        if mission.get("scope"):
-            print(f"scope: {_one_line(mission.get('scope') or '', args.chars)}")
-        if mission.get("validation_contract"):
-            print(f"validation: {_one_line(mission.get('validation_contract') or '', args.chars)}")
+        milestones = roadmap.get("milestones") if isinstance(roadmap.get("milestones"), list) else []
+        print(f"title: {roadmap.get('title') or 'Roadmap'}")
+        print(f"status: {roadmap.get('status') or 'planned'} | milestones: {len(milestones)}")
+        if roadmap.get("current_milestone"):
+            print(f"current: {_one_line(roadmap.get('current_milestone') or '', args.chars)}")
+        if roadmap.get("scope"):
+            print(f"scope: {_one_line(roadmap.get('scope') or '', args.chars)}")
+        if roadmap.get("validation_contract"):
+            print(f"validation: {_one_line(roadmap.get('validation_contract') or '', args.chars)}")
         if not milestones:
             return
         print()
@@ -1682,8 +1679,8 @@ def cmd_metrics(args: argparse.Namespace) -> None:
         lessons = _metadata_records(job, "lessons")
         reflections = _metadata_records(job, "reflections")
         metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
-        mission = metadata.get("mission_control") if isinstance(metadata.get("mission_control"), dict) else {}
-        milestones = mission.get("milestones") if isinstance(mission.get("milestones"), list) else []
+        roadmap = metadata.get("roadmap") if isinstance(metadata.get("roadmap"), dict) else {}
+        milestones = roadmap.get("milestones") if isinstance(roadmap.get("milestones"), list) else []
         daemon = daemon_lock_status(config.runtime.home / "agentd.lock")
         finding_batches = [artifact for artifact in artifacts if "finding" in str(artifact.get("title") or artifact.get("summary") or "").lower()]
         blocked = [step for step in steps if step.get("status") == "blocked"]
@@ -2153,8 +2150,8 @@ def _print_session_overview(
     tasks = _metadata_records(job, "task_queue")
     experiments = _metadata_records(job, "experiment_ledger")
     lessons = _metadata_records(job, "lessons")
-    mission = metadata.get("mission_control") if isinstance(metadata.get("mission_control"), dict) else {}
-    milestones = mission.get("milestones") if isinstance(mission.get("milestones"), list) else []
+    roadmap = metadata.get("roadmap") if isinstance(metadata.get("roadmap"), dict) else {}
+    milestones = roadmap.get("milestones") if isinstance(roadmap.get("milestones"), list) else []
     open_tasks = sum(1 for task in tasks if str(task.get("status") or "open") in {"open", "active"})
     state = _job_display_state(job, daemon_running)
     worker = _worker_label(job, daemon_running)
@@ -2187,7 +2184,7 @@ def _print_session_overview(
         ("findings", len(findings)),
         ("sources", len(sources)),
         ("tasks", f"{len(tasks)} ({open_tasks} open)"),
-        ("missions", len(milestones)),
+        ("roadmap", len(milestones)),
         ("experiments", len(experiments)),
         ("lessons", len(lessons)),
         ("memory", len(memory_entries)),
@@ -2292,9 +2289,9 @@ def _minimal_live_event_line(event: dict[str, Any], *, chars: int = 92) -> str:
         return _one_line(f"source {title or body}", chars)
     if kind == "task":
         return _one_line(f"task {title or body}", chars)
-    if kind == "mission":
-        return _one_line(f"mission {title or body}", chars)
-    if kind == "mission_validation":
+    if kind == "roadmap":
+        return _one_line(f"roadmap {title or body}", chars)
+    if kind == "milestone_validation":
         return _one_line(f"validate {title or body}", chars)
     if kind == "experiment":
         return _one_line(f"experiment {title or body}", chars)
@@ -2347,10 +2344,10 @@ def _tool_live_summary(tool: str, metadata: dict[str, Any], body: str) -> str:
         return "record findings"
     if tool == "record_tasks":
         return "update tasks"
-    if tool == "record_mission":
-        return "update mission"
-    if tool == "record_mission_validation":
-        return "validate mission"
+    if tool == "record_roadmap":
+        return "update roadmap"
+    if tool == "record_milestone_validation":
+        return "validate roadmap"
     if tool == "record_experiment":
         return "record experiment"
     if tool == "acknowledge_operator_context":
@@ -2638,9 +2635,9 @@ def _event_display_parts(event: dict[str, Any], *, chars: int, full: bool = Fals
         body = str(metadata.get("category") or "")
     if not body and kind == "task" and metadata.get("status"):
         body = str(metadata.get("status") or "")
-    if not body and kind == "mission" and metadata.get("status"):
+    if not body and kind == "roadmap" and metadata.get("status"):
         body = str(metadata.get("status") or "")
-    if not body and kind == "mission_validation" and metadata.get("validation_status"):
+    if not body and kind == "milestone_validation" and metadata.get("validation_status"):
         body = str(metadata.get("validation_status") or "")
     if not body and kind == "experiment":
         metric_value = metadata.get("metric_value")
@@ -2666,9 +2663,9 @@ def _event_label(kind: str, metadata: dict[str, Any]) -> str:
         return "ACK"
     if kind == "agent_message":
         return "AGENT"
-    if kind == "mission":
+    if kind == "roadmap":
         return "MISSION"
-    if kind == "mission_validation":
+    if kind == "milestone_validation":
         return "VALID"
     if kind == "tool_call":
         return "TOOL"
@@ -3411,7 +3408,7 @@ def _chat_handle_line(job_id: str, line: str, *, reply_fn=None) -> bool:
         print("Chat commands:")
         print("  /jobs /focus JOB_TITLE /switch JOB_TITLE /new OBJECTIVE /delete [JOB_TITLE]")
         print("  /history /events /activity /outputs /updates /status /health")
-        print("  /artifacts /artifact QUERY /findings /tasks /missions /experiments /sources /memory /metrics /lessons")
+        print("  /artifacts /artifact QUERY /findings /tasks /roadmap /experiments /sources /memory /metrics /lessons")
         print("  /run /restart /work N /work-verbose N /stop /pause [note] /resume /cancel [note]")
         print("  /learn LESSON /note MESSAGE /follow MESSAGE /digest /clear /shell /exit")
         print("Plain text gets a model reply and is saved as model-visible steering.")
@@ -3466,8 +3463,8 @@ def _chat_handle_line(job_id: str, line: str, *, reply_fn=None) -> bool:
         if command == "tasks":
             cmd_tasks(argparse.Namespace(job_id=job_id, limit=20, chars=220, status=None, json=False))
             return True
-        if command in {"missions", "mission"}:
-            cmd_missions(argparse.Namespace(job_id=job_id, limit=20, features=3, chars=220, json=False))
+        if command == "roadmap":
+            cmd_roadmap(argparse.Namespace(job_id=job_id, limit=20, features=3, chars=220, json=False))
             return True
         if command == "experiments":
             cmd_experiments(argparse.Namespace(job_id=job_id, limit=20, chars=220, status=None, json=False))
@@ -3672,7 +3669,7 @@ def _build_chat_messages(db: AgentDB, job: dict[str, Any], message: str) -> list
     sources = metadata.get("source_ledger") if isinstance(metadata.get("source_ledger"), list) else []
     tasks = metadata.get("task_queue") if isinstance(metadata.get("task_queue"), list) else []
     experiments = metadata.get("experiment_ledger") if isinstance(metadata.get("experiment_ledger"), list) else []
-    mission = metadata.get("mission_control") if isinstance(metadata.get("mission_control"), dict) else {}
+    roadmap = metadata.get("roadmap") if isinstance(metadata.get("roadmap"), dict) else {}
     step_lines = "\n".join(f"- #{step['step_no']} {step['status']} {step.get('tool_name') or step['kind']}: {_clean_step_summary(step.get('summary') or step.get('error') or '')}" for step in steps)
     artifact_lines = "\n".join(
         f"- #{index} {artifact.get('title') or artifact['id']}: {artifact.get('summary') or ''} "
@@ -3689,8 +3686,8 @@ def _build_chat_messages(db: AgentDB, job: dict[str, Any], message: str) -> list
     finding_lines = "\n".join(f"- {entry.get('name')}: {entry.get('category') or ''} {entry.get('location') or ''} score={entry.get('score')}" for entry in findings[-8:] if isinstance(entry, dict))
     task_lines = "\n".join(f"- {entry.get('status') or 'open'} p={entry.get('priority') or 0}: {entry.get('title')}" for entry in tasks[-10:] if isinstance(entry, dict))
     milestone_lines = ""
-    if mission:
-        milestones = mission.get("milestones") if isinstance(mission.get("milestones"), list) else []
+    if roadmap:
+        milestones = roadmap.get("milestones") if isinstance(roadmap.get("milestones"), list) else []
         milestone_lines = "\n".join(
             (
                 f"- {entry.get('status') or 'planned'} validation={entry.get('validation_status') or 'not_started'} "
@@ -3699,11 +3696,11 @@ def _build_chat_messages(db: AgentDB, job: dict[str, Any], message: str) -> list
             for entry in milestones[-8:]
             if isinstance(entry, dict)
         )
-        mission_header = (
-            f"{mission.get('status') or 'planned'}: {mission.get('title') or 'Mission'}"
-            + (f" current={mission.get('current_milestone')}" if mission.get("current_milestone") else "")
+        roadmap_header = (
+            f"{roadmap.get('status') or 'planned'}: {roadmap.get('title') or 'Roadmap'}"
+            + (f" current={roadmap.get('current_milestone')}" if roadmap.get("current_milestone") else "")
         )
-        milestone_lines = f"{mission_header}\n{milestone_lines}".strip()
+        milestone_lines = f"{roadmap_header}\n{milestone_lines}".strip()
     experiment_lines = "\n".join(
         (
             f"- {entry.get('status') or 'planned'}: {entry.get('title')}"
@@ -3739,7 +3736,7 @@ def _build_chat_messages(db: AgentDB, job: dict[str, Any], message: str) -> list
                 f"Latest artifacts:\n{artifact_lines or 'None yet.'}\n\n"
                 f"Finding ledger:\n{finding_lines or 'None yet.'}\n\n"
                 f"Task queue:\n{task_lines or 'None yet.'}\n\n"
-                f"Mission control:\n{milestone_lines or 'None yet.'}\n\n"
+                f"Roadmap:\n{milestone_lines or 'None yet.'}\n\n"
                 f"Experiment ledger:\n{experiment_lines or 'None yet.'}\n\n"
                 f"Source ledger:\n{source_lines or 'None yet.'}\n\n"
                 f"Lessons learned:\n{lesson_lines or 'None yet.'}\n\n"
@@ -3848,7 +3845,7 @@ def _print_shell_help() -> None:
         print(f"  {command}")
     print()
     print("Inspect")
-    for command in ("status [JOB_TITLE]", "health", "history [JOB_TITLE]", "events [JOB_TITLE] [--follow] [--json]", "activity [JOB_TITLE] [--follow]", "updates [JOB_TITLE]", "outputs [JOB_TITLE] --verbose", "findings [JOB_TITLE]", "tasks [JOB_TITLE]", "missions [JOB_TITLE]", "experiments [JOB_TITLE]", "sources [JOB_TITLE]", "memory [JOB_TITLE]", "metrics [JOB_TITLE]", "artifacts [JOB_TITLE]", "artifact QUERY_OR_TITLE", "lessons [JOB_TITLE]"):
+    for command in ("status [JOB_TITLE]", "health", "history [JOB_TITLE]", "events [JOB_TITLE] [--follow] [--json]", "activity [JOB_TITLE] [--follow]", "updates [JOB_TITLE]", "outputs [JOB_TITLE] --verbose", "findings [JOB_TITLE]", "tasks [JOB_TITLE]", "roadmap [JOB_TITLE]", "experiments [JOB_TITLE]", "sources [JOB_TITLE]", "memory [JOB_TITLE]", "metrics [JOB_TITLE]", "artifacts [JOB_TITLE]", "artifact QUERY_OR_TITLE", "lessons [JOB_TITLE]"):
         print(f"  {command}")
     print()
     print("Worker")
@@ -4112,13 +4109,13 @@ def build_parser() -> argparse.ArgumentParser:
     tasks.add_argument("--json", action="store_true")
     tasks.set_defaults(func=cmd_tasks)
 
-    missions = sub.add_parser("missions", aliases=["mission"])
-    missions.add_argument("job_id", nargs="*")
-    missions.add_argument("--limit", type=int, default=25)
-    missions.add_argument("--features", type=int, default=3)
-    missions.add_argument("--chars", type=int, default=220)
-    missions.add_argument("--json", action="store_true")
-    missions.set_defaults(func=cmd_missions)
+    roadmap = sub.add_parser("roadmap")
+    roadmap.add_argument("job_id", nargs="*")
+    roadmap.add_argument("--limit", type=int, default=25)
+    roadmap.add_argument("--features", type=int, default=3)
+    roadmap.add_argument("--chars", type=int, default=220)
+    roadmap.add_argument("--json", action="store_true")
+    roadmap.set_defaults(func=cmd_roadmap)
 
     experiments = sub.add_parser("experiments")
     experiments.add_argument("job_id", nargs="*")

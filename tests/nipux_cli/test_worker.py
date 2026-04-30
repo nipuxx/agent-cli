@@ -1392,14 +1392,14 @@ def test_prompt_tells_model_to_open_new_branch_when_tasks_are_exhausted():
     assert "use record_tasks to open the next concrete branch" in content
 
 
-def test_prompt_includes_mission_control_and_validation_constraints():
+def test_prompt_includes_roadmap_and_validation_constraints():
     job = {
         "title": "broad work",
         "kind": "generic",
         "objective": "build a broad durable outcome",
         "metadata": {
-            "mission_control": {
-                "title": "Broad Mission",
+            "roadmap": {
+                "title": "Broad Roadmap",
                 "status": "active",
                 "current_milestone": "Foundation",
                 "validation_contract": "check observable evidence",
@@ -1418,13 +1418,13 @@ def test_prompt_includes_mission_control_and_validation_constraints():
     messages = build_messages(job, [])
     content = messages[-1]["content"]
 
-    assert "Mission control:" in content
-    assert "Broad Mission" in content
+    assert "Roadmap:" in content
+    assert "Broad Roadmap" in content
     assert "validation=pending" in content
-    assert "Use record_mission_validation" in content
+    assert "Use record_milestone_validation" in content
 
 
-def test_prompt_suggests_mission_for_broad_jobs_without_one():
+def test_prompt_suggests_roadmap_for_broad_jobs_without_one():
     job = {
         "title": "broad work",
         "kind": "generic",
@@ -1435,8 +1435,88 @@ def test_prompt_suggests_mission_for_broad_jobs_without_one():
     messages = build_messages(job, [])
     content = messages[-1]["content"]
 
-    assert "No mission plan yet" in content
-    assert "use record_mission" in content
+    assert "No roadmap yet" in content
+    assert "use record_roadmap" in content
+
+
+def test_run_one_step_blocks_branch_work_when_milestone_needs_validation(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job(
+            "Keep broad work gated by validation",
+            title="roadmap-gate",
+            metadata={
+                "roadmap": {
+                    "title": "Generic Roadmap",
+                    "status": "active",
+                    "milestones": [{
+                        "title": "Foundation",
+                        "status": "validating",
+                        "validation_status": "pending",
+                        "acceptance_criteria": "evidence exists",
+                        "evidence_needed": "saved artifact",
+                    }],
+                },
+            },
+        )
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[ToolCall(name="web_search", arguments={"query": "new branch", "limit": 5})])
+            ]),
+        )
+
+        assert result.status == "blocked"
+        assert result.result["error"] == "milestone validation required"
+        assert result.result["blocked_tool"] == "web_search"
+    finally:
+        db.close()
+
+
+def test_run_one_step_allows_milestone_validation_when_gate_is_active(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job(
+            "Validate a gated milestone",
+            title="roadmap-validate",
+            metadata={
+                "roadmap": {
+                    "title": "Generic Roadmap",
+                    "status": "active",
+                    "milestones": [{
+                        "title": "Foundation",
+                        "status": "validating",
+                        "validation_status": "pending",
+                    }],
+                },
+            },
+        )
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[ToolCall(name="record_milestone_validation", arguments={
+                    "milestone": "Foundation",
+                    "validation_status": "passed",
+                    "result": "Acceptance criteria met.",
+                    "evidence": "artifact",
+                })])
+            ]),
+        )
+
+        assert result.status == "completed"
+        assert result.tool_name == "record_milestone_validation"
+        roadmap = db.get_job(job_id)["metadata"]["roadmap"]
+        assert roadmap["milestones"][0]["validation_status"] == "passed"
+    finally:
+        db.close()
 
 
 def test_run_one_step_blocks_branch_work_when_tasks_are_exhausted(tmp_path):

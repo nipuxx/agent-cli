@@ -33,7 +33,7 @@ The default runtime is intentionally narrow:
 - per-job browser profiles through `agent-browser`
 - compact memory summaries that point back to artifacts
 - visible event history for chat, tools, artifacts, progress, errors, and digests
-- durable ledgers for lessons, sources, findings, tasks, missions, and experiments
+- durable ledgers for lessons, sources, findings, tasks, roadmap, and experiments
 
 Nipux does not include a messaging gateway, plugin marketplace, skills manager,
 multi-provider setup wizard, RL environment, voice stack, image stack, or broad
@@ -204,7 +204,7 @@ uv run nipux events "nightly research" --follow
 uv run nipux activity "nightly research" --follow
 uv run nipux findings "nightly research"
 uv run nipux tasks "nightly research"
-uv run nipux missions "nightly research"
+uv run nipux roadmap "nightly research"
 uv run nipux experiments "nightly research"
 uv run nipux sources "nightly research"
 uv run nipux memory "nightly research"
@@ -240,8 +240,8 @@ The worker exposes a deliberately small tool registry:
 - `record_source`
 - `record_findings`
 - `record_tasks`
-- `record_mission`
-- `record_mission_validation`
+- `record_roadmap`
+- `record_milestone_validation`
 - `record_experiment`
 - `send_digest_email`
 
@@ -281,7 +281,7 @@ nipux updates [JOB_TITLE]
 nipux dashboard [JOB_TITLE]
 nipux findings [JOB_TITLE] [--limit N] [--json]
 nipux tasks [JOB_TITLE] [--limit N] [--status STATUS] [--json]
-nipux missions [JOB_TITLE] [--limit N] [--json]
+nipux roadmap [JOB_TITLE] [--limit N] [--json]
 nipux experiments [JOB_TITLE] [--limit N] [--status STATUS] [--json]
 nipux sources [JOB_TITLE] [--limit N] [--json]
 nipux memory [JOB_TITLE]
