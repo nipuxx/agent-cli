@@ -325,6 +325,51 @@ def test_record_roadmap_tool_updates_roadmap(tmp_path):
         db.close()
 
 
+def test_record_roadmap_dedupes_milestone_titles_even_when_keys_change(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Keep broad work coordinated")
+        run_id = db.start_run(job_id, model="fake")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="record_roadmap")
+        ctx = ToolContext(config=config, db=db, artifacts=ArtifactStore(tmp_path, db), job_id=job_id, run_id=run_id, step_id=step_id)
+
+        DEFAULT_REGISTRY.handle(
+            "record_roadmap",
+            {
+                "title": "Generic Roadmap",
+                "milestones": [{
+                    "key": "initial-key",
+                    "title": "Foundation",
+                    "status": "planned",
+                    "features": [{"key": "feature-a", "title": "First feature", "status": "planned"}],
+                }],
+            },
+            ctx,
+        )
+        DEFAULT_REGISTRY.handle(
+            "record_roadmap",
+            {
+                "title": "Generic Roadmap",
+                "milestones": [{
+                    "key": "model-invented-key",
+                    "title": "Foundation",
+                    "status": "active",
+                    "features": [{"key": "different-feature-key", "title": "First feature", "status": "done"}],
+                }],
+            },
+            ctx,
+        )
+        roadmap = db.get_job(job_id)["metadata"]["roadmap"]
+
+        assert len(roadmap["milestones"]) == 1
+        assert roadmap["milestones"][0]["status"] == "active"
+        assert len(roadmap["milestones"][0]["features"]) == 1
+        assert roadmap["milestones"][0]["features"][0]["status"] == "done"
+    finally:
+        db.close()
+
+
 def test_record_milestone_validation_creates_follow_up_tasks(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

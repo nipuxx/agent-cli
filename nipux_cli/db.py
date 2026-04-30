@@ -1315,7 +1315,15 @@ class AgentDB:
             if not feature_title:
                 return None, False
             feature_key = _norm_key(str(feature.get("key") or feature_title))
-            current = next((entry for entry in existing_features if entry.get("key") == feature_key), None)
+            feature_title_key = _norm_key(feature_title)
+            current = next(
+                (
+                    entry for entry in existing_features
+                    if entry.get("key") == feature_key
+                    or _norm_key(str(entry.get("title") or "")) == feature_title_key
+                ),
+                None,
+            )
             created = current is None
             if current is None:
                 current = {
@@ -1402,7 +1410,15 @@ class AgentDB:
                 if not milestone_title:
                     continue
                 milestone_key = _norm_key(str(milestone.get("key") or milestone_title))
-                current = next((entry for entry in stored_milestones if entry.get("key") == milestone_key), None)
+                milestone_title_key = _norm_key(milestone_title)
+                current = next(
+                    (
+                        entry for entry in stored_milestones
+                        if entry.get("key") == milestone_key
+                        or _norm_key(str(entry.get("title") or "")) == milestone_title_key
+                    ),
+                    None,
+                )
                 milestone_created = current is None
                 if current is None:
                     current = {

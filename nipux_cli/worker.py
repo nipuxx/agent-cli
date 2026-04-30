@@ -151,6 +151,15 @@ MILESTONE_VALIDATION_BLOCKED_TOOLS = INFORMATION_GATHERING_TOOLS | {
     "record_experiment",
     "report_update",
 }
+ROADMAP_STALENESS_BLOCKED_TOOLS = INFORMATION_GATHERING_TOOLS | {
+    "shell_exec",
+    "write_artifact",
+    "record_findings",
+    "record_source",
+    "record_tasks",
+    "record_experiment",
+    "report_update",
+}
 CHURN_TOOLS = INFORMATION_GATHERING_TOOLS | ARTIFACT_REVIEW_TOOLS | {"shell_exec"}
 MEASURABLE_RESEARCH_BLOCKED_TOOLS = INFORMATION_GATHERING_TOOLS | {
     "write_artifact",
@@ -801,6 +810,13 @@ def _next_action_constraint(job: dict[str, Any], recent_steps: list[dict[str, An
             f"Roadmap milestone '{milestone_validation.get('title')}' is ready for validation or is marked validating. "
             "Use record_milestone_validation with evidence and pass/fail/blocker status, then create follow-up tasks for gaps."
         )
+    roadmap_staleness = _roadmap_staleness_context(job, recent_steps)
+    if roadmap_staleness:
+        return (
+            "The roadmap has not advanced despite durable task/artifact activity. "
+            "Use record_roadmap to mark the current milestone active/done/blocked, or record_milestone_validation "
+            "if acceptance criteria can be judged from existing evidence, before more branch work."
+        )
     if _roadmap_missing_for_broad_job(job):
         return (
             "The objective is broad enough to benefit from roadmap control. Use record_roadmap to define compact milestones, "
@@ -853,6 +869,44 @@ def _milestone_validation_needed(job: dict[str, Any]) -> dict[str, Any] | None:
         ):
             return milestone
     return None
+
+
+def _roadmap_staleness_context(job: dict[str, Any], recent_steps: list[dict[str, Any]]) -> dict[str, Any] | None:
+    metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
+    roadmap = metadata.get("roadmap") if isinstance(metadata.get("roadmap"), dict) else {}
+    milestones = roadmap.get("milestones") if isinstance(roadmap.get("milestones"), list) else []
+    if not milestones:
+        return None
+    if any(step.get("tool_name") in {"record_roadmap", "record_milestone_validation"} for step in recent_steps):
+        return None
+    if any(
+        isinstance(milestone, dict)
+        and (
+            str(milestone.get("status") or "planned") != "planned"
+            or str(milestone.get("validation_status") or "not_started") != "not_started"
+        )
+        for milestone in milestones
+    ):
+        return None
+    tasks = metadata.get("task_queue") if isinstance(metadata.get("task_queue"), list) else []
+    completed_artifacts = [
+        step for step in recent_steps
+        if step.get("status") == "completed" and step.get("tool_name") == "write_artifact"
+    ]
+    task_updates = [
+        step for step in recent_steps
+        if step.get("status") == "completed" and step.get("tool_name") == "record_tasks"
+    ]
+    if len(completed_artifacts) < 2 and len(task_updates) < 2 and len(tasks) < 8:
+        return None
+    return {
+        "title": roadmap.get("title") or "Roadmap",
+        "status": roadmap.get("status") or "planned",
+        "milestone_count": len(milestones),
+        "task_count": len(tasks),
+        "artifact_count": len(completed_artifacts),
+        "task_update_count": len(task_updates),
+    }
 
 
 def _roadmap_missing_for_broad_job(job: dict[str, Any]) -> bool:
@@ -1646,6 +1700,22 @@ def _blocked_tool_call_result(
             ),
         }
         return result, f"blocked {name}; progress ledger update required"
+
+    roadmap_staleness = _roadmap_staleness_context(job, recent_steps)
+    if roadmap_staleness and name in ROADMAP_STALENESS_BLOCKED_TOOLS:
+        result = {
+            "success": False,
+            "error": "roadmap update required",
+            "blocked_tool": name,
+            "blocked_arguments": args,
+            "roadmap_staleness": roadmap_staleness,
+            "guidance": (
+                "The roadmap has not advanced despite durable task/artifact activity. "
+                "Use record_roadmap to mark milestone progress, record_milestone_validation "
+                "to judge an evidence-backed checkpoint, or record_lesson if the roadmap is wrong."
+            ),
+        }
+        return result, f"blocked {name}; roadmap update required"
 
     milestone_validation = _milestone_validation_needed(job)
     if milestone_validation and name in MILESTONE_VALIDATION_BLOCKED_TOOLS:

@@ -1519,6 +1519,102 @@ def test_run_one_step_allows_milestone_validation_when_gate_is_active(tmp_path):
         db.close()
 
 
+def test_run_one_step_blocks_task_churn_when_roadmap_stalls(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job(
+            "Keep roadmap aligned with broad work",
+            title="roadmap-stale",
+            metadata={
+                "roadmap": {
+                    "title": "Generic Roadmap",
+                    "status": "planned",
+                    "milestones": [{
+                        "title": "Foundation",
+                        "status": "planned",
+                        "validation_status": "not_started",
+                    }],
+                },
+                "task_queue": [{"title": f"Task {index}", "status": "done"} for index in range(8)],
+            },
+        )
+        run_id = db.start_run(job_id, model="fake")
+        for index in range(2):
+            step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="write_artifact")
+            db.finish_step(step_id, status="completed", summary=f"artifact {index}", output_data={"success": True})
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[ToolCall(name="record_tasks", arguments={
+                    "tasks": [{"title": "More task churn", "status": "open"}]
+                })])
+            ]),
+        )
+
+        assert result.status == "blocked"
+        assert result.result["error"] == "roadmap update required"
+        assert result.result["blocked_tool"] == "record_tasks"
+    finally:
+        db.close()
+
+
+def test_run_one_step_allows_roadmap_update_when_roadmap_stalls(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job(
+            "Update stale roadmap",
+            title="roadmap-update",
+            metadata={
+                "roadmap": {
+                    "title": "Generic Roadmap",
+                    "status": "planned",
+                    "milestones": [{
+                        "title": "Foundation",
+                        "status": "planned",
+                        "validation_status": "not_started",
+                    }],
+                },
+                "task_queue": [{"title": f"Task {index}", "status": "done"} for index in range(8)],
+            },
+        )
+        run_id = db.start_run(job_id, model="fake")
+        for index in range(2):
+            step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="write_artifact")
+            db.finish_step(step_id, status="completed", summary=f"artifact {index}", output_data={"success": True})
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[ToolCall(name="record_roadmap", arguments={
+                    "title": "Generic Roadmap",
+                    "status": "active",
+                    "current_milestone": "Foundation",
+                    "milestones": [{
+                        "title": "Foundation",
+                        "status": "active",
+                        "validation_status": "pending",
+                        "acceptance_criteria": "evidence reviewed",
+                    }],
+                })])
+            ]),
+        )
+
+        assert result.status == "completed"
+        assert result.tool_name == "record_roadmap"
+        roadmap = db.get_job(job_id)["metadata"]["roadmap"]
+        assert roadmap["status"] == "active"
+        assert roadmap["milestones"][0]["validation_status"] == "pending"
+    finally:
+        db.close()
+
+
 def test_run_one_step_blocks_branch_work_when_tasks_are_exhausted(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")
