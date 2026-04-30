@@ -1874,6 +1874,130 @@ def _auto_checkpoint_update(
     db.append_agent_update(job_id, message, category=category, metadata={"step_no": step_no, "tool": tool_name})
 
 
+def _execute_tool_call(
+    call: Any,
+    *,
+    job: dict[str, Any],
+    recent_steps: list[dict[str, Any]],
+    config: AppConfig,
+    db: AgentDB,
+    artifacts: ArtifactStore,
+    registry: ToolRegistry,
+    job_id: str,
+    run_id: str,
+) -> tuple[StepExecution, bool, str, str | None]:
+    step_id = db.add_step(
+        job_id=job_id,
+        run_id=run_id,
+        kind="tool",
+        tool_name=call.name,
+        input_data={"tool_call_id": call.id, "arguments": call.arguments},
+    )
+    blocked = _blocked_tool_call_result(call.name, call.arguments, recent_steps, job)
+    if blocked:
+        result, summary = blocked
+        result = {**result, "success": True, "recoverable": True}
+        evidence_checkpoint = None
+        if result.get("error") == "artifact required before more research":
+            evidence_step = next(
+                (step for step in recent_steps if step.get("id") == result.get("previous_step")),
+                None,
+            )
+            if evidence_step:
+                evidence_checkpoint = _auto_persist_evidence(
+                    db=db,
+                    artifacts=artifacts,
+                    job_id=job_id,
+                    run_id=run_id,
+                    step_id=step_id,
+                    blocked_tool=call.name,
+                    evidence_step=evidence_step,
+                )
+                result["auto_checkpoint"] = evidence_checkpoint
+                summary = f"blocked {call.name}; auto-saved evidence checkpoint {evidence_checkpoint['artifact_id']}"
+        anti_bot_source = result.get("anti_bot_source") if isinstance(result.get("anti_bot_source"), dict) else None
+        if anti_bot_source:
+            result["auto_source_record"] = _auto_record_blocked_source(
+                db=db,
+                job_id=job_id,
+                context=anti_bot_source,
+                blocked_tool=call.name,
+            )
+        known_bad_source = result.get("known_bad_source") if isinstance(result.get("known_bad_source"), dict) else None
+        if known_bad_source:
+            db.append_agent_update(
+                job_id,
+                f"Source ledger blocked retry of {known_bad_source.get('source')}; choosing a different route next.",
+                category="blocked",
+                metadata={"source": known_bad_source, "blocked_tool": call.name},
+            )
+        db.finish_step(
+            step_id,
+            status="blocked",
+            summary=summary,
+            output_data=result,
+            error=None,
+        )
+        return (
+            StepExecution(job_id=job_id, run_id=run_id, step_id=step_id, tool_name=call.name, status="blocked", result=result),
+            True,
+            summary,
+            None,
+        )
+
+    ctx = ToolContext(
+        config=config,
+        db=db,
+        artifacts=artifacts,
+        job_id=job_id,
+        run_id=run_id,
+        step_id=step_id,
+        task_id=job_id,
+    )
+    try:
+        raw_result = registry.handle(call.name, call.arguments, ctx)
+        result = _parse_tool_result(raw_result)
+        ok = bool(result.get("success", True)) and not result.get("error")
+        status = "completed" if ok else "failed"
+        if ok:
+            _auto_record_tool_source_quality(db=db, job_id=job_id, tool_name=call.name, result=result)
+        summary = _summarize_tool_result(call.name, call.arguments, result, ok=ok)
+        db.finish_step(step_id, status=status, summary=summary, output_data=result, error=result.get("error"))
+        if ok:
+            finished_step = _step_by_id(db, job_id, step_id)
+            _maybe_create_measurement_obligation(
+                db=db,
+                job_id=job_id,
+                step=finished_step,
+                tool_name=call.name,
+                args=call.arguments,
+                result=result,
+            )
+            _auto_checkpoint_update(
+                db=db,
+                job_id=job_id,
+                step_no=(finished_step or db.list_steps(job_id=job_id)[-1])["step_no"],
+                tool_name=call.name,
+                args=call.arguments,
+                result=result,
+            )
+        return (
+            StepExecution(job_id=job_id, run_id=run_id, step_id=step_id, tool_name=call.name, status=status, result=result),
+            status != "completed",
+            summary,
+            result.get("error") if status == "failed" else None,
+        )
+    except Exception as exc:
+        result = _error_result(exc)
+        db.finish_step(step_id, status="failed", summary=f"{call.name} raised", output_data=result, error=str(exc))
+        return (
+            StepExecution(job_id=job_id, run_id=run_id, step_id=step_id, tool_name=call.name, status="failed", result=result),
+            True,
+            str(exc),
+            str(exc),
+        )
+
+
 def run_one_step(
     job_id: str,
     *,
@@ -1932,110 +2056,47 @@ def run_one_step(
         _emit_assistant_message_event(db, job_id, run_id, response)
 
         if response.tool_calls:
-            call = response.tool_calls[0]
-            step_id = db.add_step(
-                job_id=job_id,
-                run_id=run_id,
-                kind="tool",
-                tool_name=call.name,
-                input_data={"tool_call_id": call.id, "arguments": call.arguments},
-            )
-            blocked = _blocked_tool_call_result(call.name, call.arguments, recent_steps, job)
-            if blocked:
-                result, summary = blocked
-                result = {**result, "success": True, "recoverable": True}
-                evidence_checkpoint = None
-                if result.get("error") == "artifact required before more research":
-                    evidence_step = next(
-                        (step for step in recent_steps if step.get("id") == result.get("previous_step")),
-                        None,
-                    )
-                    if evidence_step:
-                        evidence_checkpoint = _auto_persist_evidence(
-                            db=db,
-                            artifacts=artifacts,
-                            job_id=job_id,
-                            run_id=run_id,
-                            step_id=step_id,
-                            blocked_tool=call.name,
-                            evidence_step=evidence_step,
-                        )
-                        result["auto_checkpoint"] = evidence_checkpoint
-                        summary = f"blocked {call.name}; auto-saved evidence checkpoint {evidence_checkpoint['artifact_id']}"
-                anti_bot_source = result.get("anti_bot_source") if isinstance(result.get("anti_bot_source"), dict) else None
-                if anti_bot_source:
-                    result["auto_source_record"] = _auto_record_blocked_source(
-                        db=db,
-                        job_id=job_id,
-                        context=anti_bot_source,
-                        blocked_tool=call.name,
-                    )
-                known_bad_source = result.get("known_bad_source") if isinstance(result.get("known_bad_source"), dict) else None
-                if known_bad_source:
-                    db.append_agent_update(
-                        job_id,
-                        f"Source ledger blocked retry of {known_bad_source.get('source')}; choosing a different route next.",
-                        category="blocked",
-                        metadata={"source": known_bad_source, "blocked_tool": call.name},
-                    )
-                db.finish_step(
-                    step_id,
-                    status="blocked",
-                    summary=summary,
-                    output_data=result,
-                    error=None,
+            executions: list[StepExecution] = []
+            details: list[str] = []
+            run_error: str | None = None
+            for call in response.tool_calls:
+                current_job = db.get_job(job_id)
+                current_recent_steps = db.list_steps(job_id=job_id)
+                execution, stop_batch, detail, error = _execute_tool_call(
+                    call,
+                    job=current_job,
+                    recent_steps=current_recent_steps,
+                    config=config,
+                    db=db,
+                    artifacts=artifacts,
+                    registry=registry,
+                    job_id=job_id,
+                    run_id=run_id,
                 )
-                db.finish_run(run_id, "completed")
-                _emit_loop_end(db, job_id, run_id, status="blocked", step_id=step_id, tool_name=call.name, detail=summary)
-                refresh_memory_index(db, job_id)
-                return StepExecution(job_id=job_id, run_id=run_id, step_id=step_id, tool_name=call.name, status="blocked", result=result)
-            ctx = ToolContext(
-                config=config,
-                db=db,
-                artifacts=artifacts,
-                job_id=job_id,
-                run_id=run_id,
-                step_id=step_id,
-                task_id=job_id,
+                executions.append(execution)
+                details.append(detail)
+                if error:
+                    run_error = error
+                if stop_batch:
+                    break
+
+            final_execution = executions[-1]
+            run_status = "failed" if any(item.status == "failed" for item in executions) else "completed"
+            db.finish_run(run_id, run_status, error=run_error)
+            detail = f"executed {len(executions)}/{len(response.tool_calls)} tool calls"
+            if details:
+                detail = f"{detail}; last: {details[-1]}"
+            _emit_loop_end(
+                db,
+                job_id,
+                run_id,
+                status=final_execution.status,
+                step_id=final_execution.step_id,
+                tool_name=final_execution.tool_name,
+                detail=detail,
             )
-            try:
-                raw_result = registry.handle(call.name, call.arguments, ctx)
-                result = _parse_tool_result(raw_result)
-                ok = bool(result.get("success", True)) and not result.get("error")
-                status = "completed" if ok else "failed"
-                if ok:
-                    _auto_record_tool_source_quality(db=db, job_id=job_id, tool_name=call.name, result=result)
-                summary = _summarize_tool_result(call.name, call.arguments, result, ok=ok)
-                db.finish_step(step_id, status=status, summary=summary, output_data=result, error=result.get("error"))
-                db.finish_run(run_id, "completed" if ok else "failed", error=result.get("error"))
-                _emit_loop_end(db, job_id, run_id, status=status, step_id=step_id, tool_name=call.name, detail=summary)
-                if ok:
-                    finished_step = _step_by_id(db, job_id, step_id)
-                    _maybe_create_measurement_obligation(
-                        db=db,
-                        job_id=job_id,
-                        step=finished_step,
-                        tool_name=call.name,
-                        args=call.arguments,
-                        result=result,
-                    )
-                    _auto_checkpoint_update(
-                        db=db,
-                        job_id=job_id,
-                        step_no=(finished_step or db.list_steps(job_id=job_id)[-1])["step_no"],
-                        tool_name=call.name,
-                        args=call.arguments,
-                        result=result,
-                    )
-                refresh_memory_index(db, job_id)
-                return StepExecution(job_id=job_id, run_id=run_id, step_id=step_id, tool_name=call.name, status=status, result=result)
-            except Exception as exc:
-                result = _error_result(exc)
-                db.finish_step(step_id, status="failed", summary=f"{call.name} raised", output_data=result, error=str(exc))
-                db.finish_run(run_id, "failed", error=str(exc))
-                _emit_loop_end(db, job_id, run_id, status="failed", step_id=step_id, tool_name=call.name, detail=str(exc))
-                refresh_memory_index(db, job_id)
-                return StepExecution(job_id=job_id, run_id=run_id, step_id=step_id, tool_name=call.name, status="failed", result=result)
+            refresh_memory_index(db, job_id)
+            return final_execution
 
         step_id = db.add_step(
             job_id=job_id,

@@ -149,6 +149,58 @@ def test_run_one_step_executes_scripted_tool_call(tmp_path):
         db.close()
 
 
+def test_run_one_step_executes_tool_call_batch_in_order(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Build a durable report", title="batch", kind="generic")
+        llm = ScriptedLLM([
+            LLMResponse(tool_calls=[
+                ToolCall(
+                    name="write_artifact",
+                    arguments={
+                        "title": "evidence checkpoint",
+                        "summary": "first useful output",
+                        "content": "The worker saved evidence before updating the task queue.",
+                    },
+                ),
+                ToolCall(
+                    name="record_tasks",
+                    arguments={
+                        "tasks": [
+                            {
+                                "title": "Review saved output",
+                                "status": "open",
+                                "priority": 5,
+                                "output_contract": "report",
+                                "acceptance_criteria": "Saved evidence has been inspected and summarized.",
+                                "evidence_needed": "Artifact reference and concrete next action.",
+                                "stall_behavior": "Record a lesson and pivot if the artifact is not useful.",
+                            }
+                        ]
+                    },
+                ),
+            ])
+        ])
+
+        result = run_one_step(job_id, config=config, db=db, llm=llm)
+
+        assert result.status == "completed"
+        assert result.tool_name == "record_tasks"
+        steps = db.list_steps(job_id=job_id)
+        assert [step["tool_name"] for step in steps] == ["write_artifact", "record_tasks"]
+        assert [step["status"] for step in steps] == ["completed", "completed"]
+        artifacts = db.list_artifacts(job_id)
+        assert artifacts[0]["title"] == "evidence checkpoint"
+        job = db.get_job(job_id)
+        tasks = job["metadata"]["task_queue"]
+        assert any(task["title"] == "Review saved output" and task["output_contract"] == "report" for task in tasks)
+        run = db.list_runs(job_id, limit=1)[0]
+        assert run["status"] == "completed"
+    finally:
+        db.close()
+
+
 def test_worker_cannot_mark_job_completed_by_default(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")
