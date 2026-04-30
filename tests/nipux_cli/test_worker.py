@@ -317,6 +317,72 @@ def test_run_one_step_blocks_artifact_churn_until_progress_accounting(tmp_path):
         db.close()
 
 
+def test_run_one_step_blocks_similar_artifact_search(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Review saved outputs", title="artifact-search", kind="generic")
+        run_id = db.start_run(job_id, model="test")
+        step_id = db.add_step(
+            job_id=job_id,
+            run_id=run_id,
+            kind="tool",
+            tool_name="search_artifacts",
+            input_data={"arguments": {"query": "distillation agentic paper evidence", "limit": 20}},
+        )
+        db.finish_step(
+            step_id,
+            status="completed",
+            summary="search_artifacts returned 0 results",
+            output_data={"success": True, "results": []},
+        )
+        db.finish_run(run_id, "completed")
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(name="search_artifacts", arguments={"query": "paper evidence for agentic distillation", "limit": 20})
+                ])
+            ]),
+        )
+
+        assert result.status == "blocked"
+        assert result.result["error"] == "similar artifact search blocked"
+        assert result.result["blocked_tool"] == "search_artifacts"
+    finally:
+        db.close()
+
+
+def test_run_one_step_blocks_artifact_review_when_tasks_are_exhausted(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job(
+            "Review saved outputs",
+            title="review-exhausted",
+            kind="generic",
+            metadata={"task_queue": [{"title": "Review first output", "status": "done", "priority": 5}]},
+        )
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[ToolCall(name="search_artifacts", arguments={"query": "paper evidence"})])
+            ]),
+        )
+
+        assert result.status == "blocked"
+        assert result.result["error"] == "task branch required before more work"
+        assert result.result["blocked_tool"] == "search_artifacts"
+    finally:
+        db.close()
+
+
 def test_web_extract_auto_records_source_quality(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

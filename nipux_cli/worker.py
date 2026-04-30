@@ -109,7 +109,8 @@ INFORMATION_GATHERING_TOOLS = {
     "web_search",
 }
 
-BRANCH_WORK_TOOLS = INFORMATION_GATHERING_TOOLS | {"shell_exec"}
+ARTIFACT_REVIEW_TOOLS = {"read_artifact", "search_artifacts"}
+BRANCH_WORK_TOOLS = INFORMATION_GATHERING_TOOLS | ARTIFACT_REVIEW_TOOLS | {"shell_exec"}
 LEDGER_PROGRESS_TOOLS = {"record_findings", "record_source", "record_tasks", "record_experiment", "record_lesson"}
 MEASUREMENT_RESOLUTION_TOOLS = {"record_experiment", "record_lesson", "record_tasks", "acknowledge_operator_context"}
 ARTIFACT_ACCOUNTING_RESOLUTION_TOOLS = LEDGER_PROGRESS_TOOLS | {"acknowledge_operator_context"}
@@ -117,6 +118,7 @@ ARTIFACT_ACCOUNTING_BLOCKED_TOOLS = INFORMATION_GATHERING_TOOLS | {
     "shell_exec",
     "write_artifact",
     "read_artifact",
+    "search_artifacts",
     "report_update",
 }
 MEASUREMENT_BLOCKED_TOOLS = INFORMATION_GATHERING_TOOLS | {
@@ -126,7 +128,7 @@ MEASUREMENT_BLOCKED_TOOLS = INFORMATION_GATHERING_TOOLS | {
     "record_source",
     "report_update",
 }
-CHURN_TOOLS = INFORMATION_GATHERING_TOOLS | {"shell_exec"}
+CHURN_TOOLS = INFORMATION_GATHERING_TOOLS | ARTIFACT_REVIEW_TOOLS | {"shell_exec"}
 MEASURABLE_RESEARCH_BLOCKED_TOOLS = INFORMATION_GATHERING_TOOLS | {
     "write_artifact",
     "record_findings",
@@ -1047,15 +1049,7 @@ def _unpersisted_evidence_step(recent_steps: list[dict[str, Any]]) -> dict[str, 
 
 
 def _recent_search_streak(recent_steps: list[dict[str, Any]]) -> int:
-    streak = 0
-    for step in reversed(_completed_recent_steps(recent_steps)):
-        tool_name = step.get("tool_name")
-        if tool_name == "web_search":
-            streak += 1
-            continue
-        if tool_name:
-            break
-    return streak
+    return _recent_tool_streak(recent_steps, "web_search")
 
 
 def _pending_measurement_obligation(job: dict[str, Any]) -> dict[str, Any] | None:
@@ -1333,12 +1327,22 @@ def _similar_recent_search(
     *,
     window: int = 12,
 ) -> dict[str, Any] | None:
+    return _similar_recent_query_tool("web_search", args, recent_steps, window=window)
+
+
+def _similar_recent_query_tool(
+    tool_name: str,
+    args: dict[str, Any],
+    recent_steps: list[dict[str, Any]],
+    *,
+    window: int = 12,
+) -> dict[str, Any] | None:
     query = _search_query(args)
     tokens = _query_tokens(query)
     if len(tokens) < 2:
         return None
     for step in reversed(_completed_recent_steps(recent_steps)[-window:]):
-        if step.get("tool_name") != "web_search":
+        if step.get("tool_name") != tool_name:
             continue
         input_data = step.get("input") or {}
         previous_args = input_data.get("arguments") if isinstance(input_data, dict) else None
@@ -1352,6 +1356,18 @@ def _similar_recent_search(
         if overlap >= 0.72:
             return step
     return None
+
+
+def _recent_tool_streak(recent_steps: list[dict[str, Any]], tool_name: str) -> int:
+    streak = 0
+    for step in reversed(_completed_recent_steps(recent_steps)):
+        current_tool = step.get("tool_name")
+        if current_tool == tool_name:
+            streak += 1
+            continue
+        if current_tool:
+            break
+    return streak
 
 
 def _blocked_tool_call_result(
@@ -1564,6 +1580,36 @@ def _blocked_tool_call_result(
                 "guidance": "Stop searching. Extract or open one of the prior results, then write an artifact.",
             }
             return result, f"blocked web_search after {streak} consecutive searches"
+
+    if name == "search_artifacts":
+        similar_step = _similar_recent_query_tool("search_artifacts", args, recent_steps)
+        if similar_step:
+            result = {
+                "success": False,
+                "error": "similar artifact search blocked",
+                "blocked_tool": name,
+                "blocked_arguments": args,
+                "previous_step": similar_step["id"],
+                "guidance": (
+                    "Use a returned artifact, record what the prior artifact searches proved, "
+                    "or create the next concrete task instead of searching saved outputs again."
+                ),
+            }
+            return result, f"blocked similar search_artifacts; previous step #{similar_step['step_no']}"
+        streak = _recent_tool_streak(recent_steps, "search_artifacts")
+        if streak >= 3:
+            result = {
+                "success": False,
+                "error": "artifact search loop blocked",
+                "blocked_tool": name,
+                "blocked_arguments": args,
+                "recent_artifact_search_streak": streak,
+                "guidance": (
+                    "Stop searching saved outputs. Read a specific returned artifact, update tasks/findings/lessons, "
+                    "or write the next report artifact from already-read evidence."
+                ),
+            }
+            return result, f"blocked search_artifacts after {streak} consecutive artifact searches"
 
     return None
 
