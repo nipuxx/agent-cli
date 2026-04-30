@@ -1950,7 +1950,7 @@ def _chat_pane_lines(events: list[dict[str, Any]], notices: list[str], *, width:
 def _chat_event_parts(event: dict[str, Any]) -> tuple[str, str, str] | None:
     kind = str(event.get("event_type") or "")
     title = str(event.get("title") or "").strip()
-    body = _generic_display_text(event.get("body") or "")
+    body = str(event.get("body") or "")
     clock = _event_clock(event)
     if kind == "operator_message":
         return "YOU", body, clock
@@ -1964,16 +1964,31 @@ def _append_chat_output(lines: list[str], label: str, body: Any, *, clock: str, 
     clock_text = _fit_ansi(_muted(clock), 5) if clock else " " * 5
     prefix = f"{clock_text} {label_text} "
     prefix_width = 15
-    content = _generic_display_text(body)
     available = max(18, width - prefix_width)
-    wrapped = textwrap.wrap(content, width=available) or [""]
-    max_lines = 8 if label == "AGENT" else 5 if label == "NIPUX" else 3
-    visible = wrapped[:max_lines]
-    if len(wrapped) > max_lines:
-        visible[-1] = _one_line(visible[-1], max(0, available - 2)) + " …"
-    lines.append(_fit_ansi(prefix + visible[0], width))
-    for continuation in visible[1:]:
-        lines.append(_fit_ansi(" " * prefix_width + continuation, width))
+    first = True
+    for paragraph in _chat_message_paragraphs(body):
+        wrapped = textwrap.wrap(paragraph, width=available) or [""]
+        for part in wrapped:
+            if first:
+                lines.append(_fit_ansi(prefix + part, width))
+                first = False
+            else:
+                lines.append(_fit_ansi(" " * prefix_width + part, width))
+    if first:
+        lines.append(_fit_ansi(prefix, width))
+
+
+def _chat_message_paragraphs(value: Any) -> list[str]:
+    text = str(value).replace("\r\n", "\n").replace("\r", "\n")
+    text = re.sub(r"\*\*([^*]+)\*\*", r"\1", text)
+    text = re.sub(r"`([^`]+)`", r"\1", text)
+    text = re.sub(r"(?<!^)\s(?=(?:[0-9]+\.|[-*])\s+)", "\n", text)
+    paragraphs: list[str] = []
+    for raw in text.splitlines():
+        line = " ".join(raw.strip().split())
+        if line:
+            paragraphs.append(line)
+    return paragraphs or [""]
 
 
 def _append_compact_output_item(items: list[dict[str, Any]], label: str, body: Any, clock: str) -> None:

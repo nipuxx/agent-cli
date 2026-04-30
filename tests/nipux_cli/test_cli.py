@@ -678,6 +678,46 @@ def test_chat_frame_separates_chat_from_worker_activity():
     assert "python bench.py" not in chat_side
 
 
+def test_chat_frame_does_not_cap_long_agent_messages():
+    long_reply = (
+        "**Completed Work:** "
+        "1. Test suite analysis finished. "
+        "2. Code analysis findings documented. "
+        "3. Market readiness gaps identified. "
+        "4. Packaging risks summarized. "
+        "5. Daemon reliability checked. "
+        "6. UI ergonomics reviewed. "
+        "7. Final recommendation included."
+    )
+    snapshot = {
+        "job_id": "job_demo",
+        "job": {
+            "id": "job_demo",
+            "title": "demo job",
+            "objective": "keep chat readable",
+            "status": "running",
+            "kind": "generic",
+            "metadata": {},
+        },
+        "jobs": [{"id": "job_demo", "title": "demo job", "status": "running", "kind": "generic", "metadata": {}}],
+        "steps": [],
+        "artifacts": [],
+        "memory_entries": [],
+        "events": [
+            {"event_type": "operator_message", "body": "what have you done so far", "metadata": {}},
+            {"event_type": "agent_message", "title": "chat", "body": long_reply, "metadata": {}},
+        ],
+        "daemon": {"running": True, "metadata": {"pid": 123}},
+        "model": "model/demo",
+    }
+
+    frame = _build_chat_frame(snapshot, "", [], width=118, height=32)
+
+    assert "Completed Work:" in frame
+    assert "Final recommendation included" in frame
+    assert "…" not in frame
+
+
 def test_plain_chat_control_intents_map_to_commands():
     assert _chat_control_command("how is it going?") == "/status"
     assert _chat_control_command("start working") == "/run"
