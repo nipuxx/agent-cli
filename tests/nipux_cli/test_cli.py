@@ -128,6 +128,57 @@ def test_main_no_args_enters_chat_first_home(monkeypatch, tmp_path, capsys):
     assert "visible agent update" in out
 
 
+def test_main_no_args_with_no_jobs_shows_first_run_menu(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+
+    def eof_input(_prompt):
+        raise EOFError
+
+    monkeypatch.setattr("builtins.input", eof_input)
+
+    main([])
+
+    out = capsys.readouterr().out
+    assert "Local control surface" in out
+    assert "No jobs yet" in out
+    assert "new OBJECTIVE" in out
+    assert "doctor" in out
+
+
+def test_first_run_menu_can_create_job_and_open_workspace(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    opened = {}
+
+    def fake_input(_prompt):
+        return "new Build a durable workflow"
+
+    def fake_enter_chat(job_id, *, show_history, history_limit):
+        opened["job_id"] = job_id
+        opened["show_history"] = show_history
+        opened["history_limit"] = history_limit
+        print(f"opened {job_id}")
+
+    monkeypatch.setattr("builtins.input", fake_input)
+    monkeypatch.setattr("nipux_cli.cli._enter_chat", fake_enter_chat)
+
+    main([])
+
+    out = capsys.readouterr().out
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        jobs = db.list_jobs()
+        assert len(jobs) == 1
+        assert jobs[0]["title"] == "Build a durable workflow"
+        assert opened["job_id"] == jobs[0]["id"]
+        assert opened["show_history"] is True
+        assert opened["history_limit"] == 12
+    finally:
+        db.close()
+    assert "created Build a durable workflow" in out
+    assert "Opening workspace" in out
+    assert "opened" in out
+
+
 def test_shell_ls_alias_lists_jobs_instead_of_steering(monkeypatch, tmp_path, capsys):
     monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
     db = AgentDB(tmp_path / "state.db")
@@ -304,8 +355,9 @@ def test_chat_frame_is_bounded_and_has_composer():
 
     assert len(frame.splitlines()) <= 22
     assert "Nipux CLI" in frame
-    assert "Chat" in frame
-    assert "Work / Status" in frame
+    assert "Local control surface" in frame
+    assert "Agent Output" in frame
+    assert "System Log" in frame
     assert "Model Activity" in frame
     assert "Compose" in frame
     assert "❯ hello" in frame
