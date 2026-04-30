@@ -115,6 +115,12 @@ class CapturingLLM:
         return self.response
 
 
+class ExplodingLLM:
+    def next_action(self, *, messages, tools):
+        del messages, tools
+        raise AssertionError("LLM should not be called")
+
+
 class AntiBotBrowserRegistry:
     def openai_tools(self):
         return []
@@ -379,6 +385,40 @@ def test_run_one_step_blocks_artifact_review_when_tasks_are_exhausted(tmp_path):
         assert result.status == "blocked"
         assert result.result["error"] == "task branch required before more work"
         assert result.result["blocked_tool"] == "search_artifacts"
+    finally:
+        db.close()
+
+
+def test_run_one_step_recovers_repeated_guard_blocks_without_llm(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Recover repeated blocked work", title="guard", kind="generic")
+        for index, tool_name in enumerate(["search_artifacts", "shell_exec", "read_artifact"], start=1):
+            run_id = db.start_run(job_id, model="test")
+            step_id = db.add_step(
+                job_id=job_id,
+                run_id=run_id,
+                kind="tool",
+                tool_name=tool_name,
+                input_data={"arguments": {"query": f"blocked {index}"}},
+            )
+            db.finish_step(
+                step_id,
+                status="blocked",
+                summary=f"blocked {tool_name}; progress ledger update required",
+                output_data={"success": True, "recoverable": True, "error": "progress ledger update required"},
+            )
+            db.finish_run(run_id, "completed")
+
+        result = run_one_step(job_id, config=config, db=db, llm=ExplodingLLM())
+
+        assert result.status == "completed"
+        assert result.tool_name == "guard_recovery"
+        assert result.result["guard_recovery"]["error"] == "progress ledger update required"
+        job = db.get_job(job_id)
+        assert any(task["title"] == "Resolve guard: progress ledger update required" for task in job["metadata"]["task_queue"])
+        assert any("Repeated guard block" in lesson["lesson"] for lesson in job["metadata"]["lessons"])
     finally:
         db.close()
 

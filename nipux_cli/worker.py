@@ -111,7 +111,14 @@ INFORMATION_GATHERING_TOOLS = {
 
 ARTIFACT_REVIEW_TOOLS = {"read_artifact", "search_artifacts"}
 BRANCH_WORK_TOOLS = INFORMATION_GATHERING_TOOLS | ARTIFACT_REVIEW_TOOLS | {"shell_exec"}
-LEDGER_PROGRESS_TOOLS = {"record_findings", "record_source", "record_tasks", "record_experiment", "record_lesson"}
+LEDGER_PROGRESS_TOOLS = {
+    "guard_recovery",
+    "record_findings",
+    "record_source",
+    "record_tasks",
+    "record_experiment",
+    "record_lesson",
+}
 MEASUREMENT_RESOLUTION_TOOLS = {"record_experiment", "record_lesson", "record_tasks", "acknowledge_operator_context"}
 ARTIFACT_ACCOUNTING_RESOLUTION_TOOLS = LEDGER_PROGRESS_TOOLS | {"acknowledge_operator_context"}
 ARTIFACT_ACCOUNTING_BLOCKED_TOOLS = INFORMATION_GATHERING_TOOLS | {
@@ -142,6 +149,17 @@ MEASURABLE_PROGRESS_PATTERN = re.compile(
     r"rate|reduce|score|speed|throughput|tune|tuning"
     r")\b"
 )
+RECOVERABLE_GUARD_ERRORS = {
+    "artifact search loop blocked",
+    "duplicate tool call blocked",
+    "measurement obligation pending",
+    "measured progress required",
+    "progress accounting required",
+    "progress ledger update required",
+    "similar artifact search blocked",
+    "similar search query blocked",
+    "task branch required before more work",
+}
 MEASURABLE_RESEARCH_BUDGET_STEPS = 18
 MEASURABLE_ACTION_BUDGET_STEPS = 4
 PROGRAM_PROMPT_CHARS = 2000
@@ -1370,6 +1388,46 @@ def _recent_tool_streak(recent_steps: list[dict[str, Any]], tool_name: str) -> i
     return streak
 
 
+def _repeated_guard_block_context(
+    recent_steps: list[dict[str, Any]],
+    *,
+    threshold: int = 3,
+    window: int = 12,
+) -> dict[str, Any] | None:
+    operational_steps = [
+        step
+        for step in recent_steps
+        if step.get("kind") in {"tool", "recovery"} and step.get("tool_name") != "guard_recovery"
+    ]
+    tail = operational_steps[-window:]
+    latest_blocked = next((step for step in reversed(tail) if step.get("status") == "blocked"), None)
+    if not latest_blocked:
+        return None
+    output = latest_blocked.get("output") if isinstance(latest_blocked.get("output"), dict) else {}
+    error = str(output.get("error") or latest_blocked.get("error") or "")
+    if error not in RECOVERABLE_GUARD_ERRORS:
+        return None
+    count = 0
+    blocked_tools = []
+    first_step_no = None
+    for step in tail:
+        step_output = step.get("output") if isinstance(step.get("output"), dict) else {}
+        step_error = str(step_output.get("error") or step.get("error") or "")
+        if step.get("status") == "blocked" and step_error == error:
+            count += 1
+            first_step_no = first_step_no or step.get("step_no")
+            blocked_tools.append(str(step.get("tool_name") or step.get("kind") or "tool"))
+    if count < threshold:
+        return None
+    return {
+        "error": error,
+        "count": count,
+        "first_step_no": first_step_no,
+        "latest_step_no": latest_blocked.get("step_no"),
+        "blocked_tools": blocked_tools[-8:],
+    }
+
+
 def _blocked_tool_call_result(
     name: str,
     args: dict[str, Any],
@@ -1882,6 +1940,65 @@ def _run_reflection_step(
     return StepExecution(job_id=job_id, run_id=run_id, step_id=step_id, tool_name="reflect", status="completed", result=result)
 
 
+def _run_guard_recovery_step(
+    context: dict[str, Any],
+    *,
+    db: AgentDB,
+    job_id: str,
+    run_id: str,
+) -> StepExecution:
+    error = str(context.get("error") or "recoverable guard")
+    step_id = db.add_step(job_id=job_id, run_id=run_id, kind="recovery", tool_name="guard_recovery")
+    lesson = db.append_lesson(
+        job_id,
+        (
+            f"Repeated guard block '{error}' occurred {context.get('count')} times. "
+            "Do not retry the same blocked tool pattern; update durable progress state, create a new branch, "
+            "or explicitly reject the branch before continuing."
+        ),
+        category="strategy",
+        confidence=0.75,
+        metadata={"guard_recovery": context},
+    )
+    task = db.append_task_record(
+        job_id,
+        title=f"Resolve guard: {error}",
+        status="open",
+        priority=9,
+        goal="Convert the repeated guard block into durable progress before retrying the blocked action.",
+        output_contract="decision",
+        acceptance_criteria=(
+            "Use record_tasks, record_findings, record_source, record_experiment, or record_lesson to state what "
+            "changed, what branch is rejected, or what concrete branch should run next."
+        ),
+        evidence_needed=f"Recent blocked tools: {', '.join(context.get('blocked_tools') or [])}",
+        stall_behavior="If the same guard appears again, pivot to a different branch or record the branch as blocked.",
+        metadata={"guard_recovery": context},
+    )
+    message = (
+        f"Guard recovery opened a task after repeated '{error}' blocks "
+        f"from step #{context.get('first_step_no')} to #{context.get('latest_step_no')}."
+    )
+    update = db.append_agent_update(
+        job_id,
+        message,
+        category="blocked",
+        metadata={"guard_recovery": context, "task_key": task.get("key"), "lesson_key": lesson.get("key")},
+    )
+    result = {
+        "success": True,
+        "guard_recovery": context,
+        "lesson": lesson,
+        "task": task,
+        "update": update,
+    }
+    db.finish_step(step_id, status="completed", summary=message, output_data=result)
+    db.finish_run(run_id, "completed")
+    _emit_loop_end(db, job_id, run_id, status="completed", step_id=step_id, tool_name="guard_recovery", detail=message)
+    refresh_memory_index(db, job_id)
+    return StepExecution(job_id=job_id, run_id=run_id, step_id=step_id, tool_name="guard_recovery", status="completed", result=result)
+
+
 def _evidence_checkpoint_content(evidence_step: dict[str, Any]) -> str:
     output = evidence_step.get("output") if isinstance(evidence_step.get("output"), dict) else {}
     input_data = evidence_step.get("input") if isinstance(evidence_step.get("input"), dict) else {}
@@ -2283,6 +2400,9 @@ def run_one_step(
         recent_steps = db.list_steps(job_id=job_id)
         if _should_reflect(job, recent_steps):
             return _run_reflection_step(job, recent_steps, db=db, job_id=job_id, run_id=run_id)
+        guard_recovery = _repeated_guard_block_context(recent_steps)
+        if guard_recovery:
+            return _run_guard_recovery_step(guard_recovery, db=db, job_id=job_id, run_id=run_id)
         active_operator_messages = _claim_operator_queue(db, job_id)
         if active_operator_messages:
             job = db.get_job(job_id)
