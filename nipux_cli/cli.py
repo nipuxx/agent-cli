@@ -1583,7 +1583,7 @@ def _remote_model_preflight_failures(config) -> list[str]:
     local_hosts = {"", "localhost", "127.0.0.1", "::1", "0.0.0.0"}
     if host in local_hosts or host.endswith(".local"):
         return []
-    blocking = {"model_config", "model_auth", "model_endpoint"}
+    blocking = {"model_config", "model_auth", "model_endpoint", "model_generation"}
     checks = run_doctor(config=config, check_model=True)
     return [f"{check.name}: {check.detail}" for check in checks if not check.ok and check.name in blocking]
 

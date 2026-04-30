@@ -99,11 +99,64 @@ def _check_model_endpoint(config: AppConfig) -> Check:
             available = _model_available(data, config.model.model)
             if available is False:
                 return Check("model_endpoint", False, f"{config.model.model} not found at {url}; models={count}")
-            return Check("model_endpoint", True, f"{url} returned models={count}; {config.model.model} available")
+            generation = _check_model_generation(config)
+            if not generation.ok:
+                return generation
+            return Check("model_endpoint", True, f"{url} returned models={count}; {config.model.model} available; generation accepted")
         except json.JSONDecodeError:
-            return Check("model_endpoint", True, f"{url} responded")
+            generation = _check_model_generation(config)
+            if not generation.ok:
+                return generation
+            return Check("model_endpoint", True, f"{url} responded; generation accepted")
     except (urllib.error.URLError, TimeoutError, OSError) as exc:
         return Check("model_endpoint", False, f"{url}: {exc}")
+
+
+def _check_model_generation(config: AppConfig) -> Check:
+    url = config.model.base_url.rstrip("/") + "/chat/completions"
+    payload = {
+        "model": config.model.model,
+        "messages": [{"role": "user", "content": "Reply with exactly: ok"}],
+        "max_tokens": 8,
+        "temperature": 0,
+        "tools": [
+            {
+                "type": "function",
+                "function": {
+                    "name": "noop",
+                    "description": "No-op model readiness probe.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {"reason": {"type": "string"}},
+                        "required": ["reason"],
+                    },
+                },
+            }
+        ],
+    }
+    request = urllib.request.Request(
+        url,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            "Authorization": f"Bearer {config.model.api_key or 'local-no-key'}",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=15) as response:
+            body = response.read(64_000).decode("utf-8", errors="replace")
+        data = json.loads(body)
+        choices = data.get("choices") if isinstance(data, dict) else None
+        if isinstance(choices, list) and choices:
+            return Check("model_generation", True, f"{url} accepted chat/tool request")
+        return Check("model_generation", False, f"{url} returned no choices")
+    except urllib.error.HTTPError as exc:
+        body = exc.read(2048).decode("utf-8", errors="replace")
+        detail = _extract_error_message(body) or str(exc)
+        return Check("model_generation", False, f"{url}: {detail}")
+    except (json.JSONDecodeError, urllib.error.URLError, TimeoutError, OSError) as exc:
+        return Check("model_generation", False, f"{url}: {exc}")
 
 
 def _check_openrouter_auth(config: AppConfig) -> Check | None:
