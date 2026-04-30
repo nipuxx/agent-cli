@@ -1,12 +1,26 @@
 from nipux_cli.artifacts import ArtifactStore
 from nipux_cli.cli import (
+    CHAT_SLASH_COMMANDS,
+    FIRST_RUN_SLASH_COMMANDS,
+    _autocomplete_slash,
+    _build_first_run_frame,
     _build_chat_frame,
     _build_chat_messages,
     _chat_handle_line,
+    _chat_control_command,
+    _config_field_value,
+    _decode_terminal_escape,
+    _first_run_click_action,
+    _frame_next_job_id,
+    _handle_first_run_menu_line,
+    _handle_chat_message,
+    _inline_setting_notice,
     _launch_agent_plist,
     _minimal_live_event_line,
     _print_shell_help,
     _run_shell_line,
+    _save_config_field,
+    _slash_suggestion_lines,
     _systemd_service_text,
     build_parser,
     main,
@@ -100,7 +114,10 @@ def test_shell_freeform_text_adds_operator_message(monkeypatch, tmp_path, capsys
     try:
         job = db.get_job(job_id)
         assert "waiting for research" in out
-        assert job["metadata"]["operator_messages"][-1]["message"] == "focus on real evidence sources, not irrelevant sources"
+        assert (
+            job["metadata"]["operator_messages"][-1]["message"]
+            == "focus on real evidence sources, not irrelevant sources"
+        )
     finally:
         db.close()
 
@@ -127,6 +144,200 @@ def test_main_no_args_enters_chat_first_home(monkeypatch, tmp_path, capsys):
     assert "RECENT ACTIVITY - research" in out
     assert "remember this visible note" in out
     assert "visible agent update" in out
+
+
+def test_main_no_args_with_no_jobs_shows_first_run_menu(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+
+    def eof_input(_prompt):
+        raise EOFError
+
+    monkeypatch.setattr("builtins.input", eof_input)
+
+    main([])
+
+    out = capsys.readouterr().out
+    assert "FIRST RUN" in out
+    assert "new       create a job" in out
+    assert "settings  show model, home, daemon, and config" in out
+    assert "shell     open the full command console" not in out
+    assert "doctor    check local setup" in out
+    assert "_   _" not in out
+
+
+def test_first_run_menu_can_create_job_and_open_workspace(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    opened = {}
+
+    def fake_input(_prompt):
+        return "new Build a durable workflow"
+
+    def fake_enter_chat(job_id, *, show_history, history_limit):
+        opened["job_id"] = job_id
+        opened["show_history"] = show_history
+        opened["history_limit"] = history_limit
+        print(f"opened {job_id}")
+
+    monkeypatch.setattr("builtins.input", fake_input)
+    monkeypatch.setattr("nipux_cli.cli._enter_chat", fake_enter_chat)
+
+    main([])
+
+    out = capsys.readouterr().out
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        jobs = db.list_jobs()
+        assert len(jobs) == 1
+        assert jobs[0]["title"] == "Build a durable workflow"
+        assert opened["job_id"] == jobs[0]["id"]
+        assert opened["show_history"] is True
+        assert opened["history_limit"] == 12
+    finally:
+        db.close()
+    assert "created Build a durable workflow" in out
+    assert "Opening workspace" in out
+    assert "opened" in out
+
+
+def test_first_run_plain_greeting_does_not_create_job(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+
+    assert _handle_first_run_menu_line("Hello") is True
+
+    out = capsys.readouterr().out
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        assert db.list_jobs() == []
+    finally:
+        db.close()
+    assert "long-running work" in out
+
+
+def test_first_run_frame_uses_full_screen_ui_not_banner(monkeypatch, tmp_path):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+
+    frame = _build_first_run_frame("", [], width=100, height=24)
+
+    assert "Nipux" in frame
+    assert "Nipux Chat" in frame
+    assert "Control" in frame
+    assert "Compose" in frame
+    assert "New job" in frame
+    assert "_   _" not in frame
+    assert "FIRST RUN" not in frame
+    assert "nipux menu >" not in frame
+    assert "/shell" not in frame
+
+
+def test_first_run_frame_has_slash_command_popup(monkeypatch, tmp_path):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+
+    frame = _build_first_run_frame("/", [], width=100, height=26)
+
+    assert "commands" not in frame
+    assert "/new" not in frame
+    assert "/doctor" not in frame
+    assert "/settings" not in frame
+    assert "/shell" not in frame
+    assert "tab completes first match" not in frame
+
+
+def test_first_run_frame_has_settings_view(monkeypatch, tmp_path):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+
+    frame = _build_first_run_frame("", [], width=100, height=26, view="settings", selected=1)
+
+    assert "Settings" in frame
+    assert "Config" in frame
+    assert "Base URL" in frame
+    assert "API key" in frame
+    assert "API env" not in frame
+    assert "Page" in frame
+    assert "/shell" not in frame
+
+
+def test_first_run_frame_edits_settings_inline(monkeypatch, tmp_path):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+
+    frame = _build_first_run_frame(
+        "", [], width=100, height=26, view="settings", selected=0, editing_field="model.name"
+    )
+
+    assert "Editing model.name" in frame
+    assert "model.name [" not in frame
+    assert "Settings" in frame
+    assert "●" in frame
+
+
+def test_settings_editor_persists_model_config(monkeypatch, tmp_path):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+
+    assert _save_config_field("model.name", "demo/model") == "demo/model"
+    assert _save_config_field("model.context_length", "4096") == 4096
+    assert _save_config_field("runtime.daily_digest_enabled", "false") is False
+
+    assert _config_field_value("model.name") == "demo/model"
+    assert _config_field_value("model.context_length") == 4096
+    assert _config_field_value("runtime.daily_digest_enabled") is False
+    text = (tmp_path / "config.yaml").read_text(encoding="utf-8")
+    assert "demo/model" in text
+    assert _inline_setting_notice("model.name", "") == "kept model.name"
+
+
+def test_slash_autocomplete_filters_commands():
+    assert _autocomplete_slash("/do", FIRST_RUN_SLASH_COMMANDS) == "/doctor "
+    assert _autocomplete_slash("/se", FIRST_RUN_SLASH_COMMANDS) == "/settings "
+    assert _autocomplete_slash("/sta", CHAT_SLASH_COMMANDS) == "/status "
+    assert _autocomplete_slash("plain text", CHAT_SLASH_COMMANDS) == "plain text"
+    lines = _slash_suggestion_lines("/art", CHAT_SLASH_COMMANDS, width=80)
+    text = "\n".join(lines)
+    assert "/artifacts" in text
+    assert "/artifact" in text
+    assert "/run" not in text
+    assert "/shell" not in "\n".join(_slash_suggestion_lines("/", CHAT_SLASH_COMMANDS, width=80, limit=20))
+
+
+def test_terminal_escape_decodes_arrows_and_mouse_click():
+    assert _decode_terminal_escape("\x1b[A") == ("up", None)
+    assert _decode_terminal_escape("\x1b[B") == ("down", None)
+    assert _decode_terminal_escape("\x1b[C") == ("right", None)
+    assert _decode_terminal_escape("\x1b[D") == ("left", None)
+    assert _decode_terminal_escape("\x1bOB") == ("down", None)
+    assert _decode_terminal_escape("\x1b[1;2B") == ("down", None)
+    assert _decode_terminal_escape("\x1b[<0;88;12M") == ("click", (88, 12))
+    assert _decode_terminal_escape("\x1b[M !!") == ("click", (1, 1))
+
+
+def test_first_run_click_maps_right_pane_actions(monkeypatch):
+    monkeypatch.setattr("shutil.get_terminal_size", lambda fallback=(100, 30): (100, 30))
+
+    assert _first_run_click_action(70, 11, view="start") == 0
+    assert _first_run_click_action(70, 13, view="start") == 2
+    assert _first_run_click_action(70, 11, view="settings") == 0
+    assert _first_run_click_action(10, 12, view="start") is None
+
+
+def test_frame_next_job_cycles_jobs():
+    snapshot = {"jobs": [{"id": "one"}, {"id": "two"}, {"id": "three"}]}
+
+    assert _frame_next_job_id(snapshot, "one", direction=1) == "two"
+    assert _frame_next_job_id(snapshot, "one", direction=-1) == "three"
+    assert _frame_next_job_id(snapshot, "missing", direction=1) == "two"
+
+
+def test_chat_help_has_settings_without_shell(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Research topic", title="research")
+    finally:
+        db.close()
+
+    assert _chat_handle_line(job_id, "/help") is True
+
+    out = capsys.readouterr().out
+    assert "/settings" in out
+    assert "/shell" not in out
 
 
 def test_shell_ls_alias_lists_jobs_instead_of_steering(monkeypatch, tmp_path, capsys):
@@ -293,12 +504,14 @@ def test_chat_clear_does_not_queue_operator_message(monkeypatch, tmp_path, capsy
 
 
 def test_minimal_live_event_line_summarizes_tool_steps():
-    line = _minimal_live_event_line({
-        "event_type": "tool_call",
-        "title": "shell_exec",
-        "body": "",
-        "metadata": {"input": {"arguments": {"command": "ssh server nvidia-smi"}}},
-    })
+    line = _minimal_live_event_line(
+        {
+            "event_type": "tool_call",
+            "title": "shell_exec",
+            "body": "",
+            "metadata": {"input": {"arguments": {"command": "ssh server nvidia-smi"}}},
+        }
+    )
 
     assert line == "start shell ssh server nvidia-smi"
 
@@ -315,10 +528,30 @@ def test_chat_frame_is_bounded_and_has_composer():
             "metadata": {"task_queue": [{"status": "open"}]},
         },
         "jobs": [{"id": "job_demo", "title": "demo job", "status": "running", "kind": "generic", "metadata": {}}],
-        "steps": [{"step_no": 3, "status": "completed", "kind": "tool", "tool_name": "web_search", "summary": "web_search returned sources"}],
+        "steps": [
+            {
+                "step_no": 3,
+                "status": "completed",
+                "kind": "tool",
+                "tool_name": "web_search",
+                "summary": "web_search returned sources",
+            }
+        ],
         "artifacts": [{"id": "art_demo"}],
         "memory_entries": [{}],
         "events": [
+            {
+                "event_type": "agent_message",
+                "title": "plan",
+                "body": "I will plan this.\nPlan:\n- one\n- two\nQuestions:\n- answer?",
+                "metadata": {},
+            },
+            {
+                "event_type": "task",
+                "title": "internal task",
+                "body": "internal task body",
+                "metadata": {},
+            },
             {
                 "event_type": "tool_result",
                 "title": "web_search",
@@ -340,6 +573,77 @@ def test_chat_frame_is_bounded_and_has_composer():
     assert "search demo" in frame
     assert "Compose" in frame
     assert "❯ hello" in frame
+    assert "Plan drafted with 2 items" in frame
+
+    settings = _build_chat_frame(snapshot, "", [], width=100, height=24, right_view="settings", selected_control=1)
+    assert "Settings" in settings
+    assert "Base URL" in settings
+
+    editing = _build_chat_frame(
+        snapshot,
+        "demo/model",
+        [],
+        width=100,
+        height=24,
+        right_view="settings",
+        selected_control=0,
+        editing_field="model.name",
+    )
+    assert "Editing model.name" in editing
+    assert "model.name demo/model" in editing
+
+    secret = _build_chat_frame(
+        snapshot,
+        "secret-value",
+        [],
+        width=100,
+        height=24,
+        right_view="settings",
+        selected_control=2,
+        editing_field="secret:model.api_key",
+    )
+    assert "Editing API key" in secret
+    assert "API env" not in secret
+    assert "secret-value" not in secret
+    assert "••••" in secret
+
+
+def test_plain_chat_control_intents_map_to_commands():
+    assert _chat_control_command("how is it going?") == "/status"
+    assert _chat_control_command("start working") == "/run"
+    assert _chat_control_command("pause this job") == "/pause"
+    assert _chat_control_command("show jobs") == "/jobs"
+    assert _chat_control_command("change model") == "/settings"
+
+
+def test_plain_chat_control_intent_does_not_queue_operator_context(monkeypatch, tmp_path):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Research topic", title="research")
+    finally:
+        db.close()
+
+    captured = {}
+
+    def fake_capture(job_id_arg, command):
+        captured["job_id"] = job_id_arg
+        captured["command"] = command
+        return True, "status output\n"
+
+    monkeypatch.setattr("nipux_cli.cli._capture_chat_command", fake_capture)
+
+    keep_running, message = _handle_chat_message(job_id, "how is it going?", quiet=True)
+
+    assert keep_running is True
+    assert message == "status output"
+    assert captured == {"job_id": job_id, "command": "/status"}
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job = db.get_job(job_id)
+        assert job["metadata"].get("operator_messages") is None
+    finally:
+        db.close()
 
 
 def test_chat_frame_surfaces_actual_work_events():
@@ -538,7 +842,12 @@ def test_chat_handle_line_adds_operator_message(monkeypatch, tmp_path, capsys):
     finally:
         db.close()
 
-    assert _chat_handle_line(job_id, "prefer artifact-backed findings", reply_fn=lambda _job_id, _message: "Okay, I will focus there.") is True
+    assert (
+        _chat_handle_line(
+            job_id, "prefer artifact-backed findings", reply_fn=lambda _job_id, _message: "Okay, I will focus there."
+        )
+        is True
+    )
 
     out = capsys.readouterr().out
     db = AgentDB(tmp_path / "state.db")
@@ -549,6 +858,38 @@ def test_chat_handle_line_adds_operator_message(monkeypatch, tmp_path, capsys):
         assert job["metadata"]["operator_messages"][-1]["source"] == "chat"
         assert job["metadata"]["operator_messages"][-1]["message"] == "prefer artifact-backed findings"
         assert job["metadata"]["last_agent_update"]["category"] == "chat"
+    finally:
+        db.close()
+
+
+def test_chat_can_spawn_new_job_from_plain_message(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        original_id = db.create_job("Research topic", title="nightly research")
+    finally:
+        db.close()
+
+    assert (
+        _chat_handle_line(
+            original_id,
+            "create a job to monitor nightly benchmarks and report regressions",
+            reply_fn=lambda _job_id, _message: "should not call model",
+        )
+        is True
+    )
+
+    out = capsys.readouterr().out
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        jobs = db.list_jobs()
+        assert len(jobs) == 2
+        created = [job for job in jobs if job["id"] != original_id][0]
+        assert "monitor nightly benchmarks" in created["objective"]
+        assert created["status"] == "queued"
+        assert created["metadata"]["planning_status"] == "auto_accepted"
+        assert "should not call model" not in out
+        assert "Created job" in out
     finally:
         db.close()
 
@@ -582,7 +923,10 @@ def test_chat_command_inside_chat_is_not_queued(monkeypatch, tmp_path, capsys):
     finally:
         db.close()
 
-    assert _chat_handle_line(job_id, 'chat "nightly research"', reply_fn=lambda _job_id, _message: "should not run") is True
+    assert (
+        _chat_handle_line(job_id, 'chat "nightly research"', reply_fn=lambda _job_id, _message: "should not run")
+        is True
+    )
 
     out = capsys.readouterr().out
     db = AgentDB(tmp_path / "state.db")

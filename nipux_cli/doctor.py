@@ -84,10 +84,11 @@ def _check_browser_runtime() -> Check:
 
 
 def _check_model_endpoint(config: AppConfig) -> Check:
-    if "openrouter.ai" in config.model.base_url:
-        auth = _check_openrouter_auth(config)
-        if auth is not None and not auth.ok:
-            return auth
+    if "openrouter.ai" in config.model.base_url and not config.model.api_key:
+        return Check("model_endpoint", False, "API key is not set")
+    auth = _check_openrouter_auth(config)
+    if auth is not None and not auth.ok:
+        return auth
     url = config.model.base_url.rstrip("/") + "/models"
     request = urllib.request.Request(url, headers={"Authorization": f"Bearer {config.model.api_key or 'local-no-key'}"})
     try:

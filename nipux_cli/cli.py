@@ -23,8 +23,17 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
+import yaml
+
 from nipux_cli.artifacts import ArtifactStore
-from nipux_cli.config import DEFAULT_BASE_URL, DEFAULT_CONTEXT_LENGTH, DEFAULT_MODEL, default_config_yaml, load_config
+from nipux_cli.config import (
+    DEFAULT_BASE_URL,
+    DEFAULT_CONTEXT_LENGTH,
+    DEFAULT_MODEL,
+    default_config_yaml,
+    get_agent_home,
+    load_config,
+)
 from nipux_cli.daemon import Daemon, DaemonAlreadyRunning, daemon_lock_status, read_daemon_events
 from nipux_cli.dashboard import collect_dashboard_state, render_dashboard, render_overview
 from nipux_cli.db import AgentDB
@@ -128,13 +137,86 @@ NATURAL_COMMANDS = {
     "what is going on": "status",
     "whats going on": "status",
     "what's going on": "status",
+    "what are you doing": "status",
+    "what is it doing": "status",
     "how is it going": "status",
+    "how are things going": "status",
+    "check up on things": "status",
     "is it running": "health",
     "is the daemon running": "health",
     "daemon health": "health",
     "show health": "health",
     "show activity": "activity",
     "show tool calls": "activity",
+}
+
+FIRST_RUN_SLASH_COMMANDS = [
+    ("/new", "create a job"),
+    ("/jobs", "list jobs"),
+    ("/settings", "open settings"),
+    ("/doctor", "check setup"),
+    ("/init", "write config"),
+    ("/help", "show commands"),
+    ("/clear", "clear notices"),
+    ("/exit", "quit"),
+]
+
+CHAT_SLASH_COMMANDS = [
+    ("/run", "start worker"),
+    ("/work", "one step"),
+    ("/jobs", "switch jobs"),
+    ("/focus", "set focus"),
+    ("/history", "timeline"),
+    ("/activity", "live feed"),
+    ("/artifacts", "outputs"),
+    ("/artifact", "open output"),
+    ("/memory", "learning"),
+    ("/status", "job state"),
+    ("/settings", "local setup"),
+    ("/pause", "pause job"),
+    ("/resume", "resume job"),
+    ("/stop", "pause job"),
+    ("/new", "new job"),
+    ("/exit", "quit"),
+]
+
+FIRST_RUN_ACTIONS = [
+    ("new", "New job", "type a goal, then press enter"),
+    ("jobs", "Jobs", "show saved workspaces"),
+    ("settings", "Settings", "model, home, daemon, config"),
+    ("doctor", "Doctor", "check local setup"),
+    ("init", "Init", "write starter config"),
+    ("exit", "Exit", "leave Nipux"),
+]
+
+FIRST_RUN_SETTINGS_ACTIONS = [
+    ("edit:model.name", "Model", "model name"),
+    ("edit:model.base_url", "Base URL", "OpenAI-compatible endpoint"),
+    ("secret:model.api_key", "API key", "stored locally"),
+    ("edit:model.context_length", "Context", "token budget"),
+    ("edit:model.request_timeout_seconds", "Timeout", "request seconds"),
+    ("edit:runtime.home", "Home", "state directory"),
+    ("edit:runtime.max_step_seconds", "Step limit", "worker timeout seconds"),
+    ("edit:runtime.artifact_inline_char_limit", "Output chars", "inline artifact limit"),
+    ("edit:runtime.daily_digest_enabled", "Digest", "true or false"),
+    ("edit:runtime.daily_digest_time", "Digest time", "HH:MM"),
+    ("back", "Back", "return to start"),
+    ("doctor", "Doctor", "check local setup"),
+    ("init", "Init config", "write starter config"),
+    ("exit", "Exit", "leave Nipux"),
+]
+
+SETTINGS_FIELD_TYPES = {
+    "model.name": "str",
+    "model.base_url": "str",
+    "model.api_key_env": "str",
+    "model.context_length": "int",
+    "model.request_timeout_seconds": "float",
+    "runtime.home": "path",
+    "runtime.max_step_seconds": "int",
+    "runtime.artifact_inline_char_limit": "int",
+    "runtime.daily_digest_enabled": "bool",
+    "runtime.daily_digest_time": "str",
 }
 
 
@@ -192,7 +274,9 @@ def cmd_create(args: argparse.Namespace) -> None:
     print(f"created {title}")
 
 
-def _create_job(*, objective: str, title: str | None = None, kind: str = "generic", cadence: str | None = None) -> tuple[str, str]:
+def _create_job(
+    *, objective: str, title: str | None = None, kind: str = "generic", cadence: str | None = None
+) -> tuple[str, str]:
     db, config = _db()
     try:
         title = title or objective.strip().splitlines()[0][:80] or "Untitled job"
@@ -300,7 +384,7 @@ def _format_initial_plan(plan: dict[str, Any]) -> str:
     if questions:
         lines.append("Questions:")
         lines.extend(f"- {question}" for question in questions)
-    lines.append("Reply with answers or use /run when this plan is good enough to start.")
+    lines.append("Reply with answers, or use the right-side Run control when this plan is good enough to start.")
     return "\n".join(lines)
 
 
@@ -309,7 +393,7 @@ def cmd_jobs(args: argparse.Namespace) -> None:
     try:
         jobs = db.list_jobs()
         if not jobs:
-            print("No jobs yet. Create one with: nipux create \"objective\"")
+            print('No jobs yet. Create one with: nipux create "objective"')
             return
         focused = _configured_focus_job_id(db)
         daemon_running = daemon_lock_status(load_config().runtime.home / "agentd.lock")["running"]
@@ -433,34 +517,852 @@ def cmd_home(args: argparse.Namespace) -> None:
         _enter_chat(job_id, show_history=True, history_limit=args.history_limit)
         return
 
-    print(NIPUX_BANNER)
+    _enter_first_run_menu(history_limit=args.history_limit)
+
+
+def _enter_first_run_menu(*, history_limit: int = 12) -> None:
+    if _frame_chat_enabled():
+        _enter_first_run_frame(history_limit=history_limit)
+        return
+
+    print("Nipux CLI")
     print(_rule("="))
-    print("No jobs yet. Type the first objective to create a generic long-running agent.")
-    print("Commands: /help, /shell, /exit")
+    _print_first_run_menu()
     print(_rule("="))
     while True:
         try:
-            line = input("nipux[new]> ").strip()
+            line = input("nipux menu > ").strip()
         except EOFError:
             print()
             return
         except KeyboardInterrupt:
             print()
             continue
-        if not line:
-            continue
-        if line in {"/exit", "/quit", "exit", "quit"}:
+        if not _handle_first_run_menu_line(line, history_limit=history_limit):
             return
-        if line in {"/help", "help"}:
-            print("Type an objective to create a job, or use /shell for the command console.")
-            continue
-        if line == "/shell":
-            cmd_shell(argparse.Namespace(status=False, no_status=True, limit=8, chars=180))
-            continue
-        job_id, title = _create_job(objective=line, title=None, kind="generic", cadence=None)
-        print(f"created {title}")
-        _enter_chat(job_id, show_history=True, history_limit=args.history_limit)
-        return
+
+
+def _print_first_run_menu() -> None:
+    config = load_config()
+    daemon = daemon_lock_status(config.runtime.home / "agentd.lock")
+    print("FIRST RUN")
+    print(f"  model   {config.model.model}")
+    print(f"  daemon  {'running' if daemon['running'] else 'stopped'}")
+    print(f"  home    {_short_path(config.runtime.home)}")
+    print()
+    print("Create or manage jobs")
+    print("  1  new       create a job and open its workspace")
+    print("  2  jobs      list jobs")
+    print("  3  settings  show model, home, daemon, and config")
+    print("  4  doctor    check local setup")
+    print("  5  init      write starter config/env files")
+    print("  6  exit")
+    print()
+    print('Type `new OBJECTIVE`, `create "OBJECTIVE"`, any command, or paste an objective directly.')
+
+
+def _handle_first_run_menu_line(line: str, *, history_limit: int = 12) -> bool:
+    line = line.strip()
+    if not line:
+        _print_first_run_menu()
+        return True
+    if line.startswith("/"):
+        line = line[1:].strip()
+    lowered = line.lower()
+    if lowered in {"exit", "quit", ":q", "6"}:
+        return False
+    if lowered in {"help", "?", "commands"}:
+        _print_first_run_menu()
+        return True
+    if lowered in {"1", "new"}:
+        objective = _prompt_first_run_value("objective")
+        if not objective:
+            print("No job created.")
+            return True
+        _first_run_create_and_open(objective, history_limit=history_limit)
+        return False
+    if lowered.startswith("new "):
+        objective = line[4:].strip()
+        if not objective:
+            print("usage: new OBJECTIVE")
+            return True
+        _first_run_create_and_open(objective, history_limit=history_limit)
+        return False
+    if lowered in {"2", "jobs", "ls"}:
+        cmd_jobs(argparse.Namespace())
+        return True
+    if lowered in {"3", "settings"}:
+        _print_first_run_settings()
+        return True
+    if lowered in {"4", "doctor"}:
+        try:
+            cmd_doctor(argparse.Namespace(check_model=False))
+        except SystemExit:
+            pass
+        return True
+    if lowered in {"5", "init"}:
+        cmd_init(argparse.Namespace(path=None, force=False))
+        return True
+    first = _first_token(line)
+    if first in SHELL_COMMAND_NAMES:
+        before_job_id = None
+        if first == "create":
+            db, _ = _db()
+            try:
+                before_job_id = _default_job_id(db)
+            finally:
+                db.close()
+        _run_shell_line(line)
+        if first == "create":
+            db, _ = _db()
+            try:
+                after_job_id = _default_job_id(db)
+            finally:
+                db.close()
+            if after_job_id and after_job_id != before_job_id:
+                _enter_chat(after_job_id, show_history=True, history_limit=history_limit)
+                return False
+        return True
+    objective = _extract_job_objective_from_message(line)
+    if objective:
+        _first_run_create_and_open(objective, history_limit=history_limit)
+        return False
+    print(_first_run_chat_reply(line))
+    return True
+
+
+def _print_first_run_settings() -> None:
+    config = load_config()
+    daemon = daemon_lock_status(config.runtime.home / "agentd.lock")
+    print("SETTINGS")
+    print(f"  model   {config.model.model}")
+    print(f"  daemon  {_daemon_state_line(daemon)}")
+    print(f"  home    {_short_path(config.runtime.home)}")
+    print(f"  config  {_short_path(config.runtime.home / 'config.yaml')}")
+    print()
+    print("Use `init` to write starter config files or `doctor` to check setup.")
+
+
+def _prompt_first_run_value(label: str) -> str:
+    try:
+        return input(f"{label} > ").strip()
+    except (EOFError, KeyboardInterrupt):
+        print()
+        return ""
+
+
+def _first_run_create_and_open(objective: str, *, history_limit: int = 12) -> None:
+    job_id, title = _create_job(objective=objective, title=None, kind="generic", cadence=None)
+    print(f"created {title}")
+    print("Opening workspace. Use the right-side controls to run, switch jobs, or inspect settings.")
+    _enter_chat(job_id, show_history=True, history_limit=history_limit)
+
+
+def _first_token(line: str) -> str:
+    try:
+        parts = shlex.split(line)
+    except ValueError:
+        parts = line.split()
+    return parts[0].lower() if parts else ""
+
+
+def _enter_first_run_frame(*, history_limit: int = 12) -> None:
+    buffer = ""
+    notices: list[str] = []
+    next_job_id: str | None = None
+    view = "start"
+    selected = 0
+    editing_field: str | None = None
+    old_attrs = termios.tcgetattr(sys.stdin)
+    print("\033[?25l\033[?1000h\033[?1002h\033[?1006h", end="", flush=True)
+    try:
+        stdin_fd = sys.stdin.fileno()
+        tty.setcbreak(stdin_fd)
+        needs_render = True
+        last_render = 0.0
+        while next_job_id is None:
+            now = time.monotonic()
+            if needs_render or now - last_render >= 1.0:
+                selected = _clamp_first_run_selection(selected, view)
+                _render_first_run_frame(buffer, notices, selected=selected, view=view, editing_field=editing_field)
+                needs_render = False
+                last_render = now
+            readable, _, _ = select.select([stdin_fd], [], [], 0.05)
+            if not readable:
+                continue
+            char = _read_terminal_char(stdin_fd)
+            if editing_field is not None:
+                if char in {"\r", "\n"}:
+                    notices.append(_inline_setting_notice(editing_field, buffer))
+                    notices[:] = notices[-10:]
+                    editing_field = None
+                    buffer = ""
+                    needs_render = True
+                    continue
+                if char in {"\x04"}:
+                    return
+                if char == "\x03":
+                    notices.append("cancelled edit")
+                    notices[:] = notices[-10:]
+                    editing_field = None
+                    buffer = ""
+                    needs_render = True
+                    continue
+                if char in {"\x7f", "\b"}:
+                    buffer = buffer[:-1]
+                    needs_render = True
+                    continue
+                if char == "\x1b":
+                    key, _payload = _decode_terminal_escape(_read_escape_sequence(char, fd=stdin_fd))
+                    if key == "unknown":
+                        notices.append("cancelled edit")
+                        notices[:] = notices[-10:]
+                        editing_field = None
+                        buffer = ""
+                    needs_render = True
+                    continue
+                if char.isprintable():
+                    buffer += char
+                    needs_render = True
+                continue
+            if char in {"\r", "\n"}:
+                line = buffer.strip()
+                buffer = ""
+                if not line:
+                    action, payload = _handle_first_run_action(_first_run_actions(view)[selected][0])
+                else:
+                    action, payload = _handle_first_run_frame_line(line)
+                if action == "view":
+                    view = str(payload or "start")
+                    selected = 0
+                    notices.clear()
+                    needs_render = True
+                    continue
+                if action == "exit":
+                    return
+                if action == "clear":
+                    notices.clear()
+                    needs_render = True
+                    continue
+                if action == "open":
+                    next_job_id = str(payload)
+                    break
+                if action == "edit":
+                    editing_field = str(payload)
+                    notices.append(f"editing {editing_field}; enter saves, escape cancels")
+                    notices[:] = notices[-10:]
+                    needs_render = True
+                    continue
+                if isinstance(payload, list):
+                    notices.extend(str(item) for item in payload if str(item).strip())
+                elif payload:
+                    notices.append(str(payload))
+                notices[:] = notices[-10:]
+                needs_render = True
+                continue
+            if char in {"\x04"}:
+                return
+            if char == "\x03":
+                buffer = ""
+                notices.append("cancelled input")
+                notices[:] = notices[-10:]
+                needs_render = True
+                continue
+            if char in {"\x7f", "\b"}:
+                buffer = buffer[:-1]
+                needs_render = True
+                continue
+            if char == "\t":
+                continue
+            if char == "\x1b":
+                key, payload = _decode_terminal_escape(_read_escape_sequence(char, fd=stdin_fd))
+                if key == "up":
+                    selected = (selected - 1) % len(_first_run_actions(view))
+                elif key == "down":
+                    selected = (selected + 1) % len(_first_run_actions(view))
+                elif key == "left":
+                    view = "start"
+                    selected = 0
+                elif key == "right":
+                    view = "settings"
+                    selected = 0
+                elif key == "click" and isinstance(payload, tuple):
+                    clicked = _first_run_click_action(payload[0], payload[1], view=view)
+                    if clicked is not None:
+                        selected = clicked
+                        action, action_payload = _handle_first_run_action(_first_run_actions(view)[selected][0])
+                        if action == "view":
+                            view = str(action_payload or "start")
+                            selected = 0
+                            notices.clear()
+                        elif action == "exit":
+                            return
+                        elif action == "open":
+                            next_job_id = str(action_payload)
+                            break
+                        elif action == "edit":
+                            editing_field = str(action_payload)
+                            notices.append(f"editing {editing_field}; enter saves, escape cancels")
+                        elif isinstance(action_payload, list):
+                            notices.extend(str(item) for item in action_payload if str(item).strip())
+                        elif action_payload:
+                            notices.append(str(action_payload))
+                        notices[:] = notices[-10:]
+                else:
+                    _drain_pending_input(stdin_fd)
+                needs_render = True
+                continue
+            if char.isprintable():
+                buffer += char
+                needs_render = True
+    finally:
+        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_attrs)
+        print("\033[?1002l\033[?1000l\033[?1006l\033[?25h\033[0m", flush=True)
+    if next_job_id:
+        _enter_chat(next_job_id, show_history=True, history_limit=history_limit)
+
+
+def _config_path() -> Path:
+    return get_agent_home() / "config.yaml"
+
+
+def _load_config_yaml() -> dict[str, Any]:
+    path = _config_path()
+    if not path.exists():
+        loaded = yaml.safe_load(default_config_yaml()) or {}
+        return loaded if isinstance(loaded, dict) else {}
+    loaded = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    return loaded if isinstance(loaded, dict) else {}
+
+
+def _save_config_yaml(data: dict[str, Any]) -> None:
+    path = _config_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
+
+
+def _config_field_value(field: str, config: Any | None = None) -> Any:
+    config = load_config() if config is None else config
+    values = {
+        "model.name": config.model.model,
+        "model.base_url": config.model.base_url,
+        "model.api_key_env": config.model.api_key_env,
+        "model.context_length": config.model.context_length,
+        "model.request_timeout_seconds": config.model.request_timeout_seconds,
+        "runtime.home": str(config.runtime.home),
+        "runtime.max_step_seconds": config.runtime.max_step_seconds,
+        "runtime.artifact_inline_char_limit": config.runtime.artifact_inline_char_limit,
+        "runtime.daily_digest_enabled": config.runtime.daily_digest_enabled,
+        "runtime.daily_digest_time": config.runtime.daily_digest_time,
+    }
+    return values.get(field, "")
+
+
+def _save_config_field(field: str, raw_value: str) -> Any:
+    value = _coerce_config_value(field, raw_value)
+    data = _load_config_yaml()
+    section, key = field.split(".", 1)
+    target = data.setdefault(section, {})
+    if not isinstance(target, dict):
+        target = {}
+        data[section] = target
+    target[key] = value
+    _save_config_yaml(data)
+    return value
+
+
+def _inline_setting_notice(field: str, raw_value: str) -> str:
+    value = raw_value.strip()
+    if not value:
+        return f"kept {field}"
+    if field == "secret:model.api_key":
+        config = load_config()
+        name = config.model.api_key_env
+        _save_env_secret(name, value)
+        return f"saved {name} in {_short_path(get_agent_home() / '.env')}"
+    try:
+        saved = _save_config_field(field, value)
+    except ValueError as exc:
+        return f"{field}: {exc}"
+    return f"saved {field} = {saved}"
+
+
+def _save_env_secret(name: str, value: str) -> None:
+    env_path = get_agent_home() / ".env"
+    env_path.parent.mkdir(parents=True, exist_ok=True)
+    existing: dict[str, str] = {}
+    if env_path.exists():
+        for raw in env_path.read_text(encoding="utf-8", errors="ignore").splitlines():
+            if "=" not in raw or raw.strip().startswith("#"):
+                continue
+            key, current = raw.split("=", 1)
+            if key.strip():
+                existing[key.strip()] = current.strip()
+    existing[name] = value
+    env_path.write_text("\n".join(f"{key}={current}" for key, current in existing.items()) + "\n", encoding="utf-8")
+    env_path.chmod(0o600)
+    os.environ[name] = value
+
+
+def _edit_target_label(field: str) -> str:
+    if field == "secret:model.api_key":
+        return "API key"
+    return field
+
+
+def _edit_target_hint(field: str, config: Any | None = None) -> str:
+    config = config or load_config()
+    if field == "secret:model.api_key":
+        state = "set" if config.model.api_key else "missing"
+        return f"Editing API key ({state}). Enter saves, Esc cancels. Input is hidden."
+    current = _config_field_value(field, config)
+    return f"Editing {field}. Current: {current}. Enter saves, Esc cancels, empty keeps current."
+
+
+def _edit_target_masks_input(field: str | None) -> bool:
+    return field == "secret:model.api_key"
+
+
+def _coerce_config_value(field: str, raw_value: str) -> Any:
+    kind = SETTINGS_FIELD_TYPES.get(field, "str")
+    value = raw_value.strip()
+    if kind == "int":
+        return int(value)
+    if kind == "float":
+        return float(value)
+    if kind == "bool":
+        lowered = value.lower()
+        if lowered in {"1", "true", "yes", "on"}:
+            return True
+        if lowered in {"0", "false", "no", "off"}:
+            return False
+        raise ValueError("use true or false")
+    if kind == "path":
+        return str(Path(value).expanduser())
+    return value
+
+
+def _first_run_actions(view: str) -> list[tuple[str, str, str]]:
+    return FIRST_RUN_SETTINGS_ACTIONS if view == "settings" else FIRST_RUN_ACTIONS
+
+
+def _clamp_first_run_selection(selected: int, view: str) -> int:
+    actions = _first_run_actions(view)
+    if not actions:
+        return 0
+    return max(0, min(selected, len(actions) - 1))
+
+
+def _handle_first_run_action(action: str) -> tuple[str, str | list[str] | None]:
+    if action.startswith("edit:"):
+        return "edit", action.split(":", 1)[1]
+    if action.startswith("secret:"):
+        return "edit", action
+    if action == "new":
+        return "notice", "Type the goal in the input line, then press Enter."
+    if action == "settings":
+        return "view", "settings"
+    if action == "back":
+        return "view", "start"
+    if action == "jobs":
+        return "notice", _capture_first_run_command("jobs")
+    if action == "doctor":
+        return "notice", _capture_first_run_command("doctor")
+    if action == "init":
+        return "notice", _capture_first_run_command("init")
+    if action == "exit":
+        return "exit", None
+    return "notice", f"Unknown action: {action}"
+
+
+def _read_terminal_char(fd: int) -> str:
+    data = os.read(fd, 1)
+    return data.decode("latin1", errors="ignore")
+
+
+def _read_escape_sequence(first: str, *, fd: int | None = None) -> str:
+    fd = sys.stdin.fileno() if fd is None else fd
+    sequence = first
+    deadline = time.monotonic() + 0.12
+    while len(sequence) < 96:
+        timeout = max(0.0, min(0.04, deadline - time.monotonic()))
+        if timeout <= 0:
+            break
+        readable, _, _ = select.select([fd], [], [], timeout)
+        if not readable:
+            break
+        sequence += _read_terminal_char(fd)
+        if _terminal_escape_complete(sequence):
+            break
+    return sequence
+
+
+def _terminal_escape_complete(sequence: str) -> bool:
+    if sequence in {"\x1b[A", "\x1b[B", "\x1b[C", "\x1b[D", "\x1bOA", "\x1bOB", "\x1bOC", "\x1bOD"}:
+        return True
+    if re.match(r"^\x1b\[[0-9;?]*[ABCD]$", sequence):
+        return True
+    if re.match(r"^\x1b\[<\d+;\d+;\d+[mM]$", sequence):
+        return True
+    if sequence.startswith("\x1b[M") and len(sequence) >= 6:
+        return True
+    return False
+
+
+def _decode_terminal_escape(sequence: str) -> tuple[str, tuple[int, int] | None]:
+    arrows = {
+        "\x1b[A": "up",
+        "\x1b[B": "down",
+        "\x1b[C": "right",
+        "\x1b[D": "left",
+        "\x1bOA": "up",
+        "\x1bOB": "down",
+        "\x1bOC": "right",
+        "\x1bOD": "left",
+    }
+    if sequence in arrows:
+        return arrows[sequence], None
+    csi_arrow = re.match(r"^\x1b\[[0-9;?]*([ABCD])$", sequence)
+    if csi_arrow:
+        return {"A": "up", "B": "down", "C": "right", "D": "left"}[csi_arrow.group(1)], None
+    match = re.match(r"^\x1b\[<(\d+);(\d+);(\d+)([mM])$", sequence)
+    if match and match.group(4) == "M":
+        button = int(match.group(1))
+        if button == 0:
+            return "click", (int(match.group(2)), int(match.group(3)))
+    if sequence.startswith("\x1b[M") and len(sequence) >= 6:
+        button = ord(sequence[3]) - 32
+        if button == 0:
+            return "click", (ord(sequence[4]) - 32, ord(sequence[5]) - 32)
+    return "unknown", None
+
+
+def _first_run_click_action(x: int, y: int, *, view: str) -> int | None:
+    width, _height = shutil.get_terminal_size((100, 30))
+    left_width, _right_width = _first_run_columns(max(92, width))
+    right_start = left_width + 4
+    if x < right_start:
+        return None
+    body_start_y = 4
+    action_body_index = 7
+    index = y - (body_start_y + action_body_index)
+    actions = _first_run_actions(view)
+    return index if 0 <= index < len(actions) else None
+
+
+def _chat_settings_click_action(x: int, y: int, *, right_view: str) -> int | None:
+    if right_view != "settings":
+        return None
+    width, _height = shutil.get_terminal_size((100, 30))
+    width = max(92, width)
+    left_width = max(48, int(width * 0.58))
+    right_width = max(34, width - left_width - 3)
+    if right_width < 34:
+        left_width = max(48, width - 34 - 3)
+    right_start = left_width + 4
+    if x < right_start:
+        return None
+    body_start_y = 4
+    settings_action_index = 13
+    index = y - (body_start_y + settings_action_index)
+    actions = _first_run_actions("settings")
+    return index if 0 <= index < len(actions) else None
+
+
+def _handle_first_run_frame_line(line: str) -> tuple[str, str | list[str] | None]:
+    original = line.strip()
+    if original.startswith("/"):
+        original = original[1:].strip()
+    lowered = original.lower()
+    if lowered in {"exit", "quit", ":q", "6"}:
+        return "exit", None
+    if lowered in {"clear"}:
+        return "clear", None
+    if lowered in {"help", "?", "commands"}:
+        return "notice", [
+            "Talk normally here, or ask Nipux to create a job with a concrete goal.",
+            "Use the right-side controls for jobs, settings, setup checks, and exit.",
+            "When a job exists, the left pane becomes its chat and output stream.",
+        ]
+    if lowered in {"1", "new"}:
+        return "notice", "Type `new OBJECTIVE` or paste the objective directly."
+    if lowered.startswith("new "):
+        return "open", _create_first_run_job(original[4:].strip())
+    if lowered in {"2", "jobs", "ls"}:
+        return "notice", _capture_first_run_command("jobs")
+    if lowered in {"3", "settings"}:
+        return "view", "settings"
+    if lowered in {"back"}:
+        return "view", "start"
+    if lowered in {"4", "doctor"}:
+        return "notice", _capture_first_run_command("doctor")
+    if lowered in {"5", "init"}:
+        return "notice", _capture_first_run_command("init")
+    if lowered == "shell":
+        return "notice", "The old console is only available as `nipux shell` from your terminal."
+    first = _first_token(original)
+    if first == "shell":
+        return "notice", "The old console is only available as `nipux shell` from your terminal."
+    if first in SHELL_COMMAND_NAMES:
+        before_job_id = _current_default_job_id()
+        output = _capture_first_run_command(original)
+        after_job_id = _current_default_job_id()
+        if first == "create" and after_job_id and after_job_id != before_job_id:
+            return "open", after_job_id
+        return "notice", output
+    objective = _extract_job_objective_from_message(original)
+    if objective:
+        return "open", _create_first_run_job(objective)
+    return "notice", _first_run_chat_reply(original)
+
+
+def _first_run_chat_reply(message: str) -> str:
+    lowered = message.strip().lower()
+    if lowered in {"hi", "hello", "hey", "yo"}:
+        return "Hi. Tell me what long-running work you want, or use the controls on the right to create a job."
+    if "what can" in lowered or "help" in lowered:
+        return "I can spin up long-running jobs, keep their output on the left, and let you monitor or change settings from the right."
+    return "I can chat here, but I only create a job when you give me a concrete goal like 'create a job to monitor nightly benchmarks'."
+
+
+def _create_first_run_job(objective: str) -> str | list[str]:
+    objective = objective.strip()
+    if not objective:
+        return ["No job created. Type an objective first."]
+    job_id, _title = _create_job(objective=objective, title=None, kind="generic", cadence=None)
+    return job_id
+
+
+def _capture_first_run_command(line: str) -> list[str]:
+    stream = StringIO()
+    with redirect_stdout(stream):
+        try:
+            _run_shell_line(line)
+        except SystemExit as exc:
+            if exc.code not in (None, 0):
+                print(f"command exited with status {exc.code}")
+    lines = [" ".join(item.split()) for item in stream.getvalue().splitlines() if item.strip()]
+    return lines[-8:] or ["done"]
+
+
+def _current_default_job_id() -> str | None:
+    db, _ = _db()
+    try:
+        return _default_job_id(db)
+    finally:
+        db.close()
+
+
+def _render_first_run_frame(
+    input_buffer: str,
+    notices: list[str],
+    *,
+    selected: int = 0,
+    view: str = "start",
+    editing_field: str | None = None,
+) -> None:
+    width, height = shutil.get_terminal_size((100, 30))
+    frame = _build_first_run_frame(
+        input_buffer,
+        notices,
+        width=width,
+        height=height,
+        selected=selected,
+        view=view,
+        editing_field=editing_field,
+    )
+    print("\033[H\033[2J" + frame, end="", flush=True)
+
+
+def _build_first_run_frame(
+    input_buffer: str,
+    notices: list[str],
+    *,
+    width: int,
+    height: int,
+    selected: int = 0,
+    view: str = "start",
+    editing_field: str | None = None,
+) -> str:
+    width = max(92, width)
+    height = max(22, height)
+    config = load_config()
+    daemon = daemon_lock_status(config.runtime.home / "agentd.lock")
+    jobs: list[dict[str, Any]] = []
+    db, _ = _db()
+    try:
+        jobs = db.list_jobs()
+    finally:
+        db.close()
+    daemon_text = _daemon_state_line(daemon)
+    header = _top_bar(width, state="setup", daemon=daemon_text, model=config.model.model)
+    if editing_field:
+        hint = _edit_target_hint(editing_field, config)
+        prompt_label = _edit_target_label(editing_field)
+    else:
+        hint = "Enter selects the highlighted control. ↑↓ moves. ←→ switches pages. Click selects."
+        prompt_label = "❯"
+    compose_lines = _compose_bar(
+        input_buffer,
+        width=width,
+        hint=hint,
+        prompt_label=prompt_label,
+        mask_input=_edit_target_masks_input(editing_field),
+    )
+    footer_rows = len(compose_lines)
+    body_rows = max(10, height - len(header) - 1 - footer_rows)
+    left_width, right_width = _first_run_columns(width)
+    left_lines = _first_run_left_lines(
+        notices,
+        width=left_width,
+        rows=body_rows,
+        view=view,
+        selected=selected,
+    )
+    right_lines = _first_run_right_lines(
+        jobs=jobs,
+        daemon_text=daemon_text,
+        model=config.model.model,
+        home=_short_path(config.runtime.home, max_width=max(20, right_width - 8)),
+        config_path=_short_path(config.runtime.home / "config.yaml", max_width=max(20, right_width - 8)),
+        selected=selected,
+        view=view,
+        width=right_width,
+        rows=body_rows,
+    )
+    left_title = "Nipux Chat"
+    right_title = "Control"
+    lines = [*header, _two_col_title(left_width, right_width, left_title, right_title)]
+    for index in range(body_rows):
+        left = left_lines[index] if index < len(left_lines) else ""
+        right = right_lines[index] if index < len(right_lines) else ""
+        lines.append(_two_col_line(left, right, left_width=left_width, right_width=right_width))
+    lines.extend(compose_lines)
+    return "\n".join(_first_run_themed_lines(lines[:height], width=width))
+
+
+def _first_run_columns(width: int) -> tuple[int, int]:
+    left_width = max(56, int(width * 0.60))
+    right_width = max(34, width - left_width - 3)
+    if right_width < 34:
+        right_width = 34
+        left_width = max(56, width - right_width - 3)
+    return left_width, right_width
+
+
+def _first_run_themed_lines(lines: list[str], *, width: int) -> list[str]:
+    if not _fancy_ui():
+        return [_fit_ansi(line, width) for line in lines]
+    bg = "\033[48;5;235m\033[38;5;252m"
+    reset = "\033[0m"
+    return [bg + _fit_ansi(line, width).replace(reset, reset + bg) + reset for line in lines]
+
+
+def _first_run_left_lines(
+    notices: list[str],
+    *,
+    width: int,
+    rows: int,
+    view: str,
+    selected: int,
+) -> list[str]:
+    selected_label = _first_run_actions(view)[_clamp_first_run_selection(selected, view)][1]
+    lines = [
+        _bold("No agent output yet."),
+        _muted("Create a job from the control pane or type a goal in the input line."),
+        "",
+        f"{_muted('Selected')} {_accent(selected_label)}",
+        "",
+        f"{_muted('Pages')} {_page_indicator(view, [('start', 'Start'), ('settings', 'Settings')])}",
+        "",
+        _muted("After a job exists, this side becomes the agent conversation and output stream."),
+        "",
+        _muted("Use arrows, Enter, or click. Controls stay on the right."),
+    ]
+    if notices:
+        lines.extend(["", _muted("Recent")])
+        for notice in notices[-6:]:
+            for wrapped in textwrap.wrap(" ".join(str(notice).split()), width=max(20, width - 4))[:3]:
+                lines.append(f"{_accent('›')} {wrapped}")
+    return [_fit_ansi(line, width) for line in lines[:rows]]
+
+
+def _first_run_right_lines(
+    *,
+    jobs: list[dict[str, Any]],
+    daemon_text: str,
+    model: str,
+    home: str,
+    config_path: str,
+    selected: int,
+    view: str,
+    width: int,
+    rows: int,
+) -> list[str]:
+    profile_lines = _first_run_profile_lines(
+        view=view,
+        model=model,
+        daemon_text=daemon_text,
+        home=home,
+        config_path=config_path,
+        width=width,
+    )
+    if view == "settings":
+        lines = [
+            *profile_lines,
+            _bold("Editable"),
+            *_first_run_action_lines(_first_run_actions(view), selected, width=width),
+        ]
+        return [_fit_ansi(line, width) for line in lines[:rows]]
+
+    lines = [
+        *profile_lines,
+        _bold("Actions"),
+        *_first_run_action_lines(_first_run_actions(view), selected, width=width),
+        "",
+        _bold("Jobs"),
+    ]
+    if jobs:
+        lines.extend(_frame_jobs_lines(jobs, focused_job_id="", daemon_running=False, width=width)[:5])
+    else:
+        lines.append(_muted("No saved jobs in this profile."))
+    return [_fit_ansi(line, width) for line in lines[:rows]]
+
+
+def _first_run_profile_lines(
+    *,
+    view: str,
+    model: str,
+    daemon_text: str,
+    home: str,
+    config_path: str,
+    width: int,
+) -> list[str]:
+    return [
+        f"{_muted('Page')}   {_page_indicator(view, [('start', 'Start'), ('settings', 'Settings')])}",
+        f"{_muted('Model')}  {_one_line(model, width - 8)}",
+        f"{_muted('Daemon')} {_one_line(daemon_text, width - 8)}",
+        f"{_muted('Home')}   {_one_line(home, width - 8)}",
+        f"{_muted('Config')} {_one_line(config_path, width - 8)}",
+        "",
+    ]
+
+
+def _first_run_action_lines(actions: list[tuple[str, str, str]], selected: int, *, width: int) -> list[str]:
+    lines: list[str] = []
+    selected = max(0, min(selected, len(actions) - 1)) if actions else 0
+    for index, (_key, label, detail) in enumerate(actions):
+        marker = _accent("›") if index == selected else _muted(" ")
+        name = _bold(label) if index == selected else label
+        if _key.startswith("edit:"):
+            field = _key.split(":", 1)[1]
+            detail = _one_line(str(_config_field_value(field)), max(10, width - 18))
+        elif _key == "secret:model.api_key":
+            config = load_config()
+            state = "set" if config.model.api_key else "missing"
+            detail = state
+        lines.append(_fit_ansi(f"{marker} {_fit_ansi(name, 14)} {_muted(detail)}", width))
+    return lines
 
 
 def _enter_chat(job_id: str, *, show_history: bool, history_limit: int = 12) -> None:
@@ -517,7 +1419,6 @@ def _frame_chat_enabled() -> bool:
     return (
         sys.stdin.isatty()
         and sys.stdout.isatty()
-        and _fancy_ui()
         and not os.environ.get("NIPUX_APPEND_LIVE")
         and not os.environ.get("NIPUX_NO_FRAME")
     )
@@ -527,12 +1428,16 @@ def _enter_chat_frame(job_id: str, *, history_limit: int = 12) -> None:
     _write_shell_state({"focus_job_id": job_id})
     buffer = ""
     notices: list[str] = []
+    right_view = "status"
+    selected_control = 0
+    editing_field: str | None = None
     snapshot = _load_frame_snapshot(job_id, history_limit=history_limit)
     job_id = str(snapshot["job_id"])
     old_attrs = termios.tcgetattr(sys.stdin)
     print("\033[?25l", end="", flush=True)
     try:
-        tty.setcbreak(sys.stdin.fileno())
+        stdin_fd = sys.stdin.fileno()
+        tty.setcbreak(stdin_fd)
         last_snapshot = 0.0
         needs_render = True
         while True:
@@ -547,16 +1452,73 @@ def _enter_chat_frame(job_id: str, *, history_limit: int = 12) -> None:
                     notices.append(f"frame refresh failed: {type(exc).__name__}")
                     notices[:] = notices[-12:]
             if needs_render:
-                _render_chat_frame(snapshot, buffer, notices)
+                selected_control = _clamp_first_run_selection(selected_control, "settings")
+                _render_chat_frame(
+                    snapshot,
+                    buffer,
+                    notices,
+                    right_view=right_view,
+                    selected_control=selected_control,
+                    editing_field=editing_field,
+                )
                 needs_render = False
-            readable, _, _ = select.select([sys.stdin], [], [], 0.05)
+            readable, _, _ = select.select([stdin_fd], [], [], 0.05)
             if not readable:
                 continue
-            char = sys.stdin.read(1)
+            char = _read_terminal_char(stdin_fd)
+            if editing_field is not None:
+                if char in {"\r", "\n"}:
+                    notices.append(_inline_setting_notice(editing_field, buffer))
+                    notices[:] = notices[-12:]
+                    editing_field = None
+                    buffer = ""
+                    needs_render = True
+                    continue
+                if char in {"\x04"}:
+                    return
+                if char == "\x03":
+                    notices.append("cancelled edit")
+                    notices[:] = notices[-12:]
+                    editing_field = None
+                    buffer = ""
+                    needs_render = True
+                    continue
+                if char in {"\x7f", "\b"}:
+                    buffer = buffer[:-1]
+                    needs_render = True
+                    continue
+                if char == "\x1b":
+                    key, _payload = _decode_terminal_escape(_read_escape_sequence(char, fd=stdin_fd))
+                    if key == "unknown":
+                        notices.append("cancelled edit")
+                        notices[:] = notices[-12:]
+                        editing_field = None
+                        buffer = ""
+                    needs_render = True
+                    continue
+                if char.isprintable():
+                    buffer += char
+                    needs_render = True
+                continue
             if char in {"\r", "\n"}:
                 line = buffer.strip()
                 buffer = ""
                 if not line:
+                    if right_view == "settings":
+                        action, payload = _handle_first_run_action(_first_run_actions("settings")[selected_control][0])
+                        if action == "view":
+                            right_view = "status"
+                            selected_control = 0
+                        elif action == "edit":
+                            editing_field = str(payload)
+                            notices.append(f"editing {editing_field}; enter saves, escape cancels")
+                            notices[:] = notices[-12:]
+                        elif isinstance(payload, list):
+                            notices.extend(str(item) for item in payload if str(item).strip())
+                            notices[:] = notices[-12:]
+                        elif payload:
+                            notices.append(str(payload))
+                            notices[:] = notices[-12:]
                     needs_render = True
                     continue
                 if line in {"clear", "/clear"}:
@@ -565,7 +1527,14 @@ def _enter_chat_frame(job_id: str, *, history_limit: int = 12) -> None:
                     continue
                 notices.append(f"> {line}")
                 notices[:] = notices[-12:]
-                _render_chat_frame(snapshot, buffer, notices)
+                _render_chat_frame(
+                    snapshot,
+                    buffer,
+                    notices,
+                    right_view=right_view,
+                    selected_control=selected_control,
+                    editing_field=editing_field,
+                )
                 if _is_plain_chat_line(line):
                     keep_running, message = _handle_chat_message(job_id, line, quiet=True)
                     notices = [notice for notice in notices if notice != f"> {line}"]
@@ -595,8 +1564,48 @@ def _enter_chat_frame(job_id: str, *, history_limit: int = 12) -> None:
                 buffer = buffer[:-1]
                 needs_render = True
                 continue
+            if char == "\t":
+                continue
             if char == "\x1b":
-                _drain_pending_input()
+                key, payload = _decode_terminal_escape(_read_escape_sequence(char, fd=stdin_fd))
+                if key == "right" and not buffer:
+                    right_view = "settings"
+                    selected_control = 0
+                elif key == "left" and not buffer:
+                    right_view = "status"
+                    selected_control = 0
+                elif key in {"up", "down"} and not buffer and right_view == "settings":
+                    delta = -1 if key == "up" else 1
+                    selected_control = (selected_control + delta) % len(_first_run_actions("settings"))
+                elif key in {"up", "down"} and not buffer:
+                    next_focus = _frame_next_job_id(snapshot, job_id, direction=-1 if key == "up" else 1)
+                    if next_focus and next_focus != job_id:
+                        job_id = next_focus
+                        _write_shell_state({"focus_job_id": job_id})
+                        snapshot = _load_frame_snapshot(job_id, history_limit=history_limit)
+                        title = snapshot["job"].get("title") or job_id
+                        notices.append(f"focus {title}")
+                        notices[:] = notices[-12:]
+                elif key == "click" and isinstance(payload, tuple):
+                    clicked = _chat_settings_click_action(payload[0], payload[1], right_view=right_view)
+                    if clicked is not None:
+                        selected_control = clicked
+                        action, payload = _handle_first_run_action(_first_run_actions("settings")[selected_control][0])
+                        if action == "view":
+                            right_view = "status"
+                            selected_control = 0
+                        elif action == "edit":
+                            editing_field = str(payload)
+                            notices.append(f"editing {editing_field}; enter saves, escape cancels")
+                            notices[:] = notices[-12:]
+                        elif isinstance(payload, list):
+                            notices.extend(str(item) for item in payload if str(item).strip())
+                            notices[:] = notices[-12:]
+                        elif payload:
+                            notices.append(str(payload))
+                            notices[:] = notices[-12:]
+                else:
+                    _drain_pending_input(stdin_fd)
                 needs_render = True
                 continue
             if char.isprintable():
@@ -624,12 +1633,27 @@ def _compact_command_output(output: str) -> list[str]:
     return compacted[-8:]
 
 
-def _drain_pending_input() -> None:
+def _drain_pending_input(fd: int | None = None) -> None:
+    fd = sys.stdin.fileno() if fd is None else fd
     while True:
-        readable, _, _ = select.select([sys.stdin], [], [], 0)
+        readable, _, _ = select.select([fd], [], [], 0)
         if not readable:
             return
-        sys.stdin.read(1)
+        os.read(fd, 1)
+
+
+def _frame_next_job_id(snapshot: dict[str, Any], current_job_id: str, *, direction: int) -> str | None:
+    jobs = snapshot.get("jobs")
+    if not isinstance(jobs, list) or not jobs:
+        return None
+    ids = [str(job.get("id")) for job in jobs if job.get("id")]
+    if not ids:
+        return None
+    try:
+        index = ids.index(str(current_job_id))
+    except ValueError:
+        index = 0
+    return ids[(index + direction) % len(ids)]
 
 
 def _is_plain_chat_line(line: str) -> bool:
@@ -674,13 +1698,40 @@ def _load_frame_snapshot(job_id: str, *, history_limit: int = 12) -> dict[str, A
     }
 
 
-def _render_chat_frame(snapshot: dict[str, Any], input_buffer: str, notices: list[str]) -> None:
+def _render_chat_frame(
+    snapshot: dict[str, Any],
+    input_buffer: str,
+    notices: list[str],
+    *,
+    right_view: str = "status",
+    selected_control: int = 0,
+    editing_field: str | None = None,
+) -> None:
     width, height = shutil.get_terminal_size((100, 30))
-    frame = _build_chat_frame(snapshot, input_buffer, notices, width=width, height=height)
+    frame = _build_chat_frame(
+        snapshot,
+        input_buffer,
+        notices,
+        width=width,
+        height=height,
+        right_view=right_view,
+        selected_control=selected_control,
+        editing_field=editing_field,
+    )
     print("\033[H\033[2J" + frame, end="", flush=True)
 
 
-def _build_chat_frame(snapshot: dict[str, Any], input_buffer: str, notices: list[str], *, width: int, height: int) -> str:
+def _build_chat_frame(
+    snapshot: dict[str, Any],
+    input_buffer: str,
+    notices: list[str],
+    *,
+    width: int,
+    height: int,
+    right_view: str = "status",
+    selected_control: int = 0,
+    editing_field: str | None = None,
+) -> str:
     width = max(92, width)
     height = max(22, height)
     job = snapshot["job"]
@@ -725,44 +1776,76 @@ def _build_chat_frame(snapshot: dict[str, Any], input_buffer: str, notices: list
     ]
 
     header = _top_bar(width, state=state, daemon=daemon_text, model=model)
-    footer_rows = 3
+    if editing_field:
+        hint = _edit_target_hint(editing_field)
+        prompt_label = _edit_target_label(editing_field)
+    else:
+        hint = "Talk to Nipux. Ask for jobs, status, settings, artifacts, or new long-running work."
+        prompt_label = "❯"
+    compose_lines = _compose_bar(
+        input_buffer,
+        width=width,
+        hint=hint,
+        prompt_label=prompt_label,
+        mask_input=_edit_target_masks_input(editing_field),
+    )
+    footer_rows = len(compose_lines)
     body_rows = max(10, height - len(header) - 1 - footer_rows)
     chat_rows = body_rows
     right_rows = body_rows
     chat_lines = _chat_pane_lines(events, notices, width=left_width, rows=chat_rows)
-    right_lines = _right_pane_lines(
-        job=job,
-        jobs=jobs,
-        job_id=job_id,
-        daemon_running=bool(daemon["running"]),
-        state=state,
-        worker=worker,
-        daemon_text=daemon_text,
-        model=model,
-        goal_text=goal_text,
-        latest_text=latest_text,
-        metrics=metrics,
-        events=events,
-        width=right_width,
-        rows=right_rows,
-    )
-    lines = [*header, _two_col_title(left_width, right_width, "Agent Output", "Control / Status")]
+    if right_view == "settings":
+        right_lines = _chat_settings_pane_lines(
+            job=job,
+            state=state,
+            worker=worker,
+            daemon_text=daemon_text,
+            model=model,
+            goal_text=goal_text,
+            latest_text=latest_text,
+            metrics=metrics,
+            selected=selected_control,
+            width=right_width,
+            rows=right_rows,
+        )
+        right_title = "Jobs / Status"
+    else:
+        right_lines = _right_pane_lines(
+            job=job,
+            jobs=jobs,
+            job_id=job_id,
+            daemon_running=bool(daemon["running"]),
+            state=state,
+            worker=worker,
+            daemon_text=daemon_text,
+            model=model,
+            goal_text=goal_text,
+            latest_text=latest_text,
+            metrics=metrics,
+            events=events,
+            width=right_width,
+            rows=right_rows,
+            right_view=right_view,
+        )
+        right_title = "Control / Status"
+    lines = [*header, _two_col_title(left_width, right_width, "Agent Output", right_title)]
     for index in range(body_rows):
         left = chat_lines[index] if index < len(chat_lines) else ""
         right = right_lines[index] if index < len(right_lines) else ""
         lines.append(_two_col_line(left, right, left_width=left_width, right_width=right_width))
-    lines.extend(_compose_bar(input_buffer, width=width))
+    lines.extend(compose_lines)
     if len(lines) > height:
         keep_top = min(4, len(header) + 1)
         keep_bottom = footer_rows
         middle_budget = max(0, height - keep_top - keep_bottom)
-        lines = lines[:keep_top] + lines[-(middle_budget + keep_bottom):-keep_bottom] + lines[-keep_bottom:]
-    return "\n".join(lines)
+        lines = lines[:keep_top] + lines[-(middle_budget + keep_bottom) : -keep_bottom] + lines[-keep_bottom:]
+    return "\n".join(_first_run_themed_lines(lines[:height], width=width))
 
 
 def _top_bar(width: int, *, state: str, daemon: str, model: str) -> list[str]:
-    title = f"{_bold(_accent('Nipux CLI'))}  {_status_dot(state)}"
-    meta = f"{_pill('daemon', daemon)}  {_pill('model', model)}  {_pill('state', state)}"
+    title = f"{_bold(_accent('Nipux CLI'))} {_status_dot(state)}"
+    daemon_compact = "running" if daemon.startswith("running") else "stopped"
+    meta = f"{_pill('daemon', daemon_compact)}  {_pill('model', model)}"
     first = _fit_ansi(title, max(20, width - len(_strip_ansi(meta)) - 3))
     return [
         first + " " * max(1, width - len(_strip_ansi(first)) - len(_strip_ansi(meta))) + meta,
@@ -807,10 +1890,10 @@ def _agent_output_event_parts(event: dict[str, Any], *, width: int) -> tuple[str
     clock = _event_clock(event)
     if kind == "operator_message":
         return "YOU", body, clock
-    if kind == "agent_message" and title == "chat":
-        return "AGENT", body, clock
     if kind == "agent_message":
-        return "UPDATE", body or title, clock
+        compact = _chat_agent_message_text(title, body) or body or title
+        label = _strip_ansi(_agent_chat_label(title)).strip() or "AGENT"
+        return label, compact, clock
     if kind == "operator_context":
         return "ACK", title or body or "operator context updated", clock
     if kind == "tool_call":
@@ -907,6 +1990,53 @@ def _event_clock(event: dict[str, Any]) -> str:
     return "" if compact == "?" else _one_line(compact, 5)
 
 
+def _chat_agent_message_text(title: str, body: str) -> str:
+    lowered = title.lower()
+    if lowered == "chat":
+        return body
+    if lowered in {"plan", "planning"}:
+        plan_body = body.split("Questions:", 1)[0]
+        tasks = len(re.findall(r"(?:^|\s)- ", plan_body))
+        if tasks:
+            return f"Plan drafted with {tasks} items. Reply with changes or start work from the controls."
+        return "Plan drafted. Reply with changes or start work from the controls."
+    if lowered in {"progress", "update", "report"}:
+        return _one_line(_clean_step_summary(body), 220)
+    return ""
+
+
+def _agent_chat_label(title: str) -> str:
+    lowered = title.lower()
+    if lowered in {"plan", "planning"}:
+        return _style("PLAN", "35")
+    if lowered in {"progress", "update", "report"}:
+        return _style("UPDATE", "36")
+    if lowered in {"reflection", "reflect"}:
+        return _style("REFLECT", "35")
+    return _style("AGENT", "36")
+
+
+def _event_chat_label(kind: str) -> str:
+    labels = {
+        "artifact": ("OUTPUT", "32"),
+        "finding": ("FINDING", "32"),
+        "task": ("TASK", "33"),
+        "lesson": ("MEMORY", "36"),
+        "reflection": ("REFLECT", "35"),
+        "digest": ("DIGEST", "36"),
+        "error": ("ERROR", "31"),
+    }
+    text, color = labels.get(kind, ("NIPUX", "36"))
+    return _style(text, color)
+
+
+def _friendly_error_text(text: str) -> str:
+    lowered = text.lower()
+    if "authenticationerror" in lowered or "user not found" in lowered or "401" in lowered:
+        return "Model authentication failed. Update the API key in Settings, then try again."
+    return _one_line(_clean_step_summary(text), 220)
+
+
 def _right_pane_lines(
     *,
     job: dict[str, Any],
@@ -923,25 +2053,35 @@ def _right_pane_lines(
     events: list[dict[str, Any]],
     width: int,
     rows: int,
+    right_view: str = "status",
 ) -> list[str]:
-    info_lines: list[str] = [
-        f"{_muted('Focus')}  {_bold(_one_line(job.get('title') or 'untitled', width - 8))}",
-        f"{_muted('State')}  {_status_badge(state)}  {_muted('worker')} {_status_badge(worker)}",
-        f"{_muted('Daemon')} {_one_line(daemon_text, width - 8)}",
-        f"{_muted('Model')}  {_one_line(model, width - 8)}",
-    ]
+    info_lines = _chat_workspace_lines(
+        right_view=right_view,
+        job=job,
+        state=state,
+        worker=worker,
+        daemon_text=daemon_text,
+        model=model,
+        goal_text=goal_text,
+        latest_text=latest_text,
+        metrics=metrics,
+        width=width,
+    )
     metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
     active_operator = _active_operator_messages(metadata)
-    pending_measurement = metadata.get("pending_measurement_obligation") if isinstance(metadata.get("pending_measurement_obligation"), dict) else {}
-    for goal_line in textwrap.wrap(goal_text, width=max(20, width - 8))[:2]:
-        info_lines.append(f"{_muted('Goal')}   {goal_line}")
-    info_lines.append(f"{_muted('Latest')} {_one_line(latest_text, width - 8)}")
-    info_lines.append(_metric_strip(metrics, width=width))
+    pending_measurement = (
+        metadata.get("pending_measurement_obligation")
+        if isinstance(metadata.get("pending_measurement_obligation"), dict)
+        else {}
+    )
     if active_operator:
         info_lines.append(f"{_muted('Operator')} {len(active_operator)} active")
         info_lines.append(f"{_muted('Context')} {_one_line(active_operator[-1].get('message') or '', width - 8)}")
     if pending_measurement:
         info_lines.append(f"{_muted('Measure')} pending step #{pending_measurement.get('source_step_no') or '?'}")
+    info_lines.append(
+        f"{_bold('Controls')}  {_muted('new')}  {_muted('run')}  {_muted('pause')}  {_muted('jobs')}  {_muted('settings')}"
+    )
     info_lines.append("")
     info_lines.append(_bold("Jobs"))
     for job_line in _frame_jobs_lines(jobs, focused_job_id=job_id, daemon_running=daemon_running, width=width)[:4]:
@@ -957,6 +2097,72 @@ def _right_pane_lines(
     return (info_lines + activity_lines)[:rows]
 
 
+def _chat_settings_pane_lines(
+    *,
+    job: dict[str, Any],
+    state: str,
+    worker: str,
+    daemon_text: str,
+    model: str,
+    goal_text: str,
+    latest_text: str,
+    metrics: list[tuple[str, Any]],
+    selected: int,
+    width: int,
+    rows: int,
+) -> list[str]:
+    config = load_config()
+    lines = [
+        *_chat_workspace_lines(
+            right_view="settings",
+            job=job,
+            state=state,
+            worker=worker,
+            daemon_text=daemon_text,
+            model=model,
+            goal_text=goal_text,
+            latest_text=latest_text,
+            metrics=metrics,
+            width=width,
+        ),
+        _bold("Editable"),
+        f"{_muted('Config')} {_one_line(_short_path(_config_path()), width - 8)}",
+        f"{_muted('Home')}   {_one_line(_short_path(config.runtime.home), width - 8)}",
+        *_first_run_action_lines(_first_run_actions("settings"), selected, width=width),
+    ]
+    return [_fit_ansi(line, width) for line in lines[:rows]]
+
+
+def _chat_workspace_lines(
+    *,
+    right_view: str,
+    job: dict[str, Any],
+    state: str,
+    worker: str,
+    daemon_text: str,
+    model: str,
+    goal_text: str,
+    latest_text: str,
+    metrics: list[tuple[str, Any]],
+    width: int,
+) -> list[str]:
+    goal_lines = textwrap.wrap(goal_text, width=max(20, width - 8))[:2] or [""]
+    while len(goal_lines) < 2:
+        goal_lines.append("")
+    return [
+        f"{_muted('Page')}   {_page_indicator(right_view, [('status', 'Status'), ('settings', 'Settings')])}",
+        f"{_muted('Focus')}  {_bold(_one_line(job.get('title') or 'untitled', width - 8))}",
+        f"{_muted('State')}  {_status_badge(state)}  {_muted('worker')} {_status_badge(worker)}",
+        f"{_muted('Daemon')} {_one_line(daemon_text, width - 8)}",
+        f"{_muted('Model')}  {_one_line(model, width - 8)}",
+        f"{_muted('Goal')}   {goal_lines[0]}",
+        f"{_muted('Goal')}   {goal_lines[1]}",
+        f"{_muted('Latest')} {_one_line(latest_text, width - 8)}",
+        _metric_strip(metrics, width=width),
+        "",
+    ]
+
+
 def _activity_text(event: dict[str, Any], *, width: int) -> str:
     text = _minimal_live_event_line(event, chars=max(16, width - 10))
     if not text:
@@ -964,19 +2170,80 @@ def _activity_text(event: dict[str, Any], *, width: int) -> str:
     return f"{_live_badge(text)} {_one_line(text, max(16, width - 9))}"
 
 
-def _compose_bar(input_buffer: str, *, width: int) -> list[str]:
-    visible_input = input_buffer[-max(8, width - 8):]
-    hint = _muted("Enter sends  /jobs switches  /run starts  /help commands")
-    prompt = f"{_accent('❯')} {visible_input}{_accent('▌')}"
+def _compose_bar(
+    input_buffer: str,
+    *,
+    width: int,
+    hint: str | None = None,
+    suggestions: list[str] | None = None,
+    prompt_label: str = "❯",
+    mask_input: bool = False,
+) -> list[str]:
+    if mask_input:
+        visible_input = "•" * min(len(input_buffer), max(8, width - 8))
+    else:
+        visible_input = input_buffer[-max(8, width - 8) :]
+    hint = _muted(hint or "Enter sends  /jobs switches  /run starts  /help commands")
+    label = _accent(prompt_label) if prompt_label == "❯" else _muted(prompt_label)
+    prompt = f"{label} {visible_input}{_accent('▌')}"
     title = " Compose "
-    return [
-        _muted("─") + _bold(title) + _muted("─" * max(0, width - len(title) - 1)),
-        _fit_ansi(hint, width),
-        _fit_ansi(prompt, width),
-    ]
+    lines = []
+    if suggestions:
+        lines.extend(suggestions)
+    lines.extend(
+        [
+            _muted("─") + _bold(title) + _muted("─" * max(0, width - len(title) - 1)),
+            _fit_ansi(hint, width),
+            _fit_ansi(prompt, width),
+        ]
+    )
+    return lines
 
 
-def _frame_jobs_lines(jobs: list[dict[str, Any]], *, focused_job_id: str, daemon_running: bool, width: int) -> list[str]:
+def _slash_suggestion_lines(
+    input_buffer: str, commands: list[tuple[str, str]], *, width: int, limit: int = 5
+) -> list[str]:
+    if not input_buffer.startswith("/"):
+        return []
+    parts = input_buffer[1:].split(maxsplit=1)
+    token = parts[0].lower() if parts else ""
+    if " " in input_buffer.strip():
+        return []
+    matches = [(cmd, desc) for cmd, desc in commands if cmd[1:].startswith(token)]
+    if not matches and token:
+        matches = [(cmd, desc) for cmd, desc in commands if token in cmd[1:]]
+    matches = matches[:limit]
+    if not matches:
+        return [
+            _fit_ansi(_muted("╭─ commands"), width),
+            _fit_ansi(_muted("│ no matches"), width),
+            _fit_ansi(_muted("╰"), width),
+        ]
+    cmd_width = min(14, max(len(cmd) for cmd, _ in matches) + 2)
+    lines = [_fit_ansi(_muted("╭─ commands"), width)]
+    for index, (cmd, desc) in enumerate(matches):
+        marker = _accent("›") if index == 0 else _muted(" ")
+        body = f"{marker} {_fit_ansi(_accent(cmd), cmd_width)} {_muted(desc)}"
+        lines.append(_fit_ansi(_muted("│ ") + body, width))
+    lines.append(_fit_ansi(_muted("╰─ tab completes first match"), width))
+    return lines
+
+
+def _autocomplete_slash(input_buffer: str, commands: list[tuple[str, str]]) -> str:
+    if not input_buffer.startswith("/") or " " in input_buffer.strip():
+        return input_buffer
+    token = input_buffer[1:].lower()
+    matches = [cmd for cmd, _desc in commands if cmd[1:].startswith(token)]
+    if not matches:
+        matches = [cmd for cmd, _desc in commands if token in cmd[1:]]
+    if not matches:
+        return input_buffer
+    return matches[0] + " "
+
+
+def _frame_jobs_lines(
+    jobs: list[dict[str, Any]], *, focused_job_id: str, daemon_running: bool, width: int
+) -> list[str]:
     rendered = []
     for index, item in enumerate(jobs[:5], start=1):
         marker = _accent("●") if str(item.get("id")) == focused_job_id else _muted("○")
@@ -1233,7 +2500,9 @@ def cmd_health(args: argparse.Namespace) -> None:
         if metadata.get("consecutive_failures"):
             print(f"consecutive failures: {metadata['consecutive_failures']}")
         if metadata.get("last_error"):
-            print(f"last error: {metadata.get('last_error_type') or 'error'}: {_one_line(metadata['last_error'], args.chars)}")
+            print(
+                f"last error: {metadata.get('last_error_type') or 'error'}: {_one_line(metadata['last_error'], args.chars)}"
+            )
         print(f"model: {config.model.model}")
         print(f"state db: {config.runtime.state_db_path}")
         print(f"daemon log: {config.runtime.logs_dir / 'daemon.log'}")
@@ -1259,7 +2528,7 @@ def cmd_health(args: argparse.Namespace) -> None:
             print()
             print("recent daemon events:")
             job_titles = {job["id"]: job["title"] for job in db.list_jobs()}
-            for event in events[-args.limit:]:
+            for event in events[-args.limit :]:
                 print(f"  {_daemon_event_line(event, chars=args.chars, job_titles=job_titles)}")
         else:
             print()
@@ -1279,7 +2548,11 @@ def cmd_history(args: argparse.Namespace) -> None:
         job = db.get_job(job_id)
         events = db.list_timeline_events(job_id, limit=args.limit)
         if args.json:
-            print(json.dumps([_public_event(event) for event in events], ensure_ascii=False, indent=2, default=_json_default))
+            print(
+                json.dumps(
+                    [_public_event(event) for event in events], ensure_ascii=False, indent=2, default=_json_default
+                )
+            )
             return
         print(f"history {job['title']}")
         print(_rule("="))
@@ -1437,7 +2710,9 @@ def cmd_learn(args: argparse.Namespace) -> None:
             ref = _job_ref_text(args.job_id)
             print(f"No job matched: {ref}" if ref else "No jobs found.")
             return
-        entry = db.append_lesson(job_id, lesson, category=args.category or "operator_preference", metadata={"source": "operator"})
+        entry = db.append_lesson(
+            job_id, lesson, category=args.category or "operator_preference", metadata={"source": "operator"}
+        )
         job = db.get_job(job_id)
         print(f"learned for {job['title']}: {_one_line(entry['lesson'], args.chars)}")
     finally:
@@ -1505,7 +2780,11 @@ def cmd_tasks(args: argparse.Namespace) -> None:
         status_order = {"active": 0, "open": 1, "blocked": 2, "done": 3, "skipped": 4}
         ranked = sorted(
             tasks,
-            key=lambda task: (status_order.get(str(task.get("status") or "open"), 9), -int(task.get("priority") or 0), str(task.get("title") or "")),
+            key=lambda task: (
+                status_order.get(str(task.get("status") or "open"), 9),
+                -int(task.get("priority") or 0),
+                str(task.get("title") or ""),
+            ),
         )
         print(f"tasks {job['title']} | {len(ranked)} tracked")
         print(_rule("="))
@@ -1624,7 +2903,9 @@ def cmd_experiments(args: argparse.Namespace) -> None:
         experiments = _metadata_records(job, "experiment_ledger")
         if args.status:
             wanted = {status.strip().lower() for status in args.status}
-            experiments = [experiment for experiment in experiments if str(experiment.get("status") or "planned").lower() in wanted]
+            experiments = [
+                experiment for experiment in experiments if str(experiment.get("status") or "planned").lower() in wanted
+            ]
         if args.json:
             print(json.dumps(experiments, ensure_ascii=False, indent=2, default=_json_default))
             return
@@ -1654,7 +2935,9 @@ def cmd_experiments(args: argparse.Namespace) -> None:
                 for value in [
                     str(experiment.get("result") or "").strip(),
                     f"next: {experiment.get('next_action')}" if experiment.get("next_action") else "",
-                    f"delta: {experiment.get('delta_from_previous_best')}" if experiment.get("delta_from_previous_best") is not None else "",
+                    f"delta: {experiment.get('delta_from_previous_best')}"
+                    if experiment.get("delta_from_previous_best") is not None
+                    else "",
                 ]
                 if value
             )
@@ -1750,7 +3033,7 @@ def cmd_memory(args: argparse.Namespace) -> None:
         if lessons:
             print()
             print("latest lessons:")
-            for lesson in lessons[-min(args.limit, 8):]:
+            for lesson in lessons[-min(args.limit, 8) :]:
                 print(f"  {lesson.get('category') or 'memory'}: {_one_line(lesson.get('lesson') or '', args.chars)}")
         if compact:
             print()
@@ -1782,21 +3065,35 @@ def cmd_metrics(args: argparse.Namespace) -> None:
         roadmap = metadata.get("roadmap") if isinstance(metadata.get("roadmap"), dict) else {}
         milestones = roadmap.get("milestones") if isinstance(roadmap.get("milestones"), list) else []
         daemon = daemon_lock_status(config.runtime.home / "agentd.lock")
-        finding_batches = [artifact for artifact in artifacts if "finding" in str(artifact.get("title") or artifact.get("summary") or "").lower()]
+        finding_batches = [
+            artifact
+            for artifact in artifacts
+            if "finding" in str(artifact.get("title") or artifact.get("summary") or "").lower()
+        ]
         blocked = [step for step in steps if step.get("status") == "blocked"]
         failed = [step for step in steps if step.get("status") == "failed"]
         print(f"metrics {job['title']}")
         print(_rule("="))
-        print(f"daemon: {'running' if daemon['running'] else 'stopped'} | worker: {_worker_label(job, bool(daemon['running']))}")
+        print(
+            f"daemon: {'running' if daemon['running'] else 'stopped'} | worker: {_worker_label(job, bool(daemon['running']))}"
+        )
         print(f"steps: {_step_count(steps)} | failed: {len(failed)} | blocked/recovered: {len(blocked)}")
         print(f"artifacts: {len(artifacts)} | finding_batches: {len(finding_batches)}")
-        print(f"findings: {len(findings)} | sources: {len(sources)} | tasks: {len(tasks)} | milestones: {len(milestones)} | experiments: {len(experiments)} | lessons: {len(lessons)} | reflections: {len(reflections)}")
+        print(
+            f"findings: {len(findings)} | sources: {len(sources)} | tasks: {len(tasks)} | "
+            f"milestones: {len(milestones)} | experiments: {len(experiments)} | "
+            f"lessons: {len(lessons)} | reflections: {len(reflections)}"
+        )
         if sources:
             best = max(sources, key=lambda source: float(source.get("usefulness_score") or 0))
-            print(f"best source: {_one_line(best.get('source') or '', args.chars)} score={best.get('usefulness_score')}")
+            print(
+                f"best source: {_one_line(best.get('source') or '', args.chars)} score={best.get('usefulness_score')}"
+            )
         if findings:
             best_finding = max(findings, key=lambda finding: float(finding.get("score") or 0))
-            print(f"best finding: {_one_line(best_finding.get('name') or '', args.chars)} score={best_finding.get('score')}")
+            print(
+                f"best finding: {_one_line(best_finding.get('name') or '', args.chars)} score={best_finding.get('score')}"
+            )
         measured = [experiment for experiment in experiments if experiment.get("metric_value") is not None]
         best_experiments = [experiment for experiment in measured if experiment.get("best_observed")]
         if best_experiments:
@@ -1883,7 +3180,9 @@ def cmd_start(args: argparse.Namespace) -> None:
     raise SystemExit(f"nipux daemon exited immediately with code {process.returncode}; see {log_path}")
 
 
-def _start_daemon_if_needed(*, poll_seconds: float, fake: bool = False, quiet: bool = False, log_file: str | None = None) -> None:
+def _start_daemon_if_needed(
+    *, poll_seconds: float, fake: bool = False, quiet: bool = False, log_file: str | None = None
+) -> None:
     config = load_config()
     config.ensure_dirs()
     status = daemon_lock_status(config.runtime.home / "agentd.lock")
@@ -2013,13 +3312,17 @@ def cmd_autostart(args: argparse.Namespace) -> None:
         print(f"autostart: {status}")
         print(f"plist: {path}")
         if path.exists():
-            result = subprocess.run(["launchctl", "print", label], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            result = subprocess.run(
+                ["launchctl", "print", label], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+            )
             print("launchd: loaded" if result.returncode == 0 else "launchd: not loaded")
         return
     if args.action == "install":
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(_launch_agent_plist(poll_seconds=args.poll_seconds, quiet=args.quiet), encoding="utf-8")
-        subprocess.run(["launchctl", "bootout", label], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run(
+            ["launchctl", "bootout", label], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+        )
         result = subprocess.run(["launchctl", "bootstrap", "gui/" + str(os.getuid()), str(path)], check=False)
         if result.returncode:
             raise SystemExit(result.returncode)
@@ -2028,7 +3331,9 @@ def cmd_autostart(args: argparse.Namespace) -> None:
         print("daemon will start at login and launchd will keep it alive")
         return
     if args.action == "uninstall":
-        subprocess.run(["launchctl", "bootout", label], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run(
+            ["launchctl", "bootout", label], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+        )
         if path.exists():
             path.unlink()
         print("autostart uninstalled")
@@ -2052,24 +3357,26 @@ def _systemd_service_text(*, poll_seconds: float, quiet: bool) -> str:
         str(poll_seconds),
     ]
     command.append("--quiet" if quiet else "--verbose")
-    return "\n".join([
-        "[Unit]",
-        "Description=Nipux 24/7 autonomous worker",
-        "After=network-online.target",
-        "Wants=network-online.target",
-        "",
-        "[Service]",
-        "Type=simple",
-        f"WorkingDirectory={Path.cwd()}",
-        f"Environment=NIPUX_HOME={config.runtime.home}",
-        f"ExecStart={' '.join(shlex.quote(part) for part in command)}",
-        "Restart=always",
-        "RestartSec=3",
-        "",
-        "[Install]",
-        "WantedBy=default.target",
-        "",
-    ])
+    return "\n".join(
+        [
+            "[Unit]",
+            "Description=Nipux 24/7 autonomous worker",
+            "After=network-online.target",
+            "Wants=network-online.target",
+            "",
+            "[Service]",
+            "Type=simple",
+            f"WorkingDirectory={Path.cwd()}",
+            f"Environment=NIPUX_HOME={config.runtime.home}",
+            f"ExecStart={' '.join(shlex.quote(part) for part in command)}",
+            "Restart=always",
+            "RestartSec=3",
+            "",
+            "[Install]",
+            "WantedBy=default.target",
+            "",
+        ]
+    )
 
 
 def cmd_service(args: argparse.Namespace) -> None:
@@ -2080,7 +3387,9 @@ def cmd_service(args: argparse.Namespace) -> None:
         print(f"service: {'installed' if path.exists() else 'not installed'}")
         print(f"unit: {path}")
         if user_cmd:
-            result = subprocess.run([*user_cmd, "is-active", "nipux.service"], check=False, capture_output=True, text=True)
+            result = subprocess.run(
+                [*user_cmd, "is-active", "nipux.service"], check=False, capture_output=True, text=True
+            )
             print(f"systemd: {result.stdout.strip() or result.stderr.strip() or 'unknown'}")
         else:
             print("systemd: unavailable on this machine")
@@ -2094,7 +3403,9 @@ def cmd_service(args: argparse.Namespace) -> None:
             subprocess.run([*user_cmd, "enable", "--now", "nipux.service"], check=False)
             print("systemd user service enabled and started")
         else:
-            print("systemd not found; copy this service to a Linux server or run: systemctl --user enable --now nipux.service")
+            print(
+                "systemd not found; copy this service to a Linux server or run: systemctl --user enable --now nipux.service"
+            )
         return
     if args.action == "uninstall":
         if user_cmd:
@@ -2170,7 +3481,9 @@ def _print_step(step: dict[str, Any], *, verbose: bool = False, chars: int = 400
             print(f"  source: {_one_line(source.get('source') or '', chars)} score={source.get('usefulness_score')}")
         if isinstance(output_data.get("findings"), list):
             print(f"  findings: {output_data.get('added', 0)} new, {output_data.get('updated', 0)} updated")
-        checkpoint = output_data.get("auto_checkpoint") if isinstance(output_data.get("auto_checkpoint"), dict) else None
+        checkpoint = (
+            output_data.get("auto_checkpoint") if isinstance(output_data.get("auto_checkpoint"), dict) else None
+        )
         if checkpoint:
             print(f"  auto checkpoint: {checkpoint.get('artifact_id')}")
     if verbose:
@@ -2268,7 +3581,9 @@ def _print_session_overview(
 
     print()
     print(_section_title("Focus"))
-    _print_wrapped("  goal       ", job.get("objective") or "", width=_terminal_width(), subsequent_indent="             ")
+    _print_wrapped(
+        "  goal       ", job.get("objective") or "", width=_terminal_width(), subsequent_indent="             "
+    )
     planning = metadata.get("planning") if isinstance(metadata.get("planning"), dict) else {}
     if job.get("status") == "planning" and planning:
         print("  plan       waiting for your answers or /run")
@@ -2278,19 +3593,20 @@ def _print_session_overview(
 
     print()
     print(_section_title("Progress"))
-    _print_metric_grid([
-        ("actions", _step_count(steps)),
-        ("outputs", len(artifacts)),
-        ("findings", len(findings)),
-        ("sources", len(sources)),
-        ("tasks", f"{len(tasks)} ({open_tasks} open)"),
-        ("roadmap", len(milestones)),
-        ("experiments", len(experiments)),
-        ("lessons", len(lessons)),
-        ("memory", len(memory_entries)),
-    ])
+    _print_metric_grid(
+        [
+            ("actions", _step_count(steps)),
+            ("outputs", len(artifacts)),
+            ("findings", len(findings)),
+            ("sources", len(sources)),
+            ("tasks", f"{len(tasks)} ({open_tasks} open)"),
+            ("roadmap", len(milestones)),
+            ("experiments", len(experiments)),
+            ("lessons", len(lessons)),
+            ("memory", len(memory_entries)),
+        ]
+    )
     print(f"  output dir {_short_path(artifacts_dir, max_width=min(_terminal_width() - 13, 84))}")
-
 
 
 def _print_chat_composer(job: dict[str, Any]) -> None:
@@ -2379,7 +3695,7 @@ def _minimal_live_event_line(event: dict[str, Any], *, chars: int = 92) -> str:
     if kind == "tool_result":
         return _one_line("done " + _tool_live_summary(title, metadata, body), chars)
     if kind == "error":
-        detail = _clean_step_summary(body) or title or "error"
+        detail = _friendly_error_text(body or title or "error")
         return _one_line(f"error {detail}", chars)
     if kind == "artifact":
         return _one_line(f"saved {title or body or 'output'}", chars)
@@ -2541,6 +3857,16 @@ def _bold(text: Any) -> str:
     return _style(text, "1")
 
 
+def _page_indicator(active: str, pages: list[tuple[str, str]]) -> str:
+    parts: list[str] = []
+    for key, label in pages:
+        if key == active:
+            parts.append(f"{_accent('●')} {_bold(label)}")
+        else:
+            parts.append(f"{_muted('○')} {_muted(label)}")
+    return "  ".join(parts)
+
+
 def _status_badge(value: Any) -> str:
     text = str(value)
     color = {
@@ -2611,7 +3937,7 @@ def _print_metric_grid(items: list[tuple[str, Any]]) -> None:
     cells = [f"{label:<12} {value}"[:cell_width].ljust(cell_width) for label, value in items]
     columns = max(1, width // cell_width)
     for start in range(0, len(cells), columns):
-        print("  " + "  ".join(cells[start:start + columns]).rstrip())
+        print("  " + "  ".join(cells[start : start + columns]).rstrip())
 
 
 def _print_command_grid(items: list[tuple[str, str]]) -> None:
@@ -2620,14 +3946,14 @@ def _print_command_grid(items: list[tuple[str, str]]) -> None:
     cells = [f"{command:<15} {label}"[:cell_width].ljust(cell_width) for command, label in items]
     columns = max(1, width // cell_width)
     for start in range(0, len(cells), columns):
-        print("  " + "  ".join(cells[start:start + columns]).rstrip())
+        print("  " + "  ".join(cells[start : start + columns]).rstrip())
 
 
 def _short_path(path: Path | str, *, max_width: int = 80) -> str:
     text = str(path)
     home = str(Path.home())
     if text.startswith(home + os.sep):
-        text = "~" + text[len(home):]
+        text = "~" + text[len(home) :]
     if len(text) <= max_width:
         return text
     keep = max(12, max_width - 4)
@@ -2645,7 +3971,9 @@ def _print_jobs_panel(jobs: list[dict[str, Any]], *, focused_job_id: str, daemon
         state = _job_display_state(item, daemon_running)
         worker = _worker_label(item, daemon_running)
         title = _one_line(item.get("title") or item.get("id") or "job", 27)
-        print(f"  {marker}{index:<2} {title:<27} {_status_badge(state):<11} {_status_badge(worker):<11} {item.get('kind') or ''}")
+        print(
+            f"  {marker}{index:<2} {title:<27} {_status_badge(state):<11} {_status_badge(worker):<11} {item.get('kind') or ''}"
+        )
     if len(jobs) > 8:
         print(f"  ... {len(jobs) - 8} more. Use /jobs for the full list.")
     print("  switch: /focus JOB_TITLE")
@@ -2654,26 +3982,37 @@ def _print_jobs_panel(jobs: list[dict[str, Any]], *, focused_job_id: str, daemon
 def _next_operator_action(job: dict[str, Any], daemon_running: bool) -> str:
     status = str(job.get("status") or "")
     if status == "planning":
-        return "answer the plan questions, or /run when ready"
+        return "answer the plan questions, or use Run when ready"
     if status == "cancelled":
-        return "/resume to reopen this job, or /delete to remove it"
+        return "resume to reopen this job, or delete it"
     if status == "paused":
-        return "/resume then /run to continue"
+        return "resume, then run to continue"
     if status in {"queued", "running"} and not daemon_running:
-        return "/run to start background work"
+        return "run to start background work"
     if status in {"queued", "running"} and daemon_running:
         return "daemon is active; live steps will stream here"
     if status == "completed":
-        return "/history or /artifacts to inspect results"
+        return "inspect history or artifacts"
     if status == "failed":
-        return "/resume then /work 1 to test recovery"
+        return "resume, then run one worker step to test recovery"
     return ""
 
 
 def _important_startup_events(events: list[dict[str, Any]], *, limit: int) -> list[dict[str, Any]]:
     if len(events) <= limit:
         return events
-    important_types = {"operator_message", "agent_message", "artifact", "finding", "task", "experiment", "lesson", "reflection", "error", "compaction"}
+    important_types = {
+        "operator_message",
+        "agent_message",
+        "artifact",
+        "finding",
+        "task",
+        "experiment",
+        "lesson",
+        "reflection",
+        "error",
+        "compaction",
+    }
     selected: list[dict[str, Any]] = []
     for event in reversed(events):
         if event.get("event_type") in important_types:
@@ -2837,9 +4176,13 @@ def _print_event_details(event: dict[str, Any], *, chars: int) -> None:
     if compact:
         print(f"     meta: {_one_line(json.dumps(compact, ensure_ascii=False, sort_keys=True, default=str), chars)}")
     if isinstance(metadata.get("input"), dict):
-        print(f"     input: {_one_line(json.dumps(metadata['input'], ensure_ascii=False, sort_keys=True, default=str), chars)}")
+        print(
+            f"     input: {_one_line(json.dumps(metadata['input'], ensure_ascii=False, sort_keys=True, default=str), chars)}"
+        )
     if isinstance(metadata.get("output"), dict):
-        print(f"     output: {_one_line(json.dumps(metadata['output'], ensure_ascii=False, sort_keys=True, default=str), chars)}")
+        print(
+            f"     output: {_one_line(json.dumps(metadata['output'], ensure_ascii=False, sort_keys=True, default=str), chars)}"
+        )
 
 
 def _step_line(step: dict[str, Any], *, chars: int = 180) -> str:
@@ -3010,7 +4353,9 @@ def _read_shell_state() -> dict[str, Any]:
 def _write_shell_state(patch: dict[str, Any]) -> None:
     state = _read_shell_state()
     state.update(patch)
-    _shell_state_path().write_text(json.dumps(state, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    _shell_state_path().write_text(
+        json.dumps(state, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
 
 
 def _pid_is_alive(pid: int) -> bool:
@@ -3159,14 +4504,18 @@ def cmd_logs(args: argparse.Namespace) -> None:
                 tool = step.get("tool_name") or "-"
                 summary = _one_line(_clean_step_summary(step.get("summary") or ""), args.chars)
                 error = f"\tERROR {step['error']}" if step.get("error") else ""
-                print(f"#{step['step_no']}\t{step['started_at']}\t{step['status']}\t{step['kind']}\t{tool}\t{summary}{error}")
+                print(
+                    f"#{step['step_no']}\t{step['started_at']}\t{step['status']}\t{step['kind']}\t{tool}\t{summary}{error}"
+                )
         print()
         print("Artifacts")
         artifacts = db.list_artifacts(job_id, limit=args.limit)
         if not artifacts:
             print("No artifacts recorded.")
         for artifact in artifacts:
-            print(f"{artifact['created_at']}\t{artifact['type']}\t{artifact.get('title') or artifact['id']}\t{artifact['path']}")
+            print(
+                f"{artifact['created_at']}\t{artifact['type']}\t{artifact.get('title') or artifact['id']}\t{artifact['path']}"
+            )
     finally:
         db.close()
 
@@ -3225,7 +4574,9 @@ def cmd_updates(args: argparse.Namespace) -> None:
         steps = db.list_steps(job_id=job_id)
         artifacts = db.list_artifacts(job_id, limit=args.limit)
         metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
-        operator_messages = metadata.get("operator_messages") if isinstance(metadata.get("operator_messages"), list) else []
+        operator_messages = (
+            metadata.get("operator_messages") if isinstance(metadata.get("operator_messages"), list) else []
+        )
         agent_updates = metadata.get("agent_updates") if isinstance(metadata.get("agent_updates"), list) else []
         lessons = metadata.get("lessons") if isinstance(metadata.get("lessons"), list) else []
         daemon = daemon_lock_status(load_config().runtime.home / "agentd.lock")
@@ -3236,18 +4587,18 @@ def cmd_updates(args: argparse.Namespace) -> None:
             print(f"last steering: {_one_line(latest.get('message') or '', args.chars)}")
         if agent_updates:
             print("latest agent notes:")
-            for update in agent_updates[-min(args.limit, 5):]:
+            for update in agent_updates[-min(args.limit, 5) :]:
                 category = update.get("category") or "progress"
                 print(f"  {category}: {_one_line(update.get('message') or '', args.chars)}")
         if lessons:
             print("latest lessons:")
-            for lesson in lessons[-min(args.limit, 5):]:
+            for lesson in lessons[-min(args.limit, 5) :]:
                 if not isinstance(lesson, dict):
                     continue
                 category = lesson.get("category") or "memory"
                 print(f"  {category}: {_one_line(lesson.get('lesson') or '', args.chars)}")
         print("recent tool calls:")
-        for step in steps[-min(args.limit, 8):]:
+        for step in steps[-min(args.limit, 8) :]:
             print(f"  {_step_line(step, chars=args.chars)}")
         print()
         print("latest findings/artifacts:")
@@ -3278,7 +4629,9 @@ def cmd_watch(args: argparse.Namespace) -> None:
         daemon = daemon_lock_status(load_config().runtime.home / "agentd.lock")
         print(f"watching {job['title']} | state {_job_display_state(job, bool(daemon['running']))} | {job['kind']}")
         print(f"objective: {job['objective']}")
-        print("Note: this shows model-visible state, tool calls, outputs, and errors. It does not expose hidden chain-of-thought.")
+        print(
+            "Note: this shows model-visible state, tool calls, outputs, and errors. It does not expose hidden chain-of-thought."
+        )
         print()
 
         def emit_snapshot(*, initial: bool = False) -> None:
@@ -3339,19 +4692,23 @@ def cmd_run_one(args: argparse.Namespace) -> None:
         if args.fake:
             from nipux_cli.llm import LLMResponse, ScriptedLLM, ToolCall
 
-            llm = ScriptedLLM([
-                LLMResponse(tool_calls=[
-                    ToolCall(
-                        name="write_artifact",
-                        arguments={
-                            "title": "fake-step",
-                            "type": "text",
-                            "summary": "Fake one-step smoke artifact",
-                            "content": "This is a fake bounded worker step.",
-                        },
+            llm = ScriptedLLM(
+                [
+                    LLMResponse(
+                        tool_calls=[
+                            ToolCall(
+                                name="write_artifact",
+                                arguments={
+                                    "title": "fake-step",
+                                    "type": "text",
+                                    "summary": "Fake one-step smoke artifact",
+                                    "content": "This is a fake bounded worker step.",
+                                },
+                            )
+                        ]
                     )
-                ])
-            ])
+                ]
+            )
         result = run_one_step(job_id, config=config, db=db, llm=llm)
         print(json.dumps(result.__dict__, ensure_ascii=False, indent=2))
     finally:
@@ -3365,31 +4722,37 @@ def cmd_work(args: argparse.Namespace) -> None:
     try:
         job_id = _resolve_job_id(db, args.job_id)
         if not job_id:
-            print("No jobs found. Create one with: nipux create \"objective\"")
+            print('No jobs found. Create one with: nipux create "objective"')
             return
         _activate_job_if_planning(db, job_id)
         job = db.get_job(job_id)
         print(f"working {job['title']} | state foreground | {job['kind']}")
-        print("Note: this shows model-visible state, tool calls, outputs, and errors. It does not expose hidden chain-of-thought.")
+        print(
+            "Note: this shows model-visible state, tool calls, outputs, and errors. It does not expose hidden chain-of-thought."
+        )
         print()
         for index in range(1, args.steps + 1):
             llm = None
             if args.fake:
                 from nipux_cli.llm import LLMResponse, ScriptedLLM, ToolCall
 
-                llm = ScriptedLLM([
-                    LLMResponse(tool_calls=[
-                        ToolCall(
-                            name="write_artifact",
-                            arguments={
-                                "title": f"fake-work-step-{index}",
-                                "type": "text",
-                                "summary": "Fake foreground work step",
-                                "content": f"This is fake foreground work step {index}.",
-                            },
+                llm = ScriptedLLM(
+                    [
+                        LLMResponse(
+                            tool_calls=[
+                                ToolCall(
+                                    name="write_artifact",
+                                    arguments={
+                                        "title": f"fake-work-step-{index}",
+                                        "type": "text",
+                                        "summary": "Fake foreground work step",
+                                        "content": f"This is fake foreground work step {index}.",
+                                    },
+                                )
+                            ]
                         )
-                    ])
-                ])
+                    ]
+                )
             print(f"work step {index}/{args.steps}", flush=True)
             result = run_one_step(job_id, config=config, db=db, llm=llm)
             step = _step_by_id(db, job_id, result.step_id)
@@ -3443,15 +4806,17 @@ def cmd_run(args: argparse.Namespace) -> None:
     )
     if args.no_follow:
         return
-    cmd_activity(argparse.Namespace(
-        job_id=args.job_id,
-        limit=args.limit,
-        chars=args.chars,
-        follow=True,
-        interval=args.interval,
-        verbose=args.verbose,
-        paths=args.paths,
-    ))
+    cmd_activity(
+        argparse.Namespace(
+            job_id=args.job_id,
+            limit=args.limit,
+            chars=args.chars,
+            follow=True,
+            interval=args.interval,
+            verbose=args.verbose,
+            paths=args.paths,
+        )
+    )
 
 
 def cmd_digest(args: argparse.Namespace) -> None:
@@ -3520,8 +4885,9 @@ def _chat_handle_line(job_id: str, line: str, *, reply_fn=None) -> bool:
         print("  /jobs /focus JOB_TITLE /switch JOB_TITLE /new OBJECTIVE /delete [JOB_TITLE]")
         print("  /history /events /activity /outputs /updates /status /health")
         print("  /artifacts /artifact QUERY /findings /tasks /roadmap /experiments /sources /memory /metrics /lessons")
+        print("  /settings")
         print("  /run /restart /work N /work-verbose N /stop /pause [note] /resume /cancel [note]")
-        print("  /learn LESSON /note MESSAGE /follow MESSAGE /digest /clear /shell /exit")
+        print("  /learn LESSON /note MESSAGE /follow MESSAGE /digest /clear /exit")
         print("Plain text gets a model reply and is saved as model-visible steering.")
         return True
     if line in {"clear", "/clear"}:
@@ -3544,13 +4910,35 @@ def _chat_handle_line(job_id: str, line: str, *, reply_fn=None) -> bool:
             cmd_jobs(argparse.Namespace())
             return True
         if command == "history":
-            cmd_history(argparse.Namespace(job_id=job_id, limit=int(rest[0]) if rest and rest[0].isdigit() else 40, chars=220, full=False, json=False))
+            cmd_history(
+                argparse.Namespace(
+                    job_id=job_id,
+                    limit=int(rest[0]) if rest and rest[0].isdigit() else 40,
+                    chars=220,
+                    full=False,
+                    json=False,
+                )
+            )
             return True
         if command == "events":
-            cmd_events(argparse.Namespace(job_id=job_id, limit=int(rest[0]) if rest and rest[0].isdigit() else 40, chars=220, full=False, json=False, follow=False, interval=2.0))
+            cmd_events(
+                argparse.Namespace(
+                    job_id=job_id,
+                    limit=int(rest[0]) if rest and rest[0].isdigit() else 40,
+                    chars=220,
+                    full=False,
+                    json=False,
+                    follow=False,
+                    interval=2.0,
+                )
+            )
             return True
         if command == "outputs":
-            cmd_logs(argparse.Namespace(job_id=[job_id], limit=int(rest[0]) if rest and rest[0].isdigit() else 25, verbose=False, chars=260))
+            cmd_logs(
+                argparse.Namespace(
+                    job_id=[job_id], limit=int(rest[0]) if rest and rest[0].isdigit() else 25, verbose=False, chars=260
+                )
+            )
             return True
         if command == "updates":
             cmd_updates(argparse.Namespace(job_id=job_id, limit=5, chars=180, paths=False))
@@ -3603,13 +4991,20 @@ def _chat_handle_line(job_id: str, line: str, *, reply_fn=None) -> bool:
                 db.close()
             return True
         if command == "activity":
-            cmd_activity(argparse.Namespace(job_id=job_id, limit=20, chars=180, follow=False, interval=2.0, verbose=False, paths=False))
+            cmd_activity(
+                argparse.Namespace(
+                    job_id=job_id, limit=20, chars=180, follow=False, interval=2.0, verbose=False, paths=False
+                )
+            )
             return True
         if command == "digest":
             cmd_digest(argparse.Namespace(job_id=[job_id]))
             return True
         if command == "status":
             cmd_status(argparse.Namespace(job_id=job_id, limit=8, chars=180, full=False, json=False))
+            return True
+        if command == "settings":
+            _print_first_run_settings()
             return True
         if command == "health":
             cmd_health(argparse.Namespace(limit=8, chars=180))
@@ -3620,19 +5015,21 @@ def _chat_handle_line(job_id: str, line: str, *, reply_fn=None) -> bool:
                 _ensure_job_runnable(db, job_id)
             finally:
                 db.close()
-            cmd_run(argparse.Namespace(
-                job_id=job_id,
-                poll_seconds=0.0,
-                interval=2.0,
-                limit=20,
-                chars=180,
-                verbose=False,
-                paths=False,
-                fake=False,
-                quiet=False,
-                log_file=None,
-                no_follow=True,
-            ))
+            cmd_run(
+                argparse.Namespace(
+                    job_id=job_id,
+                    poll_seconds=0.0,
+                    interval=2.0,
+                    limit=20,
+                    chars=180,
+                    verbose=False,
+                    paths=False,
+                    fake=False,
+                    quiet=False,
+                    log_file=None,
+                    no_follow=True,
+                )
+            )
             return True
         if command == "restart":
             cmd_restart(argparse.Namespace(
@@ -3645,17 +5042,19 @@ def _chat_handle_line(job_id: str, line: str, *, reply_fn=None) -> bool:
             return True
         if command in {"work", "work-verbose"}:
             steps = int(rest[0]) if rest and rest[0].isdigit() else 1
-            cmd_work(argparse.Namespace(
-                job_id=job_id,
-                steps=steps,
-                poll_seconds=0.5,
-                fake=False,
-                verbose=command == "work-verbose",
-                dashboard=False,
-                limit=12,
-                chars=260 if command == "work" else 4000,
-                continue_on_error=False,
-            ))
+            cmd_work(
+                argparse.Namespace(
+                    job_id=job_id,
+                    steps=steps,
+                    poll_seconds=0.5,
+                    fake=False,
+                    verbose=command == "work-verbose",
+                    dashboard=False,
+                    limit=12,
+                    chars=260 if command == "work" else 4000,
+                    continue_on_error=False,
+                )
+            )
             return True
         if command in {"pause", "stop"}:
             cmd_pause(argparse.Namespace(job_id=job_id, note=rest))
@@ -3679,9 +5078,6 @@ def _chat_handle_line(job_id: str, line: str, *, reply_fn=None) -> bool:
                 print("usage: /follow MESSAGE")
                 return True
             _queue_chat_note(job_id, message, mode="follow_up")
-            return True
-        if command == "shell":
-            cmd_shell(argparse.Namespace(status=False, no_status=True, limit=8, chars=180))
             return True
         if command == "new":
             objective = " ".join(rest).strip()
@@ -3716,14 +5112,21 @@ def _chat_handle_line(job_id: str, line: str, *, reply_fn=None) -> bool:
 def _handle_chat_message(job_id: str, line: str, *, reply_fn=None, quiet: bool = False) -> tuple[bool, str]:
     if reply_fn is None:
         reply_fn = _reply_to_chat
+    spawned = _maybe_spawn_job_from_chat(job_id, line, quiet=quiet)
+    if spawned:
+        return True, spawned
+    controlled = _handle_chat_control_intent(job_id, line, quiet=quiet)
+    if controlled is not None:
+        return controlled
     _queue_chat_note(job_id, line, mode="steer", quiet=quiet)
     try:
         reply = reply_fn(job_id, line)
     except Exception as exc:
-        message = f"model reply failed: {type(exc).__name__}: {exc}; message is queued"
+        detail = _friendly_error_text(f"{type(exc).__name__}: {exc}")
+        message = f"{detail}; message saved for the worker"
         if not quiet:
-            print(f"model reply failed: {type(exc).__name__}: {exc}")
-            print("Your message is still queued for the next worker step.")
+            print(detail)
+            print("Your message is still saved for the next worker step.")
         return True, message
     if reply.strip():
         db, _ = _db()
@@ -3741,6 +5144,137 @@ def _handle_chat_message(job_id: str, line: str, *, reply_fn=None, quiet: bool =
         if not quiet:
             print("model returned an empty reply; your message is still queued.")
         return True, message
+
+
+def _handle_chat_control_intent(job_id: str, line: str, *, quiet: bool = False) -> tuple[bool, str] | None:
+    command = _chat_control_command(line)
+    if not command:
+        return None
+    keep_running, output = _capture_chat_command(job_id, command)
+    compact = _compact_command_output(output)
+    message = " | ".join(compact[-4:]) if compact else f"{command.lstrip('/')} done"
+    if not quiet:
+        print(message)
+    return keep_running, message
+
+
+def _chat_control_command(line: str) -> str:
+    text = " ".join(line.strip().split())
+    if not text:
+        return ""
+    lowered = text.lower().rstrip("?.!")
+    natural = NATURAL_COMMANDS.get(lowered)
+    if natural:
+        return f"/{natural}"
+    if lowered in {"jobs", "show jobs", "list jobs", "switch jobs", "change jobs"}:
+        return "/jobs"
+    if lowered in {"settings", "show settings", "model settings", "change model", "edit settings"}:
+        return "/settings"
+    if lowered in {
+        "run",
+        "start",
+        "start working",
+        "start work",
+        "run this",
+        "run this job",
+        "start this job",
+        "continue",
+        "keep going",
+        "keep working",
+        "resume work",
+    }:
+        return "/run"
+    if lowered in {"pause", "pause work", "pause this job", "stop", "stop work", "stop working", "stop this job"}:
+        return "/pause"
+    if lowered in {"resume", "resume this job", "reopen this job"}:
+        return "/resume"
+    if lowered in {"history", "show history", "timeline", "show timeline"}:
+        return "/history"
+    if lowered in {"artifacts", "outputs", "saved outputs", "show artifacts", "show outputs"}:
+        return "/artifacts"
+    if lowered in {"memory", "show memory", "learning", "show learning"}:
+        return "/memory"
+    return ""
+
+
+def _maybe_spawn_job_from_chat(job_id: str, message: str, *, quiet: bool = False) -> str:
+    objective = _extract_job_objective_from_message(message)
+    if not objective:
+        return ""
+    created_id, title = _create_job(objective=objective, title=None, kind="generic", cadence=None)
+    _write_shell_state({"focus_job_id": created_id})
+    db, _ = _db()
+    try:
+        db.append_operator_message(created_id, message, source="chat", mode="steer")
+        db.append_agent_update(
+            created_id,
+            "Created this job from chat and drafted its initial plan. Use the right-side controls to run it.",
+            category="chat",
+        )
+        db.append_agent_update(
+            job_id,
+            f"Created job '{title}' from your chat request and switched focus to it.",
+            category="chat",
+        )
+    finally:
+        db.close()
+    text = f"Created job: {title}. Focus switched to it."
+    if not quiet:
+        print(text)
+    return text
+
+
+def _extract_job_objective_from_message(message: str) -> str:
+    text = " ".join(message.strip().split())
+    if not text:
+        return ""
+    lowered = text.lower()
+    patterns = [
+        r"^(?:please\s+)?(?:create|start|spin\s+off|make|launch)\s+(?:a\s+)?(?:new\s+)?job\s+(?:to|for|that|which)?\s*(.+)$",
+        r"^(?:please\s+)?(?:send|queue)\s+(?:off\s+)?(?:a\s+)?(?:new\s+)?job\s+(?:to|for|that|which)?\s*(.+)$",
+        r"^(?:please\s+)?(?:new|job)\s+(.+)$",
+        r"^(?:please\s+)?(?:can\s+you|could\s+you|i\s+need\s+you\s+to|i\s+want\s+you\s+to)\s+(.+)$",
+    ]
+    for pattern in patterns:
+        match = re.match(pattern, text, flags=re.IGNORECASE)
+        if match:
+            objective = match.group(1).strip(" .")
+            return objective if _looks_like_job_objective(objective) else ""
+    if _looks_like_job_objective(text) and not _looks_like_smalltalk(lowered):
+        return text
+    return ""
+
+
+def _looks_like_smalltalk(lowered: str) -> bool:
+    return lowered in {"hi", "hello", "hey", "yo", "sup", "thanks", "thank you"} or lowered.endswith("?")
+
+
+def _looks_like_job_objective(text: str) -> bool:
+    lowered = text.lower()
+    if len(text.split()) < 3:
+        return False
+    action_words = {
+        "research",
+        "monitor",
+        "optimize",
+        "build",
+        "find",
+        "test",
+        "deploy",
+        "fix",
+        "write",
+        "analyze",
+        "track",
+        "benchmark",
+        "scrape",
+        "watch",
+        "automate",
+        "summarize",
+        "compare",
+        "investigate",
+        "improve",
+    }
+    return any(re.search(rf"\b{re.escape(word)}\b", lowered) for word in action_words)
 
 
 def _queue_chat_note(job_id: str, message: str, *, mode: str = "steer", quiet: bool = False) -> None:
@@ -3781,7 +5315,10 @@ def _build_chat_messages(db: AgentDB, job: dict[str, Any], message: str) -> list
     tasks = metadata.get("task_queue") if isinstance(metadata.get("task_queue"), list) else []
     experiments = metadata.get("experiment_ledger") if isinstance(metadata.get("experiment_ledger"), list) else []
     roadmap = metadata.get("roadmap") if isinstance(metadata.get("roadmap"), dict) else {}
-    step_lines = "\n".join(f"- #{step['step_no']} {step['status']} {step.get('tool_name') or step['kind']}: {_clean_step_summary(step.get('summary') or step.get('error') or '')}" for step in steps)
+    step_lines = "\n".join(
+        f"- #{step['step_no']} {step['status']} {step.get('tool_name') or step['kind']}: {_clean_step_summary(step.get('summary') or step.get('error') or '')}"
+        for step in steps
+    )
     artifact_lines = "\n".join(
         f"- #{index} {artifact.get('title') or artifact['id']}: {artifact.get('summary') or ''} "
         f"(view with /artifact {index})"
@@ -3792,10 +5329,26 @@ def _build_chat_messages(db: AgentDB, job: dict[str, Any], message: str) -> list
         for entry in active_prompt_operator_entries(operator_messages)[-6:]
         if isinstance(entry, dict)
     )
-    update_lines = "\n".join(f"- {entry.get('category', 'progress')}: {entry.get('message', '')}" for entry in agent_updates[-5:] if isinstance(entry, dict))
-    lesson_lines = "\n".join(f"- {entry.get('category', 'memory')}: {entry.get('lesson', '')}" for entry in lessons[-8:] if isinstance(entry, dict))
-    finding_lines = "\n".join(f"- {entry.get('name')}: {entry.get('category') or ''} {entry.get('location') or ''} score={entry.get('score')}" for entry in findings[-8:] if isinstance(entry, dict))
-    task_lines = "\n".join(f"- {entry.get('status') or 'open'} p={entry.get('priority') or 0}: {entry.get('title')}" for entry in tasks[-10:] if isinstance(entry, dict))
+    update_lines = "\n".join(
+        f"- {entry.get('category', 'progress')}: {entry.get('message', '')}"
+        for entry in agent_updates[-5:]
+        if isinstance(entry, dict)
+    )
+    lesson_lines = "\n".join(
+        f"- {entry.get('category', 'memory')}: {entry.get('lesson', '')}"
+        for entry in lessons[-8:]
+        if isinstance(entry, dict)
+    )
+    finding_lines = "\n".join(
+        f"- {entry.get('name')}: {entry.get('category') or ''} {entry.get('location') or ''} score={entry.get('score')}"
+        for entry in findings[-8:]
+        if isinstance(entry, dict)
+    )
+    task_lines = "\n".join(
+        f"- {entry.get('status') or 'open'} p={entry.get('priority') or 0}: {entry.get('title')}"
+        for entry in tasks[-10:]
+        if isinstance(entry, dict)
+    )
     milestone_lines = ""
     if roadmap:
         milestones = roadmap.get("milestones") if isinstance(roadmap.get("milestones"), list) else []
@@ -3823,16 +5376,21 @@ def _build_chat_messages(db: AgentDB, job: dict[str, Any], message: str) -> list
         for entry in experiments[-10:]
         if isinstance(entry, dict)
     )
-    source_lines = "\n".join(f"- {entry.get('source')}: score={entry.get('usefulness_score')} findings={entry.get('yield_count') or 0} outcome={entry.get('last_outcome') or ''}" for entry in sources[-8:] if isinstance(entry, dict))
+    source_lines = "\n".join(
+        f"- {entry.get('source')}: score={entry.get('usefulness_score')} findings={entry.get('yield_count') or 0} outcome={entry.get('last_outcome') or ''}"
+        for entry in sources[-8:]
+        if isinstance(entry, dict)
+    )
     timeline_lines = "\n".join(_event_line(event, chars=700, full=False) for event in timeline_events[-12:])
     return [
         {
             "role": "system",
             "content": (
-                "You are Nipux, a chat-first controller for generic long-running work agents. "
+                "You are Nipux, the chat model that controls a generic long-running agent workspace. "
+                "You know the visible CLI state, focused job, job list, task queue, artifacts, memory, metrics, and recent activity. "
                 "Answer directly from the visible job state. Do not claim hidden chain-of-thought. "
-                "If the operator asks where saved work is, point to /artifacts or /artifact NUMBER. "
-                "If the operator wants action, tell them the exact chat command such as /run or /work 1. "
+                "If the operator asks for work to be done, explain the concrete job/control action Nipux will take or how to run it from the Jobs/Status panel. "
+                "If the operator asks where saved work is, explain that artifacts and history are visible from the Jobs/Status panel or direct CLI commands. "
                 "Do not start replies with an introduction. Keep replies concise and useful."
             ),
         },
@@ -3952,19 +5510,66 @@ def _print_shell_help() -> None:
     print(NIPUX_BANNER)
     print(_rule("="))
     print("Jobs")
-    for command in ("create \"objective\" --title TITLE", "ls", "focus [JOB_TITLE]", "rename JOB_TITLE --title NEW_TITLE", "delete JOB_TITLE", "chat [JOB_TITLE]", "steer [--job JOB_TITLE] MESSAGE", "pause [JOB_TITLE] [note...]", "resume [JOB_TITLE]", "cancel [JOB_TITLE] [note...]"):
+    for command in (
+        'create "objective" --title TITLE',
+        "ls",
+        "focus [JOB_TITLE]",
+        "rename JOB_TITLE --title NEW_TITLE",
+        "delete JOB_TITLE",
+        "chat [JOB_TITLE]",
+        "steer [--job JOB_TITLE] MESSAGE",
+        "pause [JOB_TITLE] [note...]",
+        "resume [JOB_TITLE]",
+        "cancel [JOB_TITLE] [note...]",
+    ):
         print(f"  {command}")
     print()
     print("Inspect")
-    for command in ("status [JOB_TITLE]", "health", "history [JOB_TITLE]", "events [JOB_TITLE] [--follow] [--json]", "activity [JOB_TITLE] [--follow]", "updates [JOB_TITLE]", "outputs [JOB_TITLE] --verbose", "findings [JOB_TITLE]", "tasks [JOB_TITLE]", "roadmap [JOB_TITLE]", "experiments [JOB_TITLE]", "sources [JOB_TITLE]", "memory [JOB_TITLE]", "metrics [JOB_TITLE]", "artifacts [JOB_TITLE]", "artifact QUERY_OR_TITLE", "lessons [JOB_TITLE]"):
+    for command in (
+        "status [JOB_TITLE]",
+        "health",
+        "history [JOB_TITLE]",
+        "events [JOB_TITLE] [--follow] [--json]",
+        "activity [JOB_TITLE] [--follow]",
+        "updates [JOB_TITLE]",
+        "outputs [JOB_TITLE] --verbose",
+        "findings [JOB_TITLE]",
+        "tasks [JOB_TITLE]",
+        "roadmap [JOB_TITLE]",
+        "experiments [JOB_TITLE]",
+        "sources [JOB_TITLE]",
+        "memory [JOB_TITLE]",
+        "metrics [JOB_TITLE]",
+        "artifacts [JOB_TITLE]",
+        "artifact QUERY_OR_TITLE",
+        "lessons [JOB_TITLE]",
+    ):
         print(f"  {command}")
     print()
     print("Worker")
-    for command in ("work [JOB_TITLE] --steps N [--verbose]", "run [JOB_TITLE] --poll-seconds N", "start --poll-seconds N", "restart --poll-seconds N", "stop  # daemon", "stop [JOB_TITLE]  # pause job"):
+    for command in (
+        "work [JOB_TITLE] --steps N [--verbose]",
+        "run [JOB_TITLE] --poll-seconds N",
+        "start --poll-seconds N",
+        "restart --poll-seconds N",
+        "stop  # daemon",
+        "stop [JOB_TITLE]  # pause job",
+    ):
         print(f"  {command}")
     print()
     print("System")
-    for command in ("learn [--job JOB_TITLE] LESSON", "digest JOB_TITLE", "daily-digest", "service install|status|uninstall", "autostart install|status|uninstall", "dashboard [JOB_TITLE] --no-follow", "doctor --check-model", "browser-dashboard --port 4848", "help", "exit"):
+    for command in (
+        "learn [--job JOB_TITLE] LESSON",
+        "digest JOB_TITLE",
+        "daily-digest",
+        "service install|status|uninstall",
+        "autostart install|status|uninstall",
+        "dashboard [JOB_TITLE] --no-follow",
+        "doctor --check-model",
+        "browser-dashboard --port 4848",
+        "help",
+        "exit",
+    ):
         print(f"  {command}")
 
 
@@ -4019,7 +5624,7 @@ def _steer_default_job(message: str) -> None:
     try:
         job_id = _default_job_id(db)
         if not job_id:
-            print("No focused job. Create one first, or run: create \"objective\"")
+            print('No focused job. Create one first, or run: create "objective"')
             return
         job = db.get_job(job_id)
         entry = db.append_operator_message(job_id, message, source="shell")

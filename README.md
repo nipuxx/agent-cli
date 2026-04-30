@@ -9,11 +9,11 @@
 ```
 
 Nipux CLI is a small, restartable local-model worker for long-running browser,
-web research, and command-line jobs. It is maintained for Nepox and built around
+web research, and command-line jobs. It is maintained for Nipux and built around
 one practical idea: keep a worker moving in bounded steps, save exact evidence,
 learn from each branch, and recover cleanly when a process or model call fails.
 
-- Website: [nepox.com](https://nepox.com)
+- Website: [Nipux.com](https://nipux.com)
 - Source: [github.com/nipuxx/agent-cli](https://github.com/nipuxx/agent-cli)
 - License: [MIT](LICENSE)
 
@@ -178,21 +178,12 @@ vllm serve "$MODEL_NAME" \
 ## Operator Workflow
 
 The no-argument CLI opens the focused job directly. Plain text becomes operator
-steering for the next worker step, and slash commands inspect or control the
-active job.
+steering for the next worker step. The terminal UI keeps conversation/output on
+the left and controls, jobs, status, and settings on the right.
 
 ```text
-nipux[nightly research]> what are you working on?
-nipux[nightly research]> /history
-nipux[nightly research]> /activity
-nipux[nightly research]> /outputs
-nipux[nightly research]> /artifacts
-nipux[nightly research]> /run
-nipux[nightly research]> /work 1
-nipux[nightly research]> /follow after this branch, compare another source
-nipux[nightly research]> /stop
-nipux[nightly research]> /shell
-nipux[nightly research]> /exit
+nipux > what are you working on?
+nipux > prioritize measured progress over notes
 ```
 
 For direct command use:
