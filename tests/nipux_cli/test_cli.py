@@ -358,7 +358,8 @@ def test_create_sets_new_job_as_shell_focus(monkeypatch, tmp_path, capsys):
     db = AgentDB(tmp_path / "state.db")
     try:
         job = db.get_job("new-research")
-        assert job["status"] == "planning"
+        assert job["status"] == "queued"
+        assert job["metadata"]["planning_status"] == "auto_accepted"
         assert job["metadata"]["planning"]["questions"]
         assert job["metadata"]["task_queue"]
     finally:

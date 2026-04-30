@@ -201,8 +201,9 @@ def _create_job(*, objective: str, title: str | None = None, kind: str = "generi
             cadence=cadence,
             metadata={"planning": plan},
         )
-        db.update_job_status(job_id, "planning", metadata_patch={"planning": plan})
+        db.update_job_status(job_id, "queued", metadata_patch={"planning": plan, "planning_status": "auto_accepted"})
         db.append_agent_update(job_id, _format_initial_plan(plan), category="plan", metadata={"planning": plan})
+        db.append_agent_update(job_id, "Plan accepted automatically. I will start working from the planned tasks.", category="plan")
         for index, task in enumerate(plan["tasks"], start=1):
             db.append_task_record(
                 job_id,
