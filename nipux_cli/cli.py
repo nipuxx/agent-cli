@@ -173,6 +173,10 @@ CHAT_SLASH_COMMANDS = [
     ("/memory", "learning"),
     ("/status", "job state"),
     ("/settings", "local setup"),
+    ("/model", "set model"),
+    ("/base-url", "set endpoint"),
+    ("/api-key", "save key"),
+    ("/context", "token budget"),
     ("/pause", "pause job"),
     ("/resume", "resume job"),
     ("/stop", "pause job"),
@@ -217,6 +221,19 @@ SETTINGS_FIELD_TYPES = {
     "runtime.artifact_inline_char_limit": "int",
     "runtime.daily_digest_enabled": "bool",
     "runtime.daily_digest_time": "str",
+}
+
+CHAT_SETTING_COMMANDS = {
+    "model": ("model.name", "MODEL"),
+    "base-url": ("model.base_url", "URL"),
+    "api-key-env": ("model.api_key_env", "ENV_NAME"),
+    "context": ("model.context_length", "TOKENS"),
+    "timeout": ("model.request_timeout_seconds", "SECONDS"),
+    "home": ("runtime.home", "PATH"),
+    "step-limit": ("runtime.max_step_seconds", "SECONDS"),
+    "output-chars": ("runtime.artifact_inline_char_limit", "CHARS"),
+    "daily-digest": ("runtime.daily_digest_enabled", "true|false"),
+    "digest-time": ("runtime.daily_digest_time", "HH:MM"),
 }
 
 
@@ -632,15 +649,60 @@ def _handle_first_run_menu_line(line: str, *, history_limit: int = 12) -> bool:
 
 
 def _print_first_run_settings() -> None:
+    _print_chat_settings_summary()
+
+
+def _print_chat_settings_summary() -> None:
     config = load_config()
     daemon = daemon_lock_status(config.runtime.home / "agentd.lock")
-    print("SETTINGS")
-    print(f"  model   {config.model.model}")
-    print(f"  daemon  {_daemon_state_line(daemon)}")
-    print(f"  home    {_short_path(config.runtime.home)}")
-    print(f"  config  {_short_path(config.runtime.home / 'config.yaml')}")
+    key_state = "set" if config.model.api_key else "missing"
+    print("Settings")
+    print(f"  model         {config.model.model}")
+    print(f"  base-url      {config.model.base_url}")
+    print(f"  api-key       {key_state} via {config.model.api_key_env}")
+    print(f"  context       {config.model.context_length}")
+    print(f"  timeout       {config.model.request_timeout_seconds}s")
+    print(f"  home          {_short_path(config.runtime.home)}")
+    print(f"  daemon        {_daemon_state_line(daemon)}")
+    print(f"  config        {_short_path(_config_path())}")
     print()
-    print("Use `init` to write starter config files or `doctor` to check setup.")
+    print("Slash settings")
+    print("  /model MODEL                 set model name")
+    print("  /base-url URL                set OpenAI-compatible endpoint")
+    print("  /api-key KEY                 save API key locally without echoing it")
+    print("  /api-key-env ENV_NAME        change which env var stores the API key")
+    print("  /context TOKENS              set prompt token budget")
+    print("  /timeout SECONDS             set model request timeout")
+    print("  /home PATH                   set Nipux state directory")
+    print("  /step-limit SECONDS          set worker step timeout")
+    print("  /output-chars CHARS          set inline saved-output limit")
+    print("  /daily-digest true|false     enable or disable daily digest")
+    print("  /digest-time HH:MM           set daily digest time")
+    print("  /doctor                      check local setup")
+
+
+def _handle_chat_setting_command(command: str, rest: list[str]) -> bool:
+    if command == "settings":
+        _print_chat_settings_summary()
+        return True
+    if command in {"key", "api-key"}:
+        if not rest:
+            config = load_config()
+            state = "set" if config.model.api_key else "missing"
+            print(f"API key is {state} via {config.model.api_key_env}. Use /api-key KEY to save a new one.")
+            return True
+        print(_inline_setting_notice("secret:model.api_key", " ".join(rest)))
+        return True
+    if command not in CHAT_SETTING_COMMANDS:
+        return False
+    field, placeholder = CHAT_SETTING_COMMANDS[command]
+    if not rest:
+        current = _config_field_value(field)
+        print(f"{field} = {current}")
+        print(f"usage: /{command} {placeholder}")
+        return True
+    print(_inline_setting_notice(field, " ".join(rest)))
+    return True
 
 
 def _prompt_first_run_value(label: str) -> str:
@@ -1780,7 +1842,7 @@ def _build_chat_frame(
         hint = _edit_target_hint(editing_field)
         prompt_label = _edit_target_label(editing_field)
     else:
-        hint = "Talk to Nipux. Ask for jobs, status, settings, artifacts, or new long-running work."
+        hint = "Talk to Nipux. Ask it to create or start jobs; worker activity stays on the right."
         prompt_label = "❯"
     compose_lines = _compose_bar(
         input_buffer,
@@ -1808,7 +1870,7 @@ def _build_chat_frame(
             width=right_width,
             rows=right_rows,
         )
-        right_title = "Jobs / Status"
+        right_title = "Settings"
     else:
         right_lines = _right_pane_lines(
             job=job,
@@ -1827,8 +1889,8 @@ def _build_chat_frame(
             rows=right_rows,
             right_view=right_view,
         )
-        right_title = "Control / Status"
-    lines = [*header, _two_col_title(left_width, right_width, "Agent Output", right_title)]
+        right_title = "Jobs / Workers"
+    lines = [*header, _two_col_title(left_width, right_width, "Chat", right_title)]
     for index in range(body_rows):
         left = chat_lines[index] if index < len(chat_lines) else ""
         right = right_lines[index] if index < len(right_lines) else ""
@@ -1862,34 +1924,56 @@ def _two_col_line(left: str, right: str, *, left_width: int, right_width: int) -
 
 
 def _chat_pane_lines(events: list[dict[str, Any]], notices: list[str], *, width: int, rows: int) -> list[str]:
-    items: list[dict[str, Any]] = []
+    items: list[tuple[str, str, str]] = []
     for event in events:
-        rendered = _agent_output_event_parts(event, width=width)
+        rendered = _chat_event_parts(event)
         if not rendered:
             continue
         label, body, clock = rendered
-        _append_compact_output_item(items, label, body, clock)
+        items.append((label, body, clock))
     for notice in notices:
         if notice.startswith("> "):
-            _append_compact_output_item(items, "YOU", notice[2:], "")
+            items.append(("YOU", notice[2:], ""))
         else:
-            _append_compact_output_item(items, "NIPUX", notice, "")
+            items.append(("NIPUX", notice, ""))
     if not items:
         return [
-            _muted("No agent output yet."),
-            _muted("Type normally to talk. The worker's actions will appear here as they happen."),
+            _muted("No chat yet."),
+            _muted("Ask Nipux to create jobs, start work, check status, or explain saved output."),
         ][:rows]
     output_rows: list[str] = []
-    for item in items[-max(4, rows * 2) :]:
-        _append_agent_output(
-            output_rows,
-            str(item["label"]),
-            item["body"],
-            clock=str(item.get("clock") or ""),
-            count=int(item.get("count") or 1),
-            width=width,
-        )
+    for label, body, clock in items[-max(4, rows) :]:
+        _append_chat_output(output_rows, label, body, clock=clock, width=width)
     return output_rows[-rows:]
+
+
+def _chat_event_parts(event: dict[str, Any]) -> tuple[str, str, str] | None:
+    kind = str(event.get("event_type") or "")
+    title = str(event.get("title") or "").strip()
+    body = _generic_display_text(event.get("body") or "")
+    clock = _event_clock(event)
+    if kind == "operator_message":
+        return "YOU", body, clock
+    if kind == "agent_message" and title == "chat":
+        return "AGENT", body, clock
+    return None
+
+
+def _append_chat_output(lines: list[str], label: str, body: Any, *, clock: str, width: int) -> None:
+    label_text = _fit_ansi(_event_badge(label), 8)
+    clock_text = _fit_ansi(_muted(clock), 5) if clock else " " * 5
+    prefix = f"{clock_text} {label_text} "
+    prefix_width = 15
+    content = _generic_display_text(body)
+    available = max(18, width - prefix_width)
+    wrapped = textwrap.wrap(content, width=available) or [""]
+    max_lines = 8 if label == "AGENT" else 5 if label == "NIPUX" else 3
+    visible = wrapped[:max_lines]
+    if len(wrapped) > max_lines:
+        visible[-1] = _one_line(visible[-1], max(0, available - 2)) + " …"
+    lines.append(_fit_ansi(prefix + visible[0], width))
+    for continuation in visible[1:]:
+        lines.append(_fit_ansi(" " * prefix_width + continuation, width))
 
 
 def _append_compact_output_item(items: list[dict[str, Any]], label: str, body: Any, clock: str) -> None:
@@ -1928,8 +2012,10 @@ def _agent_output_event_parts(event: dict[str, Any], *, width: int) -> tuple[str
     metadata = event.get("metadata") if isinstance(event.get("metadata"), dict) else {}
     clock = _event_clock(event)
     if kind == "operator_message":
-        return "YOU", body, clock
+        return None
     if kind == "agent_message":
+        if title == "chat":
+            return None
         if title in {"plan", "planning"} and _clean_step_summary(body).lower().startswith("reflection through"):
             return None
         if title not in {"chat", "plan", "planning", "progress", "update", "report"}:
@@ -2165,10 +2251,18 @@ def _right_pane_lines(
     info_lines.append(_bold("Jobs"))
     for job_line in _frame_jobs_lines(jobs, focused_job_id=job_id, daemon_running=daemon_running, width=width)[:4]:
         info_lines.append(job_line)
-    return info_lines[:rows]
+    worker_lines = _worker_activity_lines(events, width=width, limit=min(8, max(2, rows // 3)))
+    if not worker_lines:
+        return info_lines[:rows]
+    base_budget = max(0, rows - len(worker_lines) - 2)
+    base_lines = info_lines[:base_budget]
+    base_lines.append("")
+    base_lines.append(_bold("Workers"))
+    base_lines.extend(worker_lines)
+    return base_lines[:rows]
 
 
-def _compact_recent_activity_lines(events: list[dict[str, Any]], *, width: int, limit: int) -> list[str]:
+def _worker_activity_lines(events: list[dict[str, Any]], *, width: int, limit: int) -> list[str]:
     items: list[dict[str, Any]] = []
     for event in events:
         line = _minimal_live_event_line(event, chars=max(16, width - 12))
@@ -2363,21 +2457,24 @@ def _frame_event_line(event: dict[str, Any], *, width: int) -> str:
 
 
 def _live_badge(text: str) -> str:
-    if text.startswith("error") or text.startswith("failed"):
+    badge_text = re.sub(r"^x[0-9]+\s+", "", text)
+    if badge_text.startswith("error") or badge_text.startswith("failed"):
         return _style("FAIL", "31")
-    if text.startswith("start"):
+    if badge_text.startswith("blocked"):
+        return _style("BLOCK", "33")
+    if badge_text.startswith("start"):
         return _style("run ", "36")
-    if text.startswith("done"):
+    if badge_text.startswith("done"):
         return _style("done", "32")
-    if text.startswith("saved"):
+    if badge_text.startswith("saved"):
         return _style("save", "32")
-    if text.startswith("task"):
+    if badge_text.startswith("task"):
         return _style("task", "33")
-    if text.startswith("learned"):
+    if badge_text.startswith("learned"):
         return _style("mem ", "36")
-    if text.startswith("reflect"):
+    if badge_text.startswith("reflect"):
         return _style("plan", "35")
-    if text.startswith("update"):
+    if badge_text.startswith("update"):
         return _style("note", "35")
     return _style("info", "2")
 
@@ -3808,11 +3905,13 @@ def _minimal_live_event_line(event: dict[str, Any], *, chars: int = 92) -> str:
     if kind == "roadmap":
         return _one_line(f"roadmap {title or body}", chars)
     if kind == "milestone_validation":
-        return _one_line(f"validate {title or body}", chars)
+        validation = str(metadata.get("validation_status") or metadata.get("status") or "")
+        return _one_line(f"validate {validation} {title or body}".strip(), chars)
     if kind == "experiment":
         return _one_line(f"experiment {title or body}", chars)
     if kind == "lesson":
-        return _one_line(f"learned {title or body}", chars)
+        detail = _event_title_body(title, body, fallback="lesson")
+        return _one_line(f"learned {detail}", chars)
     if kind == "reflection":
         return _one_line(f"reflect {_brief_reflection_text(body or title)}", chars)
     if kind == "agent_message":
@@ -4987,8 +5086,8 @@ def _chat_handle_line(job_id: str, line: str, *, reply_fn=None) -> bool:
         print("  /jobs /focus JOB_TITLE /switch JOB_TITLE /new OBJECTIVE /delete [JOB_TITLE]")
         print("  /history /events /activity /outputs /updates /status /health")
         print("  /artifacts /artifact QUERY /findings /tasks /roadmap /experiments /sources /memory /metrics /lessons")
-        print("  /settings")
-        print("  /run /restart /work N /work-verbose N /stop /pause [note] /resume /cancel [note]")
+        print("  /settings /model MODEL /base-url URL /api-key KEY /context TOKENS /doctor")
+        print("  /run /start /restart /work N /work-verbose N /stop /pause [note] /resume /cancel [note]")
         print("  /learn LESSON /note MESSAGE /follow MESSAGE /digest /clear /exit")
         print("Plain text gets a model reply and is saved as model-visible steering.")
         return True
@@ -5105,11 +5204,22 @@ def _chat_handle_line(job_id: str, line: str, *, reply_fn=None) -> bool:
         if command == "status":
             cmd_status(argparse.Namespace(job_id=job_id, limit=8, chars=180, full=False, json=False))
             return True
-        if command == "settings":
-            _print_first_run_settings()
+        if _handle_chat_setting_command(command, rest):
+            return True
+        if command == "doctor":
+            try:
+                cmd_doctor(argparse.Namespace(check_model=False))
+            except SystemExit:
+                pass
+            return True
+        if command == "init":
+            cmd_init(argparse.Namespace(path=None, force=False, model=None, base_url=None, api_key_env=None, openrouter=False))
             return True
         if command == "health":
             cmd_health(argparse.Namespace(limit=8, chars=180))
+            return True
+        if command == "start":
+            cmd_start(argparse.Namespace(poll_seconds=0.0, fake=False, quiet=False, log_file=None))
             return True
         if command == "run":
             db, _ = _db()

@@ -337,7 +337,43 @@ def test_chat_help_has_settings_without_shell(monkeypatch, tmp_path, capsys):
 
     out = capsys.readouterr().out
     assert "/settings" in out
+    assert "/model MODEL" in out
+    assert "/api-key KEY" in out
     assert "/shell" not in out
+
+
+def test_chat_settings_slash_commands_persist_config(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    monkeypatch.setenv("NIPUX_TEST_KEY", "")
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Research topic", title="research")
+    finally:
+        db.close()
+
+    assert _chat_handle_line(job_id, "/settings") is True
+    out = capsys.readouterr().out
+    assert "/model MODEL" in out
+    assert "/base-url URL" in out
+    assert "/api-key KEY" in out
+
+    assert _chat_handle_line(job_id, "/model provider/model") is True
+    assert _chat_handle_line(job_id, "/base-url https://example.com/v1") is True
+    assert _chat_handle_line(job_id, "/context 8192") is True
+    assert _chat_handle_line(job_id, "/api-key-env NIPUX_TEST_KEY") is True
+    assert _chat_handle_line(job_id, "/api-key sk-test-value") is True
+    out = capsys.readouterr().out
+
+    assert "saved model.name = provider/model" in out
+    assert "saved model.base_url = https://example.com/v1" in out
+    assert "saved model.context_length = 8192" in out
+    assert "saved model.api_key_env = NIPUX_TEST_KEY" in out
+    assert "saved NIPUX_TEST_KEY" in out
+    assert "sk-test-value" not in out
+    assert _config_field_value("model.name") == "provider/model"
+    assert _config_field_value("model.base_url") == "https://example.com/v1"
+    assert _config_field_value("model.context_length") == 8192
+    assert "NIPUX_TEST_KEY=sk-test-value" in (tmp_path / ".env").read_text(encoding="utf-8")
 
 
 def test_shell_ls_alias_lists_jobs_instead_of_steering(monkeypatch, tmp_path, capsys):
@@ -567,13 +603,12 @@ def test_chat_frame_is_bounded_and_has_composer():
 
     assert len(frame.splitlines()) <= 22
     assert "Nipux CLI" in frame
-    assert "Agent Output" in frame
-    assert "Control / Status" in frame
+    assert "Chat" in frame
+    assert "Jobs / Workers" in frame
     assert "Latest" in frame
     assert "search demo" in frame
     assert "Compose" in frame
     assert "❯ hello" in frame
-    assert "Plan drafted with 2 items" in frame
 
     settings = _build_chat_frame(snapshot, "", [], width=100, height=24, right_view="settings", selected_control=1)
     assert "Settings" in settings
@@ -606,6 +641,41 @@ def test_chat_frame_is_bounded_and_has_composer():
     assert "API env" not in secret
     assert "secret-value" not in secret
     assert "••••" in secret
+
+
+def test_chat_frame_separates_chat_from_worker_activity():
+    snapshot = {
+        "job_id": "job_demo",
+        "job": {
+            "id": "job_demo",
+            "title": "demo job",
+            "objective": "keep chat separate",
+            "status": "running",
+            "kind": "generic",
+            "metadata": {},
+        },
+        "jobs": [{"id": "job_demo", "title": "demo job", "status": "running", "kind": "generic", "metadata": {}}],
+        "steps": [],
+        "artifacts": [],
+        "memory_entries": [],
+        "events": [
+            {"event_type": "operator_message", "body": "start a benchmark job", "metadata": {}},
+            {"event_type": "agent_message", "title": "chat", "body": "I created the job and started it.", "metadata": {}},
+            {"event_type": "tool_call", "title": "shell_exec", "body": "", "metadata": {"input": {"arguments": {"command": "python bench.py"}}}},
+            {"event_type": "tool_result", "title": "shell_exec", "body": "shell_exec rc=0", "metadata": {"status": "completed", "input": {"arguments": {"command": "python bench.py"}}}},
+        ],
+        "daemon": {"running": True, "metadata": {"pid": 123}},
+        "model": "model/demo",
+    }
+
+    frame = _build_chat_frame(snapshot, "", [], width=130, height=24)
+    chat_side = frame.split(" │ ", 1)[0]
+
+    assert "start a benchmark job" in frame
+    assert "I created the job" in frame
+    assert "Workers" in frame
+    assert "python bench.py" in frame
+    assert "python bench.py" not in chat_side
 
 
 def test_plain_chat_control_intents_map_to_commands():
@@ -685,14 +755,13 @@ def test_chat_frame_surfaces_actual_work_events():
     frame = _build_chat_frame(snapshot, "", [], width=150, height=34)
 
     assert "please keep improving" in frame
-    assert "agent harness distillation" in frame
     assert "Research Paper Draft" in frame
     assert "Distillation finding" in frame
     assert "Compare methods" in frame
     assert "Paper roadmap" in frame
     assert "passed Draft" in frame
     assert "Citation coverage check" in frame
-    assert "prefer measured updates" in frame
+    assert "learned strategy" in frame
     assert "reflected #10" in frame
 
 
@@ -735,7 +804,7 @@ def test_chat_frame_collapses_repeated_failures_and_hides_memory_noise():
 
     frame = _build_chat_frame(snapshot, "", [], width=120, height=24)
 
-    assert "x3 Provider key limit exceeded" in frame
+    assert "FAIL x3" in frame
     assert "very long compact memory" not in frame
 
 
