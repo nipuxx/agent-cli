@@ -1354,6 +1354,36 @@ def test_delivery_experiment_next_action_allows_write_shell(tmp_path):
         db.close()
 
 
+def test_delivery_experiment_next_action_allows_internal_artifact_review(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Improve a generic deliverable", title="deliverable", kind="generic")
+        db.update_job_metadata(job_id, {
+            "experiment_ledger": [{
+                "title": "deliverable gap",
+                "status": "measured",
+                "metric_name": "coverage",
+                "metric_value": 0.25,
+                "metric_unit": "ratio",
+                "next_action": "merge the measured output into the deliverable file",
+            }],
+        })
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([LLMResponse(tool_calls=[ToolCall(name="search_artifacts", arguments={"query": "saved evidence"})])]),
+            registry=SuccessRegistry(),
+        )
+
+        assert result.status == "completed"
+        assert result.tool_name == "search_artifacts"
+    finally:
+        db.close()
+
+
 def test_prompt_marks_recent_anti_bot_browser_source():
     job = {"title": "research", "kind": "generic", "objective": "find research"}
     steps = [{

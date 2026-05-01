@@ -293,7 +293,7 @@ EXPERIMENT_INFORMATION_ACTION_TERMS = {
     "source",
     "survey",
 }
-EXPERIMENT_NEXT_ACTION_BLOCKED_TOOLS = INFORMATION_GATHERING_TOOLS | ARTIFACT_REVIEW_TOOLS | {"report_update"}
+EXPERIMENT_NEXT_ACTION_BLOCKED_TOOLS = INFORMATION_GATHERING_TOOLS | {"report_update"}
 READ_ONLY_SHELL_COMMAND_PATTERN = re.compile(
     r"(?is)^\s*(?:"
     r"awk\b|cat\b|df\b|du\b|echo\b|find\b|git\s+(?:diff|grep|log|ls-files|show|status)\b|"
