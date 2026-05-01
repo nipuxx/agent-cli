@@ -1024,6 +1024,21 @@ def test_build_messages_keeps_generic_context_under_budget():
     assert "Next-action constraint:" in content
 
 
+def test_build_messages_keeps_rolling_memory_when_not_first():
+    job = {"title": "memory order", "kind": "generic", "objective": "keep long-running context stable"}
+    memory_entries = [
+        {"key": "newer_note", "summary": "newer side note"},
+        {"key": "other_note", "summary": "less important side note"},
+        {"key": "rolling_state", "summary": "durable rolling state with usage and task progress"},
+    ]
+
+    content = build_messages(job, [], memory_entries=memory_entries)[-1]["content"]
+
+    assert "durable rolling state with usage and task progress" in content
+    assert "newer side note" in content
+    assert "less important side note" not in content
+
+
 def test_measurement_obligation_blocks_research_until_recorded(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

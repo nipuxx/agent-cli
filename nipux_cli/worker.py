@@ -394,11 +394,11 @@ def build_messages(
         step_lines.append(_clip_text(_format_step_for_prompt(step), 720))
     state = _clip_text("\n".join(step_lines), RECENT_STATE_PROMPT_CHARS) if step_lines else "No prior steps."
     memory_lines = []
-    for entry in (memory_entries or [])[:2]:
+    for entry in _memory_entries_for_prompt(memory_entries or []):
         refs = ", ".join((entry.get("artifact_refs") or [])[:8])
         suffix = f"\nArtifact refs: {refs}" if refs else ""
         memory_lines.append(
-            _clip_text(f"### {entry['key']}\n{entry.get('summary') or ''}{suffix}", MEMORY_ENTRY_PROMPT_CHARS)
+            _clip_text(f"### {entry.get('key') or 'memory'}\n{entry.get('summary') or ''}{suffix}", MEMORY_ENTRY_PROMPT_CHARS)
         )
     memory_text = _clip_text("\n\n".join(memory_lines), MEMORY_PROMPT_CHARS) if memory_lines else "No compact memory yet."
     program = _clip_text(program_text.strip(), PROGRAM_PROMPT_CHARS) if program_text else "No program.md saved yet."
@@ -452,6 +452,21 @@ def build_messages(
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "user", "content": content},
     ]
+
+
+def _memory_entries_for_prompt(memory_entries: list[dict[str, Any]], *, limit: int = 2) -> list[dict[str, Any]]:
+    entries = [entry for entry in memory_entries if isinstance(entry, dict)]
+    rolling = next((entry for entry in entries if entry.get("key") == "rolling_state"), None)
+    selected: list[dict[str, Any]] = []
+    if rolling:
+        selected.append(rolling)
+    for entry in entries:
+        if len(selected) >= limit:
+            break
+        if rolling is not None and entry is rolling:
+            continue
+        selected.append(entry)
+    return selected[:limit]
 
 
 def _render_worker_prompt(job: dict[str, Any], *, sections: list[tuple[str, str]]) -> str:
