@@ -175,7 +175,10 @@ def extract_prompts(files: list[SourceFile]) -> list[Prompt]:
                 )
     deduped: dict[tuple[str, int, str], Prompt] = {}
     for prompt in prompts:
-        deduped[(prompt.path, prompt.line, prompt.text[:120])] = prompt
+        key = (prompt.path, prompt.line, prompt.text[:120])
+        existing = deduped.get(key)
+        if existing is None or (existing.context == "inline" and prompt.context != "inline"):
+            deduped[key] = prompt
     return sorted(deduped.values(), key=lambda item: (item.path, item.line))
 
 

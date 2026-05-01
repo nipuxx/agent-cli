@@ -82,7 +82,7 @@ pre { max-height: 540px; overflow: auto; background: #050606; border: 1px solid 
 <div class="shell">
   <aside class="sidebar">
     <div class="logo">NIPUX ATLAS</div>
-    <div class="subtitle">Generated from tracked source on 97424d26.</div>
+    <div class="subtitle">Generated from tracked source on d13abb55.</div>
     <input id="search" class="search" placeholder="filter files, prompts, tools..." autocomplete="off">
     <nav class="nav">
       <a href="#architecture">Architecture</a>
@@ -97,9 +97,9 @@ pre { max-height: 540px; overflow: auto; background: #050606; border: 1px solid 
       <a href="#risks">Review Points</a>
     </nav>
     <div class="stats">
-      <div class="stat"><b>43</b><span>tracked files</span></div>
-      <div class="stat"><b>22,874</b><span>tracked lines mapped</span></div>
-      <div class="stat"><b>951</b><span>python symbols</span></div>
+      <div class="stat"><b>44</b><span>tracked files</span></div>
+      <div class="stat"><b>23,480</b><span>tracked lines mapped</span></div>
+      <div class="stat"><b>982</b><span>python symbols</span></div>
       <div class="stat"><b>26</b><span>runtime tools</span></div>
     </div>
   </aside>
@@ -181,7 +181,7 @@ pre { max-height: 540px; overflow: auto; background: #050606; border: 1px solid 
 - Prefer quantity of attempts over one giant plan.
 </code></pre>
 </article>
-<article class="prompt searchable" data-search="nipux_cli/worker.py inline string You are a long-running local work agent.
+<article class="prompt searchable" data-search="nipux_cli/worker.py SYSTEM_PROMPT You are a long-running local work agent.
 
 Operate as a bounded worker, not a chat assistant. Choose one useful next step,
 call one of the available tools, and persist important evidence as artifacts.
@@ -262,8 +262,8 @@ them after the current active branch has a durable checkpoint. Messages marked
 note are durable preferences. Use acknowledge_operator_context only after you
 have incorporated or intentionally superseded a steer/follow_up message.
 ">
-<header><h3>inline string</h3><span>nipux_cli/worker.py:31</span></header>
-<p class="muted">Context: <code>inline</code> · 5,690 chars</p>
+<header><h3>SYSTEM_PROMPT</h3><span>nipux_cli/worker.py:31</span></header>
+<p class="muted">Context: <code>assignment</code> · 5,690 chars</p>
 <pre><code>You are a long-running local work agent.
 
 Operate as a bounded worker, not a chat assistant. Choose one useful next step,
@@ -370,6 +370,11 @@ have incorporated or intentionally superseded a steer/follow_up message.
 <header><h3>guidance</h3><span>nipux_cli/worker.py:1895</span></header>
 <p class="muted">Context: <code>assignment</code> · 161 chars</p>
 <pre><code>This shell command was already run. Do not rerun discovery; use the previous output to inspect a specific file/item, write an artifact, or update findings/tasks.</code></pre>
+</article>
+<article class="prompt searchable" data-search="scripts/generate_project_atlas.py prompt_text  prompt/instruction-like strings were extracted. Inspect this section after any agent-behavior change.">
+<header><h3>prompt_text</h3><span>scripts/generate_project_atlas.py:579</span></header>
+<p class="muted">Context: <code>assignment</code> · 102 chars</p>
+<pre><code> prompt/instruction-like strings were extracted. Inspect this section after any agent-behavior change.</code></pre>
 </article></div>
     </section>
 
@@ -453,7 +458,7 @@ have incorporated or intentionally superseded a steer/follow_up message.
     </section>
 
     <section id="files" class="section">
-      <header><div><div class="kicker">Source index</div><h2>Important Files</h2></div><span class="muted">36 Python modules plus docs/config files.</span></header>
+      <header><div><div class="kicker">Source index</div><h2>Important Files</h2></div><span class="muted">37 Python modules plus docs/config files.</span></header>
       <div class="grid"><article class="file-card searchable" data-search="AGENTS.md This repo is now a barebones long-running worker, not a broad assistant distribution. none">
 <header><h3>AGENTS.md</h3><span>32 lines</span></header>
 <p>This repo is now a barebones long-running worker, not a broad assistant distribution.</p>
@@ -618,6 +623,12 @@ daemon, state store, model adapter, artifact store, and fixed tool surface. none
 <p>[build-system]</p>
 <div class="meta"><span>0 symbols</span><span>0 TODOs</span></div>
 <details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> none</p><p><strong>Symbols:</strong> none</p></details>
+</article>
+<article class="file-card searchable" data-search="scripts/generate_project_atlas.py Generate docs/project-atlas.html from the tracked Nipux source tree. SourceFile, Symbol, Prompt, main, load_source_files, tracked_paths, git, extract_symbols, call_names, dotted_name">
+<header><h3>scripts/generate_project_atlas.py</h3><span>606 lines</span></header>
+<p>Generate docs/project-atlas.html from the tracked Nipux source tree.</p>
+<div class="meta"><span>31 symbols</span><span>2 TODOs</span></div>
+<details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> __future__, ast, html, re, subprocess, dataclasses, pathlib, typing</p><p><strong>Symbols:</strong> SourceFile, Symbol, Prompt, main, load_source_files, tracked_paths, git, extract_symbols, call_names, dotted_name</p></details>
 </article>
 <article class="file-card searchable" data-search="tests/nipux_cli/test_artifacts.py No module docstring. test_artifact_store_writes_reads_and_searches, test_artifact_store_rejects_paths_outside_home">
 <header><h3>tests/nipux_cli/test_artifacts.py</h3><span>34 lines</span></header>
@@ -4654,6 +4665,192 @@ daemon, state store, model adapter, artifact store, and fixed tool surface. none
 <p><span class="pill">function</span> <span class="pill">nipux_cli/worker.py:2962</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> AgentDB, ArtifactStore, OpenAIChatLLM, StepExecution, _acknowledge_non_prompt_operator_context, _claim_operator_queue, _clear_invalid_measurement_obligation, _emit_assistant_message_event, _emit_loop_end, _emit_loop_start, _error_result, _execute_tool_call, _load_program_text,...</p>
+</article>
+<article class="symbol searchable" data-search="scripts/generate_project_atlas.py SourceFile No docstring. none">
+<h3>SourceFile</h3>
+<p><span class="pill">class</span> <span class="pill">scripts/generate_project_atlas.py:25</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> none</p>
+</article>
+<article class="symbol searchable" data-search="scripts/generate_project_atlas.py Symbol No docstring. none">
+<h3>Symbol</h3>
+<p><span class="pill">class</span> <span class="pill">scripts/generate_project_atlas.py:34</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> none</p>
+</article>
+<article class="symbol searchable" data-search="scripts/generate_project_atlas.py Prompt No docstring. none">
+<h3>Prompt</h3>
+<p><span class="pill">class</span> <span class="pill">scripts/generate_project_atlas.py:45</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> none</p>
+</article>
+<article class="symbol searchable" data-search="scripts/generate_project_atlas.py main No docstring. OUT.parent.mkdir, OUT.relative_to, OUT.write_text, extract_prompts, extract_symbols, extract_tables, extract_tools, git, len, load_source_files, print, render">
+<h3>main</h3>
+<p><span class="pill">function</span> <span class="pill">scripts/generate_project_atlas.py:53</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> OUT.parent.mkdir, OUT.relative_to, OUT.write_text, extract_prompts, extract_symbols, extract_tables, extract_tools, git, len, load_source_files, print, render</p>
+</article>
+<article class="symbol searchable" data-search="scripts/generate_project_atlas.py load_source_files No docstring. SourceFile, ast.parse, files.append, full.is_file, full.read_text, str, text.splitlines, tracked_paths">
+<h3>load_source_files</h3>
+<p><span class="pill">function</span> <span class="pill">scripts/generate_project_atlas.py:66</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> SourceFile, ast.parse, files.append, full.is_file, full.read_text, str, text.splitlines, tracked_paths</p>
+</article>
+<article class="symbol searchable" data-search="scripts/generate_project_atlas.py tracked_paths No docstring. git, line.strip, output.splitlines, sorted">
+<h3>tracked_paths</h3>
+<p><span class="pill">function</span> <span class="pill">scripts/generate_project_atlas.py:87</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> git, line.strip, output.splitlines, sorted</p>
+</article>
+<article class="symbol searchable" data-search="scripts/generate_project_atlas.py git No docstring. result.stdout.strip, subprocess.run">
+<h3>git</h3>
+<p><span class="pill">function</span> <span class="pill">scripts/generate_project_atlas.py:94</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> result.stdout.strip, subprocess.run</p>
+</article>
+<article class="symbol searchable" data-search="scripts/generate_project_atlas.py extract_symbols No docstring. Symbol, ast.get_docstring, ast.walk, call_names, getattr, isinstance, sorted, symbols.append">
+<h3>extract_symbols</h3>
+<p><span class="pill">function</span> <span class="pill">scripts/generate_project_atlas.py:102</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> Symbol, ast.get_docstring, ast.walk, call_names, getattr, isinstance, sorted, symbols.append</p>
+</article>
+<article class="symbol searchable" data-search="scripts/generate_project_atlas.py call_names No docstring. ast.walk, dotted_name, isinstance, names.add, set">
+<h3>call_names</h3>
+<p><span class="pill">function</span> <span class="pill">scripts/generate_project_atlas.py:124</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> ast.walk, dotted_name, isinstance, names.add, set</p>
+</article>
+<article class="symbol searchable" data-search="scripts/generate_project_atlas.py dotted_name No docstring. dotted_name, isinstance">
+<h3>dotted_name</h3>
+<p><span class="pill">function</span> <span class="pill">scripts/generate_project_atlas.py:135</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> dotted_name, isinstance</p>
+</article>
+<article class="symbol searchable" data-search="scripts/generate_project_atlas.py extract_prompts No docstring. Prompt, any, assignment_names, ast.walk, deduped.get, deduped.values, getattr, is_prompt_name, is_prompt_text, isinstance, join, literal_string, prompts.append, sorted">
+<h3>extract_prompts</h3>
+<p><span class="pill">function</span> <span class="pill">scripts/generate_project_atlas.py:144</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> Prompt, any, assignment_names, ast.walk, deduped.get, deduped.values, getattr, is_prompt_name, is_prompt_text, isinstance, join, literal_string, prompts.append, sorted</p>
+</article>
+<article class="symbol searchable" data-search="scripts/generate_project_atlas.py assignment_names No docstring. isinstance, names.append">
+<h3>assignment_names</h3>
+<p><span class="pill">function</span> <span class="pill">scripts/generate_project_atlas.py:185</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> isinstance, names.append</p>
+</article>
+<article class="symbol searchable" data-search="scripts/generate_project_atlas.py literal_string No docstring. isinstance, join">
+<h3>literal_string</h3>
+<p><span class="pill">function</span> <span class="pill">scripts/generate_project_atlas.py:196</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> isinstance, join</p>
+</article>
+<article class="symbol searchable" data-search="scripts/generate_project_atlas.py is_prompt_name No docstring. any, name.upper, upper.endswith">
+<h3>is_prompt_name</h3>
+<p><span class="pill">function</span> <span class="pill">scripts/generate_project_atlas.py:204</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> any, name.upper, upper.endswith</p>
+</article>
+<article class="symbol searchable" data-search="scripts/generate_project_atlas.py is_prompt_text No docstring. clean.lower, join, len, text.split">
+<h3>is_prompt_text</h3>
+<p><span class="pill">function</span> <span class="pill">scripts/generate_project_atlas.py:209</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> clean.lower, join, len, text.split</p>
+</article>
+<article class="symbol searchable" data-search="scripts/generate_project_atlas.py extract_tools No docstring. count, join, match.group, match.start, next, pattern.finditer, re.compile, split, str, tools.append">
+<h3>extract_tools</h3>
+<p><span class="pill">function</span> <span class="pill">scripts/generate_project_atlas.py:222</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> count, join, match.group, match.start, next, pattern.finditer, re.compile, split, str, tools.append</p>
+</article>
+<article class="symbol searchable" data-search="scripts/generate_project_atlas.py extract_tables No docstring. count, line.strip, line.upper, match.group, match.start, next, re.finditer, rstrip, splitlines, startswith, tables.append">
+<h3>extract_tables</h3>
+<p><span class="pill">function</span> <span class="pill">scripts/generate_project_atlas.py:232</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> count, line.strip, line.upper, match.group, match.start, next, re.finditer, rstrip, splitlines, startswith, tables.append</p>
+</article>
+<article class="symbol searchable" data-search="scripts/generate_project_atlas.py render No docstring. architecture_nodes, esc, join, len, render_file_card, render_prompt, render_review_points, render_source_file, render_symbol, render_table, runtime_flow, source.path.endswith, sum, test_cards">
+<h3>render</h3>
+<p><span class="pill">function</span> <span class="pill">scripts/generate_project_atlas.py:242</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> architecture_nodes, esc, join, len, render_file_card, render_prompt, render_review_points, render_source_file, render_symbol, render_table, runtime_flow, source.path.endswith, sum, test_cards</p>
+</article>
+<article class="symbol searchable" data-search="scripts/generate_project_atlas.py architecture_nodes No docstring. esc, join">
+<h3>architecture_nodes</h3>
+<p><span class="pill">function</span> <span class="pill">scripts/generate_project_atlas.py:447</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> esc, join</p>
+</article>
+<article class="symbol searchable" data-search="scripts/generate_project_atlas.py runtime_flow No docstring. esc, join">
+<h3>runtime_flow</h3>
+<p><span class="pill">function</span> <span class="pill">scripts/generate_project_atlas.py:466</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> esc, join</p>
+</article>
+<article class="symbol searchable" data-search="scripts/generate_project_atlas.py render_file_card No docstring. esc, join, len, module_doc, module_imports, short, source.text.count">
+<h3>render_file_card</h3>
+<p><span class="pill">function</span> <span class="pill">scripts/generate_project_atlas.py:480</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> esc, join, len, module_doc, module_imports, short, source.text.count</p>
+</article>
+<article class="symbol searchable" data-search="scripts/generate_project_atlas.py module_doc No docstring. ast.get_docstring, line.strip, stripped.startswith">
+<h3>module_doc</h3>
+<p><span class="pill">function</span> <span class="pill">scripts/generate_project_atlas.py:493</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> ast.get_docstring, line.strip, stripped.startswith</p>
+</article>
+<article class="symbol searchable" data-search="scripts/generate_project_atlas.py module_imports No docstring. isinstance, names.append, names.extend">
+<h3>module_imports</h3>
+<p><span class="pill">function</span> <span class="pill">scripts/generate_project_atlas.py:503</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> isinstance, names.append, names.extend</p>
+</article>
+<article class="symbol searchable" data-search="scripts/generate_project_atlas.py render_source_file No docstring. enumerate, esc, join, len">
+<h3>render_source_file</h3>
+<p><span class="pill">function</span> <span class="pill">scripts/generate_project_atlas.py:516</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> enumerate, esc, join, len</p>
+</article>
+<article class="symbol searchable" data-search="scripts/generate_project_atlas.py render_symbol No docstring. esc, join, short">
+<h3>render_symbol</h3>
+<p><span class="pill">function</span> <span class="pill">scripts/generate_project_atlas.py:527</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> esc, join, short</p>
+</article>
+<article class="symbol searchable" data-search="scripts/generate_project_atlas.py render_prompt No docstring. esc, len">
+<h3>render_prompt</h3>
+<p><span class="pill">function</span> <span class="pill">scripts/generate_project_atlas.py:538</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> esc, len</p>
+</article>
+<article class="symbol searchable" data-search="scripts/generate_project_atlas.py render_table No docstring. esc, join">
+<h3>render_table</h3>
+<p><span class="pill">function</span> <span class="pill">scripts/generate_project_atlas.py:547</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> esc, join</p>
+</article>
+<article class="symbol searchable" data-search="scripts/generate_project_atlas.py test_cards No docstring. ast.walk, cards.append, esc, isinstance, join, len, node.name.startswith, short, source.path.startswith">
+<h3>test_cards</h3>
+<p><span class="pill">function</span> <span class="pill">scripts/generate_project_atlas.py:556</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> ast.walk, cards.append, esc, isinstance, join, len, node.name.startswith, short, source.path.startswith</p>
+</article>
+<article class="symbol searchable" data-search="scripts/generate_project_atlas.py render_review_points No docstring. esc, join, len, sorted">
+<h3>render_review_points</h3>
+<p><span class="pill">function</span> <span class="pill">scripts/generate_project_atlas.py:571</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> esc, join, len, sorted</p>
+</article>
+<article class="symbol searchable" data-search="scripts/generate_project_atlas.py short No docstring. join, len, max, split, str">
+<h3>short</h3>
+<p><span class="pill">function</span> <span class="pill">scripts/generate_project_atlas.py:594</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> join, len, max, split, str</p>
+</article>
+<article class="symbol searchable" data-search="scripts/generate_project_atlas.py esc No docstring. html.escape, str">
+<h3>esc</h3>
+<p><span class="pill">function</span> <span class="pill">scripts/generate_project_atlas.py:601</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> html.escape, str</p>
 </article>
 <article class="symbol searchable" data-search="tests/nipux_cli/test_artifacts.py test_artifact_store_writes_reads_and_searches No docstring. AgentDB, ArtifactStore, db.close, db.create_job, startswith, store.read_text, store.search_text, store.write_text">
 <h3>test_artifact_store_writes_reads_and_searches</h3>
@@ -25797,6 +25994,758 @@ exclude-newer = &quot;7 days&quot;
 <span class='src-line'><b>  50</b><code>[tool.uv]</code></span>
 <span class='src-line'><b>  51</b><code>exclude-newer = &quot;7 days&quot;</code></span></pre>
 </details>
+<details class="source-file searchable" data-search="scripts/generate_project_atlas.py #!/usr/bin/env python3
+&quot;&quot;&quot;Generate docs/project-atlas.html from the tracked Nipux source tree.&quot;&quot;&quot;
+
+from __future__ import annotations
+
+import ast
+import html
+import re
+import subprocess
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
+
+
+ROOT = Path(__file__).resolve().parents[1]
+OUT = ROOT / &quot;docs&quot; / &quot;project-atlas.html&quot;
+SOURCE_SUFFIXES = {&quot;.py&quot;, &quot;.md&quot;, &quot;.toml&quot;, &quot;.yaml&quot;, &quot;.yml&quot;}
+EXCLUDED = {
+    &quot;docs/project-atlas.html&quot;,
+    &quot;uv.lock&quot;,
+}
+
+
+@dataclass
+class SourceFile:
+    path: str
+    text: str
+    lines: list[str]
+    tree: ast.AST | None
+    error: str = &quot;&quot;
+
+
+@dataclass
+class Symbol:
+    path: str
+    kind: str
+    name: str
+    line: int
+    end_line: int
+    doc: str
+    calls: list[str]
+
+
+@dataclass
+class Prompt:
+    path: str
+    name: str
+    line: int
+    text: str
+    context: str
+
+
+def main() -&gt; None:
+    files = load_source_files()
+    symbols = extract_symbols(files)
+    prompts = extract_prompts(files)
+    tools = extract_tools(files)
+    tables = extract_tables(files)
+    commit = git([&quot;rev-parse&quot;, &quot;--short&quot;, &quot;HEAD&quot;]) or &quot;working-tree&quot;
+    html_text = render(files, symbols, prompts, tools, tables, commit=commit)
+    OUT.parent.mkdir(parents=True, exist_ok=True)
+    OUT.write_text(html_text, encoding=&quot;utf-8&quot;)
+    print(f&quot;wrote {OUT.relative_to(ROOT)} ({len(html_text):,} chars)&quot;)
+
+
+def load_source_files() -&gt; list[SourceFile]:
+    paths = tracked_paths()
+    files: list[SourceFile] = []
+    for path in paths:
+        if path in EXCLUDED:
+            continue
+        full = ROOT / path
+        if full.suffix not in SOURCE_SUFFIXES or not full.is_file():
+            continue
+        text = full.read_text(encoding=&quot;utf-8&quot;, errors=&quot;replace&quot;)
+        tree = None
+        error = &quot;&quot;
+        if full.suffix == &quot;.py&quot;:
+            try:
+                tree = ast.parse(text, filename=path)
+            except SyntaxError as exc:
+                error = str(exc)
+        files.append(SourceFile(path=path, text=text, lines=text.splitlines(), tree=tree, error=error))
+    return files
+
+
+def tracked_paths() -&gt; list[str]:
+    output = git([&quot;ls-files&quot;])
+    if not output:
+        return []
+    return sorted(line.strip() for line in output.splitlines() if line.strip())
+
+
+def git(args: list[str]) -&gt; str:
+    try:
+        result = subprocess.run([&quot;git&quot;, *args], cwd=ROOT, check=False, capture_output=True, text=True)
+    except OSError:
+        return &quot;&quot;
+    return result.stdout.strip() if result.returncode == 0 else &quot;&quot;
+
+
+def extract_symbols(files: list[SourceFile]) -&gt; list[Symbol]:
+    symbols: list[Symbol] = []
+    for source in files:
+        if source.tree is None:
+            continue
+        for node in ast.walk(source.tree):
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                calls = sorted(call_names(node))[:16]
+                symbols.append(
+                    Symbol(
+                        path=source.path,
+                        kind=&quot;class&quot; if isinstance(node, ast.ClassDef) else &quot;function&quot;,
+                        name=node.name,
+                        line=getattr(node, &quot;lineno&quot;, 0),
+                        end_line=getattr(node, &quot;end_lineno&quot;, getattr(node, &quot;lineno&quot;, 0)),
+                        doc=ast.get_docstring(node) or &quot;&quot;,
+                        calls=calls,
+                    )
+                )
+    return sorted(symbols, key=lambda item: (item.path, item.line, item.name))
+
+
+def call_names(node: ast.AST) -&gt; set[str]:
+    names: set[str] = set()
+    for child in ast.walk(node):
+        if not isinstance(child, ast.Call):
+            continue
+        name = dotted_name(child.func)
+        if name:
+            names.add(name)
+    return names
+
+
+def dotted_name(node: ast.AST) -&gt; str:
+    if isinstance(node, ast.Name):
+        return node.id
+    if isinstance(node, ast.Attribute):
+        base = dotted_name(node.value)
+        return f&quot;{base}.{node.attr}&quot; if base else node.attr
+    return &quot;&quot;
+
+
+def extract_prompts(files: list[SourceFi">
+<summary>scripts/generate_project_atlas.py <span>606 lines</span></summary>
+<pre class="source-code"><span class='src-line'><b>   1</b><code>#!/usr/bin/env python3</code></span>
+<span class='src-line'><b>   2</b><code>&quot;&quot;&quot;Generate docs/project-atlas.html from the tracked Nipux source tree.&quot;&quot;&quot;</code></span>
+<span class='src-line'><b>   3</b><code></code></span>
+<span class='src-line'><b>   4</b><code>from __future__ import annotations</code></span>
+<span class='src-line'><b>   5</b><code></code></span>
+<span class='src-line'><b>   6</b><code>import ast</code></span>
+<span class='src-line'><b>   7</b><code>import html</code></span>
+<span class='src-line'><b>   8</b><code>import re</code></span>
+<span class='src-line'><b>   9</b><code>import subprocess</code></span>
+<span class='src-line'><b>  10</b><code>from dataclasses import dataclass</code></span>
+<span class='src-line'><b>  11</b><code>from pathlib import Path</code></span>
+<span class='src-line'><b>  12</b><code>from typing import Any</code></span>
+<span class='src-line'><b>  13</b><code></code></span>
+<span class='src-line'><b>  14</b><code></code></span>
+<span class='src-line'><b>  15</b><code>ROOT = Path(__file__).resolve().parents[1]</code></span>
+<span class='src-line'><b>  16</b><code>OUT = ROOT / &quot;docs&quot; / &quot;project-atlas.html&quot;</code></span>
+<span class='src-line'><b>  17</b><code>SOURCE_SUFFIXES = {&quot;.py&quot;, &quot;.md&quot;, &quot;.toml&quot;, &quot;.yaml&quot;, &quot;.yml&quot;}</code></span>
+<span class='src-line'><b>  18</b><code>EXCLUDED = {</code></span>
+<span class='src-line'><b>  19</b><code>    &quot;docs/project-atlas.html&quot;,</code></span>
+<span class='src-line'><b>  20</b><code>    &quot;uv.lock&quot;,</code></span>
+<span class='src-line'><b>  21</b><code>}</code></span>
+<span class='src-line'><b>  22</b><code></code></span>
+<span class='src-line'><b>  23</b><code></code></span>
+<span class='src-line'><b>  24</b><code>@dataclass</code></span>
+<span class='src-line'><b>  25</b><code>class SourceFile:</code></span>
+<span class='src-line'><b>  26</b><code>    path: str</code></span>
+<span class='src-line'><b>  27</b><code>    text: str</code></span>
+<span class='src-line'><b>  28</b><code>    lines: list[str]</code></span>
+<span class='src-line'><b>  29</b><code>    tree: ast.AST | None</code></span>
+<span class='src-line'><b>  30</b><code>    error: str = &quot;&quot;</code></span>
+<span class='src-line'><b>  31</b><code></code></span>
+<span class='src-line'><b>  32</b><code></code></span>
+<span class='src-line'><b>  33</b><code>@dataclass</code></span>
+<span class='src-line'><b>  34</b><code>class Symbol:</code></span>
+<span class='src-line'><b>  35</b><code>    path: str</code></span>
+<span class='src-line'><b>  36</b><code>    kind: str</code></span>
+<span class='src-line'><b>  37</b><code>    name: str</code></span>
+<span class='src-line'><b>  38</b><code>    line: int</code></span>
+<span class='src-line'><b>  39</b><code>    end_line: int</code></span>
+<span class='src-line'><b>  40</b><code>    doc: str</code></span>
+<span class='src-line'><b>  41</b><code>    calls: list[str]</code></span>
+<span class='src-line'><b>  42</b><code></code></span>
+<span class='src-line'><b>  43</b><code></code></span>
+<span class='src-line'><b>  44</b><code>@dataclass</code></span>
+<span class='src-line'><b>  45</b><code>class Prompt:</code></span>
+<span class='src-line'><b>  46</b><code>    path: str</code></span>
+<span class='src-line'><b>  47</b><code>    name: str</code></span>
+<span class='src-line'><b>  48</b><code>    line: int</code></span>
+<span class='src-line'><b>  49</b><code>    text: str</code></span>
+<span class='src-line'><b>  50</b><code>    context: str</code></span>
+<span class='src-line'><b>  51</b><code></code></span>
+<span class='src-line'><b>  52</b><code></code></span>
+<span class='src-line'><b>  53</b><code>def main() -&gt; None:</code></span>
+<span class='src-line'><b>  54</b><code>    files = load_source_files()</code></span>
+<span class='src-line'><b>  55</b><code>    symbols = extract_symbols(files)</code></span>
+<span class='src-line'><b>  56</b><code>    prompts = extract_prompts(files)</code></span>
+<span class='src-line'><b>  57</b><code>    tools = extract_tools(files)</code></span>
+<span class='src-line'><b>  58</b><code>    tables = extract_tables(files)</code></span>
+<span class='src-line'><b>  59</b><code>    commit = git([&quot;rev-parse&quot;, &quot;--short&quot;, &quot;HEAD&quot;]) or &quot;working-tree&quot;</code></span>
+<span class='src-line'><b>  60</b><code>    html_text = render(files, symbols, prompts, tools, tables, commit=commit)</code></span>
+<span class='src-line'><b>  61</b><code>    OUT.parent.mkdir(parents=True, exist_ok=True)</code></span>
+<span class='src-line'><b>  62</b><code>    OUT.write_text(html_text, encoding=&quot;utf-8&quot;)</code></span>
+<span class='src-line'><b>  63</b><code>    print(f&quot;wrote {OUT.relative_to(ROOT)} ({len(html_text):,} chars)&quot;)</code></span>
+<span class='src-line'><b>  64</b><code></code></span>
+<span class='src-line'><b>  65</b><code></code></span>
+<span class='src-line'><b>  66</b><code>def load_source_files() -&gt; list[SourceFile]:</code></span>
+<span class='src-line'><b>  67</b><code>    paths = tracked_paths()</code></span>
+<span class='src-line'><b>  68</b><code>    files: list[SourceFile] = []</code></span>
+<span class='src-line'><b>  69</b><code>    for path in paths:</code></span>
+<span class='src-line'><b>  70</b><code>        if path in EXCLUDED:</code></span>
+<span class='src-line'><b>  71</b><code>            continue</code></span>
+<span class='src-line'><b>  72</b><code>        full = ROOT / path</code></span>
+<span class='src-line'><b>  73</b><code>        if full.suffix not in SOURCE_SUFFIXES or not full.is_file():</code></span>
+<span class='src-line'><b>  74</b><code>            continue</code></span>
+<span class='src-line'><b>  75</b><code>        text = full.read_text(encoding=&quot;utf-8&quot;, errors=&quot;replace&quot;)</code></span>
+<span class='src-line'><b>  76</b><code>        tree = None</code></span>
+<span class='src-line'><b>  77</b><code>        error = &quot;&quot;</code></span>
+<span class='src-line'><b>  78</b><code>        if full.suffix == &quot;.py&quot;:</code></span>
+<span class='src-line'><b>  79</b><code>            try:</code></span>
+<span class='src-line'><b>  80</b><code>                tree = ast.parse(text, filename=path)</code></span>
+<span class='src-line'><b>  81</b><code>            except SyntaxError as exc:</code></span>
+<span class='src-line'><b>  82</b><code>                error = str(exc)</code></span>
+<span class='src-line'><b>  83</b><code>        files.append(SourceFile(path=path, text=text, lines=text.splitlines(), tree=tree, error=error))</code></span>
+<span class='src-line'><b>  84</b><code>    return files</code></span>
+<span class='src-line'><b>  85</b><code></code></span>
+<span class='src-line'><b>  86</b><code></code></span>
+<span class='src-line'><b>  87</b><code>def tracked_paths() -&gt; list[str]:</code></span>
+<span class='src-line'><b>  88</b><code>    output = git([&quot;ls-files&quot;])</code></span>
+<span class='src-line'><b>  89</b><code>    if not output:</code></span>
+<span class='src-line'><b>  90</b><code>        return []</code></span>
+<span class='src-line'><b>  91</b><code>    return sorted(line.strip() for line in output.splitlines() if line.strip())</code></span>
+<span class='src-line'><b>  92</b><code></code></span>
+<span class='src-line'><b>  93</b><code></code></span>
+<span class='src-line'><b>  94</b><code>def git(args: list[str]) -&gt; str:</code></span>
+<span class='src-line'><b>  95</b><code>    try:</code></span>
+<span class='src-line'><b>  96</b><code>        result = subprocess.run([&quot;git&quot;, *args], cwd=ROOT, check=False, capture_output=True, text=True)</code></span>
+<span class='src-line'><b>  97</b><code>    except OSError:</code></span>
+<span class='src-line'><b>  98</b><code>        return &quot;&quot;</code></span>
+<span class='src-line'><b>  99</b><code>    return result.stdout.strip() if result.returncode == 0 else &quot;&quot;</code></span>
+<span class='src-line'><b> 100</b><code></code></span>
+<span class='src-line'><b> 101</b><code></code></span>
+<span class='src-line'><b> 102</b><code>def extract_symbols(files: list[SourceFile]) -&gt; list[Symbol]:</code></span>
+<span class='src-line'><b> 103</b><code>    symbols: list[Symbol] = []</code></span>
+<span class='src-line'><b> 104</b><code>    for source in files:</code></span>
+<span class='src-line'><b> 105</b><code>        if source.tree is None:</code></span>
+<span class='src-line'><b> 106</b><code>            continue</code></span>
+<span class='src-line'><b> 107</b><code>        for node in ast.walk(source.tree):</code></span>
+<span class='src-line'><b> 108</b><code>            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):</code></span>
+<span class='src-line'><b> 109</b><code>                calls = sorted(call_names(node))[:16]</code></span>
+<span class='src-line'><b> 110</b><code>                symbols.append(</code></span>
+<span class='src-line'><b> 111</b><code>                    Symbol(</code></span>
+<span class='src-line'><b> 112</b><code>                        path=source.path,</code></span>
+<span class='src-line'><b> 113</b><code>                        kind=&quot;class&quot; if isinstance(node, ast.ClassDef) else &quot;function&quot;,</code></span>
+<span class='src-line'><b> 114</b><code>                        name=node.name,</code></span>
+<span class='src-line'><b> 115</b><code>                        line=getattr(node, &quot;lineno&quot;, 0),</code></span>
+<span class='src-line'><b> 116</b><code>                        end_line=getattr(node, &quot;end_lineno&quot;, getattr(node, &quot;lineno&quot;, 0)),</code></span>
+<span class='src-line'><b> 117</b><code>                        doc=ast.get_docstring(node) or &quot;&quot;,</code></span>
+<span class='src-line'><b> 118</b><code>                        calls=calls,</code></span>
+<span class='src-line'><b> 119</b><code>                    )</code></span>
+<span class='src-line'><b> 120</b><code>                )</code></span>
+<span class='src-line'><b> 121</b><code>    return sorted(symbols, key=lambda item: (item.path, item.line, item.name))</code></span>
+<span class='src-line'><b> 122</b><code></code></span>
+<span class='src-line'><b> 123</b><code></code></span>
+<span class='src-line'><b> 124</b><code>def call_names(node: ast.AST) -&gt; set[str]:</code></span>
+<span class='src-line'><b> 125</b><code>    names: set[str] = set()</code></span>
+<span class='src-line'><b> 126</b><code>    for child in ast.walk(node):</code></span>
+<span class='src-line'><b> 127</b><code>        if not isinstance(child, ast.Call):</code></span>
+<span class='src-line'><b> 128</b><code>            continue</code></span>
+<span class='src-line'><b> 129</b><code>        name = dotted_name(child.func)</code></span>
+<span class='src-line'><b> 130</b><code>        if name:</code></span>
+<span class='src-line'><b> 131</b><code>            names.add(name)</code></span>
+<span class='src-line'><b> 132</b><code>    return names</code></span>
+<span class='src-line'><b> 133</b><code></code></span>
+<span class='src-line'><b> 134</b><code></code></span>
+<span class='src-line'><b> 135</b><code>def dotted_name(node: ast.AST) -&gt; str:</code></span>
+<span class='src-line'><b> 136</b><code>    if isinstance(node, ast.Name):</code></span>
+<span class='src-line'><b> 137</b><code>        return node.id</code></span>
+<span class='src-line'><b> 138</b><code>    if isinstance(node, ast.Attribute):</code></span>
+<span class='src-line'><b> 139</b><code>        base = dotted_name(node.value)</code></span>
+<span class='src-line'><b> 140</b><code>        return f&quot;{base}.{node.attr}&quot; if base else node.attr</code></span>
+<span class='src-line'><b> 141</b><code>    return &quot;&quot;</code></span>
+<span class='src-line'><b> 142</b><code></code></span>
+<span class='src-line'><b> 143</b><code></code></span>
+<span class='src-line'><b> 144</b><code>def extract_prompts(files: list[SourceFile]) -&gt; list[Prompt]:</code></span>
+<span class='src-line'><b> 145</b><code>    prompts: list[Prompt] = []</code></span>
+<span class='src-line'><b> 146</b><code>    for source in files:</code></span>
+<span class='src-line'><b> 147</b><code>        if source.tree is None:</code></span>
+<span class='src-line'><b> 148</b><code>            continue</code></span>
+<span class='src-line'><b> 149</b><code>        for node in ast.walk(source.tree):</code></span>
+<span class='src-line'><b> 150</b><code>            if isinstance(node, (ast.Assign, ast.AnnAssign)):</code></span>
+<span class='src-line'><b> 151</b><code>                names = assignment_names(node)</code></span>
+<span class='src-line'><b> 152</b><code>                value = getattr(node, &quot;value&quot;, None)</code></span>
+<span class='src-line'><b> 153</b><code>                text = literal_string(value)</code></span>
+<span class='src-line'><b> 154</b><code>                if not text:</code></span>
+<span class='src-line'><b> 155</b><code>                    continue</code></span>
+<span class='src-line'><b> 156</b><code>                if any(is_prompt_name(name) for name in names) or is_prompt_text(text):</code></span>
+<span class='src-line'><b> 157</b><code>                    prompts.append(</code></span>
+<span class='src-line'><b> 158</b><code>                        Prompt(</code></span>
+<span class='src-line'><b> 159</b><code>                            path=source.path,</code></span>
+<span class='src-line'><b> 160</b><code>                            name=&quot;, &quot;.join(names) or &quot;string&quot;,</code></span>
+<span class='src-line'><b> 161</b><code>                            line=getattr(node, &quot;lineno&quot;, 0),</code></span>
+<span class='src-line'><b> 162</b><code>                            text=text,</code></span>
+<span class='src-line'><b> 163</b><code>                            context=&quot;assignment&quot;,</code></span>
+<span class='src-line'><b> 164</b><code>                        )</code></span>
+<span class='src-line'><b> 165</b><code>                    )</code></span>
+<span class='src-line'><b> 166</b><code>            elif isinstance(node, ast.Constant) and isinstance(node.value, str) and is_prompt_text(node.value):</code></span>
+<span class='src-line'><b> 167</b><code>                prompts.append(</code></span>
+<span class='src-line'><b> 168</b><code>                    Prompt(</code></span>
+<span class='src-line'><b> 169</b><code>                        path=source.path,</code></span>
+<span class='src-line'><b> 170</b><code>                        name=&quot;inline string&quot;,</code></span>
+<span class='src-line'><b> 171</b><code>                        line=getattr(node, &quot;lineno&quot;, 0),</code></span>
+<span class='src-line'><b> 172</b><code>                        text=node.value,</code></span>
+<span class='src-line'><b> 173</b><code>                        context=&quot;inline&quot;,</code></span>
+<span class='src-line'><b> 174</b><code>                    )</code></span>
+<span class='src-line'><b> 175</b><code>                )</code></span>
+<span class='src-line'><b> 176</b><code>    deduped: dict[tuple[str, int, str], Prompt] = {}</code></span>
+<span class='src-line'><b> 177</b><code>    for prompt in prompts:</code></span>
+<span class='src-line'><b> 178</b><code>        key = (prompt.path, prompt.line, prompt.text[:120])</code></span>
+<span class='src-line'><b> 179</b><code>        existing = deduped.get(key)</code></span>
+<span class='src-line'><b> 180</b><code>        if existing is None or (existing.context == &quot;inline&quot; and prompt.context != &quot;inline&quot;):</code></span>
+<span class='src-line'><b> 181</b><code>            deduped[key] = prompt</code></span>
+<span class='src-line'><b> 182</b><code>    return sorted(deduped.values(), key=lambda item: (item.path, item.line))</code></span>
+<span class='src-line'><b> 183</b><code></code></span>
+<span class='src-line'><b> 184</b><code></code></span>
+<span class='src-line'><b> 185</b><code>def assignment_names(node: ast.Assign | ast.AnnAssign) -&gt; list[str]:</code></span>
+<span class='src-line'><b> 186</b><code>    targets = node.targets if isinstance(node, ast.Assign) else [node.target]</code></span>
+<span class='src-line'><b> 187</b><code>    names: list[str] = []</code></span>
+<span class='src-line'><b> 188</b><code>    for target in targets:</code></span>
+<span class='src-line'><b> 189</b><code>        if isinstance(target, ast.Name):</code></span>
+<span class='src-line'><b> 190</b><code>            names.append(target.id)</code></span>
+<span class='src-line'><b> 191</b><code>        elif isinstance(target, ast.Attribute):</code></span>
+<span class='src-line'><b> 192</b><code>            names.append(target.attr)</code></span>
+<span class='src-line'><b> 193</b><code>    return names</code></span>
+<span class='src-line'><b> 194</b><code></code></span>
+<span class='src-line'><b> 195</b><code></code></span>
+<span class='src-line'><b> 196</b><code>def literal_string(node: ast.AST | None) -&gt; str:</code></span>
+<span class='src-line'><b> 197</b><code>    if isinstance(node, ast.Constant) and isinstance(node.value, str):</code></span>
+<span class='src-line'><b> 198</b><code>        return node.value</code></span>
+<span class='src-line'><b> 199</b><code>    if isinstance(node, ast.JoinedStr):</code></span>
+<span class='src-line'><b> 200</b><code>        return &quot;&quot;.join(part.value for part in node.values if isinstance(part, ast.Constant) and isinstance(part.value, str))</code></span>
+<span class='src-line'><b> 201</b><code>    return &quot;&quot;</code></span>
+<span class='src-line'><b> 202</b><code></code></span>
+<span class='src-line'><b> 203</b><code></code></span>
+<span class='src-line'><b> 204</b><code>def is_prompt_name(name: str) -&gt; bool:</code></span>
+<span class='src-line'><b> 205</b><code>    upper = name.upper()</code></span>
+<span class='src-line'><b> 206</b><code>    return any(term in upper for term in (&quot;PROMPT&quot;, &quot;SYSTEM&quot;, &quot;INSTRUCTION&quot;, &quot;GUIDANCE&quot;)) and not upper.endswith(&quot;_PATH&quot;)</code></span>
+<span class='src-line'><b> 207</b><code></code></span>
+<span class='src-line'><b> 208</b><code></code></span>
+<span class='src-line'><b> 209</b><code>def is_prompt_text(text: str) -&gt; bool:</code></span>
+<span class='src-line'><b> 210</b><code>    clean = &quot; &quot;.join(text.split())</code></span>
+<span class='src-line'><b> 211</b><code>    if len(clean) &lt; 240:</code></span>
+<span class='src-line'><b> 212</b><code>        return False</code></span>
+<span class='src-line'><b> 213</b><code>    lowered = clean.lower()</code></span>
+<span class='src-line'><b> 214</b><code>    return (</code></span>
+<span class='src-line'><b> 215</b><code>        &quot;you are&quot; in lowered</code></span>
+<span class='src-line'><b> 216</b><code>        or &quot;do not&quot; in lowered and &quot;use &quot; in lowered</code></span>
+<span class='src-line'><b> 217</b><code>        or &quot;operator&quot; in lowered and &quot;context&quot; in lowered and &quot;prompt&quot; in lowered</code></span>
+<span class='src-line'><b> 218</b><code>        or &quot;next-action&quot; in lowered</code></span>
+<span class='src-line'><b> 219</b><code>    )</code></span>
+<span class='src-line'><b> 220</b><code></code></span>
+<span class='src-line'><b> 221</b><code></code></span>
+<span class='src-line'><b> 222</b><code>def extract_tools(files: list[SourceFile]) -&gt; list[dict[str, str]]:</code></span>
+<span class='src-line'><b> 223</b><code>    tools_text = next((source.text for source in files if source.path == &quot;nipux_cli/tools.py&quot;), &quot;&quot;)</code></span>
+<span class='src-line'><b> 224</b><code>    tools: list[dict[str, str]] = []</code></span>
+<span class='src-line'><b> 225</b><code>    pattern = re.compile(r&quot;ToolSpec\(\s*[&#x27;\&quot;]([^&#x27;\&quot;]+)[&#x27;\&quot;]\s*,\s*[&#x27;\&quot;]([^&#x27;\&quot;]+)[&#x27;\&quot;]&quot;, re.S)</code></span>
+<span class='src-line'><b> 226</b><code>    for match in pattern.finditer(tools_text):</code></span>
+<span class='src-line'><b> 227</b><code>        line = tools_text[: match.start()].count(&quot;\n&quot;) + 1</code></span>
+<span class='src-line'><b> 228</b><code>        tools.append({&quot;name&quot;: match.group(1), &quot;description&quot;: &quot; &quot;.join(match.group(2).split()), &quot;line&quot;: str(line)})</code></span>
+<span class='src-line'><b> 229</b><code>    return tools</code></span>
+<span class='src-line'><b> 230</b><code></code></span>
+<span class='src-line'><b> 231</b><code></code></span>
+<span class='src-line'><b> 232</b><code>def extract_tables(files: list[SourceFile]) -&gt; list[dict[str, Any]]:</code></span>
+<span class='src-line'><b> 233</b><code>    db_text = next((source.text for source in files if source.path == &quot;nipux_cli/db.py&quot;), &quot;&quot;)</code></span>
+<span class='src-line'><b> 234</b><code>    tables: list[dict[str, Any]] = []</code></span>
+<span class='src-line'><b> 235</b><code>    for match in re.finditer(r&quot;CREATE TABLE IF NOT EXISTS\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\((.*?)\)&quot;, db_text, re.S):</code></span>
+<span class='src-line'><b> 236</b><code>        raw_columns = [line.strip().rstrip(&quot;,&quot;) for line in match.group(2).splitlines()]</code></span>
+<span class='src-line'><b> 237</b><code>        columns = [line for line in raw_columns if line and not line.upper().startswith((&quot;FOREIGN&quot;, &quot;UNIQUE&quot;, &quot;PRIMARY KEY&quot;))]</code></span>
+<span class='src-line'><b> 238</b><code>        tables.append({&quot;name&quot;: match.group(1), &quot;columns&quot;: columns, &quot;line&quot;: db_text[: match.start()].count(&quot;\n&quot;) + 1})</code></span>
+<span class='src-line'><b> 239</b><code>    return tables</code></span>
+<span class='src-line'><b> 240</b><code></code></span>
+<span class='src-line'><b> 241</b><code></code></span>
+<span class='src-line'><b> 242</b><code>def render(</code></span>
+<span class='src-line'><b> 243</b><code>    files: list[SourceFile],</code></span>
+<span class='src-line'><b> 244</b><code>    symbols: list[Symbol],</code></span>
+<span class='src-line'><b> 245</b><code>    prompts: list[Prompt],</code></span>
+<span class='src-line'><b> 246</b><code>    tools: list[dict[str, str]],</code></span>
+<span class='src-line'><b> 247</b><code>    tables: list[dict[str, Any]],</code></span>
+<span class='src-line'><b> 248</b><code>    *,</code></span>
+<span class='src-line'><b> 249</b><code>    commit: str,</code></span>
+<span class='src-line'><b> 250</b><code>) -&gt; str:</code></span>
+<span class='src-line'><b> 251</b><code>    python_files = [source for source in files if source.path.endswith(&quot;.py&quot;)]</code></span>
+<span class='src-line'><b> 252</b><code>    total_lines = sum(len(source.lines) for source in files)</code></span>
+<span class='src-line'><b> 253</b><code>    file_cards = &quot;\n&quot;.join(render_file_card(source, symbols) for source in files)</code></span>
+<span class='src-line'><b> 254</b><code>    source_browser = &quot;\n&quot;.join(render_source_file(source) for source in files)</code></span>
+<span class='src-line'><b> 255</b><code>    symbol_cards = &quot;\n&quot;.join(render_symbol(symbol) for symbol in symbols)</code></span>
+<span class='src-line'><b> 256</b><code>    prompt_cards = &quot;\n&quot;.join(render_prompt(prompt) for prompt in prompts[:80])</code></span>
+<span class='src-line'><b> 257</b><code>    tool_rows = &quot;\n&quot;.join(</code></span>
+<span class='src-line'><b> 258</b><code>        f&quot;&lt;tr&gt;&lt;td&gt;&lt;code&gt;{esc(tool[&#x27;name&#x27;])}&lt;/code&gt;&lt;/td&gt;&lt;td&gt;{esc(tool[&#x27;description&#x27;])}&lt;/td&gt;&lt;td&gt;{tool[&#x27;line&#x27;]}&lt;/td&gt;&lt;/tr&gt;&quot;</code></span>
+<span class='src-line'><b> 259</b><code>        for tool in tools</code></span>
+<span class='src-line'><b> 260</b><code>    )</code></span>
+<span class='src-line'><b> 261</b><code>    table_cards = &quot;\n&quot;.join(render_table(table) for table in tables)</code></span>
+<span class='src-line'><b> 262</b><code>    risk_cards = render_review_points(files, symbols, prompts, tools)</code></span>
+<span class='src-line'><b> 263</b><code>    return f&quot;&quot;&quot;&lt;!doctype html&gt;</code></span>
+<span class='src-line'><b> 264</b><code>&lt;html lang=&quot;en&quot;&gt;</code></span>
+<span class='src-line'><b> 265</b><code>&lt;head&gt;</code></span>
+<span class='src-line'><b> 266</b><code>&lt;meta charset=&quot;utf-8&quot;&gt;</code></span>
+<span class='src-line'><b> 267</b><code>&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1&quot;&gt;</code></span>
+<span class='src-line'><b> 268</b><code>&lt;title&gt;Nipux Project Atlas&lt;/title&gt;</code></span>
+<span class='src-line'><b> 269</b><code>&lt;style&gt;</code></span>
+<span class='src-line'><b> 270</b><code>:root {{</code></span>
+<span class='src-line'><b> 271</b><code>  color-scheme: dark;</code></span>
+<span class='src-line'><b> 272</b><code>  --bg: #080909; --panel: #101112; --panel-2: #151717; --text: #ecebe6;</code></span>
+<span class='src-line'><b> 273</b><code>  --muted: #9b9b96; --faint: #5f615e; --line: #303332; --accent: #9ad6d1;</code></span>
+<span class='src-line'><b> 274</b><code>  --accent-2: #d8d06d; --warn: #ee9b66; --bad: #e36d78; --green: #9fca7f;</code></span>
+<span class='src-line'><b> 275</b><code>  --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;</code></span>
+<span class='src-line'><b> 276</b><code>  --sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;</code></span>
+<span class='src-line'><b> 277</b><code>}}</code></span>
+<span class='src-line'><b> 278</b><code>* {{ box-sizing: border-box; }}</code></span>
+<span class='src-line'><b> 279</b><code>body {{ margin: 0; background: radial-gradient(circle at 70% 0%, rgba(154,214,209,.10), transparent 36%), var(--bg); color: var(--text); font: 15px/1.55 var(--sans); }}</code></span>
+<span class='src-line'><b> 280</b><code>a {{ color: var(--accent); text-decoration: none; }}</code></span>
+<span class='src-line'><b> 281</b><code>a:hover {{ text-decoration: underline; }}</code></span>
+<span class='src-line'><b> 282</b><code>.shell {{ display: grid; grid-template-columns: 292px minmax(0, 1fr); min-height: 100vh; }}</code></span>
+<span class='src-line'><b> 283</b><code>.sidebar {{ position: sticky; top: 0; height: 100vh; overflow: auto; border-right: 1px solid var(--line); padding: 24px 22px; background: rgba(8,9,9,.94); }}</code></span>
+<span class='src-line'><b> 284</b><code>.logo {{ font: 750 22px var(--mono); letter-spacing: .08em; color: var(--accent); }}</code></span>
+<span class='src-line'><b> 285</b><code>.subtitle {{ color: var(--muted); margin: 6px 0 22px; }}</code></span>
+<span class='src-line'><b> 286</b><code>.search {{ width: 100%; background: #050606; border: 1px solid var(--line); color: var(--text); border-radius: 8px; padding: 11px 12px; font: 14px var(--mono); outline: none; }}</code></span>
+<span class='src-line'><b> 287</b><code>.search:focus {{ border-color: var(--accent); box-shadow: 0 0 0 3px rgba(154,214,209,.12); }}</code></span>
+<span class='src-line'><b> 288</b><code>.nav {{ margin: 22px 0; display: grid; gap: 7px; }}</code></span>
+<span class='src-line'><b> 289</b><code>.nav a {{ color: var(--muted); padding: 6px 0; font: 13px var(--mono); text-transform: uppercase; letter-spacing: .12em; }}</code></span>
+<span class='src-line'><b> 290</b><code>.stats {{ margin-top: 24px; display: grid; gap: 10px; }}</code></span>
+<span class='src-line'><b> 291</b><code>.stat {{ border: 1px solid var(--line); background: var(--panel); border-radius: 10px; padding: 12px; }}</code></span>
+<span class='src-line'><b> 292</b><code>.stat b {{ display: block; font: 650 24px/1 var(--mono); }}</code></span>
+<span class='src-line'><b> 293</b><code>.stat span {{ color: var(--muted); font: 12px var(--mono); text-transform: uppercase; letter-spacing: .12em; }}</code></span>
+<span class='src-line'><b> 294</b><code>main {{ min-width: 0; padding: 34px 38px 80px; }}</code></span>
+<span class='src-line'><b> 295</b><code>.hero {{ border-bottom: 1px solid var(--line); padding-bottom: 28px; margin-bottom: 28px; }}</code></span>
+<span class='src-line'><b> 296</b><code>.eyebrow {{ color: var(--accent); font: 12px var(--mono); text-transform: uppercase; letter-spacing: .22em; }}</code></span>
+<span class='src-line'><b> 297</b><code>h1 {{ font-size: clamp(38px, 6vw, 86px); line-height: .9; margin: 14px 0 18px; letter-spacing: -.04em; }}</code></span>
+<span class='src-line'><b> 298</b><code>h2 {{ margin: 0; font-size: 28px; letter-spacing: -.02em; }}</code></span>
+<span class='src-line'><b> 299</b><code>h3 {{ margin: 0 0 6px; font-size: 16px; }}</code></span>
+<span class='src-line'><b> 300</b><code>.lede {{ max-width: 980px; color: #c7c6bf; font-size: 19px; }}</code></span>
+<span class='src-line'><b> 301</b><code>.section {{ margin: 44px 0; scroll-margin-top: 20px; }}</code></span>
+<span class='src-line'><b> 302</b><code>.section &gt; header {{ display: flex; align-items: end; justify-content: space-between; gap: 20px; border-bottom: 1px solid var(--line); margin-bottom: 18px; padding-bottom: 10px; }}</code></span>
+<span class='src-line'><b> 303</b><code>.kicker {{ color: var(--muted); font: 12px var(--mono); text-transform: uppercase; letter-spacing: .16em; }}</code></span>
+<span class='src-line'><b> 304</b><code>.grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }}</code></span>
+<span class='src-line'><b> 305</b><code>.card, .file-card, .prompt, .tool, .db-card, .symbol {{ border: 1px solid var(--line); background: linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.012)); border-radius: 12px; padding: 16px; overflow: hidden; }}</code></span>
+<span class='src-line'><b> 306</b><code>.file-card header, .prompt header, .tool header {{ display: flex; justify-content: space-between; gap: 12px; align-items: baseline; border-bottom: 1px solid rgba(255,255,255,.06); margin: -2px 0 10px; padding-bottom: 8px; }}</code></span>
+<span class='src-line'><b> 307</b><code>.muted, .file-card header span, .prompt header span, .tool header span {{ color: var(--muted); }}</code></span>
+<span class='src-line'><b> 308</b><code>.meta {{ display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }}</code></span>
+<span class='src-line'><b> 309</b><code>.meta span, .pill {{ border: 1px solid var(--line); border-radius: 999px; padding: 2px 8px; color: var(--muted); font: 12px var(--mono); }}</code></span>
+<span class='src-line'><b> 310</b><code>.arch {{ display: grid; grid-template-columns: repeat(3, minmax(210px, 1fr)); gap: 12px; }}</code></span>
+<span class='src-line'><b> 311</b><code>.node {{ text-align: left; min-height: 126px; cursor: pointer; border: 1px solid var(--line); color: var(--text); background: var(--panel); border-radius: 14px; padding: 15px; font: inherit; transition: .15s ease; }}</code></span>
+<span class='src-line'><b> 312</b><code>.node:hover {{ transform: translateY(-2px); border-color: var(--accent); background: var(--panel-2); }}</code></span>
+<span class='src-line'><b> 313</b><code>.node strong {{ display: block; font-size: 17px; }}</code></span>
+<span class='src-line'><b> 314</b><code>.node span {{ display: block; color: var(--accent); font: 12px var(--mono); margin: 4px 0 8px; }}</code></span>
+<span class='src-line'><b> 315</b><code>.node em {{ display: block; color: var(--muted); font-style: normal; }}</code></span>
+<span class='src-line'><b> 316</b><code>.flow {{ counter-reset: flow; display: grid; gap: 10px; padding: 0; list-style: none; }}</code></span>
+<span class='src-line'><b> 317</b><code>.flow li {{ counter-increment: flow; border-left: 2px solid var(--accent); background: var(--panel); padding: 12px 14px 12px 48px; position: relative; border-radius: 8px; }}</code></span>
+<span class='src-line'><b> 318</b><code>.flow li:before {{ content: counter(flow); position: absolute; left: 14px; top: 12px; color: var(--accent-2); font: 700 16px var(--mono); }}</code></span>
+<span class='src-line'><b> 319</b><code>.flow li span {{ display: block; color: var(--muted); }}</code></span>
+<span class='src-line'><b> 320</b><code>details {{ margin-top: 10px; }}</code></span>
+<span class='src-line'><b> 321</b><code>summary {{ cursor: pointer; color: var(--accent); font: 13px var(--mono); }}</code></span>
+<span class='src-line'><b> 322</b><code>table {{ width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }}</code></span>
+<span class='src-line'><b> 323</b><code>th, td {{ text-align: left; border-bottom: 1px solid rgba(255,255,255,.07); padding: 7px 8px; vertical-align: top; }}</code></span>
+<span class='src-line'><b> 324</b><code>th {{ color: var(--muted); font: 12px var(--mono); text-transform: uppercase; letter-spacing: .08em; }}</code></span>
+<span class='src-line'><b> 325</b><code>code, pre {{ font-family: var(--mono); }}</code></span>
+<span class='src-line'><b> 326</b><code>pre {{ max-height: 540px; overflow: auto; background: #050606; border: 1px solid var(--line); border-radius: 10px; padding: 14px; color: #dad8cf; white-space: pre-wrap; }}</code></span>
+<span class='src-line'><b> 327</b><code>.mini-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }}</code></span>
+<span class='src-line'><b> 328</b><code>.symbol p {{ margin: 8px 0; }}</code></span>
+<span class='src-line'><b> 329</b><code>.calls {{ color: var(--muted); }}</code></span>
+<span class='src-line'><b> 330</b><code>.warning {{ border-color: rgba(238,155,102,.45); background: rgba(238,155,102,.08); }}</code></span>
+<span class='src-line'><b> 331</b><code>.hidden {{ display: none !important; }}</code></span>
+<span class='src-line'><b> 332</b><code>.source-list {{ display: grid; gap: 10px; }}</code></span>
+<span class='src-line'><b> 333</b><code>.source-file {{ border: 1px solid var(--line); border-radius: 10px; background: var(--panel); padding: 0 12px 10px; }}</code></span>
+<span class='src-line'><b> 334</b><code>.source-file summary {{ padding: 12px 0; color: var(--text); }}</code></span>
+<span class='src-line'><b> 335</b><code>.source-file summary span {{ color: var(--muted); margin-left: 8px; }}</code></span>
+<span class='src-line'><b> 336</b><code>.source-code {{ max-height: 620px; font-size: 12px; line-height: 1.45; white-space: pre; }}</code></span>
+<span class='src-line'><b> 337</b><code>.src-line {{ display: grid; grid-template-columns: 52px minmax(0, 1fr); min-height: 17px; }}</code></span>
+<span class='src-line'><b> 338</b><code>.src-line b {{ color: var(--faint); user-select: none; font-weight: 500; }}</code></span>
+<span class='src-line'><b> 339</b><code>.src-line code {{ color: #d6d3ca; }}</code></span>
+<span class='src-line'><b> 340</b><code>@media (max-width: 980px) {{ .shell {{ grid-template-columns: 1fr; }} .sidebar {{ position: relative; height: auto; }} main {{ padding: 24px 18px 60px; }} .arch {{ grid-template-columns: 1fr; }} }}</code></span>
+<span class='src-line'><b> 341</b><code>&lt;/style&gt;</code></span>
+<span class='src-line'><b> 342</b><code>&lt;/head&gt;</code></span>
+<span class='src-line'><b> 343</b><code>&lt;body&gt;</code></span>
+<span class='src-line'><b> 344</b><code>&lt;div class=&quot;shell&quot;&gt;</code></span>
+<span class='src-line'><b> 345</b><code>  &lt;aside class=&quot;sidebar&quot;&gt;</code></span>
+<span class='src-line'><b> 346</b><code>    &lt;div class=&quot;logo&quot;&gt;NIPUX ATLAS&lt;/div&gt;</code></span>
+<span class='src-line'><b> 347</b><code>    &lt;div class=&quot;subtitle&quot;&gt;Generated from tracked source on {esc(commit)}.&lt;/div&gt;</code></span>
+<span class='src-line'><b> 348</b><code>    &lt;input id=&quot;search&quot; class=&quot;search&quot; placeholder=&quot;filter files, prompts, tools...&quot; autocomplete=&quot;off&quot;&gt;</code></span>
+<span class='src-line'><b> 349</b><code>    &lt;nav class=&quot;nav&quot;&gt;</code></span>
+<span class='src-line'><b> 350</b><code>      &lt;a href=&quot;#architecture&quot;&gt;Architecture&lt;/a&gt;</code></span>
+<span class='src-line'><b> 351</b><code>      &lt;a href=&quot;#runtime-flow&quot;&gt;Runtime Flow&lt;/a&gt;</code></span>
+<span class='src-line'><b> 352</b><code>      &lt;a href=&quot;#prompts&quot;&gt;Prompt Surfaces&lt;/a&gt;</code></span>
+<span class='src-line'><b> 353</b><code>      &lt;a href=&quot;#tools&quot;&gt;Tool Registry&lt;/a&gt;</code></span>
+<span class='src-line'><b> 354</b><code>      &lt;a href=&quot;#database&quot;&gt;Database&lt;/a&gt;</code></span>
+<span class='src-line'><b> 355</b><code>      &lt;a href=&quot;#files&quot;&gt;Files&lt;/a&gt;</code></span>
+<span class='src-line'><b> 356</b><code>      &lt;a href=&quot;#symbols&quot;&gt;Symbols&lt;/a&gt;</code></span>
+<span class='src-line'><b> 357</b><code>      &lt;a href=&quot;#source-browser&quot;&gt;Source Browser&lt;/a&gt;</code></span>
+<span class='src-line'><b> 358</b><code>      &lt;a href=&quot;#tests&quot;&gt;Tests&lt;/a&gt;</code></span>
+<span class='src-line'><b> 359</b><code>      &lt;a href=&quot;#risks&quot;&gt;Review Points&lt;/a&gt;</code></span>
+<span class='src-line'><b> 360</b><code>    &lt;/nav&gt;</code></span>
+<span class='src-line'><b> 361</b><code>    &lt;div class=&quot;stats&quot;&gt;</code></span>
+<span class='src-line'><b> 362</b><code>      &lt;div class=&quot;stat&quot;&gt;&lt;b&gt;{len(files)}&lt;/b&gt;&lt;span&gt;tracked files&lt;/span&gt;&lt;/div&gt;</code></span>
+<span class='src-line'><b> 363</b><code>      &lt;div class=&quot;stat&quot;&gt;&lt;b&gt;{total_lines:,}&lt;/b&gt;&lt;span&gt;tracked lines mapped&lt;/span&gt;&lt;/div&gt;</code></span>
+<span class='src-line'><b> 364</b><code>      &lt;div class=&quot;stat&quot;&gt;&lt;b&gt;{len(symbols)}&lt;/b&gt;&lt;span&gt;python symbols&lt;/span&gt;&lt;/div&gt;</code></span>
+<span class='src-line'><b> 365</b><code>      &lt;div class=&quot;stat&quot;&gt;&lt;b&gt;{len(tools)}&lt;/b&gt;&lt;span&gt;runtime tools&lt;/span&gt;&lt;/div&gt;</code></span>
+<span class='src-line'><b> 366</b><code>    &lt;/div&gt;</code></span>
+<span class='src-line'><b> 367</b><code>  &lt;/aside&gt;</code></span>
+<span class='src-line'><b> 368</b><code>  &lt;main&gt;</code></span>
+<span class='src-line'><b> 369</b><code>    &lt;section class=&quot;hero&quot;&gt;</code></span>
+<span class='src-line'><b> 370</b><code>      &lt;div class=&quot;eyebrow&quot;&gt;Backend map / prompt audit / source index&lt;/div&gt;</code></span>
+<span class='src-line'><b> 371</b><code>      &lt;h1&gt;Nipux Project Atlas&lt;/h1&gt;</code></span>
+<span class='src-line'><b> 372</b><code>      &lt;p class=&quot;lede&quot;&gt;A self-contained visual map of the current backend: entrypoints, daemon loop, worker prompt assembly, durable memory, tools, SQLite schema, UI control plane, tests, and every tracked source file with parsed functions/classes and line references.&lt;/p&gt;</code></span>
+<span class='src-line'><b> 373</b><code>    &lt;/section&gt;</code></span>
+<span class='src-line'><b> 374</b><code></code></span>
+<span class='src-line'><b> 375</b><code>    &lt;section id=&quot;architecture&quot; class=&quot;section&quot;&gt;</code></span>
+<span class='src-line'><b> 376</b><code>      &lt;header&gt;&lt;div&gt;&lt;div class=&quot;kicker&quot;&gt;Mind map&lt;/div&gt;&lt;h2&gt;Architecture&lt;/h2&gt;&lt;/div&gt;&lt;span class=&quot;muted&quot;&gt;Click a node to jump into related detail.&lt;/span&gt;&lt;/header&gt;</code></span>
+<span class='src-line'><b> 377</b><code>      &lt;div class=&quot;arch&quot;&gt;{architecture_nodes()}&lt;/div&gt;</code></span>
+<span class='src-line'><b> 378</b><code>    &lt;/section&gt;</code></span>
+<span class='src-line'><b> 379</b><code></code></span>
+<span class='src-line'><b> 380</b><code>    &lt;section id=&quot;runtime-flow&quot; class=&quot;section&quot;&gt;</code></span>
+<span class='src-line'><b> 381</b><code>      &lt;header&gt;&lt;div&gt;&lt;div class=&quot;kicker&quot;&gt;Lifecycle&lt;/div&gt;&lt;h2&gt;Runtime Flow&lt;/h2&gt;&lt;/div&gt;&lt;span class=&quot;muted&quot;&gt;What happens from terminal input to durable progress.&lt;/span&gt;&lt;/header&gt;</code></span>
+<span class='src-line'><b> 382</b><code>      &lt;ol class=&quot;flow&quot;&gt;{runtime_flow()}&lt;/ol&gt;</code></span>
+<span class='src-line'><b> 383</b><code>    &lt;/section&gt;</code></span>
+<span class='src-line'><b> 384</b><code></code></span>
+<span class='src-line'><b> 385</b><code>    &lt;section id=&quot;prompts&quot; class=&quot;section&quot;&gt;</code></span>
+<span class='src-line'><b> 386</b><code>      &lt;header&gt;&lt;div&gt;&lt;div class=&quot;kicker&quot;&gt;Exact text&lt;/div&gt;&lt;h2&gt;Prompt Surfaces&lt;/h2&gt;&lt;/div&gt;&lt;span class=&quot;muted&quot;&gt;System/program prompts and instruction-like strings extracted from source.&lt;/span&gt;&lt;/header&gt;</code></span>
+<span class='src-line'><b> 387</b><code>      &lt;div class=&quot;grid&quot;&gt;{prompt_cards}&lt;/div&gt;</code></span>
+<span class='src-line'><b> 388</b><code>    &lt;/section&gt;</code></span>
+<span class='src-line'><b> 389</b><code></code></span>
+<span class='src-line'><b> 390</b><code>    &lt;section id=&quot;tools&quot; class=&quot;section&quot;&gt;</code></span>
+<span class='src-line'><b> 391</b><code>      &lt;header&gt;&lt;div&gt;&lt;div class=&quot;kicker&quot;&gt;Tools&lt;/div&gt;&lt;h2&gt;Tool Registry&lt;/h2&gt;&lt;/div&gt;&lt;span class=&quot;muted&quot;&gt;Static ToolSpec definitions from nipux_cli/tools.py.&lt;/span&gt;&lt;/header&gt;</code></span>
+<span class='src-line'><b> 392</b><code>      &lt;table&gt;&lt;thead&gt;&lt;tr&gt;&lt;th&gt;Name&lt;/th&gt;&lt;th&gt;Description&lt;/th&gt;&lt;th&gt;Line&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;&lt;tbody&gt;{tool_rows}&lt;/tbody&gt;&lt;/table&gt;</code></span>
+<span class='src-line'><b> 393</b><code>    &lt;/section&gt;</code></span>
+<span class='src-line'><b> 394</b><code></code></span>
+<span class='src-line'><b> 395</b><code>    &lt;section id=&quot;database&quot; class=&quot;section&quot;&gt;</code></span>
+<span class='src-line'><b> 396</b><code>      &lt;header&gt;&lt;div&gt;&lt;div class=&quot;kicker&quot;&gt;Persistence&lt;/div&gt;&lt;h2&gt;SQLite Tables&lt;/h2&gt;&lt;/div&gt;&lt;span class=&quot;muted&quot;&gt;CREATE TABLE blocks found in nipux_cli/db.py.&lt;/span&gt;&lt;/header&gt;</code></span>
+<span class='src-line'><b> 397</b><code>      &lt;div class=&quot;grid&quot;&gt;{table_cards}&lt;/div&gt;</code></span>
+<span class='src-line'><b> 398</b><code>    &lt;/section&gt;</code></span>
+<span class='src-line'><b> 399</b><code></code></span>
+<span class='src-line'><b> 400</b><code>    &lt;section id=&quot;files&quot; class=&quot;section&quot;&gt;</code></span>
+<span class='src-line'><b> 401</b><code>      &lt;header&gt;&lt;div&gt;&lt;div class=&quot;kicker&quot;&gt;Source index&lt;/div&gt;&lt;h2&gt;Important Files&lt;/h2&gt;&lt;/div&gt;&lt;span class=&quot;muted&quot;&gt;{len(python_files)} Python modules plus docs/config files.&lt;/span&gt;&lt;/header&gt;</code></span>
+<span class='src-line'><b> 402</b><code>      &lt;div class=&quot;grid&quot;&gt;{file_cards}&lt;/div&gt;</code></span>
+<span class='src-line'><b> 403</b><code>    &lt;/section&gt;</code></span>
+<span class='src-line'><b> 404</b><code></code></span>
+<span class='src-line'><b> 405</b><code>    &lt;section id=&quot;symbols&quot; class=&quot;section&quot;&gt;</code></span>
+<span class='src-line'><b> 406</b><code>      &lt;header&gt;&lt;div&gt;&lt;div class=&quot;kicker&quot;&gt;Functions and classes&lt;/div&gt;&lt;h2&gt;Symbol Map&lt;/h2&gt;&lt;/div&gt;&lt;span class=&quot;muted&quot;&gt;Parsed with Python AST.&lt;/span&gt;&lt;/header&gt;</code></span>
+<span class='src-line'><b> 407</b><code>      &lt;div class=&quot;mini-grid&quot;&gt;{symbol_cards}&lt;/div&gt;</code></span>
+<span class='src-line'><b> 408</b><code>    &lt;/section&gt;</code></span>
+<span class='src-line'><b> 409</b><code></code></span>
+<span class='src-line'><b> 410</b><code>    &lt;section id=&quot;source-browser&quot; class=&quot;section&quot;&gt;</code></span>
+<span class='src-line'><b> 411</b><code>      &lt;header&gt;&lt;div&gt;&lt;div class=&quot;kicker&quot;&gt;Line-by-line&lt;/div&gt;&lt;h2&gt;Source Browser&lt;/h2&gt;&lt;/div&gt;&lt;span class=&quot;muted&quot;&gt;Collapsed raw tracked source so the backend can be inspected directly in this page.&lt;/span&gt;&lt;/header&gt;</code></span>
+<span class='src-line'><b> 412</b><code>      &lt;div class=&quot;source-list&quot;&gt;{source_browser}&lt;/div&gt;</code></span>
+<span class='src-line'><b> 413</b><code>    &lt;/section&gt;</code></span>
+<span class='src-line'><b> 414</b><code></code></span>
+<span class='src-line'><b> 415</b><code>    &lt;section id=&quot;tests&quot; class=&quot;section&quot;&gt;</code></span>
+<span class='src-line'><b> 416</b><code>      &lt;header&gt;&lt;div&gt;&lt;div class=&quot;kicker&quot;&gt;Verification&lt;/div&gt;&lt;h2&gt;Test Coverage Map&lt;/h2&gt;&lt;/div&gt;&lt;span class=&quot;muted&quot;&gt;Test files included in the source index.&lt;/span&gt;&lt;/header&gt;</code></span>
+<span class='src-line'><b> 417</b><code>      &lt;div class=&quot;grid&quot;&gt;{test_cards(files)}&lt;/div&gt;</code></span>
+<span class='src-line'><b> 418</b><code>    &lt;/section&gt;</code></span>
+<span class='src-line'><b> 419</b><code></code></span>
+<span class='src-line'><b> 420</b><code>    &lt;section id=&quot;risks&quot; class=&quot;section&quot;&gt;</code></span>
+<span class='src-line'><b> 421</b><code>      &lt;header&gt;&lt;div&gt;&lt;div class=&quot;kicker&quot;&gt;Audit cues&lt;/div&gt;&lt;h2&gt;Review Points&lt;/h2&gt;&lt;/div&gt;&lt;span class=&quot;muted&quot;&gt;Generated signals for where to inspect next.&lt;/span&gt;&lt;/header&gt;</code></span>
+<span class='src-line'><b> 422</b><code>      &lt;div class=&quot;grid&quot;&gt;{risk_cards}&lt;/div&gt;</code></span>
+<span class='src-line'><b> 423</b><code>    &lt;/section&gt;</code></span>
+<span class='src-line'><b> 424</b><code>  &lt;/main&gt;</code></span>
+<span class='src-line'><b> 425</b><code>&lt;/div&gt;</code></span>
+<span class='src-line'><b> 426</b><code>&lt;script&gt;</code></span>
+<span class='src-line'><b> 427</b><code>const search = document.getElementById(&#x27;search&#x27;);</code></span>
+<span class='src-line'><b> 428</b><code>search?.addEventListener(&#x27;input&#x27;, () =&gt; {{</code></span>
+<span class='src-line'><b> 429</b><code>  const term = search.value.toLowerCase().trim();</code></span>
+<span class='src-line'><b> 430</b><code>  document.querySelectorAll(&#x27;.searchable&#x27;).forEach((node) =&gt; {{</code></span>
+<span class='src-line'><b> 431</b><code>    const hay = (node.getAttribute(&#x27;data-search&#x27;) || node.textContent || &#x27;&#x27;).toLowerCase();</code></span>
+<span class='src-line'><b> 432</b><code>    node.classList.toggle(&#x27;hidden&#x27;, term &amp;&amp; !hay.includes(term));</code></span>
+<span class='src-line'><b> 433</b><code>  }});</code></span>
+<span class='src-line'><b> 434</b><code>}});</code></span>
+<span class='src-line'><b> 435</b><code>document.querySelectorAll(&#x27;.node[data-target]&#x27;).forEach((node) =&gt; {{</code></span>
+<span class='src-line'><b> 436</b><code>  node.addEventListener(&#x27;click&#x27;, () =&gt; {{</code></span>
+<span class='src-line'><b> 437</b><code>    const target = document.getElementById(node.getAttribute(&#x27;data-target&#x27;));</code></span>
+<span class='src-line'><b> 438</b><code>    if (target) target.scrollIntoView({{ behavior: &#x27;smooth&#x27;, block: &#x27;start&#x27; }});</code></span>
+<span class='src-line'><b> 439</b><code>  }});</code></span>
+<span class='src-line'><b> 440</b><code>}});</code></span>
+<span class='src-line'><b> 441</b><code>&lt;/script&gt;</code></span>
+<span class='src-line'><b> 442</b><code>&lt;/body&gt;</code></span>
+<span class='src-line'><b> 443</b><code>&lt;/html&gt;</code></span>
+<span class='src-line'><b> 444</b><code>&quot;&quot;&quot;</code></span>
+<span class='src-line'><b> 445</b><code></code></span>
+<span class='src-line'><b> 446</b><code></code></span>
+<span class='src-line'><b> 447</b><code>def architecture_nodes() -&gt; str:</code></span>
+<span class='src-line'><b> 448</b><code>    nodes = [</code></span>
+<span class='src-line'><b> 449</b><code>        (&quot;cli-tui&quot;, &quot;CLI / TUI&quot;, &quot;nipux_cli/cli.py&quot;, &quot;Chat-first terminal UI, first-run menu, slash commands, job switching, event panes.&quot;),</code></span>
+<span class='src-line'><b> 450</b><code>        (&quot;sqlite-state&quot;, &quot;SQLite state&quot;, &quot;nipux_cli/db.py&quot;, &quot;Jobs, runs, steps, artifacts, events, ledgers, usage, and memory index.&quot;),</code></span>
+<span class='src-line'><b> 451</b><code>        (&quot;daemon&quot;, &quot;Daemon&quot;, &quot;nipux_cli/daemon.py&quot;, &quot;Single-instance forever loop, stale runtime fingerprint, heartbeat, work scheduling.&quot;),</code></span>
+<span class='src-line'><b> 452</b><code>        (&quot;worker-loop&quot;, &quot;Worker loop&quot;, &quot;nipux_cli/worker.py&quot;, &quot;Builds prompts, chooses one tool step, guards loops, records durable progress.&quot;),</code></span>
+<span class='src-line'><b> 453</b><code>        (&quot;llm-adapter&quot;, &quot;LLM adapter&quot;, &quot;nipux_cli/llm.py&quot;, &quot;OpenAI-compatible chat calls, usage/cost tracking, tool call parsing.&quot;),</code></span>
+<span class='src-line'><b> 454</b><code>        (&quot;tool-registry&quot;, &quot;Tool registry&quot;, &quot;nipux_cli/tools.py&quot;, &quot;Browser, web, shell, artifact, ledger, task, experiment, digest tools.&quot;),</code></span>
+<span class='src-line'><b> 455</b><code>        (&quot;browser-web&quot;, &quot;Browser/web&quot;, &quot;nipux_cli/browser.py / web.py&quot;, &quot;Visible browsing, snapshots, search/extract helpers, anti-bot source scoring.&quot;),</code></span>
+<span class='src-line'><b> 456</b><code>        (&quot;artifacts-files&quot;, &quot;Artifacts/files&quot;, &quot;nipux_cli/artifacts.py&quot;, &quot;Saved outputs and concrete workspace file writing.&quot;),</code></span>
+<span class='src-line'><b> 457</b><code>        (&quot;memory&quot;, &quot;Memory&quot;, &quot;compression.py / operator_context.py&quot;, &quot;Compact rolling memory and durable operator context.&quot;),</code></span>
+<span class='src-line'><b> 458</b><code>    ]</code></span>
+<span class='src-line'><b> 459</b><code>    return &quot;&quot;.join(</code></span>
+<span class='src-line'><b> 460</b><code>        f&quot;&lt;button id=&#x27;{esc(anchor)}&#x27; class=&#x27;node searchable&#x27; data-target=&#x27;source-browser&#x27; data-search=&#x27;{esc(title + &#x27; &#x27; + path + &#x27; &#x27; + desc)}&#x27;&gt;&quot;</code></span>
+<span class='src-line'><b> 461</b><code>        f&quot;&lt;strong&gt;{esc(title)}&lt;/strong&gt;&lt;span&gt;{esc(path)}&lt;/span&gt;&lt;em&gt;{esc(desc)}&lt;/em&gt;&lt;/button&gt;&quot;</code></span>
+<span class='src-line'><b> 462</b><code>        for anchor, title, path, desc in nodes</code></span>
+<span class='src-line'><b> 463</b><code>    )</code></span>
+<span class='src-line'><b> 464</b><code></code></span>
+<span class='src-line'><b> 465</b><code></code></span>
+<span class='src-line'><b> 466</b><code>def runtime_flow() -&gt; str:</code></span>
+<span class='src-line'><b> 467</b><code>    steps = [</code></span>
+<span class='src-line'><b> 468</b><code>        (&quot;Startup&quot;, &quot;pyproject entrypoint calls nipux_cli.cli:main. With no args, the chat/TUI opens on the focused job or first-run workspace.&quot;),</code></span>
+<span class='src-line'><b> 469</b><code>        (&quot;Operator input&quot;, &quot;Plain chat is stored as visible events and, when relevant, durable operator context for future worker prompts.&quot;),</code></span>
+<span class='src-line'><b> 470</b><code>        (&quot;Daemon scheduling&quot;, &quot;The daemon claims runnable jobs, keeps a lock/heartbeat, starts runs, and calls one bounded worker step repeatedly.&quot;),</code></span>
+<span class='src-line'><b> 471</b><code>        (&quot;Prompt assembly&quot;, &quot;worker.build_messages layers system prompt, program template, operator context, roadmaps, tasks, ledgers, experiments, memory, timeline, and recent steps.&quot;),</code></span>
+<span class='src-line'><b> 472</b><code>        (&quot;Tool call&quot;, &quot;The LLM selects one OpenAI-style tool. The registry executes it with ToolContext and stores input/output in steps/events.&quot;),</code></span>
+<span class='src-line'><b> 473</b><code>        (&quot;Progress accounting&quot;, &quot;Guards require artifacts, findings, tasks, experiments, or milestone validation when evidence or measurements appear.&quot;),</code></span>
+<span class='src-line'><b> 474</b><code>        (&quot;Persistence&quot;, &quot;Artifacts go to the job output directory. SQLite stores steps, events, ledgers, runtime state, and usage/cost metadata.&quot;),</code></span>
+<span class='src-line'><b> 475</b><code>        (&quot;UI refresh&quot;, &quot;The TUI reads timeline/events and compact job metrics, splitting chat from worker activity and status.&quot;),</code></span>
+<span class='src-line'><b> 476</b><code>    ]</code></span>
+<span class='src-line'><b> 477</b><code>    return &quot;&quot;.join(f&quot;&lt;li&gt;&lt;strong&gt;{esc(title)}&lt;/strong&gt;&lt;span&gt;{esc(body)}&lt;/span&gt;&lt;/li&gt;&quot; for title, body in steps)</code></span>
+<span class='src-line'><b> 478</b><code></code></span>
+<span class='src-line'><b> 479</b><code></code></span>
+<span class='src-line'><b> 480</b><code>def render_file_card(source: SourceFile, symbols: list[Symbol]) -&gt; str:</code></span>
+<span class='src-line'><b> 481</b><code>    local_symbols = [symbol for symbol in symbols if symbol.path == source.path]</code></span>
+<span class='src-line'><b> 482</b><code>    top_names = &quot;, &quot;.join(symbol.name for symbol in local_symbols[:10]) or &quot;none&quot;</code></span>
+<span class='src-line'><b> 483</b><code>    doc = module_doc(source) or source.error or &quot;No module docstring.&quot;</code></span>
+<span class='src-line'><b> 484</b><code>    imports = &quot;, &quot;.join(module_imports(source)[:12]) or &quot;none&quot;</code></span>
+<span class='src-line'><b> 485</b><code>    return f&quot;&quot;&quot;&lt;article class=&quot;file-card searchable&quot; data-search=&quot;{esc(source.path + &#x27; &#x27; + doc + &#x27; &#x27; + top_names)}&quot;&gt;</code></span>
+<span class='src-line'><b> 486</b><code>&lt;header&gt;&lt;h3&gt;{esc(source.path)}&lt;/h3&gt;&lt;span&gt;{len(source.lines)} lines&lt;/span&gt;&lt;/header&gt;</code></span>
+<span class='src-line'><b> 487</b><code>&lt;p&gt;{esc(short(doc, 260))}&lt;/p&gt;</code></span>
+<span class='src-line'><b> 488</b><code>&lt;div class=&quot;meta&quot;&gt;&lt;span&gt;{len(local_symbols)} symbols&lt;/span&gt;&lt;span&gt;{source.text.count(&#x27;TODO&#x27;)} TODOs&lt;/span&gt;&lt;/div&gt;</code></span>
+<span class='src-line'><b> 489</b><code>&lt;details&gt;&lt;summary&gt;Imports and top symbols&lt;/summary&gt;&lt;p&gt;&lt;strong&gt;Imports:&lt;/strong&gt; {esc(imports)}&lt;/p&gt;&lt;p&gt;&lt;strong&gt;Symbols:&lt;/strong&gt; {esc(top_names)}&lt;/p&gt;&lt;/details&gt;</code></span>
+<span class='src-line'><b> 490</b><code>&lt;/article&gt;&quot;&quot;&quot;</code></span>
+<span class='src-line'><b> 491</b><code></code></span>
+<span class='src-line'><b> 492</b><code></code></span>
+<span class='src-line'><b> 493</b><code>def module_doc(source: SourceFile) -&gt; str:</code></span>
+<span class='src-line'><b> 494</b><code>    if source.tree is None:</code></span>
+<span class='src-line'><b> 495</b><code>        for line in source.lines:</code></span>
+<span class='src-line'><b> 496</b><code>            stripped = line.strip()</code></span>
+<span class='src-line'><b> 497</b><code>            if stripped and not stripped.startswith(&quot;#&quot;):</code></span>
+<span class='src-line'><b> 498</b><code>                return stripped</code></span>
+<span class='src-line'><b> 499</b><code>        return &quot;&quot;</code></span>
+<span class='src-line'><b> 500</b><code>    return ast.get_docstring(source.tree) or &quot;&quot;</code></span>
+<span class='src-line'><b> 501</b><code></code></span>
+<span class='src-line'><b> 502</b><code></code></span>
+<span class='src-line'><b> 503</b><code>def module_imports(source: SourceFile) -&gt; list[str]:</code></span>
+<span class='src-line'><b> 504</b><code>    if source.tree is None:</code></span>
+<span class='src-line'><b> 505</b><code>        return []</code></span>
+<span class='src-line'><b> 506</b><code>    names: list[str] = []</code></span>
+<span class='src-line'><b> 507</b><code>    for node in source.tree.body:</code></span>
+<span class='src-line'><b> 508</b><code>        if isinstance(node, ast.Import):</code></span>
+<span class='src-line'><b> 509</b><code>            names.extend(alias.name for alias in node.names)</code></span>
+<span class='src-line'><b> 510</b><code>        elif isinstance(node, ast.ImportFrom):</code></span>
+<span class='src-line'><b> 511</b><code>            module = &quot;.&quot; * node.level + (node.module or &quot;&quot;)</code></span>
+<span class='src-line'><b> 512</b><code>            names.append(module)</code></span>
+<span class='src-line'><b> 513</b><code>    return names</code></span>
+<span class='src-line'><b> 514</b><code></code></span>
+<span class='src-line'><b> 515</b><code></code></span>
+<span class='src-line'><b> 516</b><code>def render_source_file(source: SourceFile) -&gt; str:</code></span>
+<span class='src-line'><b> 517</b><code>    code = &quot;\n&quot;.join(</code></span>
+<span class='src-line'><b> 518</b><code>        f&quot;&lt;span class=&#x27;src-line&#x27;&gt;&lt;b&gt;{index:&gt;4}&lt;/b&gt;&lt;code&gt;{esc(line)}&lt;/code&gt;&lt;/span&gt;&quot;</code></span>
+<span class='src-line'><b> 519</b><code>        for index, line in enumerate(source.lines, start=1)</code></span>
+<span class='src-line'><b> 520</b><code>    )</code></span>
+<span class='src-line'><b> 521</b><code>    return f&quot;&quot;&quot;&lt;details class=&quot;source-file searchable&quot; data-search=&quot;{esc(source.path + &#x27; &#x27; + source.text[:4000])}&quot;&gt;</code></span>
+<span class='src-line'><b> 522</b><code>&lt;summary&gt;{esc(source.path)} &lt;span&gt;{len(source.lines)} lines&lt;/span&gt;&lt;/summary&gt;</code></span>
+<span class='src-line'><b> 523</b><code>&lt;pre class=&quot;source-code&quot;&gt;{code}&lt;/pre&gt;</code></span>
+<span class='src-line'><b> 524</b><code>&lt;/details&gt;&quot;&quot;&quot;</code></span>
+<span class='src-line'><b> 525</b><code></code></span>
+<span class='src-line'><b> 526</b><code></code></span>
+<span class='src-line'><b> 527</b><code>def render_symbol(symbol: Symbol) -&gt; str:</code></span>
+<span class='src-line'><b> 528</b><code>    doc = short(symbol.doc or &quot;No docstring.&quot;, 180)</code></span>
+<span class='src-line'><b> 529</b><code>    calls = &quot;, &quot;.join(symbol.calls) or &quot;none&quot;</code></span>
+<span class='src-line'><b> 530</b><code>    return f&quot;&quot;&quot;&lt;article class=&quot;symbol searchable&quot; data-search=&quot;{esc(symbol.path + &#x27; &#x27; + symbol.name + &#x27; &#x27; + doc + &#x27; &#x27; + calls)}&quot;&gt;</code></span>
+<span class='src-line'><b> 531</b><code>&lt;h3&gt;{esc(symbol.name)}&lt;/h3&gt;</code></span>
+<span class='src-line'><b> 532</b><code>&lt;p&gt;&lt;span class=&quot;pill&quot;&gt;{esc(symbol.kind)}&lt;/span&gt; &lt;span class=&quot;pill&quot;&gt;{esc(symbol.path)}:{symbol.line}&lt;/span&gt;&lt;/p&gt;</code></span>
+<span class='src-line'><b> 533</b><code>&lt;p&gt;{esc(doc)}&lt;/p&gt;</code></span>
+<span class='src-line'><b> 534</b><code>&lt;p class=&quot;calls&quot;&gt;&lt;strong&gt;Calls:&lt;/strong&gt; {esc(short(calls, 280))}&lt;/p&gt;</code></span>
+<span class='src-line'><b> 535</b><code>&lt;/article&gt;&quot;&quot;&quot;</code></span>
+<span class='src-line'><b> 536</b><code></code></span>
+<span class='src-line'><b> 537</b><code></code></span>
+<span class='src-line'><b> 538</b><code>def render_prompt(prompt: Prompt) -&gt; str:</code></span>
+<span class='src-line'><b> 539</b><code>    title = prompt.name or &quot;prompt&quot;</code></span>
+<span class='src-line'><b> 540</b><code>    return f&quot;&quot;&quot;&lt;article class=&quot;prompt searchable&quot; data-search=&quot;{esc(prompt.path + &#x27; &#x27; + title + &#x27; &#x27; + prompt.text)}&quot;&gt;</code></span>
+<span class='src-line'><b> 541</b><code>&lt;header&gt;&lt;h3&gt;{esc(title)}&lt;/h3&gt;&lt;span&gt;{esc(prompt.path)}:{prompt.line}&lt;/span&gt;&lt;/header&gt;</code></span>
+<span class='src-line'><b> 542</b><code>&lt;p class=&quot;muted&quot;&gt;Context: &lt;code&gt;{esc(prompt.context)}&lt;/code&gt; · {len(prompt.text):,} chars&lt;/p&gt;</code></span>
+<span class='src-line'><b> 543</b><code>&lt;pre&gt;&lt;code&gt;{esc(prompt.text)}&lt;/code&gt;&lt;/pre&gt;</code></span>
+<span class='src-line'><b> 544</b><code>&lt;/article&gt;&quot;&quot;&quot;</code></span>
+<span class='src-line'><b> 545</b><code></code></span>
+<span class='src-line'><b> 546</b><code></code></span>
+<span class='src-line'><b> 547</b><code>def render_table(table: dict[str, Any]) -&gt; str:</code></span>
+<span class='src-line'><b> 548</b><code>    columns = &quot;&quot;.join(f&quot;&lt;li&gt;&lt;code&gt;{esc(column)}&lt;/code&gt;&lt;/li&gt;&quot; for column in table[&quot;columns&quot;][:40])</code></span>
+<span class='src-line'><b> 549</b><code>    return f&quot;&quot;&quot;&lt;article class=&quot;db-card searchable&quot; data-search=&quot;{esc(table[&#x27;name&#x27;] + &#x27; &#x27; + &#x27; &#x27;.join(table[&#x27;columns&#x27;]))}&quot;&gt;</code></span>
+<span class='src-line'><b> 550</b><code>&lt;h3&gt;{esc(table[&#x27;name&#x27;])}&lt;/h3&gt;</code></span>
+<span class='src-line'><b> 551</b><code>&lt;p class=&quot;muted&quot;&gt;nipux_cli/db.py:{table[&#x27;line&#x27;]}&lt;/p&gt;</code></span>
+<span class='src-line'><b> 552</b><code>&lt;ul&gt;{columns}&lt;/ul&gt;</code></span>
+<span class='src-line'><b> 553</b><code>&lt;/article&gt;&quot;&quot;&quot;</code></span>
+<span class='src-line'><b> 554</b><code></code></span>
+<span class='src-line'><b> 555</b><code></code></span>
+<span class='src-line'><b> 556</b><code>def test_cards(files: list[SourceFile]) -&gt; str:</code></span>
+<span class='src-line'><b> 557</b><code>    tests = [source for source in files if source.path.startswith(&quot;tests/&quot;)]</code></span>
+<span class='src-line'><b> 558</b><code>    cards = []</code></span>
+<span class='src-line'><b> 559</b><code>    for source in tests:</code></span>
+<span class='src-line'><b> 560</b><code>        names = []</code></span>
+<span class='src-line'><b> 561</b><code>        if source.tree:</code></span>
+<span class='src-line'><b> 562</b><code>            names = [node.name for node in ast.walk(source.tree) if isinstance(node, ast.FunctionDef) and node.name.startswith(&quot;test_&quot;)]</code></span>
+<span class='src-line'><b> 563</b><code>        cards.append(</code></span>
+<span class='src-line'><b> 564</b><code>            f&quot;&quot;&quot;&lt;article class=&quot;test-card searchable&quot; data-search=&quot;{esc(source.path + &#x27; &#x27; + &#x27; &#x27;.join(names))}&quot;&gt;</code></span>
+<span class='src-line'><b> 565</b><code>&lt;h3&gt;{esc(source.path)}&lt;/h3&gt;&lt;p&gt;&lt;strong&gt;{len(names)}&lt;/strong&gt; tests · {len(source.lines)} lines&lt;/p&gt;</code></span>
+<span class='src-line'><b> 566</b><code>&lt;p class=&quot;muted&quot;&gt;{esc(short(&#x27;, &#x27;.join(names), 320))}&lt;/p&gt;&lt;/article&gt;&quot;&quot;&quot;</code></span>
+<span class='src-line'><b> 567</b><code>        )</code></span>
+<span class='src-line'><b> 568</b><code>    return &quot;\n&quot;.join(cards)</code></span>
+<span class='src-line'><b> 569</b><code></code></span>
+<span class='src-line'><b> 570</b><code></code></span>
+<span class='src-line'><b> 571</b><code>def render_review_points(</code></span>
+<span class='src-line'><b> 572</b><code>    files: list[SourceFile],</code></span>
+<span class='src-line'><b> 573</b><code>    symbols: list[Symbol],</code></span>
+<span class='src-line'><b> 574</b><code>    prompts: list[Prompt],</code></span>
+<span class='src-line'><b> 575</b><code>    tools: list[dict[str, str]],</code></span>
+<span class='src-line'><b> 576</b><code>) -&gt; str:</code></span>
+<span class='src-line'><b> 577</b><code>    largest = sorted(files, key=lambda source: len(source.lines), reverse=True)[:5]</code></span>
+<span class='src-line'><b> 578</b><code>    large_text = &quot;, &quot;.join(f&quot;{source.path} ({len(source.lines)} lines)&quot; for source in largest)</code></span>
+<span class='src-line'><b> 579</b><code>    prompt_text = f&quot;{len(prompts)} prompt/instruction-like strings were extracted. Inspect this section after any agent-behavior change.&quot;</code></span>
+<span class='src-line'><b> 580</b><code>    tool_text = f&quot;{len(tools)} tools are exposed to the worker. Review descriptions whenever generic behavior changes.&quot;</code></span>
+<span class='src-line'><b> 581</b><code>    symbol_text = f&quot;{len(symbols)} symbols were parsed. Large modules are candidates for refactoring once behavior stabilizes.&quot;</code></span>
+<span class='src-line'><b> 582</b><code>    cards = [</code></span>
+<span class='src-line'><b> 583</b><code>        (&quot;Large modules&quot;, large_text),</code></span>
+<span class='src-line'><b> 584</b><code>        (&quot;Prompt surfaces&quot;, prompt_text),</code></span>
+<span class='src-line'><b> 585</b><code>        (&quot;Tool surface&quot;, tool_text),</code></span>
+<span class='src-line'><b> 586</b><code>        (&quot;Symbol map&quot;, symbol_text),</code></span>
+<span class='src-line'><b> 587</b><code>    ]</code></span>
+<span class='src-line'><b> 588</b><code>    return &quot;\n&quot;.join(</code></span>
+<span class='src-line'><b> 589</b><code>        f&quot;&lt;article class=&#x27;card warning searchable&#x27; data-search=&#x27;{esc(title + &#x27; &#x27; + body)}&#x27;&gt;&lt;h3&gt;{esc(title)}&lt;/h3&gt;&lt;p&gt;{esc(body)}&lt;/p&gt;&lt;/article&gt;&quot;</code></span>
+<span class='src-line'><b> 590</b><code>        for title, body in cards</code></span>
+<span class='src-line'><b> 591</b><code>    )</code></span>
+<span class='src-line'><b> 592</b><code></code></span>
+<span class='src-line'><b> 593</b><code></code></span>
+<span class='src-line'><b> 594</b><code>def short(text: str, limit: int) -&gt; str:</code></span>
+<span class='src-line'><b> 595</b><code>    clean = &quot; &quot;.join(str(text).split())</code></span>
+<span class='src-line'><b> 596</b><code>    if len(clean) &lt;= limit:</code></span>
+<span class='src-line'><b> 597</b><code>        return clean</code></span>
+<span class='src-line'><b> 598</b><code>    return clean[: max(0, limit - 3)] + &quot;...&quot;</code></span>
+<span class='src-line'><b> 599</b><code></code></span>
+<span class='src-line'><b> 600</b><code></code></span>
+<span class='src-line'><b> 601</b><code>def esc(value: Any) -&gt; str:</code></span>
+<span class='src-line'><b> 602</b><code>    return html.escape(str(value), quote=True)</code></span>
+<span class='src-line'><b> 603</b><code></code></span>
+<span class='src-line'><b> 604</b><code></code></span>
+<span class='src-line'><b> 605</b><code>if __name__ == &quot;__main__&quot;:</code></span>
+<span class='src-line'><b> 606</b><code>    main()</code></span></pre>
+</details>
 <details class="source-file searchable" data-search="tests/nipux_cli/test_artifacts.py import pytest
 
 from nipux_cli.artifacts import ArtifactStore
@@ -33250,9 +34199,9 @@ class AntiBotBrowserRegistry:
     <section id="risks" class="section">
       <header><div><div class="kicker">Audit cues</div><h2>Review Points</h2></div><span class="muted">Generated signals for where to inspect next.</span></header>
       <div class="grid"><article class='card warning searchable' data-search='Large modules nipux_cli/cli.py (6387 lines), nipux_cli/worker.py (3081 lines), tests/nipux_cli/test_worker.py (2440 lines), nipux_cli/db.py (2396 lines), tests/nipux_cli/test_cli.py (1546 lines)'><h3>Large modules</h3><p>nipux_cli/cli.py (6387 lines), nipux_cli/worker.py (3081 lines), tests/nipux_cli/test_worker.py (2440 lines), nipux_cli/db.py (2396 lines), tests/nipux_cli/test_cli.py (1546 lines)</p></article>
-<article class='card warning searchable' data-search='Prompt surfaces 11 prompt/instruction-like strings were extracted. Inspect this section after any agent-behavior change.'><h3>Prompt surfaces</h3><p>11 prompt/instruction-like strings were extracted. Inspect this section after any agent-behavior change.</p></article>
+<article class='card warning searchable' data-search='Prompt surfaces 12 prompt/instruction-like strings were extracted. Inspect this section after any agent-behavior change.'><h3>Prompt surfaces</h3><p>12 prompt/instruction-like strings were extracted. Inspect this section after any agent-behavior change.</p></article>
 <article class='card warning searchable' data-search='Tool surface 26 tools are exposed to the worker. Review descriptions whenever generic behavior changes.'><h3>Tool surface</h3><p>26 tools are exposed to the worker. Review descriptions whenever generic behavior changes.</p></article>
-<article class='card warning searchable' data-search='Symbol map 951 symbols were parsed. Large modules are candidates for refactoring once behavior stabilizes.'><h3>Symbol map</h3><p>951 symbols were parsed. Large modules are candidates for refactoring once behavior stabilizes.</p></article></div>
+<article class='card warning searchable' data-search='Symbol map 982 symbols were parsed. Large modules are candidates for refactoring once behavior stabilizes.'><h3>Symbol map</h3><p>982 symbols were parsed. Large modules are candidates for refactoring once behavior stabilizes.</p></article></div>
     </section>
   </main>
 </div>
