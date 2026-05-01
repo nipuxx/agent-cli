@@ -3,6 +3,7 @@ import json
 from nipux_cli.artifacts import ArtifactStore
 from nipux_cli import __version__
 from nipux_cli.chat_frame_runtime import frame_next_job_id as _frame_next_job_id
+from nipux_cli.chat_frame_runtime import frame_refresh_interval as _frame_refresh_interval
 from nipux_cli.cli import (
     _build_first_run_frame,
     _build_chat_frame,
@@ -392,6 +393,10 @@ def test_frame_next_job_cycles_jobs():
     assert _frame_next_job_id(snapshot, "one", direction=1) == "two"
     assert _frame_next_job_id(snapshot, "one", direction=-1) == "three"
     assert _frame_next_job_id(snapshot, "missing", direction=1) == "two"
+
+
+def test_frame_refresh_slows_background_updates_while_typing():
+    assert _frame_refresh_interval("") < _frame_refresh_interval("drafting a message")
 
 
 def test_chat_help_has_config_slash_commands_without_settings_page(monkeypatch, tmp_path, capsys):
@@ -1531,13 +1536,19 @@ def test_chat_status_page_shows_job_outputs():
             {"id": "job_other", "title": "other job", "status": "queued", "kind": "generic", "metadata": {}},
         ],
         "steps": [],
-        "artifacts": [{"id": "art_demo", "title": "Primary Saved Draft"}],
+        "artifacts": [
+            {"id": "art_demo", "title": "Primary Saved Draft"},
+            {"id": "art_second", "title": "Secondary Saved Note"},
+        ],
         "job_artifacts": {
-            "job_demo": [{"id": "art_demo", "title": "Primary Saved Draft"}],
+            "job_demo": [
+                {"id": "art_demo", "title": "Primary Saved Draft"},
+                {"id": "art_second", "title": "Secondary Saved Note"},
+            ],
             "job_other": [{"id": "art_other", "title": "Other Job Deliverable"}],
         },
         "job_counts": {
-            "job_demo": {"artifacts": 1},
+            "job_demo": {"artifacts": 2},
             "job_other": {"artifacts": 4},
         },
         "job_summary_events": {
@@ -1566,11 +1577,13 @@ def test_chat_status_page_shows_job_outputs():
     assert "1 findings" in frame
     assert "Outcome" in frame
     assert "Latest durable milestone" in frame
+    assert "2 outputs" in frame
     assert "Primary Saved Draft" in frame
+    assert "Secondary Saved Note" in frame
     assert "Primary quality check" in frame
+    assert "4 outputs" in frame
     assert "Other Job Deliverable" in frame
     assert "Other job durable finding" in frame
-    assert "4x" in frame
 
 
 def test_frame_snapshot_keeps_summary_events_durable(monkeypatch, tmp_path):

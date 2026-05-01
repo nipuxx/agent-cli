@@ -61,6 +61,7 @@ from nipux_cli.worker_policy import (
     SYSTEM_PROMPT,
     TASK_DELIVERABLE_ACTION_TERMS,
     TASK_QUEUE_SATURATION_OPEN_TASKS,
+    TASK_QUEUE_TOTAL_SOFT_LIMIT,
     TEXT_TOKEN_STOPWORDS,
 )
 from nipux_cli.worker_prompt_context import (
@@ -522,8 +523,6 @@ def _task_queue_exhausted(job: dict[str, Any]) -> bool:
 def _task_queue_saturation_context(job: dict[str, Any], args: dict[str, Any]) -> dict[str, Any] | None:
     tasks = _metadata_list(job, "task_queue")
     open_tasks = [task for task in tasks if str(task.get("status") or "open").strip().lower() in {"open", "active"}]
-    if len(open_tasks) < TASK_QUEUE_SATURATION_OPEN_TASKS:
-        return None
     incoming = args.get("tasks") if isinstance(args.get("tasks"), list) else []
     if not incoming:
         return None
@@ -532,20 +531,34 @@ def _task_queue_saturation_context(job: dict[str, Any], args: dict[str, Any]) ->
         for task in tasks
     }
     new_open_titles = []
+    new_titles = []
     for task in incoming:
         if not isinstance(task, dict):
             continue
         status = str(task.get("status") or "open").strip().lower().replace(" ", "_")
-        if status not in {"open", "active"}:
-            continue
         key = _norm_task_key(str(task.get("parent") or ""), str(task.get("title") or ""))
         if key not in existing_keys:
+            new_titles.append(str(task.get("title") or "").strip())
+        if status in {"open", "active"} and key not in existing_keys:
             new_open_titles.append(str(task.get("title") or "").strip())
+    if len(tasks) >= TASK_QUEUE_TOTAL_SOFT_LIMIT and new_titles:
+        return {
+            "reason": "total task queue is too large",
+            "total_count": len(tasks),
+            "total_threshold": TASK_QUEUE_TOTAL_SOFT_LIMIT,
+            "open_count": len(open_tasks),
+            "new_count": len(new_titles),
+            "new_titles": new_titles[:8],
+        }
+    if len(open_tasks) < TASK_QUEUE_SATURATION_OPEN_TASKS:
+        return None
     if not new_open_titles:
         return None
     return {
+        "reason": "too many open tasks",
         "open_count": len(open_tasks),
-        "threshold": TASK_QUEUE_SATURATION_OPEN_TASKS,
+        "open_threshold": TASK_QUEUE_SATURATION_OPEN_TASKS,
+        "total_count": len(tasks),
         "new_open_count": len(new_open_titles),
         "new_open_titles": new_open_titles[:8],
     }
@@ -1145,12 +1158,12 @@ def _blocked_tool_call_result(
                 "blocked_arguments": args,
                 "task_queue": saturated,
                 "guidance": (
-                    "The durable task queue already has many open branches. Do not create more open tasks. "
-                    "Choose an existing high-priority task and execute it, or update existing tasks to active, "
-                    "done, blocked, or skipped."
+                    "The durable task queue already has many branches. Do not create more branch sprawl. "
+                    "Choose an existing high-priority task and execute it, update existing tasks to active, "
+                    "done, blocked, or skipped, or consolidate the queue into roadmap/milestone state."
                 ),
             }
-            return result, f"blocked record_tasks; {saturated['open_count']} open tasks already"
+            return result, f"blocked record_tasks; {saturated['reason']}"
 
     duplicate_step = _duplicate_recent_tool_call(name, args, recent_steps)
     if duplicate_step:

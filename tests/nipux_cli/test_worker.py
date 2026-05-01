@@ -2693,6 +2693,41 @@ def test_run_one_step_blocks_new_tasks_when_queue_is_saturated(tmp_path):
         db.close()
 
 
+def test_run_one_step_blocks_new_tasks_when_queue_sprawls(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job(
+            "Consolidate long-running work",
+            title="task-sprawl",
+            kind="generic",
+            metadata={
+                "task_queue": [
+                    {"title": f"Completed branch {index}", "status": "done", "priority": index}
+                    for index in range(80)
+                ]
+            },
+        )
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(name="record_tasks", arguments={"tasks": [{"title": "New branch", "status": "open"}]})
+                ])
+            ]),
+        )
+
+        assert result.status == "blocked"
+        assert result.result["error"] == "task queue saturated"
+        assert result.result["task_queue"]["reason"] == "total task queue is too large"
+        assert result.result["task_queue"]["total_count"] == 80
+    finally:
+        db.close()
+
+
 def test_run_one_step_allows_existing_task_update_when_queue_is_saturated(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

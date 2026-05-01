@@ -228,6 +228,7 @@ def frame_jobs_lines(
                 counts=(job_counts or {}).get(item_id) or {},
                 events=(job_summary_events or {}).get(item_id) or [],
                 width=width,
+                focused=item_id == focused_job_id,
             ))
     return rendered
 
@@ -238,22 +239,39 @@ def _job_compact_work_lines(
     counts: dict[str, Any],
     events: list[dict[str, Any]],
     width: int,
+    focused: bool = False,
 ) -> list[str]:
     lines: list[str] = []
     if outputs:
         latest = outputs[0]
         output_total = int(counts.get("artifacts") or len(outputs))
-        count_prefix = f"{output_total}x " if output_total > 1 else ""
-        title_budget = max(12, width - 11 - len(count_prefix))
+        output_count = f"{output_total} outputs" if output_total != 1 else "1 output"
+        title_budget = max(12, width - 13 - len(output_count))
         output_title = _one_line(str(latest.get("title") or latest.get("id") or "saved output"), title_budget)
-        lines.append(_fit_ansi(f"   {_muted('out')}  {count_prefix}{output_title}", width))
-    outcome = _job_latest_non_output_piece(events, width=max(12, width - 8), skip_save=bool(outputs))
-    if outcome:
-        lines.append(_fit_ansi("   " + outcome, width))
+        lines.append(_fit_ansi(f"   {_muted('made')} {_bold(output_count)} · {output_title}", width))
+        if focused and len(outputs) > 1 and width >= 42:
+            second = outputs[1]
+            second_title = _one_line(str(second.get("title") or second.get("id") or "saved output"), max(12, width - 10))
+            lines.append(_fit_ansi(f"   {_muted('also')} {second_title}", width))
+    for outcome in _job_recent_non_output_pieces(
+        events,
+        width=max(12, width - 10),
+        skip_save=bool(outputs),
+        limit=2 if focused else 1,
+    ):
+        lines.append(_fit_ansi(f"   {_muted('did')}  {outcome}", width))
     return lines
 
 
-def _job_latest_non_output_piece(events: list[dict[str, Any]], *, width: int, skip_save: bool) -> str:
+def _job_recent_non_output_pieces(
+    events: list[dict[str, Any]],
+    *,
+    width: int,
+    skip_save: bool,
+    limit: int,
+) -> list[str]:
+    pieces: list[str] = []
+    seen: set[str] = set()
     for event in reversed(events):
         parsed = model_update_event_parts(event, width=max(width, 120))
         if not parsed:
@@ -264,8 +282,15 @@ def _job_latest_non_output_piece(events: list[dict[str, Any]], *, width: int, sk
         if skip_save and label == "SAVE":
             continue
         prefix = _compact_outcome_label(label)
-        return f"{_muted(prefix)} {_one_line(text, max(12, width - len(prefix) - 1))}"
-    return ""
+        piece = f"{_muted(prefix)} {_one_line(text, max(12, width - len(prefix) - 1))}"
+        dedupe_key = _one_line(f"{prefix} {text}", 120)
+        if dedupe_key in seen:
+            continue
+        seen.add(dedupe_key)
+        pieces.append(piece)
+        if len(pieces) >= max(1, limit):
+            break
+    return pieces
 
 
 def _compact_outcome_label(label: str) -> str:

@@ -23,6 +23,10 @@ from nipux_cli.tui_outcomes import CHAT_RIGHT_PAGES
 from nipux_cli.tui_style import _frame_enter_sequence, _frame_exit_sequence, _one_line, _strip_ansi
 
 
+IDLE_REFRESH_SECONDS = 0.75
+ACTIVE_INPUT_REFRESH_SECONDS = 2.0
+
+
 @dataclass(frozen=True)
 class ChatFrameDeps:
     load_snapshot: Callable[[str, int], dict[str, Any]]
@@ -67,6 +71,10 @@ def next_chat_right_view(current: str, direction: int) -> str:
     return keys[(index + direction) % len(keys)]
 
 
+def frame_refresh_interval(input_buffer: str) -> float:
+    return ACTIVE_INPUT_REFRESH_SECONDS if input_buffer else IDLE_REFRESH_SECONDS
+
+
 def run_chat_frame(job_id: str, *, history_limit: int, deps: ChatFrameDeps) -> None:
     deps.write_shell_state({"focus_job_id": job_id})
     buffer = ""
@@ -86,7 +94,7 @@ def run_chat_frame(job_id: str, *, history_limit: int, deps: ChatFrameDeps) -> N
         last_frame = ""
         while True:
             now = time.monotonic()
-            if now - last_snapshot >= 0.75:
+            if now - last_snapshot >= frame_refresh_interval(buffer):
                 try:
                     snapshot = deps.load_snapshot(job_id, history_limit)
                     job_id = str(snapshot["job_id"])
