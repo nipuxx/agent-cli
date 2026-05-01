@@ -64,6 +64,15 @@ from nipux_cli.first_run_tui import (
     build_first_run_frame as _build_first_run_tui_frame,
     first_run_columns as _first_run_columns,
 )
+from nipux_cli.first_run_controller import (
+    FirstRunFrameDeps,
+    capture_first_run_command as _controller_capture_first_run_command,
+    create_first_run_job as _controller_create_first_run_job,
+    first_run_chat_reply as _controller_first_run_chat_reply,
+    first_token as _controller_first_token,
+    handle_first_run_action as _controller_handle_first_run_action,
+    handle_first_run_frame_line as _controller_handle_first_run_frame_line,
+)
 from nipux_cli.event_render import (
     event_display_parts as _event_display_parts,
     event_line as _event_line,
@@ -77,7 +86,6 @@ from nipux_cli.planning import (
 )
 from nipux_cli.templates import program_for_job
 from nipux_cli.tui_commands import (
-    CHAT_SETTING_COMMANDS,
     CHAT_SLASH_COMMANDS,
     FIRST_RUN_ACTIONS,
     FIRST_RUN_SLASH_COMMANDS,
@@ -550,11 +558,7 @@ def _first_run_create_and_open(objective: str, *, history_limit: int = 12) -> No
 
 
 def _first_token(line: str) -> str:
-    try:
-        parts = shlex.split(line)
-    except ValueError:
-        parts = line.split()
-    return parts[0].lower() if parts else ""
+    return _controller_first_token(line)
 
 
 def _enter_first_run_frame(*, history_limit: int = 12) -> None:
@@ -731,23 +735,7 @@ def _clamp_first_run_selection(selected: int, view: str) -> int:
 
 
 def _handle_first_run_action(action: str) -> tuple[str, str | list[str] | None]:
-    if action.startswith("edit:"):
-        return "edit", action.split(":", 1)[1]
-    if action.startswith("secret:"):
-        return "edit", action
-    if action == "new":
-        return "notice", "Type the goal in the input line, then press Enter."
-    if action == "back":
-        return "view", "start"
-    if action == "jobs":
-        return "notice", _capture_first_run_command("jobs")
-    if action == "doctor":
-        return "notice", _capture_first_run_command("doctor")
-    if action == "init":
-        return "notice", _capture_first_run_command("init")
-    if action == "exit":
-        return "exit", None
-    return "notice", f"Unknown action: {action}"
+    return _controller_handle_first_run_action(action, deps=_first_run_frame_deps())
 
 
 def _first_run_click_action(x: int, y: int, *, view: str) -> int | None:
@@ -784,81 +772,30 @@ def _chat_page_click(x: int, y: int, *, right_view: str) -> str | None:
 
 
 def _handle_first_run_frame_line(line: str) -> tuple[str, str | list[str] | None]:
-    original = line.strip()
-    if original.startswith("/"):
-        original = original[1:].strip()
-    lowered = original.lower()
-    if lowered in {"exit", "quit", ":q", "5"}:
-        return "exit", None
-    if lowered in {"clear"}:
-        return "clear", None
-    if lowered in {"help", "?", "commands"}:
-        return "notice", [
-            "Talk normally here, or ask Nipux to create a job with a concrete goal.",
-            "Use the right pane for jobs, setup checks, and exit.",
-            "When a job exists, the left pane becomes its chat and output stream.",
-        ]
-    if lowered in {"1", "new"}:
-        return "notice", "Type `new OBJECTIVE` or paste the objective directly."
-    if lowered.startswith("new "):
-        return "open", _create_first_run_job(original[4:].strip())
-    if lowered in {"2", "jobs", "ls"}:
-        return "notice", _capture_first_run_command("jobs")
-    if lowered == "settings":
-        return "notice", "Config is changed with slash commands: /model, /api-key, /base-url, /context."
-    if lowered in {"back"}:
-        return "view", "start"
-    if lowered in {"3", "doctor"}:
-        return "notice", _capture_first_run_command("doctor")
-    if lowered in {"4", "init"}:
-        return "notice", _capture_first_run_command("init")
-    if lowered == "shell":
-        return "notice", "The old console is only available as `nipux shell` from your terminal."
-    first = _first_token(original)
-    if first == "shell":
-        return "notice", "The old console is only available as `nipux shell` from your terminal."
-    if first in CHAT_SETTING_COMMANDS or first in {"api-key", "key"}:
-        return "notice", _capture_setting_command(original)
-    if first in SHELL_COMMAND_NAMES:
-        before_job_id = _current_default_job_id()
-        output = _capture_first_run_command(original)
-        after_job_id = _current_default_job_id()
-        if first == "create" and after_job_id and after_job_id != before_job_id:
-            return "open", after_job_id
-        return "notice", output
-    objective = _extract_job_objective_from_message(original)
-    if objective:
-        return "open", _create_first_run_job(objective)
-    return "notice", _first_run_chat_reply(original)
+    return _controller_handle_first_run_frame_line(line, deps=_first_run_frame_deps())
 
 
 def _first_run_chat_reply(message: str) -> str:
-    lowered = message.strip().lower()
-    if lowered in {"hi", "hello", "hey", "yo"}:
-        return "Hi. Tell me what long-running work you want, or type /new followed by an objective."
-    if "what can" in lowered or "help" in lowered:
-        return "I can spin up long-running jobs, keep their output on the left, and let you monitor work from the right."
-    return "I can chat here, but I only create a job when you give me a concrete goal like 'create a job to monitor nightly benchmarks'."
+    return _controller_first_run_chat_reply(message)
 
 
 def _create_first_run_job(objective: str) -> str | list[str]:
-    objective = objective.strip()
-    if not objective:
-        return ["No job created. Type an objective first."]
-    job_id, _title = _create_job(objective=objective, title=None, kind="generic", cadence=None)
-    return job_id
+    return _controller_create_first_run_job(objective, deps=_first_run_frame_deps())
 
 
 def _capture_first_run_command(line: str) -> list[str]:
-    stream = StringIO()
-    with redirect_stdout(stream):
-        try:
-            _run_shell_line(line)
-        except SystemExit as exc:
-            if exc.code not in (None, 0):
-                print(f"command exited with status {exc.code}")
-    lines = [" ".join(item.split()) for item in stream.getvalue().splitlines() if item.strip()]
-    return lines[-8:] or ["done"]
+    return _controller_capture_first_run_command(line, _run_shell_line)
+
+
+def _first_run_frame_deps() -> FirstRunFrameDeps:
+    return FirstRunFrameDeps(
+        capture_command=_capture_first_run_command,
+        capture_setting_command=_capture_setting_command,
+        create_job=_create_job,
+        current_default_job_id=_current_default_job_id,
+        extract_objective=_extract_job_objective_from_message,
+        shell_command_names=SHELL_COMMAND_NAMES,
+    )
 
 
 def _current_default_job_id() -> str | None:
