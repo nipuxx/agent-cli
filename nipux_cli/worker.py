@@ -14,6 +14,7 @@ from nipux_cli.config import AppConfig, load_config
 from nipux_cli.compression import refresh_memory_index
 from nipux_cli.db import AgentDB
 from nipux_cli.llm import LLMResponse, LLMResponseError, OpenAIChatLLM, StepLLM
+from nipux_cli.metric_format import format_metric_value
 from nipux_cli.operator_context import (
     active_prompt_operator_entries,
     inactive_prompt_operator_ids,
@@ -834,9 +835,10 @@ def _experiments_for_prompt(job: dict[str, Any]) -> str:
     if best:
         lines.append("Best observed results:")
         for experiment in best[-3:]:
-            metric = (
-                f"{experiment.get('metric_name') or 'metric'}={experiment.get('metric_value')}"
-                f"{experiment.get('metric_unit') or ''}"
+            metric = format_metric_value(
+                experiment.get("metric_name") or "metric",
+                experiment.get("metric_value"),
+                experiment.get("metric_unit") or "",
             )
             lines.append(
                 "- "
@@ -857,9 +859,10 @@ def _experiments_for_prompt(job: dict[str, Any]) -> str:
         for experiment in recent:
             metric = ""
             if experiment.get("metric_value") is not None:
-                metric = (
-                    f"{experiment.get('metric_name') or 'metric'}={experiment.get('metric_value')}"
-                    f"{experiment.get('metric_unit') or ''}"
+                metric = format_metric_value(
+                    experiment.get("metric_name") or "metric",
+                    experiment.get("metric_value"),
+                    experiment.get("metric_unit") or "",
                 )
             delta = ""
             if experiment.get("delta_from_previous_best") is not None:
@@ -1313,7 +1316,11 @@ def _observation_for_prompt(tool_name: str | None, output: dict[str, Any]) -> st
         experiment = output.get("experiment") if isinstance(output.get("experiment"), dict) else {}
         metric = ""
         if experiment.get("metric_value") is not None:
-            metric = f"{experiment.get('metric_name') or 'metric'}={experiment.get('metric_value')}{experiment.get('metric_unit') or ''}"
+            metric = format_metric_value(
+                experiment.get("metric_name") or "metric",
+                experiment.get("metric_value"),
+                experiment.get("metric_unit") or "",
+            )
         delta = f" delta={experiment.get('delta_from_previous_best')}" if experiment.get("delta_from_previous_best") is not None else ""
         best = " best_observed" if experiment.get("best_observed") else ""
         return _clip_text(f"experiment={experiment.get('title')} status={experiment.get('status')} {metric}{delta}{best}", 520)
@@ -2322,7 +2329,11 @@ def _summarize_tool_result(name: str, args: dict[str, Any], result: dict[str, An
         experiment = result.get("experiment") if isinstance(result.get("experiment"), dict) else {}
         metric = ""
         if experiment.get("metric_value") is not None:
-            metric = f" {experiment.get('metric_name') or 'metric'}={experiment.get('metric_value')}{experiment.get('metric_unit') or ''}"
+            metric = " " + format_metric_value(
+                experiment.get("metric_name") or "metric",
+                experiment.get("metric_value"),
+                experiment.get("metric_unit") or "",
+            )
         best = " best" if experiment.get("best_observed") else ""
         return f"record_experiment {experiment.get('status')}: {experiment.get('title')}{metric}{best}"
     if name == "acknowledge_operator_context":
@@ -2592,9 +2603,10 @@ def _run_reflection_step(
     best_experiment_text = "no measured experiment yet"
     if best_experiments:
         best_experiment_text = "; ".join(
-            (
-                f"{experiment.get('title')} {experiment.get('metric_name') or 'metric'}="
-                f"{experiment.get('metric_value')}{experiment.get('metric_unit') or ''}"
+            f"{experiment.get('title')} " + format_metric_value(
+                experiment.get("metric_name") or "metric",
+                experiment.get("metric_value"),
+                experiment.get("metric_unit") or "",
             )
             for experiment in best_experiments[-3:]
         )

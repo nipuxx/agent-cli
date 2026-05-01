@@ -16,6 +16,7 @@ from typing import Any, Callable
 from nipux_cli.artifacts import ArtifactStore
 from nipux_cli.config import AppConfig
 from nipux_cli.db import AgentDB
+from nipux_cli.metric_format import format_metric_value
 from nipux_cli.digest import send_digest_email
 
 
@@ -662,7 +663,11 @@ def _record_experiment(args: dict[str, Any], ctx: ToolContext) -> str:
     )
     metric = ""
     if record.get("metric_value") is not None:
-        metric = f" {record.get('metric_name') or 'metric'}={record.get('metric_value')}{record.get('metric_unit') or ''}"
+        metric = " " + format_metric_value(
+            record.get("metric_name") or "metric",
+            record.get("metric_value"),
+            record.get("metric_unit") or "",
+        )
     best = " best" if record.get("best_observed") else ""
     ctx.db.append_agent_update(
         ctx.job_id,

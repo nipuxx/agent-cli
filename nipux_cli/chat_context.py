@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from nipux_cli.db import AgentDB
+from nipux_cli.metric_format import format_metric_value
 from nipux_cli.operator_context import active_prompt_operator_entries
 from nipux_cli.tui_events import clean_step_summary, generic_display_text
 from nipux_cli.tui_style import _one_line
@@ -133,9 +134,14 @@ def _roadmap_lines(roadmap: dict[str, Any]) -> str:
 def _experiment_line(entry: dict[str, Any]) -> str:
     if entry.get("metric_value") is None:
         return f"- {entry.get('status') or 'planned'}: {entry.get('title')}"
+    metric = format_metric_value(
+        entry.get("metric_name") or "metric",
+        entry.get("metric_value"),
+        entry.get("metric_unit") or "",
+    )
     return (
         f"- {entry.get('status') or 'planned'}: {entry.get('title')}"
-        f" {entry.get('metric_name') or 'metric'}={entry.get('metric_value')}{entry.get('metric_unit') or ''}"
+        f" {metric}"
         f"{' best' if entry.get('best_observed') else ''}"
     )
 

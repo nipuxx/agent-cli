@@ -9,6 +9,7 @@ import textwrap
 from pathlib import Path
 from typing import Any
 
+from nipux_cli.metric_format import format_metric_value
 from nipux_cli.tui_style import (
     _accent,
     _bold,
@@ -562,7 +563,7 @@ def experiment_metric_text(metadata: dict[str, Any]) -> str:
     name = metadata.get("metric_name") or "metric"
     unit = metadata.get("metric_unit") or ""
     direction = metadata.get("result_direction") or metadata.get("decision") or ""
-    return " ".join(part for part in [f"{name}={value}{unit}", str(direction)] if part)
+    return " ".join(part for part in [format_metric_value(name, value, unit), str(direction)] if part)
 
 
 def event_clock(event: dict[str, Any]) -> str:

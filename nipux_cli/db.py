@@ -13,6 +13,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Iterable, TypeVar
 
+from nipux_cli.metric_format import format_metric_value
+
 T = TypeVar("T")
 
 SCHEMA_VERSION = 1
@@ -600,7 +602,11 @@ class AgentDB:
                 continue
             metric = ""
             if experiment.get("metric_value") is not None:
-                metric = f"{experiment.get('metric_name') or 'metric'}={experiment.get('metric_value')}{experiment.get('metric_unit') or ''}"
+                metric = format_metric_value(
+                    experiment.get("metric_name") or "metric",
+                    experiment.get("metric_value"),
+                    experiment.get("metric_unit") or "",
+                )
             timeline.append(_projected_event(
                 event_id=f"projected_experiment_{index}",
                 job_id=job_id,
@@ -1880,9 +1886,10 @@ class AgentDB:
             best = _mark_best_experiments(experiments)
             event_body = current.get("result") or ""
             if current.get("metric_value") is not None:
-                event_body = (
-                    f"{current.get('metric_name') or 'metric'}={current.get('metric_value')}"
-                    f"{current.get('metric_unit') or ''}"
+                event_body = format_metric_value(
+                    current.get("metric_name") or "metric",
+                    current.get("metric_value"),
+                    current.get("metric_unit") or "",
                 )
                 if current.get("delta_from_previous_best") is not None:
                     event_body += f" delta={current.get('delta_from_previous_best')}"
