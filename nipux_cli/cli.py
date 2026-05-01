@@ -1812,6 +1812,7 @@ def _load_frame_snapshot(job_id: str, *, history_limit: int = 12) -> dict[str, A
         artifacts = db.list_artifacts(job_id, limit=8)
         memory_entries = db.list_memory(job_id)[:8]
         events = db.list_events(job_id=job_id, limit=max(history_limit * 8, 100))
+        token_usage = db.job_token_usage(job_id)
         daemon = daemon_lock_status(config.runtime.home / "agentd.lock")
     finally:
         db.close()
@@ -1825,6 +1826,9 @@ def _load_frame_snapshot(job_id: str, *, history_limit: int = 12) -> dict[str, A
         "events": events,
         "daemon": daemon,
         "model": config.model.model,
+        "base_url": config.model.base_url,
+        "context_length": config.model.context_length,
+        "token_usage": token_usage,
         "counts": counts,
     }
 
@@ -1873,6 +1877,9 @@ def _build_chat_frame(
     events = snapshot["events"]
     daemon = snapshot["daemon"]
     model = str(snapshot["model"])
+    base_url = str(snapshot.get("base_url") or "")
+    token_usage = snapshot.get("token_usage") if isinstance(snapshot.get("token_usage"), dict) else {}
+    context_length = int(snapshot.get("context_length") or 0)
     job_id = str(snapshot["job_id"])
     counts = snapshot.get("counts") if isinstance(snapshot.get("counts"), dict) else {}
     findings = _metadata_records(job, "finding_ledger")
@@ -1906,7 +1913,15 @@ def _build_chat_frame(
         ("memory", counts.get("memory", len(memory_entries))),
     ]
 
-    header = _top_bar(width, state=state, daemon=daemon_text, model=model)
+    header = _top_bar(
+        width,
+        state=state,
+        daemon=daemon_text,
+        model=model,
+        token_usage=token_usage,
+        context_length=context_length,
+        base_url=base_url,
+    )
     if editing_field:
         hint = _edit_target_hint(editing_field)
         prompt_label = _edit_target_label(editing_field)
@@ -1981,10 +1996,23 @@ def _build_chat_frame(
     return "\n".join(_first_run_themed_lines(lines[:height], width=width))
 
 
-def _top_bar(width: int, *, state: str, daemon: str, model: str) -> list[str]:
+def _top_bar(
+    width: int,
+    *,
+    state: str,
+    daemon: str,
+    model: str,
+    token_usage: dict[str, Any] | None = None,
+    context_length: int = 0,
+    base_url: str = "",
+) -> list[str]:
     title = f"{_bold(_accent('Nipux CLI'))} {_status_dot(state)}"
     daemon_compact = "running" if daemon.startswith("running") else "stopped"
-    meta = f"{_pill('daemon', daemon_compact)}  {_pill('model', model)}"
+    parts = [_pill("daemon", daemon_compact), _pill("model", model)]
+    usage_text = _token_usage_topline(token_usage or {}, context_length=context_length, model=model, base_url=base_url)
+    if usage_text:
+        parts.append(usage_text)
+    meta = "  ".join(parts)
     first = _fit_ansi(title, max(20, width - len(_strip_ansi(meta)) - 3))
     return [
         first + " " * max(1, width - len(_strip_ansi(first)) - len(_strip_ansi(meta))) + meta,
@@ -2691,6 +2719,75 @@ def _pill(label: str, value: Any) -> str:
     elif any(term in lowered for term in ("failed", "cancelled", "error", "stopped")):
         color = "31"
     return f"{_muted(label)} {_style(value_text, color)}"
+
+
+def _token_usage_topline(
+    usage: dict[str, Any],
+    *,
+    context_length: int,
+    model: str,
+    base_url: str,
+) -> str:
+    calls = _safe_int(usage.get("calls"))
+    if calls <= 0:
+        return f"{_muted('ctx')} {_style('0', '36')}  {_muted('out')} {_style('0', '36')}  {_muted('cost')} {_style('$0.00', '36')}"
+    latest_prompt = _safe_int(usage.get("latest_prompt_tokens"))
+    completion = _safe_int(usage.get("completion_tokens"))
+    ctx_text = _format_compact_count(latest_prompt)
+    if context_length > 0:
+        ctx_text = f"{ctx_text}/{_format_compact_count(context_length)}"
+    cost_text = _format_usage_cost(usage, model=model, base_url=base_url)
+    return (
+        f"{_muted('ctx')} {_style(ctx_text, '36')}  "
+        f"{_muted('out')} {_style(_format_compact_count(completion), '36')}  "
+        f"{_muted('cost')} {_style(cost_text, '36')}"
+    )
+
+
+def _model_cost_is_zero(*, model: str, base_url: str) -> bool:
+    lowered_model = model.lower()
+    lowered_url = base_url.lower()
+    return (
+        lowered_model.endswith(":free")
+        or lowered_model in {"local-model", "fake", "test"}
+        or "localhost" in lowered_url
+        or "127.0.0.1" in lowered_url
+    )
+
+
+def _format_usage_cost(usage: dict[str, Any], *, model: str, base_url: str) -> str:
+    if bool(usage.get("has_cost")):
+        return f"${_safe_float(usage.get('cost')):.4f}"
+    if _model_cost_is_zero(model=model, base_url=base_url):
+        return "$0.00"
+    if _safe_int(usage.get("estimated_calls")):
+        return "est n/a"
+    return "n/a"
+
+
+def _format_compact_count(value: Any) -> str:
+    number = _safe_int(value)
+    if number >= 1_000_000_000:
+        return f"{number / 1_000_000_000:.1f}B"
+    if number >= 1_000_000:
+        return f"{number / 1_000_000:.1f}M"
+    if number >= 1_000:
+        return f"{number / 1_000:.1f}K"
+    return str(number)
+
+
+def _safe_int(value: Any) -> int:
+    try:
+        return int(float(value))
+    except (TypeError, ValueError):
+        return 0
+
+
+def _safe_float(value: Any) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return 0.0
 
 
 def _status_dot(state: str) -> str:

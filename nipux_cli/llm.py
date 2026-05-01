@@ -22,6 +22,9 @@ class ToolCall:
 class LLMResponse:
     content: str = ""
     tool_calls: list[ToolCall] = field(default_factory=list)
+    usage: dict[str, Any] = field(default_factory=dict)
+    model: str = ""
+    response_id: str = ""
 
 
 class LLMResponseError(RuntimeError):
@@ -76,7 +79,14 @@ class OpenAIChatLLM:
             except json.JSONDecodeError:
                 parsed = {}
             calls.append(ToolCall(name=call.function.name, arguments=parsed, id=call.id or ""))
-        return LLMResponse(content=message.content or "", tool_calls=calls)
+        content = message.content or ""
+        return LLMResponse(
+            content=content,
+            tool_calls=calls,
+            usage=_response_usage(response, messages=messages, content=content, tool_calls=calls),
+            model=_response_model(response),
+            response_id=_response_id(response),
+        )
 
     def complete(self, *, messages: list[dict[str, Any]]) -> str:
         response = self._openai.chat.completions.create(
@@ -113,3 +123,50 @@ def _response_payload(response: Any) -> dict[str, Any]:
         dumped = response.to_dict()
         return dumped if isinstance(dumped, dict) else {"response": dumped}
     return {"response": repr(response)}
+
+
+def _response_usage(
+    response: Any,
+    *,
+    messages: list[dict[str, Any]],
+    content: str,
+    tool_calls: list[ToolCall],
+) -> dict[str, Any]:
+    payload = _response_payload(response)
+    usage = payload.get("usage")
+    if isinstance(usage, dict):
+        normalized = dict(usage)
+        normalized["estimated"] = False
+        return normalized
+    usage_obj = getattr(response, "usage", None)
+    if usage_obj is not None:
+        dumped = usage_obj.model_dump() if hasattr(usage_obj, "model_dump") else getattr(usage_obj, "__dict__", {})
+        if isinstance(dumped, dict) and dumped:
+            normalized = dict(dumped)
+            normalized["estimated"] = False
+            return normalized
+    prompt_tokens = _estimate_token_count(json.dumps(messages, ensure_ascii=False, default=str))
+    tool_text = json.dumps([{"name": call.name, "arguments": call.arguments} for call in tool_calls], ensure_ascii=False, default=str)
+    completion_tokens = _estimate_token_count(content + tool_text)
+    return {
+        "prompt_tokens": prompt_tokens,
+        "completion_tokens": completion_tokens,
+        "total_tokens": prompt_tokens + completion_tokens,
+        "estimated": True,
+    }
+
+
+def _estimate_token_count(text: str) -> int:
+    if not text:
+        return 0
+    return max(1, (len(text) + 3) // 4)
+
+
+def _response_model(response: Any) -> str:
+    payload = _response_payload(response)
+    return str(payload.get("model") or getattr(response, "model", "") or "")
+
+
+def _response_id(response: Any) -> str:
+    payload = _response_payload(response)
+    return str(payload.get("id") or getattr(response, "id", "") or "")

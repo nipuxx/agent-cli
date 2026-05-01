@@ -630,6 +630,15 @@ def test_chat_frame_is_bounded_and_has_composer():
         ],
         "daemon": {"running": True, "metadata": {"pid": 123}},
         "model": "model/demo",
+        "base_url": "https://openrouter.ai/api/v1",
+        "context_length": 8192,
+        "token_usage": {
+            "calls": 2,
+            "latest_prompt_tokens": 4096,
+            "completion_tokens": 1234,
+            "cost": 0.0123,
+            "has_cost": True,
+        },
     }
 
     frame = _build_chat_frame(snapshot, "hello", [], width=100, height=22)
@@ -640,6 +649,11 @@ def test_chat_frame_is_bounded_and_has_composer():
     assert "Jobs / Workers" in frame
     assert "Latest" in frame
     assert "search demo" in frame
+    assert "ctx" in frame
+    assert "4.1K/8.2K" in frame
+    assert "out" in frame
+    assert "1.2K" in frame
+    assert "$0.0123" in frame
     assert "Compose" in frame
     assert "❯ hello" in frame
 

@@ -10,9 +10,10 @@ class _FakeCompletions:
 
     def create(self, **kwargs):
         self.kwargs = kwargs
+        usage = SimpleNamespace(prompt_tokens=11, completion_tokens=7, total_tokens=18, cost=0.00042)
         message = SimpleNamespace(content="ok", tool_calls=[])
         choice = SimpleNamespace(message=message)
-        return SimpleNamespace(choices=[choice])
+        return SimpleNamespace(id="gen_test", model="provider/model", choices=[choice], usage=usage)
 
 
 def test_chat_llm_omits_redundant_tool_choice(monkeypatch):
@@ -31,5 +32,10 @@ def test_chat_llm_omits_redundant_tool_choice(monkeypatch):
     response = llm.next_action(messages=[{"role": "user", "content": "hi"}], tools=[{"type": "function", "function": {"name": "noop"}}])
 
     assert response.content == "ok"
+    assert response.usage["prompt_tokens"] == 11
+    assert response.usage["completion_tokens"] == 7
+    assert response.usage["cost"] == 0.00042
+    assert response.model == "provider/model"
+    assert response.response_id == "gen_test"
     assert fake_completions.kwargs["tools"]
     assert "tool_choice" not in fake_completions.kwargs

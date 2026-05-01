@@ -157,6 +157,37 @@ def _json_dumps(value: Any) -> str:
     return json.dumps(value if value is not None else {}, ensure_ascii=False, sort_keys=True)
 
 
+def _json_loads(value: str | None) -> dict[str, Any]:
+    try:
+        loaded = json.loads(value or "{}")
+    except json.JSONDecodeError:
+        return {}
+    return loaded if isinstance(loaded, dict) else {}
+
+
+def _as_int(value: Any) -> int:
+    try:
+        return int(float(value))
+    except (TypeError, ValueError):
+        return 0
+
+
+def _as_float(value: Any) -> float | None:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _nested_value(value: dict[str, Any], *keys: str) -> Any:
+    current: Any = value
+    for key in keys:
+        if not isinstance(current, dict):
+            return None
+        current = current.get(key)
+    return current
+
+
 def _metadata_list(metadata: dict[str, Any], key: str) -> list[dict[str, Any]]:
     values = metadata.get(key)
     if not isinstance(values, list):
@@ -2150,6 +2181,57 @@ class AgentDB:
             "memory": int(row["memory"] or 0),
             "events": int(row["events"] or 0),
         }
+
+    def job_token_usage(self, job_id: str) -> dict[str, Any]:
+        rows = self._conn.execute(
+            """
+            SELECT created_at, metadata_json
+            FROM events
+            WHERE job_id = ? AND event_type = 'loop' AND title = 'message_end'
+            ORDER BY created_at ASC, id ASC
+            """,
+            (job_id,),
+        ).fetchall()
+        totals: dict[str, Any] = {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "reasoning_tokens": 0,
+            "cached_tokens": 0,
+            "cost": 0.0,
+            "calls": 0,
+            "estimated_calls": 0,
+            "latest_prompt_tokens": 0,
+            "latest_completion_tokens": 0,
+            "latest_total_tokens": 0,
+            "latest_at": "",
+            "has_cost": False,
+        }
+        for row in rows:
+            metadata = _json_loads(row["metadata_json"])
+            usage = metadata.get("usage")
+            if not isinstance(usage, dict):
+                continue
+            prompt = _as_int(usage.get("prompt_tokens"))
+            completion = _as_int(usage.get("completion_tokens"))
+            total = _as_int(usage.get("total_tokens")) or prompt + completion
+            totals["prompt_tokens"] += prompt
+            totals["completion_tokens"] += completion
+            totals["total_tokens"] += total
+            totals["reasoning_tokens"] += _as_int(_nested_value(usage, "completion_tokens_details", "reasoning_tokens"))
+            totals["cached_tokens"] += _as_int(_nested_value(usage, "prompt_tokens_details", "cached_tokens"))
+            cost = _as_float(usage.get("cost"))
+            if cost is not None:
+                totals["cost"] += cost
+                totals["has_cost"] = True
+            totals["calls"] += 1
+            if bool(usage.get("estimated")):
+                totals["estimated_calls"] += 1
+            totals["latest_prompt_tokens"] = prompt
+            totals["latest_completion_tokens"] = completion
+            totals["latest_total_tokens"] = total
+            totals["latest_at"] = str(row["created_at"] or "")
+        return totals
 
     def list_runs(self, job_id: str, *, limit: int = 50) -> list[dict[str, Any]]:
         rows = self._conn.execute(

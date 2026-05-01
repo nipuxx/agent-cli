@@ -70,6 +70,47 @@ def test_step_numbers_increment_across_runs_for_a_job(tmp_path):
         db.close()
 
 
+def test_job_token_usage_aggregates_message_usage(tmp_path):
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Long job")
+        db.append_event(
+            job_id,
+            event_type="loop",
+            title="message_end",
+            metadata={
+                "usage": {
+                    "prompt_tokens": 100,
+                    "completion_tokens": 25,
+                    "total_tokens": 125,
+                    "cost": 0.001,
+                    "prompt_tokens_details": {"cached_tokens": 10},
+                    "completion_tokens_details": {"reasoning_tokens": 3},
+                }
+            },
+        )
+        db.append_event(
+            job_id,
+            event_type="loop",
+            title="message_end",
+            metadata={"usage": {"prompt_tokens": 150, "completion_tokens": 50, "total_tokens": 200, "estimated": True}},
+        )
+
+        usage = db.job_token_usage(job_id)
+
+        assert usage["prompt_tokens"] == 250
+        assert usage["completion_tokens"] == 75
+        assert usage["total_tokens"] == 325
+        assert usage["latest_prompt_tokens"] == 150
+        assert usage["cost"] == 0.001
+        assert usage["has_cost"] is True
+        assert usage["estimated_calls"] == 1
+        assert usage["reasoning_tokens"] == 3
+        assert usage["cached_tokens"] == 10
+    finally:
+        db.close()
+
+
 def test_append_operator_message_roundtrip(tmp_path):
     db = AgentDB(tmp_path / "state.db")
     try:

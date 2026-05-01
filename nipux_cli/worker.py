@@ -2282,6 +2282,12 @@ def _emit_assistant_message_event(
     else:
         body = response.content[:1000]
         metadata = {"run_id": run_id, "tool_calls": []}
+    if response.usage:
+        metadata["usage"] = response.usage
+    if response.model:
+        metadata["model"] = response.model
+    if response.response_id:
+        metadata["response_id"] = response.response_id
     db.append_event(
         job_id,
         event_type="loop",
