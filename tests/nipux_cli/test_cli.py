@@ -1249,6 +1249,37 @@ def test_hourly_outcomes_wrap_long_durable_updates_without_pre_truncation():
     assert "..." not in rendered
 
 
+def test_hourly_outcomes_limit_visible_hours_without_losing_headers():
+    events = []
+    for hour in range(8):
+        events.extend(
+            [
+                {
+                    "event_type": "artifact",
+                    "title": f"Draft saved hour {hour}",
+                    "body": "",
+                    "metadata": {},
+                    "created_at": f"2026-05-01T{hour:02d}:05:00+00:00",
+                },
+                {
+                    "event_type": "finding",
+                    "title": f"Finding hour {hour}",
+                    "body": "",
+                    "metadata": {},
+                    "created_at": f"2026-05-01T{hour:02d}:20:00+00:00",
+                },
+            ]
+        )
+
+    rendered = "\n".join(hourly_update_lines(events, width=96, limit=8))
+
+    assert "2026-05-01 06:00" in rendered
+    assert "2026-05-01 07:00" in rendered
+    assert "Draft saved hour 7" in rendered
+    assert "Finding hour 7" in rendered
+    assert "Draft saved hour 0" not in rendered
+
+
 def test_chat_updates_page_includes_agent_error_updates():
     snapshot = {
         "job_id": "job_demo",

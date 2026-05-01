@@ -370,8 +370,13 @@ def hourly_update_lines(events: list[dict[str, Any]], *, width: int, limit: int)
         if item not in bucket["items"]:
             bucket["items"].append(item)
     rendered: list[str] = []
-    recent_hours = order[-max(1, min(len(order), limit)) :]
-    per_bucket = max(2, min(8, (limit // max(1, len(recent_hours))) - 1))
+    # Each visible hour needs a header and at least a couple durable outcomes.
+    # Showing too many buckets makes the pane churn and can trim off the hour
+    # label, which is harder to scan during long-running jobs.
+    max_visible_hours = max(1, min(len(order), max(1, limit // 4)))
+    recent_hours = order[-max_visible_hours:]
+    available_items = max(1, limit - len(recent_hours))
+    per_bucket = max(1, min(6, available_items // max(1, len(recent_hours))))
     for hour in recent_hours:
         bucket = buckets[hour]
         counts = bucket["counts"]
@@ -390,7 +395,7 @@ def hourly_update_lines(events: list[dict[str, Any]], *, width: int, limit: int)
                     return rendered[:limit]
         if len(rendered) >= limit:
             return rendered[:limit]
-    return rendered[-limit:]
+    return rendered[:limit]
 
 
 def _outcome_text(text: str, *, chars: int, compact: bool) -> str:
