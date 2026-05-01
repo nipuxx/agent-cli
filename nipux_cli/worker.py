@@ -185,9 +185,11 @@ RECOVERABLE_GUARD_ERRORS = {
     "similar artifact search blocked",
     "similar search query blocked",
     "task branch required before more work",
+    "task queue saturated",
 }
 MEASURABLE_RESEARCH_BUDGET_STEPS = 18
 MEASURABLE_ACTION_BUDGET_STEPS = 4
+TASK_QUEUE_SATURATION_OPEN_TASKS = 40
 PROGRAM_PROMPT_CHARS = 2000
 MEMORY_ENTRY_PROMPT_CHARS = 700
 MEMORY_PROMPT_CHARS = 1800
@@ -964,6 +966,42 @@ def _task_queue_exhausted(job: dict[str, Any]) -> bool:
     return not any(str(task.get("status") or "open").strip().lower() in runnable for task in tasks)
 
 
+def _task_queue_saturation_context(job: dict[str, Any], args: dict[str, Any]) -> dict[str, Any] | None:
+    tasks = _metadata_list(job, "task_queue")
+    open_tasks = [task for task in tasks if str(task.get("status") or "open").strip().lower() in {"open", "active"}]
+    if len(open_tasks) < TASK_QUEUE_SATURATION_OPEN_TASKS:
+        return None
+    incoming = args.get("tasks") if isinstance(args.get("tasks"), list) else []
+    if not incoming:
+        return None
+    existing_keys = {
+        _norm_task_key(str(task.get("parent") or ""), str(task.get("title") or ""))
+        for task in tasks
+    }
+    new_open_titles = []
+    for task in incoming:
+        if not isinstance(task, dict):
+            continue
+        status = str(task.get("status") or "open").strip().lower().replace(" ", "_")
+        if status not in {"open", "active"}:
+            continue
+        key = _norm_task_key(str(task.get("parent") or ""), str(task.get("title") or ""))
+        if key not in existing_keys:
+            new_open_titles.append(str(task.get("title") or "").strip())
+    if not new_open_titles:
+        return None
+    return {
+        "open_count": len(open_tasks),
+        "threshold": TASK_QUEUE_SATURATION_OPEN_TASKS,
+        "new_open_count": len(new_open_titles),
+        "new_open_titles": new_open_titles[:8],
+    }
+
+
+def _norm_task_key(parent: str, title: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", f"{parent}|{title}".lower()).strip("-")
+
+
 def _parse_tool_result(raw: str) -> dict[str, Any]:
     try:
         parsed = json.loads(raw)
@@ -1658,6 +1696,23 @@ def _blocked_tool_call_result(
     recent_steps: list[dict[str, Any]],
     job: dict[str, Any],
 ) -> tuple[dict[str, Any], str] | None:
+    if name == "record_tasks":
+        saturated = _task_queue_saturation_context(job, args)
+        if saturated:
+            result = {
+                "success": False,
+                "error": "task queue saturated",
+                "blocked_tool": name,
+                "blocked_arguments": args,
+                "task_queue": saturated,
+                "guidance": (
+                    "The durable task queue already has many open branches. Do not create more open tasks. "
+                    "Choose an existing high-priority task and execute it, or update existing tasks to active, "
+                    "done, blocked, or skipped."
+                ),
+            }
+            return result, f"blocked record_tasks; {saturated['open_count']} open tasks already"
+
     duplicate_step = _duplicate_recent_tool_call(name, args, recent_steps)
     if duplicate_step:
         guidance = "Use a different query, extract one of the prior result URLs, open a result in the browser, or write an artifact."

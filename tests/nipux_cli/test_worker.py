@@ -1793,6 +1793,75 @@ def test_run_one_step_allows_record_tasks_when_tasks_are_exhausted(tmp_path):
         db.close()
 
 
+def test_run_one_step_blocks_new_tasks_when_queue_is_saturated(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job(
+            "Finish existing work",
+            title="saturated",
+            kind="generic",
+            metadata={
+                "task_queue": [
+                    {"title": f"Open branch {index}", "status": "open", "priority": index}
+                    for index in range(40)
+                ]
+            },
+        )
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(name="record_tasks", arguments={"tasks": [{"title": "Yet another branch", "status": "open"}]})
+                ])
+            ]),
+        )
+
+        assert result.status == "blocked"
+        assert result.result["error"] == "task queue saturated"
+        assert result.result["task_queue"]["open_count"] == 40
+    finally:
+        db.close()
+
+
+def test_run_one_step_allows_existing_task_update_when_queue_is_saturated(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job(
+            "Finish existing work",
+            title="saturated",
+            kind="generic",
+            metadata={
+                "task_queue": [
+                    {"title": f"Open branch {index}", "status": "open", "priority": index}
+                    for index in range(40)
+                ]
+            },
+        )
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(name="record_tasks", arguments={"tasks": [{"title": "Open branch 0", "status": "active"}]})
+                ])
+            ]),
+        )
+
+        assert result.status == "completed"
+        assert result.tool_name == "record_tasks"
+        job = db.get_job(job_id)
+        assert job["metadata"]["task_queue"][0]["status"] == "active"
+    finally:
+        db.close()
+
+
 def test_run_one_step_auto_records_anti_bot_browser_source(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")
