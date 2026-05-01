@@ -977,6 +977,29 @@ def test_prompt_keeps_unclaimed_steering_but_not_followup_until_claimed(tmp_path
         db.close()
 
 
+def test_prompt_includes_context_pressure_constraint():
+    job = {
+        "title": "context pressure",
+        "kind": "generic",
+        "objective": "keep a long-running job stable",
+        "metadata": {
+            "context_pressure": {
+                "band": "high",
+                "prompt_tokens": 8_600,
+                "context_length": 10_000,
+                "fraction": 0.86,
+            }
+        },
+    }
+
+    content = build_messages(job, [])[-1]["content"]
+
+    assert "Context pressure:" in content
+    assert "Context pressure is high" in content
+    assert "8.6K/10.0K" in content
+    assert "artifact references" in content
+
+
 def test_run_one_step_drops_conversation_only_chat_from_worker_prompt(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

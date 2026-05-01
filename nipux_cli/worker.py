@@ -123,6 +123,7 @@ def build_messages(
     measured_progress_guard = _measured_progress_guard_for_prompt(job, recent_steps)
     progress_accounting_guard = _progress_accounting_for_prompt(recent_steps)
     activity_stagnation = _activity_stagnation_for_prompt(job)
+    context_pressure = _context_pressure_for_prompt(job)
     lessons = _lessons_for_prompt(job)
     roadmap = _roadmap_for_prompt(job)
     tasks = _tasks_for_prompt(job)
@@ -147,6 +148,7 @@ def build_messages(
             ("Measured progress guard", measured_progress_guard),
             ("Progress accounting guard", progress_accounting_guard),
             ("Activity stagnation", activity_stagnation),
+            ("Context pressure", context_pressure),
             ("Program", program),
             ("Lessons learned", lessons),
             ("Roadmap", roadmap),
@@ -698,6 +700,26 @@ def _activity_stagnation_for_prompt(job: dict[str, Any]) -> str:
         "Next classify the branch with record_findings, record_source, record_experiment, record_tasks, "
         "record_roadmap, record_milestone_validation, or record_lesson. If the branch is low-yield, mark it "
         "blocked/skipped and pivot before doing more read-only work or saving more outputs."
+    )
+
+
+def _context_pressure_for_prompt(job: dict[str, Any]) -> str:
+    metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
+    pressure = metadata.get("context_pressure") if isinstance(metadata.get("context_pressure"), dict) else {}
+    band = str(pressure.get("band") or "")
+    if band not in {"watch", "high", "critical"}:
+        return "None."
+    prompt_tokens = _compact_token_count(pressure.get("prompt_tokens"))
+    context_length = _compact_token_count(pressure.get("context_length"))
+    context_text = prompt_tokens
+    if context_length != "0":
+        context_text = f"{context_text}/{context_length}"
+    fraction = _as_float(pressure.get("fraction"))
+    fraction_text = f" ({fraction:.0%})" if fraction else ""
+    return (
+        f"Context pressure is {band}: latest prompt used {context_text}{fraction_text}. "
+        "Keep the next turn compact; prefer durable memory, ledgers, artifact references, and explicit decisions "
+        "over copying raw history."
     )
 
 
