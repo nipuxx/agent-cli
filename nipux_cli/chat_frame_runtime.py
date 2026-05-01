@@ -12,7 +12,7 @@ from typing import Callable
 from typing import Any
 
 from nipux_cli.settings import inline_setting_notice
-from nipux_cli.tui_commands import CHAT_SLASH_COMMANDS, autocomplete_slash
+from nipux_cli.tui_commands import CHAT_SLASH_COMMANDS, autocomplete_slash, cycle_slash
 from nipux_cli.tui_input import (
     decode_terminal_escape,
     drain_pending_input,
@@ -152,7 +152,7 @@ def run_chat_frame(job_id: str, *, history_limit: int, deps: ChatFrameDeps) -> N
                 needs_render = True
                 continue
             if char == "\x1b":
-                snapshot, job_id, right_view = _handle_chat_escape(
+                snapshot, job_id, right_view, buffer = _handle_chat_escape(
                     stdin_fd,
                     snapshot=snapshot,
                     job_id=job_id,
@@ -269,12 +269,15 @@ def _handle_chat_escape(
     buffer: str,
     notices: list[str],
     deps: ChatFrameDeps,
-) -> tuple[dict[str, Any], str, str]:
+) -> tuple[dict[str, Any], str, str, str]:
     key, payload = decode_terminal_escape(read_escape_sequence("\x1b", fd=stdin_fd))
+    if key in {"up", "down"} and buffer.startswith("/"):
+        buffer = cycle_slash(buffer, CHAT_SLASH_COMMANDS, direction=-1 if key == "up" else 1)
+        return snapshot, job_id, right_view, buffer
     if key == "right" and not buffer:
-        return snapshot, job_id, next_chat_right_view(right_view, 1)
+        return snapshot, job_id, next_chat_right_view(right_view, 1), buffer
     if key == "left" and not buffer:
-        return snapshot, job_id, next_chat_right_view(right_view, -1)
+        return snapshot, job_id, next_chat_right_view(right_view, -1), buffer
     if key in {"up", "down"} and not buffer:
         next_focus = frame_next_job_id(snapshot, job_id, direction=-1 if key == "up" else 1)
         if next_focus and next_focus != job_id:
@@ -283,10 +286,10 @@ def _handle_chat_escape(
             snapshot = deps.load_snapshot(job_id, history_limit)
             title = snapshot["job"].get("title") or job_id
             _append_notice(notices, f"focus {title}")
-        return snapshot, job_id, right_view
+        return snapshot, job_id, right_view, buffer
     if key == "click" and isinstance(payload, tuple):
         clicked_view = deps.page_click(payload[0], payload[1], right_view)
         if clicked_view:
-            return snapshot, job_id, clicked_view
+            return snapshot, job_id, clicked_view, buffer
     drain_pending_input(stdin_fd)
-    return snapshot, job_id, right_view
+    return snapshot, job_id, right_view, buffer

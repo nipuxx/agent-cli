@@ -175,10 +175,29 @@ def slash_suggestion_lines(
 def autocomplete_slash(input_buffer: str, commands: list[tuple[str, str]]) -> str:
     if not input_buffer.startswith("/") or " " in input_buffer.strip():
         return input_buffer
-    token = input_buffer[1:].lower()
-    matches = [cmd for cmd, _desc in commands if cmd[1:].startswith(token)]
-    if not matches:
-        matches = [cmd for cmd, _desc in commands if token in cmd[1:]]
+    matches = _slash_command_matches(input_buffer, commands)
     if not matches:
         return input_buffer
     return matches[0] + " "
+
+
+def cycle_slash(input_buffer: str, commands: list[tuple[str, str]], *, direction: int) -> str:
+    if not input_buffer.startswith("/") or " " in input_buffer.strip():
+        return input_buffer
+    matches = _slash_command_matches(input_buffer, commands)
+    if not matches:
+        return input_buffer
+    current = input_buffer.rstrip()
+    try:
+        index = matches.index(current)
+    except ValueError:
+        index = 0
+    return matches[(index + direction) % len(matches)] + " "
+
+
+def _slash_command_matches(input_buffer: str, commands: list[tuple[str, str]]) -> list[str]:
+    token = input_buffer.strip()[1:].lower()
+    matches = [cmd for cmd, _desc in commands if cmd[1:].startswith(token)]
+    if not matches:
+        matches = [cmd for cmd, _desc in commands if token in cmd[1:]]
+    return matches

@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from typing import Callable
 
 from nipux_cli.settings import inline_setting_notice
-from nipux_cli.tui_commands import FIRST_RUN_SLASH_COMMANDS, autocomplete_slash
+from nipux_cli.tui_commands import FIRST_RUN_SLASH_COMMANDS, autocomplete_slash, cycle_slash
 from nipux_cli.tui_input import (
     decode_terminal_escape,
     drain_pending_input,
@@ -93,10 +93,11 @@ def run_first_run_frame(*, deps: FirstRunRuntimeDeps) -> str | None:
                 needs_render = True
                 continue
             if char == "\x1b":
-                view, selected, editing_field, next_job_id, should_exit = _handle_first_run_escape(
+                view, selected, editing_field, next_job_id, should_exit, buffer = _handle_first_run_escape(
                     stdin_fd,
                     view=view,
                     selected=selected,
+                    buffer=buffer,
                     notices=notices,
                     deps=deps,
                 )
@@ -137,25 +138,36 @@ def _handle_first_run_escape(
     *,
     view: str,
     selected: int,
+    buffer: str,
     notices: list[str],
     deps: FirstRunRuntimeDeps,
-) -> tuple[str, int, str | None, str | None, bool]:
+) -> tuple[str, int, str | None, str | None, bool, str]:
     key, payload = decode_terminal_escape(read_escape_sequence("\x1b", fd=stdin_fd))
+    if key in {"up", "down"} and buffer.startswith("/"):
+        buffer = cycle_slash(buffer, FIRST_RUN_SLASH_COMMANDS, direction=-1 if key == "up" else 1)
+        return view, selected, None, None, False, buffer
     if key == "up":
         actions = deps.actions(view)
-        return view, (selected - 1) % len(actions), None, None, False
+        return view, (selected - 1) % len(actions), None, None, False, buffer
     if key == "down":
         actions = deps.actions(view)
-        return view, (selected + 1) % len(actions), None, None, False
+        return view, (selected + 1) % len(actions), None, None, False, buffer
     if key in {"left", "right"}:
-        return view, 0, None, None, False
+        return view, 0, None, None, False, buffer
     if key == "click" and isinstance(payload, tuple):
         clicked = deps.click_action(payload[0], payload[1], view)
         if clicked is not None:
             action, payload = deps.handle_action(deps.actions(view)[clicked][0])
-            return _apply_first_run_action(action, payload, view=view, selected=clicked, notices=notices)
+            next_view, next_selected, editing_field, next_job_id, should_exit = _apply_first_run_action(
+                action,
+                payload,
+                view=view,
+                selected=clicked,
+                notices=notices,
+            )
+            return next_view, next_selected, editing_field, next_job_id, should_exit, buffer
     drain_pending_input(stdin_fd)
-    return view, selected, None, None, False
+    return view, selected, None, None, False, buffer
 
 
 def _apply_first_run_action(

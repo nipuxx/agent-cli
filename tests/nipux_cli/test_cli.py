@@ -31,7 +31,12 @@ from nipux_cli.daemon import append_daemon_event
 from nipux_cli.db import AgentDB
 from nipux_cli.llm import LLMResponse
 from nipux_cli.settings import inline_setting_notice as _inline_setting_notice
-from nipux_cli.tui_commands import CHAT_SLASH_COMMANDS, FIRST_RUN_SLASH_COMMANDS, autocomplete_slash as _autocomplete_slash
+from nipux_cli.tui_commands import (
+    CHAT_SLASH_COMMANDS,
+    FIRST_RUN_SLASH_COMMANDS,
+    autocomplete_slash as _autocomplete_slash,
+    cycle_slash as _cycle_slash,
+)
 from nipux_cli.tui_events import chat_pane_lines
 from nipux_cli.tui_input import decode_terminal_escape as _decode_terminal_escape
 from nipux_cli.tui_outcomes import hourly_update_lines, recent_model_update_lines
@@ -338,6 +343,11 @@ def test_slash_autocomplete_filters_commands():
     assert _autocomplete_slash("/sta", CHAT_SLASH_COMMANDS) == "/status "
     assert _autocomplete_slash("/step", CHAT_SLASH_COMMANDS) == "/step-limit "
     assert _autocomplete_slash("/out", FIRST_RUN_SLASH_COMMANDS) == "/output-chars "
+    assert _cycle_slash("/", CHAT_SLASH_COMMANDS, direction=1) == "/work "
+    assert _cycle_slash("/", CHAT_SLASH_COMMANDS, direction=-1) == "/exit "
+    assert _cycle_slash("/work ", CHAT_SLASH_COMMANDS, direction=1) == "/work "
+    assert _cycle_slash("/out", CHAT_SLASH_COMMANDS, direction=1) == "/output-chars "
+    assert _cycle_slash("/out", CHAT_SLASH_COMMANDS, direction=-1) == "/output-cost "
     assert _autocomplete_slash("plain text", CHAT_SLASH_COMMANDS) == "plain text"
     lines = _slash_suggestion_lines("/art", CHAT_SLASH_COMMANDS, width=80)
     text = "\n".join(lines)
