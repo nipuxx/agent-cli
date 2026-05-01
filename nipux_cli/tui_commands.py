@@ -41,6 +41,8 @@ CHAT_SLASH_COMMANDS = [
     ("/memory", "learning"),
     ("/usage", "tokens/cost"),
     ("/status", "job state"),
+    ("/start", "start daemon"),
+    ("/restart", "restart daemon"),
     ("/model", "set model"),
     ("/base-url", "set endpoint"),
     ("/api-key", "save key"),

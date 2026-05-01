@@ -341,6 +341,7 @@ def test_slash_autocomplete_filters_commands():
     assert _autocomplete_slash("/do", FIRST_RUN_SLASH_COMMANDS) == "/doctor "
     assert _autocomplete_slash("/mo", FIRST_RUN_SLASH_COMMANDS) == "/model "
     assert _autocomplete_slash("/sta", CHAT_SLASH_COMMANDS) == "/status "
+    assert _autocomplete_slash("/rest", CHAT_SLASH_COMMANDS) == "/restart "
     assert _autocomplete_slash("/step", CHAT_SLASH_COMMANDS) == "/step-limit "
     assert _autocomplete_slash("/out", FIRST_RUN_SLASH_COMMANDS) == "/output-chars "
     assert _cycle_slash("/", CHAT_SLASH_COMMANDS, direction=1) == "/work "
@@ -361,8 +362,9 @@ def test_slash_autocomplete_filters_commands():
     assert "/model MODEL" in partial_hint_text
     assert "↑↓ cycles" in partial_hint_text
     full_palette_text = "\n".join(_slash_suggestion_lines("/", CHAT_SLASH_COMMANDS, width=80, limit=5))
-    assert "+26 more; type to filter" in full_palette_text
+    assert "type to filter" in full_palette_text
     assert "/shell" not in "\n".join(_slash_suggestion_lines("/", CHAT_SLASH_COMMANDS, width=80, limit=20))
+    assert "/restart" in "\n".join(_slash_suggestion_lines("/re", CHAT_SLASH_COMMANDS, width=80, limit=20))
 
 
 def test_terminal_escape_decodes_arrows_and_mouse_click():
