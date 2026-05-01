@@ -93,13 +93,11 @@ from nipux_cli.tui_status import (
 )
 from nipux_cli.tui_style import (
     _accent,
-    _bold,
     _event_badge,
     _fancy_ui,
     _muted,
     _one_line,
     _status_badge,
-    _strip_ansi,
 )
 from nipux_cli.updates import render_updates_report
 from nipux_cli.usage import format_usage_report
@@ -1550,45 +1548,6 @@ def _build_chat_frame(
         middle_budget = max(0, height - keep_top - keep_bottom)
         lines = lines[:keep_top] + lines[-(middle_budget + keep_bottom) : -keep_bottom] + lines[-keep_bottom:]
     return "\n".join(_first_run_themed_lines(lines[:height], width=width))
-
-
-def _activity_text(event: dict[str, Any], *, width: int) -> str:
-    text = _minimal_live_event_line(event, chars=max(16, width - 10))
-    if not text:
-        return ""
-    return f"{_live_badge(text)} {_one_line(text, max(16, width - 9))}"
-
-
-def _frame_event_line(event: dict[str, Any], *, width: int) -> str:
-    text = _minimal_live_event_line(event, chars=width - 18)
-    if not text:
-        return ""
-    badge = _live_badge(text)
-    return _frame_line(width, f"{badge} {text}")
-
-
-def _frame_top(width: int, title: str) -> str:
-    clean = f" {title} "
-    return _muted("╭─") + _bold(_accent(clean)) + _muted("─" * max(0, width - len(clean) - 3) + "╮")
-
-
-def _frame_divider(width: int, title: str) -> str:
-    clean = f" {title} "
-    return _muted("├─") + _bold(clean) + _muted("─" * max(0, width - len(clean) - 3) + "┤")
-
-
-def _frame_bottom(width: int) -> str:
-    return _muted("╰" + "─" * max(0, width - 2) + "╯")
-
-
-def _frame_line(width: int, text: str, *, colorize: bool = True) -> str:
-    content = str(text)
-    visible = _strip_ansi(content)
-    if len(visible) > width - 4:
-        content = _one_line(visible, width - 4)
-        visible = content
-    border = _muted("│")
-    return border + " " + content + " " * max(0, width - 4 - len(visible)) + " " + border
 
 
 def _resolve_job_id(db: AgentDB, requested: Any = None) -> str | None:
