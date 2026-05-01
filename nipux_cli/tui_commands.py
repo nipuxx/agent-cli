@@ -150,7 +150,10 @@ def slash_suggestion_lines(
     lines = [_fit_ansi(_muted("╭─ commands"), width)]
     for index, (cmd, desc) in enumerate(matches):
         marker = _accent("›") if index == 0 else _muted(" ")
-        body = f"{marker} {_fit_ansi(_accent(cmd), cmd_width)} {_muted(desc)}"
+        hint = SLASH_ARGUMENT_HINTS.get(cmd[1:])
+        command_text = cmd if not hint else f"{cmd} {hint}"
+        command_width = cmd_width + (len(hint) + 1 if hint else 0)
+        body = f"{marker} {_fit_ansi(_accent(command_text), command_width)} {_muted(desc)}"
         lines.append(_fit_ansi(_muted("│ ") + body, width))
     lines.append(_fit_ansi(_muted("╰─ tab completes first match"), width))
     return lines
