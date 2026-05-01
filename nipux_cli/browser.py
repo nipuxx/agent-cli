@@ -1,4 +1,4 @@
-"""Small `agent-browser` wrapper for the barebones runtime."""
+"""Small `agent-browser` wrapper for the Nipux runtime."""
 
 from __future__ import annotations
 

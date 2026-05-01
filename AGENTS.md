@@ -1,6 +1,6 @@
 # Development Notes
 
-This repo is now a barebones long-running worker, not a broad assistant distribution.
+This repo is a focused long-running worker, not a broad assistant distribution.
 
 ## Active Surface
 
@@ -8,7 +8,7 @@ This repo is now a barebones long-running worker, not a broad assistant distribu
 - Tests: `tests/nipux_cli/`
 - Entry point: `nipux`
 - State home: `~/.nipux` or `NIPUX_HOME`
-- Planning notes: `plans/barebones-24-7-agent.md`
+- Planning notes: `plans/nipux-runtime-notes.md`
 
 ## Constraints
 

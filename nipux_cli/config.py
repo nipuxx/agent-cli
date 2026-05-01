@@ -1,4 +1,4 @@
-"""Configuration for the barebones 24/7 agent runtime."""
+"""Configuration for the Nipux long-running agent runtime."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ DEFAULT_CONTEXT_LENGTH = 262_144
 
 
 def get_agent_home() -> Path:
-    """Return the barebones agent home directory."""
+    """Return the Nipux agent home directory."""
 
     value = os.environ.get("NIPUX_HOME", "").strip()
     return Path(value).expanduser() if value else Path.home() / ".nipux"

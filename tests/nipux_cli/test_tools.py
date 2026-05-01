@@ -6,7 +6,7 @@ from nipux_cli.db import AgentDB
 from nipux_cli.tools import APPROVED_TOOL_NAMES, DEFAULT_REGISTRY, ToolContext
 
 
-def test_static_tool_surface_is_barebones():
+def test_static_tool_surface_is_focused():
     assert tuple(DEFAULT_REGISTRY.names()) == tuple(sorted(APPROVED_TOOL_NAMES))
     assert "terminal" not in DEFAULT_REGISTRY.names()
     assert "delegate_task" not in DEFAULT_REGISTRY.names()

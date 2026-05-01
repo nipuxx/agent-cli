@@ -1,4 +1,4 @@
-"""SQLite state store for the barebones agent."""
+"""SQLite state store for the Nipux agent."""
 
 from __future__ import annotations
 

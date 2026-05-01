@@ -1,4 +1,4 @@
-"""Static tool registry for the barebones agent."""
+"""Static tool registry for the Nipux agent."""
 
 from __future__ import annotations
 

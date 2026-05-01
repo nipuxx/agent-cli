@@ -1,7 +1,7 @@
-"""Minimal daemon-first agent runtime.
+"""Minimal daemon-first Nipux runtime.
 
-This package is the replacement spine for the barebones fork. It owns the
-daemon, state store, model adapter, artifact store, and fixed tool surface.
+This package owns the daemon, state store, model adapter, artifact store, and
+fixed tool surface.
 """
 
 __all__ = [

@@ -82,7 +82,7 @@ pre { max-height: 540px; overflow: auto; background: #050606; border: 1px solid 
 <div class="shell">
   <aside class="sidebar">
     <div class="logo">NIPUX ATLAS</div>
-    <div class="subtitle">Generated from tracked source on fca4d823.</div>
+    <div class="subtitle">Generated from tracked source on d65413b7.</div>
     <input id="search" class="search" placeholder="filter files, prompts, tools..." autocomplete="off">
     <nav class="nav">
       <a href="#architecture">Architecture</a>
@@ -97,8 +97,8 @@ pre { max-height: 540px; overflow: auto; background: #050606; border: 1px solid 
       <a href="#risks">Review Points</a>
     </nav>
     <div class="stats">
-      <div class="stat"><b>51</b><span>tracked files</span></div>
-      <div class="stat"><b>24,125</b><span>tracked lines mapped</span></div>
+      <div class="stat"><b>50</b><span>tracked files</span></div>
+      <div class="stat"><b>24,075</b><span>tracked lines mapped</span></div>
       <div class="stat"><b>1007</b><span>python symbols</span></div>
       <div class="stat"><b>26</b><span>runtime tools</span></div>
     </div>
@@ -459,9 +459,9 @@ have incorporated or intentionally superseded a steer/follow_up message.
 
     <section id="files" class="section">
       <header><div><div class="kicker">Source index</div><h2>Important Files</h2></div><span class="muted">44 Python modules plus docs/config files.</span></header>
-      <div class="grid"><article class="file-card searchable" data-search="AGENTS.md This repo is now a barebones long-running worker, not a broad assistant distribution. none">
+      <div class="grid"><article class="file-card searchable" data-search="AGENTS.md This repo is a focused long-running worker, not a broad assistant distribution. none">
 <header><h3>AGENTS.md</h3><span>32 lines</span></header>
-<p>This repo is now a barebones long-running worker, not a broad assistant distribution.</p>
+<p>This repo is a focused long-running worker, not a broad assistant distribution.</p>
 <div class="meta"><span>0 symbols</span><span>0 TODOs</span></div>
 <details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> none</p><p><strong>Symbols:</strong> none</p></details>
 </article>
@@ -489,12 +489,12 @@ have incorporated or intentionally superseded a steer/follow_up message.
 <div class="meta"><span>0 symbols</span><span>0 TODOs</span></div>
 <details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> none</p><p><strong>Symbols:</strong> none</p></details>
 </article>
-<article class="file-card searchable" data-search="nipux_cli/__init__.py Minimal daemon-first agent runtime.
+<article class="file-card searchable" data-search="nipux_cli/__init__.py Minimal daemon-first Nipux runtime.
 
-This package is the replacement spine for the barebones fork. It owns the
-daemon, state store, model adapter, artifact store, and fixed tool surface. none">
+This package owns the daemon, state store, model adapter, artifact store, and
+fixed tool surface. none">
 <header><h3>nipux_cli/__init__.py</h3><span>11 lines</span></header>
-<p>Minimal daemon-first agent runtime. This package is the replacement spine for the barebones fork. It owns the daemon, state store, model adapter, artifact store, and fixed tool surface.</p>
+<p>Minimal daemon-first Nipux runtime. This package owns the daemon, state store, model adapter, artifact store, and fixed tool surface.</p>
 <div class="meta"><span>0 symbols</span><span>0 TODOs</span></div>
 <details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> none</p><p><strong>Symbols:</strong> none</p></details>
 </article>
@@ -504,15 +504,15 @@ daemon, state store, model adapter, artifact store, and fixed tool surface. none
 <div class="meta"><span>10 symbols</span><span>0 TODOs</span></div>
 <details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> __future__, hashlib, re, dataclasses, pathlib, typing, nipux_cli.db</p><p><strong>Symbols:</strong> safe_filename, sha256_text, StoredArtifact, ArtifactStore, __init__, job_dir, _assert_inside_home, write_text, read_text, search_text</p></details>
 </article>
-<article class="file-card searchable" data-search="nipux_cli/browser.py Small `agent-browser` wrapper for the barebones runtime. _find_agent_browser, _session_name, _profile_dir, _socket_dir, run_browser_command, navigate, snapshot, click, fill, scroll">
+<article class="file-card searchable" data-search="nipux_cli/browser.py Small `agent-browser` wrapper for the Nipux runtime. _find_agent_browser, _session_name, _profile_dir, _socket_dir, run_browser_command, navigate, snapshot, click, fill, scroll">
 <header><h3>nipux_cli/browser.py</h3><span>189 lines</span></header>
-<p>Small `agent-browser` wrapper for the barebones runtime.</p>
+<p>Small `agent-browser` wrapper for the Nipux runtime.</p>
 <div class="meta"><span>15 symbols</span><span>0 TODOs</span></div>
 <details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> __future__, json, os, shutil, subprocess, tempfile, hashlib, pathlib, typing, nipux_cli.config, nipux_cli.source_quality</p><p><strong>Symbols:</strong> _find_agent_browser, _session_name, _profile_dir, _socket_dir, run_browser_command, navigate, snapshot, click, fill, scroll</p></details>
 </article>
-<article class="file-card searchable" data-search="nipux_cli/cli.py Thin CLI for the barebones agent spine. _db, cmd_init, cmd_create, _create_job, cmd_jobs, cmd_focus, cmd_rename, cmd_delete, cmd_chat, cmd_home">
+<article class="file-card searchable" data-search="nipux_cli/cli.py Thin CLI for the Nipux agent runtime. _db, cmd_init, cmd_create, _create_job, cmd_jobs, cmd_focus, cmd_rename, cmd_delete, cmd_chat, cmd_home">
 <header><h3>nipux_cli/cli.py</h3><span>6090 lines</span></header>
-<p>Thin CLI for the barebones agent spine.</p>
+<p>Thin CLI for the Nipux agent runtime.</p>
 <div class="meta"><span>236 symbols</span><span>0 TODOs</span></div>
 <details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> __future__, argparse, json, os, re, select, shlex, shutil, signal, subprocess, sys, termios</p><p><strong>Symbols:</strong> _db, cmd_init, cmd_create, _create_job, cmd_jobs, cmd_focus, cmd_rename, cmd_delete, cmd_chat, cmd_home</p></details>
 </article>
@@ -522,9 +522,9 @@ daemon, state store, model adapter, artifact store, and fixed tool surface. none
 <div class="meta"><span>4 symbols</span><span>0 TODOs</span></div>
 <details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> __future__, nipux_cli.db, nipux_cli.operator_context</p><p><strong>Symbols:</strong> _clip_text, refresh_memory_index, _metadata_list, _rank_tasks</p></details>
 </article>
-<article class="file-card searchable" data-search="nipux_cli/config.py Configuration for the barebones 24/7 agent runtime. get_agent_home, load_env_file, ModelConfig, api_key, RuntimeConfig, state_db_path, jobs_dir, logs_dir, digests_dir, EmailConfig">
+<article class="file-card searchable" data-search="nipux_cli/config.py Configuration for the Nipux long-running agent runtime. get_agent_home, load_env_file, ModelConfig, api_key, RuntimeConfig, state_db_path, jobs_dir, logs_dir, digests_dir, EmailConfig">
 <header><h3>nipux_cli/config.py</h3><span>189 lines</span></header>
-<p>Configuration for the barebones 24/7 agent runtime.</p>
+<p>Configuration for the Nipux long-running agent runtime.</p>
 <div class="meta"><span>16 symbols</span><span>0 TODOs</span></div>
 <details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> __future__, os, dataclasses, pathlib, typing, yaml</p><p><strong>Symbols:</strong> get_agent_home, load_env_file, ModelConfig, api_key, RuntimeConfig, state_db_path, jobs_dir, logs_dir, digests_dir, EmailConfig</p></details>
 </article>
@@ -540,9 +540,9 @@ daemon, state store, model adapter, artifact store, and fixed tool surface. none
 <div class="meta"><span>23 symbols</span><span>0 TODOs</span></div>
 <details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> __future__, collections, datetime, pathlib, textwrap, typing, nipux_cli.config, nipux_cli.daemon, nipux_cli.db, nipux_cli.operator_context, nipux_cli.tools</p><p><strong>Symbols:</strong> collect_dashboard_state, render_dashboard, render_overview, _select_focus_job, _job_card, _focus_state, _render_focus, _public_run, _public_step, _public_artifact</p></details>
 </article>
-<article class="file-card searchable" data-search="nipux_cli/db.py SQLite state store for the barebones agent. utc_now, new_id, _slugify, _unique_job_id, _json_dumps, _json_loads, _as_int, _as_float, _nested_value, _metadata_list">
+<article class="file-card searchable" data-search="nipux_cli/db.py SQLite state store for the Nipux agent. utc_now, new_id, _slugify, _unique_job_id, _json_dumps, _json_loads, _as_int, _as_float, _nested_value, _metadata_list">
 <header><h3>nipux_cli/db.py</h3><span>2396 lines</span></header>
-<p>SQLite state store for the barebones agent.</p>
+<p>SQLite state store for the Nipux agent.</p>
 <div class="meta"><span>91 symbols</span><span>0 TODOs</span></div>
 <details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> __future__, json, random, re, sqlite3, threading, time, uuid, datetime, pathlib, typing</p><p><strong>Symbols:</strong> utc_now, new_id, _slugify, _unique_job_id, _json_dumps, _json_loads, _as_int, _as_float, _nested_value, _metadata_list</p></details>
 </article>
@@ -552,9 +552,9 @@ daemon, state store, model adapter, artifact store, and fixed tool surface. none
 <div class="meta"><span>6 symbols</span><span>0 TODOs</span></div>
 <details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> __future__, smtplib, datetime, email.message, pathlib, nipux_cli.config, nipux_cli.db, nipux_cli.operator_context</p><p><strong>Symbols:</strong> _metadata_list, _active_operator_messages, render_job_digest, send_digest_email, render_daily_digest, write_daily_digest</p></details>
 </article>
-<article class="file-card searchable" data-search="nipux_cli/doctor.py Runtime checks for the barebones agent. Check, as_dict, _check_writable_dir, _check_db, _check_tool_surface, _check_model_config, _check_browser_runtime, _check_model_endpoint, _check_model_generation, _check_openrouter_auth">
+<article class="file-card searchable" data-search="nipux_cli/doctor.py Runtime checks for the Nipux agent. Check, as_dict, _check_writable_dir, _check_db, _check_tool_surface, _check_model_config, _check_browser_runtime, _check_model_endpoint, _check_model_generation, _check_openrouter_auth">
 <header><h3>nipux_cli/doctor.py</h3><span>211 lines</span></header>
-<p>Runtime checks for the barebones agent.</p>
+<p>Runtime checks for the Nipux agent.</p>
 <div class="meta"><span>13 symbols</span><span>0 TODOs</span></div>
 <details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> __future__, json, shutil, urllib.error, urllib.request, dataclasses, pathlib, typing, urllib.parse, nipux_cli.config, nipux_cli.db, nipux_cli.tools</p><p><strong>Symbols:</strong> Check, as_dict, _check_writable_dir, _check_db, _check_tool_surface, _check_model_config, _check_browser_runtime, _check_model_endpoint, _check_model_generation, _check_openrouter_auth</p></details>
 </article>
@@ -594,9 +594,9 @@ daemon, state store, model adapter, artifact store, and fixed tool surface. none
 <div class="meta"><span>3 symbols</span><span>0 TODOs</span></div>
 <details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> __future__</p><p><strong>Symbols:</strong> program_for_job, _generic_template, _research_paper_template</p></details>
 </article>
-<article class="file-card searchable" data-search="nipux_cli/tools.py Static tool registry for the barebones agent. ToolContext, ToolSpec, as_openai_tool, _json, _write_artifact, _read_artifact, _resolve_artifact_ref, _search_artifacts, _write_file, _update_job_state">
+<article class="file-card searchable" data-search="nipux_cli/tools.py Static tool registry for the Nipux agent. ToolContext, ToolSpec, as_openai_tool, _json, _write_artifact, _read_artifact, _resolve_artifact_ref, _search_artifacts, _write_file, _update_job_state">
 <header><h3>nipux_cli/tools.py</h3><span>1197 lines</span></header>
-<p>Static tool registry for the barebones agent.</p>
+<p>Static tool registry for the Nipux agent.</p>
 <div class="meta"><span>40 symbols</span><span>0 TODOs</span></div>
 <details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> __future__, json, os, re, signal, subprocess, time, dataclasses, pathlib, typing, nipux_cli.artifacts, nipux_cli.config</p><p><strong>Symbols:</strong> ToolContext, ToolSpec, as_openai_tool, _json, _write_artifact, _read_artifact, _resolve_artifact_ref, _search_artifacts, _write_file, _update_job_state</p></details>
 </article>
@@ -629,12 +629,6 @@ daemon, state store, model adapter, artifact store, and fixed tool surface. none
 <p>Bounded worker loop for one restartable agent step.</p>
 <div class="meta"><span>94 symbols</span><span>0 TODOs</span></div>
 <details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> __future__, json, os, re, dataclasses, datetime, typing, urllib.parse, nipux_cli.artifacts, nipux_cli.config, nipux_cli.compression, nipux_cli.db</p><p><strong>Symbols:</strong> StepExecution, build_messages, _render_worker_prompt, _operator_messages_for_prompt, _acknowledge_non_prompt_operator_context, _operator_message_line, _lessons_for_prompt, _roadmap_for_prompt, _metadata_list, _tasks_for_prompt</p></details>
-</article>
-<article class="file-card searchable" data-search="plans/barebones-24-7-agent.md Nipux is a narrow, restartable worker for long-running browser, web research, none">
-<header><h3>plans/barebones-24-7-agent.md</h3><span>50 lines</span></header>
-<p>Nipux is a narrow, restartable worker for long-running browser, web research,</p>
-<div class="meta"><span>0 symbols</span><span>0 TODOs</span></div>
-<details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> none</p><p><strong>Symbols:</strong> none</p></details>
 </article>
 <article class="file-card searchable" data-search="pyproject.toml [build-system] none">
 <header><h3>pyproject.toml</h3><span>51 lines</span></header>
@@ -756,11 +750,11 @@ daemon, state store, model adapter, artifact store, and fixed tool surface. none
 <div class="meta"><span>1 symbols</span><span>0 TODOs</span></div>
 <details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> nipux_cli.templates</p><p><strong>Symbols:</strong> test_generic_template_pushes_artifacts_and_updates</p></details>
 </article>
-<article class="file-card searchable" data-search="tests/nipux_cli/test_tools.py No module docstring. test_static_tool_surface_is_barebones, test_artifact_tools_roundtrip, test_shell_exec_tool_runs_bounded_command, test_write_file_tool_writes_and_appends_workspace_file, test_shell_exec_timeout_kills_process_group, test_shell_exec_does_not_attach_local_ssh_config, test_shell_exec_reports_nonzero_stderr_as_error, test_update_job_state_keeps_terminal_statuses_operator_only, test_report_update_tool_records_operator_visible_note, test_record_lesson_tool_records_durable_learning">
+<article class="file-card searchable" data-search="tests/nipux_cli/test_tools.py No module docstring. test_static_tool_surface_is_focused, test_artifact_tools_roundtrip, test_shell_exec_tool_runs_bounded_command, test_write_file_tool_writes_and_appends_workspace_file, test_shell_exec_timeout_kills_process_group, test_shell_exec_does_not_attach_local_ssh_config, test_shell_exec_reports_nonzero_stderr_as_error, test_update_job_state_keeps_terminal_statuses_operator_only, test_report_update_tool_records_operator_visible_note, test_record_lesson_tool_records_durable_learning">
 <header><h3>tests/nipux_cli/test_tools.py</h3><span>700 lines</span></header>
 <p>No module docstring.</p>
 <div class="meta"><span>22 symbols</span><span>0 TODOs</span></div>
-<details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> json, nipux_cli.artifacts, nipux_cli.config, nipux_cli.db, nipux_cli.tools</p><p><strong>Symbols:</strong> test_static_tool_surface_is_barebones, test_artifact_tools_roundtrip, test_shell_exec_tool_runs_bounded_command, test_write_file_tool_writes_and_appends_workspace_file, test_shell_exec_timeout_kills_process_group, test_shell_exec_does_not_attach_local_ssh_config, test_shell_exec_reports_nonzero_stderr_as_error, test_update_job_state_keeps_terminal_statuses_operator_only, test_report_update_tool_records_operator_visible_note, test_record_lesson_tool_records_durable_learning</p></details>
+<details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> json, nipux_cli.artifacts, nipux_cli.config, nipux_cli.db, nipux_cli.tools</p><p><strong>Symbols:</strong> test_static_tool_surface_is_focused, test_artifact_tools_roundtrip, test_shell_exec_tool_runs_bounded_command, test_write_file_tool_writes_and_appends_workspace_file, test_shell_exec_timeout_kills_process_group, test_shell_exec_does_not_attach_local_ssh_config, test_shell_exec_reports_nonzero_stderr_as_error, test_update_job_state_keeps_terminal_statuses_operator_only, test_report_update_tool_records_operator_visible_note, test_record_lesson_tool_records_durable_learning</p></details>
 </article>
 <article class="file-card searchable" data-search="tests/nipux_cli/test_worker.py No module docstring. SnapshotRegistry, openai_tools, handle, SuccessRegistry, openai_tools, handle, MeasuredShellRegistry, openai_tools, handle, DiagnosticShellRegistry">
 <header><h3>tests/nipux_cli/test_worker.py</h3><span>2510 lines</span></header>
@@ -2362,10 +2356,10 @@ daemon, state store, model adapter, artifact store, and fixed tool surface. none
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> int, sorted, status_rank.get, str, task.get</p>
 </article>
-<article class="symbol searchable" data-search="nipux_cli/config.py get_agent_home Return the barebones agent home directory. Path, Path.home, expanduser, os.environ.get, strip">
+<article class="symbol searchable" data-search="nipux_cli/config.py get_agent_home Return the Nipux agent home directory. Path, Path.home, expanduser, os.environ.get, strip">
 <h3>get_agent_home</h3>
 <p><span class="pill">function</span> <span class="pill">nipux_cli/config.py:20</span></p>
-<p>Return the barebones agent home directory.</p>
+<p>Return the Nipux agent home directory.</p>
 <p class="calls"><strong>Calls:</strong> Path, Path.home, expanduser, os.environ.get, strip</p>
 </article>
 <article class="symbol searchable" data-search="nipux_cli/config.py load_env_file Load KEY=value pairs from a local env file without overriding the shell. Path, env_path.exists, env_path.read_text, expanduser, key.strip, line.split, line.startswith, raw_line.strip, splitlines, strip, value.strip">
@@ -6064,8 +6058,8 @@ daemon, state store, model adapter, artifact store, and fixed tool surface. none
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> program_for_job</p>
 </article>
-<article class="symbol searchable" data-search="tests/nipux_cli/test_tools.py test_static_tool_surface_is_barebones No docstring. DEFAULT_REGISTRY.names, sorted, tuple">
-<h3>test_static_tool_surface_is_barebones</h3>
+<article class="symbol searchable" data-search="tests/nipux_cli/test_tools.py test_static_tool_surface_is_focused No docstring. DEFAULT_REGISTRY.names, sorted, tuple">
+<h3>test_static_tool_surface_is_focused</h3>
 <p><span class="pill">function</span> <span class="pill">tests/nipux_cli/test_tools.py:9</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> DEFAULT_REGISTRY.names, sorted, tuple</p>
@@ -6820,7 +6814,7 @@ daemon, state store, model adapter, artifact store, and fixed tool surface. none
       <header><div><div class="kicker">Line-by-line</div><h2>Source Browser</h2></div><span class="muted">Collapsed raw tracked source so the backend can be inspected directly in this page.</span></header>
       <div class="source-list"><details class="source-file searchable" data-search="AGENTS.md # Development Notes
 
-This repo is now a barebones long-running worker, not a broad assistant distribution.
+This repo is a focused long-running worker, not a broad assistant distribution.
 
 ## Active Surface
 
@@ -6828,7 +6822,7 @@ This repo is now a barebones long-running worker, not a broad assistant distribu
 - Tests: `tests/nipux_cli/`
 - Entry point: `nipux`
 - State home: `~/.nipux` or `NIPUX_HOME`
-- Planning notes: `plans/barebones-24-7-agent.md`
+- Planning notes: `plans/nipux-runtime-notes.md`
 
 ## Constraints
 
@@ -6853,7 +6847,7 @@ Use `nipux daemon --once --fake` for a no-model smoke test. Use `nipux logs JOB_
 <summary>AGENTS.md <span>32 lines</span></summary>
 <pre class="source-code"><span class='src-line'><b>   1</b><code># Development Notes</code></span>
 <span class='src-line'><b>   2</b><code></code></span>
-<span class='src-line'><b>   3</b><code>This repo is now a barebones long-running worker, not a broad assistant distribution.</code></span>
+<span class='src-line'><b>   3</b><code>This repo is a focused long-running worker, not a broad assistant distribution.</code></span>
 <span class='src-line'><b>   4</b><code></code></span>
 <span class='src-line'><b>   5</b><code>## Active Surface</code></span>
 <span class='src-line'><b>   6</b><code></code></span>
@@ -6861,7 +6855,7 @@ Use `nipux daemon --once --fake` for a no-model smoke test. Use `nipux logs JOB_
 <span class='src-line'><b>   8</b><code>- Tests: `tests/nipux_cli/`</code></span>
 <span class='src-line'><b>   9</b><code>- Entry point: `nipux`</code></span>
 <span class='src-line'><b>  10</b><code>- State home: `~/.nipux` or `NIPUX_HOME`</code></span>
-<span class='src-line'><b>  11</b><code>- Planning notes: `plans/barebones-24-7-agent.md`</code></span>
+<span class='src-line'><b>  11</b><code>- Planning notes: `plans/nipux-runtime-notes.md`</code></span>
 <span class='src-line'><b>  12</b><code></code></span>
 <span class='src-line'><b>  13</b><code>## Constraints</code></span>
 <span class='src-line'><b>  14</b><code></code></span>
@@ -7340,7 +7334,7 @@ Do not commit real `.env`, state data">
 <span class='src-line'><b> 303</b><code>uv run --extra dev ruff check --isolated nipux_cli tests/nipux_cli</code></span>
 <span class='src-line'><b> 304</b><code>```</code></span>
 <span class='src-line'><b> 305</b><code></code></span>
-<span class='src-line'><b> 306</b><code>The active implementation notes live in `plans/barebones-24-7-agent.md`.</code></span></pre>
+<span class='src-line'><b> 306</b><code>The active implementation notes live in `plans/nipux-runtime-notes.md`.</code></span></pre>
 </details>
 <details class="source-file searchable" data-search="RELEASE_CHECKLIST.md # Release Checklist
 
@@ -7814,10 +7808,10 @@ Current Nipux files:
 <span class='src-line'><b> 266</b><code>- UI rendering over events</code></span>
 <span class='src-line'><b> 267</b><code></code></span></pre>
 </details>
-<details class="source-file searchable" data-search="nipux_cli/__init__.py &quot;&quot;&quot;Minimal daemon-first agent runtime.
+<details class="source-file searchable" data-search="nipux_cli/__init__.py &quot;&quot;&quot;Minimal daemon-first Nipux runtime.
 
-This package is the replacement spine for the barebones fork. It owns the
-daemon, state store, model adapter, artifact store, and fixed tool surface.
+This package owns the daemon, state store, model adapter, artifact store, and
+fixed tool surface.
 &quot;&quot;&quot;
 
 __all__ = [
@@ -7826,10 +7820,10 @@ __all__ = [
 
 __version__ = &quot;0.1.0&quot;">
 <summary>nipux_cli/__init__.py <span>11 lines</span></summary>
-<pre class="source-code"><span class='src-line'><b>   1</b><code>&quot;&quot;&quot;Minimal daemon-first agent runtime.</code></span>
+<pre class="source-code"><span class='src-line'><b>   1</b><code>&quot;&quot;&quot;Minimal daemon-first Nipux runtime.</code></span>
 <span class='src-line'><b>   2</b><code></code></span>
-<span class='src-line'><b>   3</b><code>This package is the replacement spine for the barebones fork. It owns the</code></span>
-<span class='src-line'><b>   4</b><code>daemon, state store, model adapter, artifact store, and fixed tool surface.</code></span>
+<span class='src-line'><b>   3</b><code>This package owns the daemon, state store, model adapter, artifact store, and</code></span>
+<span class='src-line'><b>   4</b><code>fixed tool surface.</code></span>
 <span class='src-line'><b>   5</b><code>&quot;&quot;&quot;</code></span>
 <span class='src-line'><b>   6</b><code></code></span>
 <span class='src-line'><b>   7</b><code>__all__ = [</code></span>
@@ -8097,7 +8091,7 @@ class ArtifactStore:
 <span class='src-line'><b> 137</b><code>                break</code></span>
 <span class='src-line'><b> 138</b><code>        return results</code></span></pre>
 </details>
-<details class="source-file searchable" data-search="nipux_cli/browser.py &quot;&quot;&quot;Small `agent-browser` wrapper for the barebones runtime.&quot;&quot;&quot;
+<details class="source-file searchable" data-search="nipux_cli/browser.py &quot;&quot;&quot;Small `agent-browser` wrapper for the Nipux runtime.&quot;&quot;&quot;
 
 from __future__ import annotations
 
@@ -8208,9 +8202,9 @@ def run_browser_command(
 
 def navigate(config: AppConfig, *, task_id: str, url: str) -&gt; dict[str, Any]:
     result = run_browser_command(config, task_id=task_id, command=&quot;open&quot;, args=[url], timeout=90)
-    if n">
+    if not r">
 <summary>nipux_cli/browser.py <span>189 lines</span></summary>
-<pre class="source-code"><span class='src-line'><b>   1</b><code>&quot;&quot;&quot;Small `agent-browser` wrapper for the barebones runtime.&quot;&quot;&quot;</code></span>
+<pre class="source-code"><span class='src-line'><b>   1</b><code>&quot;&quot;&quot;Small `agent-browser` wrapper for the Nipux runtime.&quot;&quot;&quot;</code></span>
 <span class='src-line'><b>   2</b><code></code></span>
 <span class='src-line'><b>   3</b><code>from __future__ import annotations</code></span>
 <span class='src-line'><b>   4</b><code></code></span>
@@ -8400,7 +8394,7 @@ def navigate(config: AppConfig, *, task_id: str, url: str) -&gt; dict[str, Any]:
 <span class='src-line'><b> 188</b><code>    result[&quot;recovery_snapshot&quot;] = _annotate_source_quality(recovery)</code></span>
 <span class='src-line'><b> 189</b><code>    return result</code></span></pre>
 </details>
-<details class="source-file searchable" data-search="nipux_cli/cli.py &quot;&quot;&quot;Thin CLI for the barebones agent spine.&quot;&quot;&quot;
+<details class="source-file searchable" data-search="nipux_cli/cli.py &quot;&quot;&quot;Thin CLI for the Nipux agent runtime.&quot;&quot;&quot;
 
 from __future__ import annotations
 
@@ -8580,9 +8574,9 @@ NATURAL_COMMANDS = {
     &quot;what&#x27;s going on&quot;: &quot;status&quot;,
     &quot;what are you doing&quot;: &quot;status&quot;,
     &quot;what is it doing&quot;: &quot;status&quot;,
-    &quot;how is it ">
+    &quot;how is it go">
 <summary>nipux_cli/cli.py <span>6090 lines</span></summary>
-<pre class="source-code"><span class='src-line'><b>   1</b><code>&quot;&quot;&quot;Thin CLI for the barebones agent spine.&quot;&quot;&quot;</code></span>
+<pre class="source-code"><span class='src-line'><b>   1</b><code>&quot;&quot;&quot;Thin CLI for the Nipux agent runtime.&quot;&quot;&quot;</code></span>
 <span class='src-line'><b>   2</b><code></code></span>
 <span class='src-line'><b>   3</b><code>from __future__ import annotations</code></span>
 <span class='src-line'><b>   4</b><code></code></span>
@@ -14931,7 +14925,7 @@ def refresh_memory_index(db: AgentDB, job_id: str, *, max_steps: int = 8, max_ar
 <span class='src-line'><b> 150</b><code>        ),</code></span>
 <span class='src-line'><b> 151</b><code>    )</code></span></pre>
 </details>
-<details class="source-file searchable" data-search="nipux_cli/config.py &quot;&quot;&quot;Configuration for the barebones 24/7 agent runtime.&quot;&quot;&quot;
+<details class="source-file searchable" data-search="nipux_cli/config.py &quot;&quot;&quot;Configuration for the Nipux long-running agent runtime.&quot;&quot;&quot;
 
 from __future__ import annotations
 
@@ -14951,7 +14945,7 @@ DEFAULT_CONTEXT_LENGTH = 262_144
 
 
 def get_agent_home() -&gt; Path:
-    &quot;&quot;&quot;Return the barebones agent home directory.&quot;&quot;&quot;
+    &quot;&quot;&quot;Return the Nipux agent home directory.&quot;&quot;&quot;
 
     value = os.environ.get(&quot;NIPUX_HOME&quot;, &quot;&quot;).strip()
     return Path(value).expanduser() if value else Path.home() / &quot;.nipux&quot;
@@ -15067,7 +15061,7 @@ def load_config(path: str | Path | None = None) -&gt; AppConfig:
         max_step_seconds=int(runtime_raw.get(&quot;max_step_seconds&quot;, 600)),
         max_steps_per_run=int(runtime_raw.get(&quot;max_steps_">
 <summary>nipux_cli/config.py <span>189 lines</span></summary>
-<pre class="source-code"><span class='src-line'><b>   1</b><code>&quot;&quot;&quot;Configuration for the barebones 24/7 agent runtime.&quot;&quot;&quot;</code></span>
+<pre class="source-code"><span class='src-line'><b>   1</b><code>&quot;&quot;&quot;Configuration for the Nipux long-running agent runtime.&quot;&quot;&quot;</code></span>
 <span class='src-line'><b>   2</b><code></code></span>
 <span class='src-line'><b>   3</b><code>from __future__ import annotations</code></span>
 <span class='src-line'><b>   4</b><code></code></span>
@@ -15087,7 +15081,7 @@ def load_config(path: str | Path | None = None) -&gt; AppConfig:
 <span class='src-line'><b>  18</b><code></code></span>
 <span class='src-line'><b>  19</b><code></code></span>
 <span class='src-line'><b>  20</b><code>def get_agent_home() -&gt; Path:</code></span>
-<span class='src-line'><b>  21</b><code>    &quot;&quot;&quot;Return the barebones agent home directory.&quot;&quot;&quot;</code></span>
+<span class='src-line'><b>  21</b><code>    &quot;&quot;&quot;Return the Nipux agent home directory.&quot;&quot;&quot;</code></span>
 <span class='src-line'><b>  22</b><code></code></span>
 <span class='src-line'><b>  23</b><code>    value = os.environ.get(&quot;NIPUX_HOME&quot;, &quot;&quot;).strip()</code></span>
 <span class='src-line'><b>  24</b><code>    return Path(value).expanduser() if value else Path.home() / &quot;.nipux&quot;</code></span>
@@ -16559,7 +16553,7 @@ def render_overview(state: dict[str, Any], *, width: int = 100) -&gt; str:
 <span class='src-line'><b> 487</b><code>def resolve_artifact_path(path: str | Path) -&gt; str:</code></span>
 <span class='src-line'><b> 488</b><code>    return str(Path(path).expanduser())</code></span></pre>
 </details>
-<details class="source-file searchable" data-search="nipux_cli/db.py &quot;&quot;&quot;SQLite state store for the barebones agent.&quot;&quot;&quot;
+<details class="source-file searchable" data-search="nipux_cli/db.py &quot;&quot;&quot;SQLite state store for the Nipux agent.&quot;&quot;&quot;
 
 from __future__ import annotations
 
@@ -16714,9 +16708,9 @@ def _unique_job_id(conn: sqlite3.Connection, seed: str) -&gt; str:
     return candidate
 
 
-def _json_dumps(value: Any) -">
+def _json_dumps(value: Any) -&gt; st">
 <summary>nipux_cli/db.py <span>2396 lines</span></summary>
-<pre class="source-code"><span class='src-line'><b>   1</b><code>&quot;&quot;&quot;SQLite state store for the barebones agent.&quot;&quot;&quot;</code></span>
+<pre class="source-code"><span class='src-line'><b>   1</b><code>&quot;&quot;&quot;SQLite state store for the Nipux agent.&quot;&quot;&quot;</code></span>
 <span class='src-line'><b>   2</b><code></code></span>
 <span class='src-line'><b>   3</b><code>from __future__ import annotations</code></span>
 <span class='src-line'><b>   4</b><code></code></span>
@@ -19484,7 +19478,7 @@ def render_job_digest(db: AgentDB, job_id: str) -&gt; str:
 <span class='src-line'><b> 272</b><code>        )</code></span>
 <span class='src-line'><b> 273</b><code>        return {&quot;digest_id&quot;: digest_id, &quot;status&quot;: &quot;failed&quot;, &quot;day&quot;: day, &quot;target&quot;: target, &quot;path&quot;: str(body_path), &quot;error&quot;: str(exc)}</code></span></pre>
 </details>
-<details class="source-file searchable" data-search="nipux_cli/doctor.py &quot;&quot;&quot;Runtime checks for the barebones agent.&quot;&quot;&quot;
+<details class="source-file searchable" data-search="nipux_cli/doctor.py &quot;&quot;&quot;Runtime checks for the Nipux agent.&quot;&quot;&quot;
 
 from __future__ import annotations
 
@@ -19589,9 +19583,9 @@ def _check_model_endpoint(config: AppConfig) -&gt; Check:
             generation = _check_model_generation(config)
             if not generation.ok:
                 return generation
-            return Check(&quot;model_endpoint&quot;, True, f&quot;{url} returned models={c">
+            return Check(&quot;model_endpoint&quot;, True, f&quot;{url} returned models={count">
 <summary>nipux_cli/doctor.py <span>211 lines</span></summary>
-<pre class="source-code"><span class='src-line'><b>   1</b><code>&quot;&quot;&quot;Runtime checks for the barebones agent.&quot;&quot;&quot;</code></span>
+<pre class="source-code"><span class='src-line'><b>   1</b><code>&quot;&quot;&quot;Runtime checks for the Nipux agent.&quot;&quot;&quot;</code></span>
 <span class='src-line'><b>   2</b><code></code></span>
 <span class='src-line'><b>   3</b><code>from __future__ import annotations</code></span>
 <span class='src-line'><b>   4</b><code></code></span>
@@ -20975,7 +20969,7 @@ _TEMPLATES = {
 <span class='src-line'><b>  66</b><code>    &quot;research_paper&quot;: _research_paper_template,</code></span>
 <span class='src-line'><b>  67</b><code>}</code></span></pre>
 </details>
-<details class="source-file searchable" data-search="nipux_cli/tools.py &quot;&quot;&quot;Static tool registry for the barebones agent.&quot;&quot;&quot;
+<details class="source-file searchable" data-search="nipux_cli/tools.py &quot;&quot;&quot;Static tool registry for the Nipux agent.&quot;&quot;&quot;
 
 from __future__ import annotations
 
@@ -21111,9 +21105,9 @@ def _resolve_artifact_ref(ctx: ToolContext, artifact_ref: str) -&gt; dict[str, A
 
 
 def _search_artifacts(args: dict[str, Any], ctx: ToolContext) -&gt; str:
-    query = str(args.get(&quot;query&quot;)">
+    query = str(args.get(&quot;query&quot;) or ">
 <summary>nipux_cli/tools.py <span>1197 lines</span></summary>
-<pre class="source-code"><span class='src-line'><b>   1</b><code>&quot;&quot;&quot;Static tool registry for the barebones agent.&quot;&quot;&quot;</code></span>
+<pre class="source-code"><span class='src-line'><b>   1</b><code>&quot;&quot;&quot;Static tool registry for the Nipux agent.&quot;&quot;&quot;</code></span>
 <span class='src-line'><b>   2</b><code></code></span>
 <span class='src-line'><b>   3</b><code>from __future__ import annotations</code></span>
 <span class='src-line'><b>   4</b><code></code></span>
@@ -26618,108 +26612,6 @@ experiments, files, bugs, sources, or other re">
 <span class='src-line'><b>3145</b><code>        if owns_db:</code></span>
 <span class='src-line'><b>3146</b><code>            db.close()</code></span></pre>
 </details>
-<details class="source-file searchable" data-search="plans/barebones-24-7-agent.md # Nipux Runtime Notes
-
-Nipux is a narrow, restartable worker for long-running browser, web research,
-and command-line jobs. The active implementation is intentionally small and
-centered on `nipux_cli/`, `tests/nipux_cli/`, and the `nipux` console script.
-
-## Runtime Shape
-
-- Package: `nipux_cli/`
-- CLI entry point: `nipux`
-- State home: `~/.nipux` or `NIPUX_HOME`
-- Config file: `~/.nipux/config.yaml`
-- Database: SQLite with WAL
-- Artifacts: per-job files under the configured state home
-- Browser profiles: per-job `agent-browser` profiles
-- Model API: OpenAI-compatible chat completions endpoint
-
-## Design Constraints
-
-- Keep every worker step bounded and restartable.
-- Persist useful evidence as artifacts before summarizing it.
-- Keep summaries compact and point back to artifacts.
-- Maintain source, finding, task, experiment, and lesson ledgers.
-- Keep jobs runnable until the operator pauses or cancels them.
-- Keep the tool registry explicit and small.
-- Keep runtime behavior domain-neutral.
-
-## Active Tools
-
-- Browser: `browser_navigate`, `browser_snapshot`, `browser_click`,
-  `browser_type`, `browser_scroll`, `browser_back`, `browser_press`,
-  `browser_console`
-- Web: `web_search`, `web_extract`
-- Local command work: `shell_exec`
-- Artifacts: `write_artifact`, `read_artifact`, `search_artifacts`
-- Job state and visibility: `update_job_state`, `report_update`,
-  `send_digest_email`
-- Learning ledgers: `record_lesson`, `record_source`, `record_findings`,
-  `record_tasks`, `record_experiment`
-
-## Validation
-
-```bash
-PYTEST_ADDOPTS=&#x27;&#x27; uv run --extra dev python -m pytest -q
-uv run --extra dev ruff check --isolated nipux_cli tests/nipux_cli
-uv run nipux doctor
-```
-
-Use `uv run nipux daemon --once --fake` for a deterministic no-model smoke
-test after CLI or daemon changes.">
-<summary>plans/barebones-24-7-agent.md <span>50 lines</span></summary>
-<pre class="source-code"><span class='src-line'><b>   1</b><code># Nipux Runtime Notes</code></span>
-<span class='src-line'><b>   2</b><code></code></span>
-<span class='src-line'><b>   3</b><code>Nipux is a narrow, restartable worker for long-running browser, web research,</code></span>
-<span class='src-line'><b>   4</b><code>and command-line jobs. The active implementation is intentionally small and</code></span>
-<span class='src-line'><b>   5</b><code>centered on `nipux_cli/`, `tests/nipux_cli/`, and the `nipux` console script.</code></span>
-<span class='src-line'><b>   6</b><code></code></span>
-<span class='src-line'><b>   7</b><code>## Runtime Shape</code></span>
-<span class='src-line'><b>   8</b><code></code></span>
-<span class='src-line'><b>   9</b><code>- Package: `nipux_cli/`</code></span>
-<span class='src-line'><b>  10</b><code>- CLI entry point: `nipux`</code></span>
-<span class='src-line'><b>  11</b><code>- State home: `~/.nipux` or `NIPUX_HOME`</code></span>
-<span class='src-line'><b>  12</b><code>- Config file: `~/.nipux/config.yaml`</code></span>
-<span class='src-line'><b>  13</b><code>- Database: SQLite with WAL</code></span>
-<span class='src-line'><b>  14</b><code>- Artifacts: per-job files under the configured state home</code></span>
-<span class='src-line'><b>  15</b><code>- Browser profiles: per-job `agent-browser` profiles</code></span>
-<span class='src-line'><b>  16</b><code>- Model API: OpenAI-compatible chat completions endpoint</code></span>
-<span class='src-line'><b>  17</b><code></code></span>
-<span class='src-line'><b>  18</b><code>## Design Constraints</code></span>
-<span class='src-line'><b>  19</b><code></code></span>
-<span class='src-line'><b>  20</b><code>- Keep every worker step bounded and restartable.</code></span>
-<span class='src-line'><b>  21</b><code>- Persist useful evidence as artifacts before summarizing it.</code></span>
-<span class='src-line'><b>  22</b><code>- Keep summaries compact and point back to artifacts.</code></span>
-<span class='src-line'><b>  23</b><code>- Maintain source, finding, task, experiment, and lesson ledgers.</code></span>
-<span class='src-line'><b>  24</b><code>- Keep jobs runnable until the operator pauses or cancels them.</code></span>
-<span class='src-line'><b>  25</b><code>- Keep the tool registry explicit and small.</code></span>
-<span class='src-line'><b>  26</b><code>- Keep runtime behavior domain-neutral.</code></span>
-<span class='src-line'><b>  27</b><code></code></span>
-<span class='src-line'><b>  28</b><code>## Active Tools</code></span>
-<span class='src-line'><b>  29</b><code></code></span>
-<span class='src-line'><b>  30</b><code>- Browser: `browser_navigate`, `browser_snapshot`, `browser_click`,</code></span>
-<span class='src-line'><b>  31</b><code>  `browser_type`, `browser_scroll`, `browser_back`, `browser_press`,</code></span>
-<span class='src-line'><b>  32</b><code>  `browser_console`</code></span>
-<span class='src-line'><b>  33</b><code>- Web: `web_search`, `web_extract`</code></span>
-<span class='src-line'><b>  34</b><code>- Local command work: `shell_exec`</code></span>
-<span class='src-line'><b>  35</b><code>- Artifacts: `write_artifact`, `read_artifact`, `search_artifacts`</code></span>
-<span class='src-line'><b>  36</b><code>- Job state and visibility: `update_job_state`, `report_update`,</code></span>
-<span class='src-line'><b>  37</b><code>  `send_digest_email`</code></span>
-<span class='src-line'><b>  38</b><code>- Learning ledgers: `record_lesson`, `record_source`, `record_findings`,</code></span>
-<span class='src-line'><b>  39</b><code>  `record_tasks`, `record_experiment`</code></span>
-<span class='src-line'><b>  40</b><code></code></span>
-<span class='src-line'><b>  41</b><code>## Validation</code></span>
-<span class='src-line'><b>  42</b><code></code></span>
-<span class='src-line'><b>  43</b><code>```bash</code></span>
-<span class='src-line'><b>  44</b><code>PYTEST_ADDOPTS=&#x27;&#x27; uv run --extra dev python -m pytest -q</code></span>
-<span class='src-line'><b>  45</b><code>uv run --extra dev ruff check --isolated nipux_cli tests/nipux_cli</code></span>
-<span class='src-line'><b>  46</b><code>uv run nipux doctor</code></span>
-<span class='src-line'><b>  47</b><code>```</code></span>
-<span class='src-line'><b>  48</b><code></code></span>
-<span class='src-line'><b>  49</b><code>Use `uv run nipux daemon --once --fake` for a deterministic no-model smoke</code></span>
-<span class='src-line'><b>  50</b><code>test after CLI or daemon changes.</code></span></pre>
-</details>
 <details class="source-file searchable" data-search="pyproject.toml [build-system]
 requires = [&quot;setuptools&gt;=61.0&quot;]
 build-backend = &quot;setuptools.build_meta&quot;
@@ -32069,7 +31961,7 @@ from nipux_cli.db import AgentDB
 from nipux_cli.tools import APPROVED_TOOL_NAMES, DEFAULT_REGISTRY, ToolContext
 
 
-def test_static_tool_surface_is_barebones():
+def test_static_tool_surface_is_focused():
     assert tuple(DEFAULT_REGISTRY.names()) == tuple(sorted(APPROVED_TOOL_NAMES))
     assert &quot;terminal&quot; not in DEFAULT_REGISTRY.names()
     assert &quot;delegate_task&quot; not in DEFAULT_REGISTRY.names()
@@ -32146,7 +32038,7 @@ def test_write_file_tool_writes_and_appends_workspace_file(tmp_path, monkeypatch
     try:
         job_id = db.create_job(&quot;Write deliverable&quot;)
         run_id = db.start_run(job_id, model=&quot;fake&quot;)
-        step_id = db.add_step(job_id=job_id, run_id=run_id,">
+        step_id = db.add_step(job_id=job_id, run_id=run_id, k">
 <summary>tests/nipux_cli/test_tools.py <span>700 lines</span></summary>
 <pre class="source-code"><span class='src-line'><b>   1</b><code>import json</code></span>
 <span class='src-line'><b>   2</b><code></code></span>
@@ -32156,7 +32048,7 @@ def test_write_file_tool_writes_and_appends_workspace_file(tmp_path, monkeypatch
 <span class='src-line'><b>   6</b><code>from nipux_cli.tools import APPROVED_TOOL_NAMES, DEFAULT_REGISTRY, ToolContext</code></span>
 <span class='src-line'><b>   7</b><code></code></span>
 <span class='src-line'><b>   8</b><code></code></span>
-<span class='src-line'><b>   9</b><code>def test_static_tool_surface_is_barebones():</code></span>
+<span class='src-line'><b>   9</b><code>def test_static_tool_surface_is_focused():</code></span>
 <span class='src-line'><b>  10</b><code>    assert tuple(DEFAULT_REGISTRY.names()) == tuple(sorted(APPROVED_TOOL_NAMES))</code></span>
 <span class='src-line'><b>  11</b><code>    assert &quot;terminal&quot; not in DEFAULT_REGISTRY.names()</code></span>
 <span class='src-line'><b>  12</b><code>    assert &quot;delegate_task&quot; not in DEFAULT_REGISTRY.names()</code></span>
@@ -35554,9 +35446,9 @@ class AntiBotBrowserRegistry:
 <article class="test-card searchable" data-search="tests/nipux_cli/test_templates.py test_generic_template_pushes_artifacts_and_updates">
 <h3>tests/nipux_cli/test_templates.py</h3><p><strong>1</strong> tests · 15 lines</p>
 <p class="muted">test_generic_template_pushes_artifacts_and_updates</p></article>
-<article class="test-card searchable" data-search="tests/nipux_cli/test_tools.py test_static_tool_surface_is_barebones test_artifact_tools_roundtrip test_shell_exec_tool_runs_bounded_command test_write_file_tool_writes_and_appends_workspace_file test_shell_exec_timeout_kills_process_group test_shell_exec_does_not_attach_local_ssh_config test_shell_exec_reports_nonzero_stderr_as_error test_update_job_state_keeps_terminal_statuses_operator_only test_report_update_tool_records_operator_visible_note test_record_lesson_tool_records_durable_learning test_record_source_and_findings_tools_update_ledgers test_record_tasks_tool_updates_task_queue test_record_roadmap_tool_updates_roadmap test_record_roadmap_dedupes_milestone_titles_even_when_keys_change test_record_milestone_validation_creates_follow_up_tasks test_record_experiment_tool_tracks_best_measured_result test_acknowledge_operator_context_tool_marks_context test_record_tasks_accepts_generic_output_contracts test_record_tasks_downgrades_done_artifact_without_delivery_evidence test_record_tasks_allows_done_artifact_after_delivery_evidence test_record_tasks_does_not_treat_stderr_redirect_as_delivery_write test_record_tasks_rejects_checkpoint_as_delivery_evidence">
+<article class="test-card searchable" data-search="tests/nipux_cli/test_tools.py test_static_tool_surface_is_focused test_artifact_tools_roundtrip test_shell_exec_tool_runs_bounded_command test_write_file_tool_writes_and_appends_workspace_file test_shell_exec_timeout_kills_process_group test_shell_exec_does_not_attach_local_ssh_config test_shell_exec_reports_nonzero_stderr_as_error test_update_job_state_keeps_terminal_statuses_operator_only test_report_update_tool_records_operator_visible_note test_record_lesson_tool_records_durable_learning test_record_source_and_findings_tools_update_ledgers test_record_tasks_tool_updates_task_queue test_record_roadmap_tool_updates_roadmap test_record_roadmap_dedupes_milestone_titles_even_when_keys_change test_record_milestone_validation_creates_follow_up_tasks test_record_experiment_tool_tracks_best_measured_result test_acknowledge_operator_context_tool_marks_context test_record_tasks_accepts_generic_output_contracts test_record_tasks_downgrades_done_artifact_without_delivery_evidence test_record_tasks_allows_done_artifact_after_delivery_evidence test_record_tasks_does_not_treat_stderr_redirect_as_delivery_write test_record_tasks_rejects_checkpoint_as_delivery_evidence">
 <h3>tests/nipux_cli/test_tools.py</h3><p><strong>22</strong> tests · 700 lines</p>
-<p class="muted">test_static_tool_surface_is_barebones, test_artifact_tools_roundtrip, test_shell_exec_tool_runs_bounded_command, test_write_file_tool_writes_and_appends_workspace_file, test_shell_exec_timeout_kills_process_group, test_shell_exec_does_not_attach_local_ssh_config, test_shell_exec_reports_nonzero_stderr_as_error, test...</p></article>
+<p class="muted">test_static_tool_surface_is_focused, test_artifact_tools_roundtrip, test_shell_exec_tool_runs_bounded_command, test_write_file_tool_writes_and_appends_workspace_file, test_shell_exec_timeout_kills_process_group, test_shell_exec_does_not_attach_local_ssh_config, test_shell_exec_reports_nonzero_stderr_as_error, test_u...</p></article>
 <article class="test-card searchable" data-search="tests/nipux_cli/test_worker.py test_run_one_step_executes_scripted_tool_call test_run_one_step_executes_tool_call_batch_in_order test_write_artifact_reconciles_matching_report_task test_evidence_artifact_does_not_complete_deliverable_task test_checkpoint_artifact_does_not_complete_deliverable_task test_evidence_artifact_can_complete_research_task test_run_one_step_blocks_artifact_churn_until_progress_accounting test_activity_checkpoint_streak_blocks_more_churn_until_ledger_update test_run_one_step_blocks_similar_artifact_search test_run_one_step_blocks_artifact_review_when_tasks_are_exhausted test_run_one_step_recovers_repeated_guard_blocks_without_llm test_run_one_step_recovers_repeated_known_bad_source_blocks test_guard_recovery_does_not_repeat_after_recovery_step test_web_extract_auto_records_source_quality test_worker_cannot_mark_job_completed_by_default test_run_one_step_claims_one_steering_message_per_turn test_run_one_step_records_model_failures_instead_of_raising test_prompt_includes_recent_tool_arguments_and_observations test_prompt_does_not_inject_local_ssh_alias_context test_prompt_includes_operator_steering_messages test_prompt_keeps_claimed_operator_context_until_acknowledged test_run_one_step_drops_conversation_only_chat_from_worker_prompt test_build_messages_keeps_generic_context_under_budget test_measurement_obligation_blocks_research_until_recorded test_diagnostic_shell_output_does_not_create_measurement_obligation test_source_code_shell_output_does_not_create_measurement_obligation test_large_shell_output_must_be_saved_before_more_shell_churn test_stale_diagnostic_measurement_obligation_is_cleared test_measurable_objective_blocks_research_after_budget_but_allows_action test_measurable_objective_blocks_shell_churn_without_experiment_accounting test_prompt_includes_durable_lessons test_prompt_includes_activity_stagnation_context test_prompt_includes_finding_source_ledgers_and_reflections test_prompt_includes_experiment_ledger_and_best_result test_delivery_experiment_next_action_blocks_unrelated_research test_research_experiment_next_action_allows_research test_delivery_experiment_next_action_blocks_read_only_shell test_delivery_experiment_next_action_allows_write_shell test_write_file_can_consume_recent_shell_evidence test_delivery_experiment_next_action_allows_internal_artifact_review test_prompt_marks_recent_anti_bot_browser_source test_prompt_marks_recent_captcha_browser_block test_prompt_includes_browser_candidate_names test_prompt_includes_candidate_names_from_table_cells test_prompt_includes_recovery_candidates_after_stale_ref test_run_one_step_blocks_exact_duplicate_tool_call test_duplicate_artifact_read_guidance_pushes_follow_up_work test_run_one_step_allows_repeated_browser_snapshot test_run_one_step_blocks_search_after_unpersisted_extract test_prompt_tells_model_to_save_unpersisted_evidence_before_more_research test_run_one_step_blocks_research_after_unpersisted_browser_snapshot test_prompt_tells_model_to_open_new_branch_when_tasks_are_exhausted test_prompt_includes_roadmap_and_validation_constraints test_prompt_suggests_roadmap_for_broad_jobs_without_one test_run_one_step_blocks_branch_work_when_milestone_needs_validation test_run_one_step_allows_milestone_validation_when_gate_is_active test_run_one_step_blocks_task_churn_when_roadmap_stalls test_run_one_step_allows_roadmap_update_when_roadmap_stalls test_run_one_step_blocks_branch_work_when_tasks_are_exhausted test_run_one_step_allows_record_tasks_when_tasks_are_exhausted test_run_one_step_blocks_new_tasks_when_queue_is_saturated test_run_one_step_allows_existing_task_update_when_queue_is_saturated test_run_one_step_auto_records_anti_bot_browser_source test_run_one_step_blocks_misleading_artifact_after_anti_bot_snapshot test_run_one_step_allows_blocked_source_artifact_when_acknowledged test_run_one_step_blocks_browser_loop_after_anti_bot_snapshot test_run_one_step_blocks_known_bad_browser_source_from_ledger test_run_one_step_blocks_known_bad_extract_source_from_ledger test_run_one_step_saves_unpersisted_evidence_before_known_bad_source_block test_run_one_step_blocks_search_streak test_run_one_step_blocks_similar_search_query test_run_one_step_reflects_every_fixed_interval">
 <h3>tests/nipux_cli/test_worker.py</h3><p><strong>72</strong> tests · 2510 lines</p>
 <p class="muted">test_run_one_step_executes_scripted_tool_call, test_run_one_step_executes_tool_call_batch_in_order, test_write_artifact_reconciles_matching_report_task, test_evidence_artifact_does_not_complete_deliverable_task, test_checkpoint_artifact_does_not_complete_deliverable_task, test_evidence_artifact_can_complete_research...</p></article></div>

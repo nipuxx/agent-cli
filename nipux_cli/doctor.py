@@ -1,4 +1,4 @@
-"""Runtime checks for the barebones agent."""
+"""Runtime checks for the Nipux agent."""
 
 from __future__ import annotations
 

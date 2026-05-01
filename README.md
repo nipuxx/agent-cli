@@ -303,4 +303,4 @@ PYTEST_ADDOPTS='' uv run --extra dev python -m pytest -q
 uv run --extra dev ruff check --isolated nipux_cli tests/nipux_cli
 ```
 
-The active implementation notes live in `plans/barebones-24-7-agent.md`.
+The active implementation notes live in `plans/nipux-runtime-notes.md`.

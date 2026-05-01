@@ -1,4 +1,4 @@
-"""Thin CLI for the barebones agent spine."""
+"""Thin CLI for the Nipux agent runtime."""
 
 from __future__ import annotations
 
