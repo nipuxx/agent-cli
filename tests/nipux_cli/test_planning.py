@@ -51,6 +51,15 @@ def test_initial_plan_adapts_to_deliverable_objectives():
     assert any("draft" in title.lower() or "report" in title.lower() for title in plan["tasks"])
 
 
+def test_initial_plan_treats_generated_files_as_deliverables():
+    plan = initial_plan_for_objective("generate a polished launch checklist for this repository")
+    contracts = [initial_task_contract(title)["output_contract"] for title in plan["tasks"]]
+
+    assert plan["profile"] == "deliverable"
+    assert "report" in contracts
+    assert any("audience" in question.lower() for question in plan["questions"])
+
+
 def test_initial_plan_adapts_to_monitoring_objectives():
     plan = initial_plan_for_objective("monitor a recurring process and report important changes")
     contracts = [initial_task_contract(title)["output_contract"] for title in plan["tasks"]]

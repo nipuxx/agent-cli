@@ -28,17 +28,25 @@ _PROFILE_TERMS: dict[str, set[str]] = {
     },
     "deliverable": {
         "article",
+        "artifact",
+        "checklist",
+        "create",
         "deck",
         "doc",
         "document",
         "draft",
+        "file",
+        "generate",
         "guide",
+        "manual",
         "memo",
         "outline",
         "paper",
+        "produce",
         "presentation",
         "report",
         "spec",
+        "template",
         "write",
     },
     "monitor": {
@@ -129,7 +137,25 @@ def initial_task_contract(task_title: str) -> dict[str, str]:
             "evidence_needed": "Experiment record with metric, environment or inputs, result direction, and next action.",
             "stall_behavior": "Record why measurement is blocked and create the smallest follow-up task that can obtain it.",
         }
-    if any(word in lowered for word in ("draft", "deliverable", "document", "paper", "report", "write")):
+    if any(
+        word in lowered
+        for word in (
+            "article",
+            "checklist",
+            "draft",
+            "deliverable",
+            "document",
+            "file",
+            "generate",
+            "guide",
+            "manual",
+            "paper",
+            "produce",
+            "report",
+            "template",
+            "write",
+        )
+    ):
         return {
             "output_contract": "report",
             "acceptance_criteria": "A durable draft, report, or deliverable section is saved with its evidence status.",
