@@ -82,7 +82,7 @@ pre { max-height: 540px; overflow: auto; background: #050606; border: 1px solid 
 <div class="shell">
   <aside class="sidebar">
     <div class="logo">NIPUX ATLAS</div>
-    <div class="subtitle">Generated from tracked source on d5feb0b0.</div>
+    <div class="subtitle">Generated from tracked source on 3db875fc.</div>
     <input id="search" class="search" placeholder="filter files, prompts, tools..." autocomplete="off">
     <nav class="nav">
       <a href="#architecture">Architecture</a>
@@ -98,7 +98,7 @@ pre { max-height: 540px; overflow: auto; background: #050606; border: 1px solid 
     </nav>
     <div class="stats">
       <div class="stat"><b>60</b><span>tracked files</span></div>
-      <div class="stat"><b>25,293</b><span>tracked lines mapped</span></div>
+      <div class="stat"><b>25,317</b><span>tracked lines mapped</span></div>
       <div class="stat"><b>1045</b><span>python symbols</span></div>
       <div class="stat"><b>27</b><span>runtime tools</span></div>
     </div>
@@ -540,7 +540,7 @@ fixed tool surface. none">
 <details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> __future__, argparse, json, os, re, select, shlex, shutil, signal, subprocess, sys, termios</p><p><strong>Symbols:</strong> _db, cmd_init, cmd_create, _create_job, cmd_jobs, cmd_focus, cmd_rename, cmd_delete, cmd_chat, cmd_home</p></details>
 </article>
 <article class="file-card searchable" data-search="nipux_cli/compression.py Deterministic rolling memory summaries for long-running jobs. _clip_text, refresh_memory_index, _metadata_list, _rank_tasks, _compact_count">
-<header><h3>nipux_cli/compression.py</h3><span>182 lines</span></header>
+<header><h3>nipux_cli/compression.py</h3><span>198 lines</span></header>
 <p>Deterministic rolling memory summaries for long-running jobs.</p>
 <div class="meta"><span>5 symbols</span><span>0 TODOs</span></div>
 <details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> __future__, nipux_cli.db, nipux_cli.operator_context</p><p><strong>Symbols:</strong> _clip_text, refresh_memory_index, _metadata_list, _rank_tasks, _compact_count</p></details>
@@ -744,7 +744,7 @@ fixed tool surface. none">
 <details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> types, nipux_cli.cli, nipux_cli.doctor</p><p><strong>Symbols:</strong> _config, test_remote_model_preflight_blocks_rejected_auth, fake_doctor, test_remote_model_preflight_skips_fake_runs, fake_doctor, test_remote_model_preflight_does_not_block_local_endpoints, fake_doctor, test_start_does_not_spawn_daemon_when_model_preflight_fails, fake_ready, fake_popen</p></details>
 </article>
 <article class="file-card searchable" data-search="tests/nipux_cli/test_compression.py No module docstring. test_refresh_memory_index_includes_durable_progress_ledgers">
-<header><h3>tests/nipux_cli/test_compression.py</h3><span>68 lines</span></header>
+<header><h3>tests/nipux_cli/test_compression.py</h3><span>76 lines</span></header>
 <p>No module docstring.</p>
 <div class="meta"><span>1 symbols</span><span>0 TODOs</span></div>
 <details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> nipux_cli.compression, nipux_cli.db</p><p><strong>Symbols:</strong> test_refresh_memory_index_includes_durable_progress_ledgers</p></details>
@@ -2031,27 +2031,27 @@ fixed tool surface. none">
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> join, len, max, rstrip, split, str</p>
 </article>
-<article class="symbol searchable" data-search="nipux_cli/compression.py refresh_memory_index Write a compact, artifact-referenced job memory entry. This is deliberately deterministic. A local model can later improve the prose, but the daemon should always have a cheap c... _clip_text, _compact_count, _metadata_list, _rank_tasks, active_prompt_operator_entries, artifact.get, db.get_job, db.job_token_usage, db.list_artifacts, db.list_steps, db.upsert_memory, entry.get, experiment.get, finding.get, int, isinstance">
+<article class="symbol searchable" data-search="nipux_cli/compression.py refresh_memory_index Write a compact, artifact-referenced job memory entry. This is deliberately deterministic. A local model can later improve the prose, but the daemon should always have a cheap c... _clip_text, _compact_count, _metadata_list, _rank_tasks, active_prompt_operator_entries, artifact.get, db.get_job, db.job_token_usage, db.list_artifacts, db.list_steps, db.upsert_memory, entry.get, experiment.get, finding.get, get, int">
 <h3>refresh_memory_index</h3>
 <p><span class="pill">function</span> <span class="pill">nipux_cli/compression.py:16</span></p>
 <p>Write a compact, artifact-referenced job memory entry. This is deliberately deterministic. A local model can later improve the prose, but the daemon should always have a cheap c...</p>
-<p class="calls"><strong>Calls:</strong> _clip_text, _compact_count, _metadata_list, _rank_tasks, active_prompt_operator_entries, artifact.get, db.get_job, db.job_token_usage, db.list_artifacts, db.list_steps, db.upsert_memory, entry.get, experiment.get, finding.get, int, isinstance</p>
+<p class="calls"><strong>Calls:</strong> _clip_text, _compact_count, _metadata_list, _rank_tasks, active_prompt_operator_entries, artifact.get, db.get_job, db.job_token_usage, db.list_artifacts, db.list_steps, db.upsert_memory, entry.get, experiment.get, finding.get, get, int</p>
 </article>
 <article class="symbol searchable" data-search="nipux_cli/compression.py _metadata_list No docstring. isinstance, metadata.get">
 <h3>_metadata_list</h3>
-<p><span class="pill">function</span> <span class="pill">nipux_cli/compression.py:154</span></p>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/compression.py:170</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> isinstance, metadata.get</p>
 </article>
 <article class="symbol searchable" data-search="nipux_cli/compression.py _rank_tasks No docstring. int, sorted, status_rank.get, str, task.get">
 <h3>_rank_tasks</h3>
-<p><span class="pill">function</span> <span class="pill">nipux_cli/compression.py:161</span></p>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/compression.py:177</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> int, sorted, status_rank.get, str, task.get</p>
 </article>
 <article class="symbol searchable" data-search="nipux_cli/compression.py _compact_count No docstring. float, int, str">
 <h3>_compact_count</h3>
-<p><span class="pill">function</span> <span class="pill">nipux_cli/compression.py:173</span></p>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/compression.py:189</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> float, int, str</p>
 </article>
@@ -13992,6 +13992,13 @@ def refresh_memory_index(db: AgentDB, job_id: str, *, max_steps: int = 8, max_ar
     sources = _metadata_list(metadata, &quot;source_ledger&quot;)
     experiments = _metadata_list(metadata, &quot;experiment_ledger&quot;)
     roadmap = metadata.get(&quot;roadmap&quot;) if isinstance(metadata.get(&quot;roadmap&quot;), dict) else {}
+    pending_measurement = (
+        metadata.get(&quot;pending_measurement_obligation&quot;)
+        if isinstance(metadata.get(&quot;pending_measurement_obligation&quot;), dict)
+        and metadata.get(&quot;pending_measurement_obligation&quot;)
+        and not metadata.get(&quot;pending_measurement_obligation&quot;, {}).get(&quot;resolved_at&quot;)
+        else {}
+    )
 
     lines.extend([&quot;&quot;, &quot;Durable progress ledgers:&quot;])
     lines.append(
@@ -14008,16 +14015,8 @@ def refresh_memory_index(db: AgentDB, job_id: str, *, max_steps: int = 8, max_ar
     )
     for task in _rank_tasks(tasks)[:4]:
         lines.append(
-            &quot;- task &quot;
-            f&quot;{task.get(&#x27;status&#x27;) or &#x27;open&#x27;} &quot;
-            f&quot;{_clip_text(task.get(&#x27;title&#x27;) or &#x27;&#x27;, 120)} &quot;
-            f&quot;contract={task.get(&#x27;output_contract&#x27;) or &#x27;?&#x27;}&quot;
-        )
-    for experiment in experiments[-3:]:
-        metric = &quot;&quot;
-        if experiment.get(&quot;metric_value&quot;) not in (None, &quot;&quot;):
-            m">
-<summary>nipux_cli/compression.py <span>182 lines</span></summary>
+       ">
+<summary>nipux_cli/compression.py <span>198 lines</span></summary>
 <pre class="source-code"><span class='src-line'><b>   1</b><code>&quot;&quot;&quot;Deterministic rolling memory summaries for long-running jobs.&quot;&quot;&quot;</code></span>
 <span class='src-line'><b>   2</b><code></code></span>
 <span class='src-line'><b>   3</b><code>from __future__ import annotations</code></span>
@@ -14098,108 +14097,124 @@ def refresh_memory_index(db: AgentDB, job_id: str, *, max_steps: int = 8, max_ar
 <span class='src-line'><b>  78</b><code>    sources = _metadata_list(metadata, &quot;source_ledger&quot;)</code></span>
 <span class='src-line'><b>  79</b><code>    experiments = _metadata_list(metadata, &quot;experiment_ledger&quot;)</code></span>
 <span class='src-line'><b>  80</b><code>    roadmap = metadata.get(&quot;roadmap&quot;) if isinstance(metadata.get(&quot;roadmap&quot;), dict) else {}</code></span>
-<span class='src-line'><b>  81</b><code></code></span>
-<span class='src-line'><b>  82</b><code>    lines.extend([&quot;&quot;, &quot;Durable progress ledgers:&quot;])</code></span>
-<span class='src-line'><b>  83</b><code>    lines.append(</code></span>
-<span class='src-line'><b>  84</b><code>        &quot;- &quot;</code></span>
-<span class='src-line'><b>  85</b><code>        + &quot;, &quot;.join(</code></span>
-<span class='src-line'><b>  86</b><code>            [</code></span>
-<span class='src-line'><b>  87</b><code>                f&quot;tasks={len(tasks)}&quot;,</code></span>
-<span class='src-line'><b>  88</b><code>                f&quot;findings={len(findings)}&quot;,</code></span>
-<span class='src-line'><b>  89</b><code>                f&quot;sources={len(sources)}&quot;,</code></span>
-<span class='src-line'><b>  90</b><code>                f&quot;experiments={len(experiments)}&quot;,</code></span>
-<span class='src-line'><b>  91</b><code>                f&quot;roadmap={&#x27;yes&#x27; if roadmap else &#x27;no&#x27;}&quot;,</code></span>
-<span class='src-line'><b>  92</b><code>            ]</code></span>
-<span class='src-line'><b>  93</b><code>        )</code></span>
-<span class='src-line'><b>  94</b><code>    )</code></span>
-<span class='src-line'><b>  95</b><code>    for task in _rank_tasks(tasks)[:4]:</code></span>
-<span class='src-line'><b>  96</b><code>        lines.append(</code></span>
-<span class='src-line'><b>  97</b><code>            &quot;- task &quot;</code></span>
-<span class='src-line'><b>  98</b><code>            f&quot;{task.get(&#x27;status&#x27;) or &#x27;open&#x27;} &quot;</code></span>
-<span class='src-line'><b>  99</b><code>            f&quot;{_clip_text(task.get(&#x27;title&#x27;) or &#x27;&#x27;, 120)} &quot;</code></span>
-<span class='src-line'><b> 100</b><code>            f&quot;contract={task.get(&#x27;output_contract&#x27;) or &#x27;?&#x27;}&quot;</code></span>
-<span class='src-line'><b> 101</b><code>        )</code></span>
-<span class='src-line'><b> 102</b><code>    for experiment in experiments[-3:]:</code></span>
-<span class='src-line'><b> 103</b><code>        metric = &quot;&quot;</code></span>
-<span class='src-line'><b> 104</b><code>        if experiment.get(&quot;metric_value&quot;) not in (None, &quot;&quot;):</code></span>
-<span class='src-line'><b> 105</b><code>            metric = (</code></span>
-<span class='src-line'><b> 106</b><code>                f&quot; metric={experiment.get(&#x27;metric_name&#x27;) or &#x27;value&#x27;}=&quot;</code></span>
-<span class='src-line'><b> 107</b><code>                f&quot;{experiment.get(&#x27;metric_value&#x27;)}{experiment.get(&#x27;metric_unit&#x27;) or &#x27;&#x27;}&quot;</code></span>
-<span class='src-line'><b> 108</b><code>            )</code></span>
-<span class='src-line'><b> 109</b><code>        lines.append(</code></span>
-<span class='src-line'><b> 110</b><code>            &quot;- experiment &quot;</code></span>
-<span class='src-line'><b> 111</b><code>            f&quot;{experiment.get(&#x27;status&#x27;) or &#x27;planned&#x27;} &quot;</code></span>
-<span class='src-line'><b> 112</b><code>            f&quot;{_clip_text(experiment.get(&#x27;title&#x27;) or &#x27;&#x27;, 120)}{metric}&quot;</code></span>
-<span class='src-line'><b> 113</b><code>        )</code></span>
-<span class='src-line'><b> 114</b><code>    for finding in findings[-3:]:</code></span>
-<span class='src-line'><b> 115</b><code>        lines.append(f&quot;- finding {_clip_text(finding.get(&#x27;name&#x27;) or finding.get(&#x27;title&#x27;) or &#x27;&#x27;, 140)}&quot;)</code></span>
-<span class='src-line'><b> 116</b><code>    for source in sources[-3:]:</code></span>
-<span class='src-line'><b> 117</b><code>        score = source.get(&quot;usefulness_score&quot;)</code></span>
-<span class='src-line'><b> 118</b><code>        lines.append(f&quot;- source {_clip_text(source.get(&#x27;source&#x27;) or &#x27;&#x27;, 140)} score={score if score is not None else &#x27;?&#x27;}&quot;)</code></span>
-<span class='src-line'><b> 119</b><code>    if roadmap:</code></span>
-<span class='src-line'><b> 120</b><code>        lines.append(</code></span>
-<span class='src-line'><b> 121</b><code>            &quot;- roadmap &quot;</code></span>
-<span class='src-line'><b> 122</b><code>            f&quot;{roadmap.get(&#x27;status&#x27;) or &#x27;planned&#x27;} &quot;</code></span>
-<span class='src-line'><b> 123</b><code>            f&quot;{_clip_text(roadmap.get(&#x27;title&#x27;) or &#x27;Roadmap&#x27;, 140)} &quot;</code></span>
-<span class='src-line'><b> 124</b><code>            f&quot;current={_clip_text(roadmap.get(&#x27;current_milestone&#x27;) or &#x27;&#x27;, 120)}&quot;</code></span>
-<span class='src-line'><b> 125</b><code>        )</code></span>
-<span class='src-line'><b> 126</b><code></code></span>
-<span class='src-line'><b> 127</b><code>    usage = db.job_token_usage(job_id)</code></span>
-<span class='src-line'><b> 128</b><code>    if int(usage.get(&quot;calls&quot;) or 0) &gt; 0:</code></span>
-<span class='src-line'><b> 129</b><code>        lines.extend([&quot;&quot;, &quot;Model usage:&quot;])</code></span>
-<span class='src-line'><b> 130</b><code>        latest_prompt = _compact_count(usage.get(&quot;latest_prompt_tokens&quot;))</code></span>
-<span class='src-line'><b> 131</b><code>        latest_total = _compact_count(usage.get(&quot;latest_total_tokens&quot;))</code></span>
-<span class='src-line'><b> 132</b><code>        lines.append(</code></span>
-<span class='src-line'><b> 133</b><code>            &quot;- &quot;</code></span>
-<span class='src-line'><b> 134</b><code>            + &quot;, &quot;.join(</code></span>
-<span class='src-line'><b> 135</b><code>                [</code></span>
-<span class='src-line'><b> 136</b><code>                    f&quot;calls={usage.get(&#x27;calls&#x27;) or 0}&quot;,</code></span>
-<span class='src-line'><b> 137</b><code>                    f&quot;total_tokens={_compact_count(usage.get(&#x27;total_tokens&#x27;))}&quot;,</code></span>
-<span class='src-line'><b> 138</b><code>                    f&quot;output_tokens={_compact_count(usage.get(&#x27;completion_tokens&#x27;))}&quot;,</code></span>
-<span class='src-line'><b> 139</b><code>                    f&quot;latest_context={latest_prompt}&quot;,</code></span>
-<span class='src-line'><b> 140</b><code>                    f&quot;latest_total={latest_total}&quot;,</code></span>
-<span class='src-line'><b> 141</b><code>                    f&quot;estimated_calls={usage.get(&#x27;estimated_calls&#x27;) or 0}&quot;,</code></span>
-<span class='src-line'><b> 142</b><code>                ]</code></span>
-<span class='src-line'><b> 143</b><code>            )</code></span>
-<span class='src-line'><b> 144</b><code>        )</code></span>
-<span class='src-line'><b> 145</b><code></code></span>
-<span class='src-line'><b> 146</b><code>    return db.upsert_memory(</code></span>
-<span class='src-line'><b> 147</b><code>        job_id=job_id,</code></span>
-<span class='src-line'><b> 148</b><code>        key=&quot;rolling_state&quot;,</code></span>
-<span class='src-line'><b> 149</b><code>        summary=&quot;\n&quot;.join(lines).strip(),</code></span>
-<span class='src-line'><b> 150</b><code>        artifact_refs=artifact_refs,</code></span>
-<span class='src-line'><b> 151</b><code>    )</code></span>
-<span class='src-line'><b> 152</b><code></code></span>
-<span class='src-line'><b> 153</b><code></code></span>
-<span class='src-line'><b> 154</b><code>def _metadata_list(metadata: dict, key: str) -&gt; list[dict]:</code></span>
-<span class='src-line'><b> 155</b><code>    values = metadata.get(key)</code></span>
-<span class='src-line'><b> 156</b><code>    if not isinstance(values, list):</code></span>
-<span class='src-line'><b> 157</b><code>        return []</code></span>
-<span class='src-line'><b> 158</b><code>    return [value for value in values if isinstance(value, dict)]</code></span>
-<span class='src-line'><b> 159</b><code></code></span>
-<span class='src-line'><b> 160</b><code></code></span>
-<span class='src-line'><b> 161</b><code>def _rank_tasks(tasks: list[dict]) -&gt; list[dict]:</code></span>
-<span class='src-line'><b> 162</b><code>    status_rank = {&quot;active&quot;: 0, &quot;open&quot;: 1, &quot;blocked&quot;: 2, &quot;validating&quot;: 3, &quot;done&quot;: 4, &quot;skipped&quot;: 5}</code></span>
-<span class='src-line'><b> 163</b><code>    return sorted(</code></span>
-<span class='src-line'><b> 164</b><code>        tasks,</code></span>
-<span class='src-line'><b> 165</b><code>        key=lambda task: (</code></span>
-<span class='src-line'><b> 166</b><code>            status_rank.get(str(task.get(&quot;status&quot;) or &quot;open&quot;), 9),</code></span>
-<span class='src-line'><b> 167</b><code>            -int(task.get(&quot;priority&quot;) or 0),</code></span>
-<span class='src-line'><b> 168</b><code>            str(task.get(&quot;title&quot;) or &quot;&quot;),</code></span>
-<span class='src-line'><b> 169</b><code>        ),</code></span>
-<span class='src-line'><b> 170</b><code>    )</code></span>
-<span class='src-line'><b> 171</b><code></code></span>
-<span class='src-line'><b> 172</b><code></code></span>
-<span class='src-line'><b> 173</b><code>def _compact_count(value: object) -&gt; str:</code></span>
-<span class='src-line'><b> 174</b><code>    try:</code></span>
-<span class='src-line'><b> 175</b><code>        number = int(float(value or 0))</code></span>
-<span class='src-line'><b> 176</b><code>    except (TypeError, ValueError):</code></span>
-<span class='src-line'><b> 177</b><code>        number = 0</code></span>
-<span class='src-line'><b> 178</b><code>    if number &gt;= 1_000_000:</code></span>
-<span class='src-line'><b> 179</b><code>        return f&quot;{number / 1_000_000:.1f}M&quot;</code></span>
-<span class='src-line'><b> 180</b><code>    if number &gt;= 1_000:</code></span>
-<span class='src-line'><b> 181</b><code>        return f&quot;{number / 1_000:.1f}K&quot;</code></span>
-<span class='src-line'><b> 182</b><code>    return str(number)</code></span></pre>
+<span class='src-line'><b>  81</b><code>    pending_measurement = (</code></span>
+<span class='src-line'><b>  82</b><code>        metadata.get(&quot;pending_measurement_obligation&quot;)</code></span>
+<span class='src-line'><b>  83</b><code>        if isinstance(metadata.get(&quot;pending_measurement_obligation&quot;), dict)</code></span>
+<span class='src-line'><b>  84</b><code>        and metadata.get(&quot;pending_measurement_obligation&quot;)</code></span>
+<span class='src-line'><b>  85</b><code>        and not metadata.get(&quot;pending_measurement_obligation&quot;, {}).get(&quot;resolved_at&quot;)</code></span>
+<span class='src-line'><b>  86</b><code>        else {}</code></span>
+<span class='src-line'><b>  87</b><code>    )</code></span>
+<span class='src-line'><b>  88</b><code></code></span>
+<span class='src-line'><b>  89</b><code>    lines.extend([&quot;&quot;, &quot;Durable progress ledgers:&quot;])</code></span>
+<span class='src-line'><b>  90</b><code>    lines.append(</code></span>
+<span class='src-line'><b>  91</b><code>        &quot;- &quot;</code></span>
+<span class='src-line'><b>  92</b><code>        + &quot;, &quot;.join(</code></span>
+<span class='src-line'><b>  93</b><code>            [</code></span>
+<span class='src-line'><b>  94</b><code>                f&quot;tasks={len(tasks)}&quot;,</code></span>
+<span class='src-line'><b>  95</b><code>                f&quot;findings={len(findings)}&quot;,</code></span>
+<span class='src-line'><b>  96</b><code>                f&quot;sources={len(sources)}&quot;,</code></span>
+<span class='src-line'><b>  97</b><code>                f&quot;experiments={len(experiments)}&quot;,</code></span>
+<span class='src-line'><b>  98</b><code>                f&quot;roadmap={&#x27;yes&#x27; if roadmap else &#x27;no&#x27;}&quot;,</code></span>
+<span class='src-line'><b>  99</b><code>            ]</code></span>
+<span class='src-line'><b> 100</b><code>        )</code></span>
+<span class='src-line'><b> 101</b><code>    )</code></span>
+<span class='src-line'><b> 102</b><code>    for task in _rank_tasks(tasks)[:4]:</code></span>
+<span class='src-line'><b> 103</b><code>        lines.append(</code></span>
+<span class='src-line'><b> 104</b><code>            &quot;- task &quot;</code></span>
+<span class='src-line'><b> 105</b><code>            f&quot;{task.get(&#x27;status&#x27;) or &#x27;open&#x27;} &quot;</code></span>
+<span class='src-line'><b> 106</b><code>            f&quot;{_clip_text(task.get(&#x27;title&#x27;) or &#x27;&#x27;, 120)} &quot;</code></span>
+<span class='src-line'><b> 107</b><code>            f&quot;contract={task.get(&#x27;output_contract&#x27;) or &#x27;?&#x27;}&quot;</code></span>
+<span class='src-line'><b> 108</b><code>        )</code></span>
+<span class='src-line'><b> 109</b><code>    for experiment in experiments[-3:]:</code></span>
+<span class='src-line'><b> 110</b><code>        metric = &quot;&quot;</code></span>
+<span class='src-line'><b> 111</b><code>        if experiment.get(&quot;metric_value&quot;) not in (None, &quot;&quot;):</code></span>
+<span class='src-line'><b> 112</b><code>            metric = (</code></span>
+<span class='src-line'><b> 113</b><code>                f&quot; metric={experiment.get(&#x27;metric_name&#x27;) or &#x27;value&#x27;}=&quot;</code></span>
+<span class='src-line'><b> 114</b><code>                f&quot;{experiment.get(&#x27;metric_value&#x27;)}{experiment.get(&#x27;metric_unit&#x27;) or &#x27;&#x27;}&quot;</code></span>
+<span class='src-line'><b> 115</b><code>            )</code></span>
+<span class='src-line'><b> 116</b><code>        lines.append(</code></span>
+<span class='src-line'><b> 117</b><code>            &quot;- experiment &quot;</code></span>
+<span class='src-line'><b> 118</b><code>            f&quot;{experiment.get(&#x27;status&#x27;) or &#x27;planned&#x27;} &quot;</code></span>
+<span class='src-line'><b> 119</b><code>            f&quot;{_clip_text(experiment.get(&#x27;title&#x27;) or &#x27;&#x27;, 120)}{metric}&quot;</code></span>
+<span class='src-line'><b> 120</b><code>        )</code></span>
+<span class='src-line'><b> 121</b><code>    if pending_measurement:</code></span>
+<span class='src-line'><b> 122</b><code>        candidates = pending_measurement.get(&quot;metric_candidates&quot;)</code></span>
+<span class='src-line'><b> 123</b><code>        candidate_text = &quot;; &quot;.join(str(item) for item in candidates[:3]) if isinstance(candidates, list) else &quot;&quot;</code></span>
+<span class='src-line'><b> 124</b><code>        lines.append(</code></span>
+<span class='src-line'><b> 125</b><code>            &quot;- pending_measurement &quot;</code></span>
+<span class='src-line'><b> 126</b><code>            f&quot;step=#{pending_measurement.get(&#x27;source_step_no&#x27;) or &#x27;?&#x27;} &quot;</code></span>
+<span class='src-line'><b> 127</b><code>            f&quot;tool={pending_measurement.get(&#x27;tool&#x27;) or &#x27;?&#x27;} &quot;</code></span>
+<span class='src-line'><b> 128</b><code>            f&quot;{_clip_text(candidate_text or pending_measurement.get(&#x27;summary&#x27;) or &#x27;&#x27;, 220)}&quot;</code></span>
+<span class='src-line'><b> 129</b><code>        )</code></span>
+<span class='src-line'><b> 130</b><code>    for finding in findings[-3:]:</code></span>
+<span class='src-line'><b> 131</b><code>        lines.append(f&quot;- finding {_clip_text(finding.get(&#x27;name&#x27;) or finding.get(&#x27;title&#x27;) or &#x27;&#x27;, 140)}&quot;)</code></span>
+<span class='src-line'><b> 132</b><code>    for source in sources[-3:]:</code></span>
+<span class='src-line'><b> 133</b><code>        score = source.get(&quot;usefulness_score&quot;)</code></span>
+<span class='src-line'><b> 134</b><code>        lines.append(f&quot;- source {_clip_text(source.get(&#x27;source&#x27;) or &#x27;&#x27;, 140)} score={score if score is not None else &#x27;?&#x27;}&quot;)</code></span>
+<span class='src-line'><b> 135</b><code>    if roadmap:</code></span>
+<span class='src-line'><b> 136</b><code>        lines.append(</code></span>
+<span class='src-line'><b> 137</b><code>            &quot;- roadmap &quot;</code></span>
+<span class='src-line'><b> 138</b><code>            f&quot;{roadmap.get(&#x27;status&#x27;) or &#x27;planned&#x27;} &quot;</code></span>
+<span class='src-line'><b> 139</b><code>            f&quot;{_clip_text(roadmap.get(&#x27;title&#x27;) or &#x27;Roadmap&#x27;, 140)} &quot;</code></span>
+<span class='src-line'><b> 140</b><code>            f&quot;current={_clip_text(roadmap.get(&#x27;current_milestone&#x27;) or &#x27;&#x27;, 120)}&quot;</code></span>
+<span class='src-line'><b> 141</b><code>        )</code></span>
+<span class='src-line'><b> 142</b><code></code></span>
+<span class='src-line'><b> 143</b><code>    usage = db.job_token_usage(job_id)</code></span>
+<span class='src-line'><b> 144</b><code>    if int(usage.get(&quot;calls&quot;) or 0) &gt; 0:</code></span>
+<span class='src-line'><b> 145</b><code>        lines.extend([&quot;&quot;, &quot;Model usage:&quot;])</code></span>
+<span class='src-line'><b> 146</b><code>        latest_prompt = _compact_count(usage.get(&quot;latest_prompt_tokens&quot;))</code></span>
+<span class='src-line'><b> 147</b><code>        latest_total = _compact_count(usage.get(&quot;latest_total_tokens&quot;))</code></span>
+<span class='src-line'><b> 148</b><code>        lines.append(</code></span>
+<span class='src-line'><b> 149</b><code>            &quot;- &quot;</code></span>
+<span class='src-line'><b> 150</b><code>            + &quot;, &quot;.join(</code></span>
+<span class='src-line'><b> 151</b><code>                [</code></span>
+<span class='src-line'><b> 152</b><code>                    f&quot;calls={usage.get(&#x27;calls&#x27;) or 0}&quot;,</code></span>
+<span class='src-line'><b> 153</b><code>                    f&quot;total_tokens={_compact_count(usage.get(&#x27;total_tokens&#x27;))}&quot;,</code></span>
+<span class='src-line'><b> 154</b><code>                    f&quot;output_tokens={_compact_count(usage.get(&#x27;completion_tokens&#x27;))}&quot;,</code></span>
+<span class='src-line'><b> 155</b><code>                    f&quot;latest_context={latest_prompt}&quot;,</code></span>
+<span class='src-line'><b> 156</b><code>                    f&quot;latest_total={latest_total}&quot;,</code></span>
+<span class='src-line'><b> 157</b><code>                    f&quot;estimated_calls={usage.get(&#x27;estimated_calls&#x27;) or 0}&quot;,</code></span>
+<span class='src-line'><b> 158</b><code>                ]</code></span>
+<span class='src-line'><b> 159</b><code>            )</code></span>
+<span class='src-line'><b> 160</b><code>        )</code></span>
+<span class='src-line'><b> 161</b><code></code></span>
+<span class='src-line'><b> 162</b><code>    return db.upsert_memory(</code></span>
+<span class='src-line'><b> 163</b><code>        job_id=job_id,</code></span>
+<span class='src-line'><b> 164</b><code>        key=&quot;rolling_state&quot;,</code></span>
+<span class='src-line'><b> 165</b><code>        summary=&quot;\n&quot;.join(lines).strip(),</code></span>
+<span class='src-line'><b> 166</b><code>        artifact_refs=artifact_refs,</code></span>
+<span class='src-line'><b> 167</b><code>    )</code></span>
+<span class='src-line'><b> 168</b><code></code></span>
+<span class='src-line'><b> 169</b><code></code></span>
+<span class='src-line'><b> 170</b><code>def _metadata_list(metadata: dict, key: str) -&gt; list[dict]:</code></span>
+<span class='src-line'><b> 171</b><code>    values = metadata.get(key)</code></span>
+<span class='src-line'><b> 172</b><code>    if not isinstance(values, list):</code></span>
+<span class='src-line'><b> 173</b><code>        return []</code></span>
+<span class='src-line'><b> 174</b><code>    return [value for value in values if isinstance(value, dict)]</code></span>
+<span class='src-line'><b> 175</b><code></code></span>
+<span class='src-line'><b> 176</b><code></code></span>
+<span class='src-line'><b> 177</b><code>def _rank_tasks(tasks: list[dict]) -&gt; list[dict]:</code></span>
+<span class='src-line'><b> 178</b><code>    status_rank = {&quot;active&quot;: 0, &quot;open&quot;: 1, &quot;blocked&quot;: 2, &quot;validating&quot;: 3, &quot;done&quot;: 4, &quot;skipped&quot;: 5}</code></span>
+<span class='src-line'><b> 179</b><code>    return sorted(</code></span>
+<span class='src-line'><b> 180</b><code>        tasks,</code></span>
+<span class='src-line'><b> 181</b><code>        key=lambda task: (</code></span>
+<span class='src-line'><b> 182</b><code>            status_rank.get(str(task.get(&quot;status&quot;) or &quot;open&quot;), 9),</code></span>
+<span class='src-line'><b> 183</b><code>            -int(task.get(&quot;priority&quot;) or 0),</code></span>
+<span class='src-line'><b> 184</b><code>            str(task.get(&quot;title&quot;) or &quot;&quot;),</code></span>
+<span class='src-line'><b> 185</b><code>        ),</code></span>
+<span class='src-line'><b> 186</b><code>    )</code></span>
+<span class='src-line'><b> 187</b><code></code></span>
+<span class='src-line'><b> 188</b><code></code></span>
+<span class='src-line'><b> 189</b><code>def _compact_count(value: object) -&gt; str:</code></span>
+<span class='src-line'><b> 190</b><code>    try:</code></span>
+<span class='src-line'><b> 191</b><code>        number = int(float(value or 0))</code></span>
+<span class='src-line'><b> 192</b><code>    except (TypeError, ValueError):</code></span>
+<span class='src-line'><b> 193</b><code>        number = 0</code></span>
+<span class='src-line'><b> 194</b><code>    if number &gt;= 1_000_000:</code></span>
+<span class='src-line'><b> 195</b><code>        return f&quot;{number / 1_000_000:.1f}M&quot;</code></span>
+<span class='src-line'><b> 196</b><code>    if number &gt;= 1_000:</code></span>
+<span class='src-line'><b> 197</b><code>        return f&quot;{number / 1_000:.1f}K&quot;</code></span>
+<span class='src-line'><b> 198</b><code>    return str(number)</code></span></pre>
 </details>
 <details class="source-file searchable" data-search="nipux_cli/config.py &quot;&quot;&quot;Configuration for the Nipux long-running agent runtime.&quot;&quot;&quot;
 
@@ -31889,6 +31904,12 @@ def test_refresh_memory_index_includes_durable_progress_ledgers(tmp_path):
                     &quot;status&quot;: &quot;active&quot;,
                     &quot;current_milestone&quot;: &quot;Improve literature review&quot;,
                 },
+                &quot;pending_measurement_obligation&quot;: {
+                    &quot;source_step_no&quot;: 42,
+                    &quot;tool&quot;: &quot;shell_exec&quot;,
+                    &quot;summary&quot;: &quot;benchmark output needs accounting&quot;,
+                    &quot;metric_candidates&quot;: [&quot;latency 120ms&quot;, &quot;throughput 9 req/s&quot;],
+                },
             },
         )
         db.append_event(
@@ -31917,12 +31938,14 @@ def test_refresh_memory_index_includes_durable_progress_ledgers(tmp_path):
         assert &quot;Citation density check&quot; in memory
         assert &quot;Teacher traces improve tool use&quot; in memory
         assert &quot;Research paper roadmap&quot; in memory
+        assert &quot;pending_measurement step=#42 tool=shell_exec&quot; in memory
+        assert &quot;latency 120ms&quot; in memory
         assert &quot;Model usage:&quot; in memory
         assert &quot;total_tokens=1.5K&quot; in memory
         assert &quot;estimated_calls=1&quot; in memory
     finally:
         db.close()">
-<summary>tests/nipux_cli/test_compression.py <span>68 lines</span></summary>
+<summary>tests/nipux_cli/test_compression.py <span>76 lines</span></summary>
 <pre class="source-code"><span class='src-line'><b>   1</b><code>from nipux_cli.compression import refresh_memory_index</code></span>
 <span class='src-line'><b>   2</b><code>from nipux_cli.db import AgentDB</code></span>
 <span class='src-line'><b>   3</b><code></code></span>
@@ -31958,39 +31981,47 @@ def test_refresh_memory_index_includes_durable_progress_ledgers(tmp_path):
 <span class='src-line'><b>  33</b><code>                    &quot;status&quot;: &quot;active&quot;,</code></span>
 <span class='src-line'><b>  34</b><code>                    &quot;current_milestone&quot;: &quot;Improve literature review&quot;,</code></span>
 <span class='src-line'><b>  35</b><code>                },</code></span>
-<span class='src-line'><b>  36</b><code>            },</code></span>
-<span class='src-line'><b>  37</b><code>        )</code></span>
-<span class='src-line'><b>  38</b><code>        db.append_event(</code></span>
-<span class='src-line'><b>  39</b><code>            job_id,</code></span>
-<span class='src-line'><b>  40</b><code>            event_type=&quot;loop&quot;,</code></span>
-<span class='src-line'><b>  41</b><code>            title=&quot;message_end&quot;,</code></span>
-<span class='src-line'><b>  42</b><code>            metadata={</code></span>
-<span class='src-line'><b>  43</b><code>                &quot;usage&quot;: {</code></span>
-<span class='src-line'><b>  44</b><code>                    &quot;prompt_tokens&quot;: 1200,</code></span>
-<span class='src-line'><b>  45</b><code>                    &quot;completion_tokens&quot;: 300,</code></span>
-<span class='src-line'><b>  46</b><code>                    &quot;total_tokens&quot;: 1500,</code></span>
-<span class='src-line'><b>  47</b><code>                    &quot;estimated&quot;: True,</code></span>
-<span class='src-line'><b>  48</b><code>                }</code></span>
-<span class='src-line'><b>  49</b><code>            },</code></span>
-<span class='src-line'><b>  50</b><code>        )</code></span>
-<span class='src-line'><b>  51</b><code></code></span>
-<span class='src-line'><b>  52</b><code>        refresh_memory_index(db, job_id)</code></span>
-<span class='src-line'><b>  53</b><code></code></span>
-<span class='src-line'><b>  54</b><code>        memory = db.list_memory(job_id)[0][&quot;summary&quot;]</code></span>
-<span class='src-line'><b>  55</b><code>        assert &quot;Durable progress ledgers:&quot; in memory</code></span>
-<span class='src-line'><b>  56</b><code>        assert &quot;tasks=1&quot; in memory</code></span>
-<span class='src-line'><b>  57</b><code>        assert &quot;findings=1&quot; in memory</code></span>
-<span class='src-line'><b>  58</b><code>        assert &quot;sources=1&quot; in memory</code></span>
-<span class='src-line'><b>  59</b><code>        assert &quot;experiments=1&quot; in memory</code></span>
-<span class='src-line'><b>  60</b><code>        assert &quot;Draft evidence-backed section&quot; in memory</code></span>
-<span class='src-line'><b>  61</b><code>        assert &quot;Citation density check&quot; in memory</code></span>
-<span class='src-line'><b>  62</b><code>        assert &quot;Teacher traces improve tool use&quot; in memory</code></span>
-<span class='src-line'><b>  63</b><code>        assert &quot;Research paper roadmap&quot; in memory</code></span>
-<span class='src-line'><b>  64</b><code>        assert &quot;Model usage:&quot; in memory</code></span>
-<span class='src-line'><b>  65</b><code>        assert &quot;total_tokens=1.5K&quot; in memory</code></span>
-<span class='src-line'><b>  66</b><code>        assert &quot;estimated_calls=1&quot; in memory</code></span>
-<span class='src-line'><b>  67</b><code>    finally:</code></span>
-<span class='src-line'><b>  68</b><code>        db.close()</code></span></pre>
+<span class='src-line'><b>  36</b><code>                &quot;pending_measurement_obligation&quot;: {</code></span>
+<span class='src-line'><b>  37</b><code>                    &quot;source_step_no&quot;: 42,</code></span>
+<span class='src-line'><b>  38</b><code>                    &quot;tool&quot;: &quot;shell_exec&quot;,</code></span>
+<span class='src-line'><b>  39</b><code>                    &quot;summary&quot;: &quot;benchmark output needs accounting&quot;,</code></span>
+<span class='src-line'><b>  40</b><code>                    &quot;metric_candidates&quot;: [&quot;latency 120ms&quot;, &quot;throughput 9 req/s&quot;],</code></span>
+<span class='src-line'><b>  41</b><code>                },</code></span>
+<span class='src-line'><b>  42</b><code>            },</code></span>
+<span class='src-line'><b>  43</b><code>        )</code></span>
+<span class='src-line'><b>  44</b><code>        db.append_event(</code></span>
+<span class='src-line'><b>  45</b><code>            job_id,</code></span>
+<span class='src-line'><b>  46</b><code>            event_type=&quot;loop&quot;,</code></span>
+<span class='src-line'><b>  47</b><code>            title=&quot;message_end&quot;,</code></span>
+<span class='src-line'><b>  48</b><code>            metadata={</code></span>
+<span class='src-line'><b>  49</b><code>                &quot;usage&quot;: {</code></span>
+<span class='src-line'><b>  50</b><code>                    &quot;prompt_tokens&quot;: 1200,</code></span>
+<span class='src-line'><b>  51</b><code>                    &quot;completion_tokens&quot;: 300,</code></span>
+<span class='src-line'><b>  52</b><code>                    &quot;total_tokens&quot;: 1500,</code></span>
+<span class='src-line'><b>  53</b><code>                    &quot;estimated&quot;: True,</code></span>
+<span class='src-line'><b>  54</b><code>                }</code></span>
+<span class='src-line'><b>  55</b><code>            },</code></span>
+<span class='src-line'><b>  56</b><code>        )</code></span>
+<span class='src-line'><b>  57</b><code></code></span>
+<span class='src-line'><b>  58</b><code>        refresh_memory_index(db, job_id)</code></span>
+<span class='src-line'><b>  59</b><code></code></span>
+<span class='src-line'><b>  60</b><code>        memory = db.list_memory(job_id)[0][&quot;summary&quot;]</code></span>
+<span class='src-line'><b>  61</b><code>        assert &quot;Durable progress ledgers:&quot; in memory</code></span>
+<span class='src-line'><b>  62</b><code>        assert &quot;tasks=1&quot; in memory</code></span>
+<span class='src-line'><b>  63</b><code>        assert &quot;findings=1&quot; in memory</code></span>
+<span class='src-line'><b>  64</b><code>        assert &quot;sources=1&quot; in memory</code></span>
+<span class='src-line'><b>  65</b><code>        assert &quot;experiments=1&quot; in memory</code></span>
+<span class='src-line'><b>  66</b><code>        assert &quot;Draft evidence-backed section&quot; in memory</code></span>
+<span class='src-line'><b>  67</b><code>        assert &quot;Citation density check&quot; in memory</code></span>
+<span class='src-line'><b>  68</b><code>        assert &quot;Teacher traces improve tool use&quot; in memory</code></span>
+<span class='src-line'><b>  69</b><code>        assert &quot;Research paper roadmap&quot; in memory</code></span>
+<span class='src-line'><b>  70</b><code>        assert &quot;pending_measurement step=#42 tool=shell_exec&quot; in memory</code></span>
+<span class='src-line'><b>  71</b><code>        assert &quot;latency 120ms&quot; in memory</code></span>
+<span class='src-line'><b>  72</b><code>        assert &quot;Model usage:&quot; in memory</code></span>
+<span class='src-line'><b>  73</b><code>        assert &quot;total_tokens=1.5K&quot; in memory</code></span>
+<span class='src-line'><b>  74</b><code>        assert &quot;estimated_calls=1&quot; in memory</code></span>
+<span class='src-line'><b>  75</b><code>    finally:</code></span>
+<span class='src-line'><b>  76</b><code>        db.close()</code></span></pre>
 </details>
 <details class="source-file searchable" data-search="tests/nipux_cli/test_config.py from pathlib import Path
 
@@ -37877,7 +37908,7 @@ class AntiBotBrowserRegistry:
 <h3>tests/nipux_cli/test_cli_model_preflight.py</h3><p><strong>4</strong> tests · 61 lines</p>
 <p class="muted">test_remote_model_preflight_blocks_rejected_auth, test_remote_model_preflight_skips_fake_runs, test_remote_model_preflight_does_not_block_local_endpoints, test_start_does_not_spawn_daemon_when_model_preflight_fails</p></article>
 <article class="test-card searchable" data-search="tests/nipux_cli/test_compression.py test_refresh_memory_index_includes_durable_progress_ledgers">
-<h3>tests/nipux_cli/test_compression.py</h3><p><strong>1</strong> tests · 68 lines</p>
+<h3>tests/nipux_cli/test_compression.py</h3><p><strong>1</strong> tests · 76 lines</p>
 <p class="muted">test_refresh_memory_index_includes_durable_progress_ledgers</p></article>
 <article class="test-card searchable" data-search="tests/nipux_cli/test_config.py test_load_config_defaults_to_qwen_openrouter test_load_config_from_yaml test_load_config_reads_local_env_file test_default_config_yaml_allows_provider_template_without_secret test_config_example_matches_default_provider">
 <h3>tests/nipux_cli/test_config.py</h3><p><strong>5</strong> tests · 95 lines</p>

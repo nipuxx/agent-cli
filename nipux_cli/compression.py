@@ -78,6 +78,13 @@ def refresh_memory_index(db: AgentDB, job_id: str, *, max_steps: int = 8, max_ar
     sources = _metadata_list(metadata, "source_ledger")
     experiments = _metadata_list(metadata, "experiment_ledger")
     roadmap = metadata.get("roadmap") if isinstance(metadata.get("roadmap"), dict) else {}
+    pending_measurement = (
+        metadata.get("pending_measurement_obligation")
+        if isinstance(metadata.get("pending_measurement_obligation"), dict)
+        and metadata.get("pending_measurement_obligation")
+        and not metadata.get("pending_measurement_obligation", {}).get("resolved_at")
+        else {}
+    )
 
     lines.extend(["", "Durable progress ledgers:"])
     lines.append(
@@ -110,6 +117,15 @@ def refresh_memory_index(db: AgentDB, job_id: str, *, max_steps: int = 8, max_ar
             "- experiment "
             f"{experiment.get('status') or 'planned'} "
             f"{_clip_text(experiment.get('title') or '', 120)}{metric}"
+        )
+    if pending_measurement:
+        candidates = pending_measurement.get("metric_candidates")
+        candidate_text = "; ".join(str(item) for item in candidates[:3]) if isinstance(candidates, list) else ""
+        lines.append(
+            "- pending_measurement "
+            f"step=#{pending_measurement.get('source_step_no') or '?'} "
+            f"tool={pending_measurement.get('tool') or '?'} "
+            f"{_clip_text(candidate_text or pending_measurement.get('summary') or '', 220)}"
         )
     for finding in findings[-3:]:
         lines.append(f"- finding {_clip_text(finding.get('name') or finding.get('title') or '', 140)}")

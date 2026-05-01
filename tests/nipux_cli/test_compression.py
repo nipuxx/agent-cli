@@ -33,6 +33,12 @@ def test_refresh_memory_index_includes_durable_progress_ledgers(tmp_path):
                     "status": "active",
                     "current_milestone": "Improve literature review",
                 },
+                "pending_measurement_obligation": {
+                    "source_step_no": 42,
+                    "tool": "shell_exec",
+                    "summary": "benchmark output needs accounting",
+                    "metric_candidates": ["latency 120ms", "throughput 9 req/s"],
+                },
             },
         )
         db.append_event(
@@ -61,6 +67,8 @@ def test_refresh_memory_index_includes_durable_progress_ledgers(tmp_path):
         assert "Citation density check" in memory
         assert "Teacher traces improve tool use" in memory
         assert "Research paper roadmap" in memory
+        assert "pending_measurement step=#42 tool=shell_exec" in memory
+        assert "latency 120ms" in memory
         assert "Model usage:" in memory
         assert "total_tokens=1.5K" in memory
         assert "estimated_calls=1" in memory
