@@ -8,6 +8,7 @@ from nipux_cli.config import AppConfig, RuntimeConfig
 from nipux_cli.daemon import (
     Daemon,
     DaemonAlreadyRunning,
+    RUNTIME_CODE_FILES,
     append_daemon_event,
     current_runtime_fingerprint,
     daemon_lock_status,
@@ -61,6 +62,10 @@ def test_daemon_lock_status_detects_stale_runtime(tmp_path):
     assert status["current_runtime"]["code_mtime"]
     assert runtime_stale({"runtime": {"runtime_hash": "old"}}) is True
     assert runtime_stale({"runtime": current_runtime_fingerprint()}) is False
+
+
+def test_runtime_fingerprint_tracks_progress_code():
+    assert "progress.py" in RUNTIME_CODE_FILES
 
 
 def test_rate_limit_backoff_uses_retry_after_header():

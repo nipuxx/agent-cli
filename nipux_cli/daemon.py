@@ -24,6 +24,25 @@ class DaemonAlreadyRunning(RuntimeError):
     pass
 
 
+RUNTIME_CODE_FILES = (
+    "artifacts.py",
+    "browser.py",
+    "browser_web.py",
+    "compression.py",
+    "config.py",
+    "daemon.py",
+    "db.py",
+    "digest.py",
+    "llm.py",
+    "operator_context.py",
+    "progress.py",
+    "source_quality.py",
+    "templates.py",
+    "tools.py",
+    "worker.py",
+)
+
+
 def current_runtime_fingerprint() -> dict[str, Any]:
     """Return a stable fingerprint for code that affects daemon behavior."""
 
@@ -50,25 +69,9 @@ def current_runtime_fingerprint() -> dict[str, Any]:
 
 def _runtime_code_fingerprint() -> dict[str, Any]:
     package_dir = Path(__file__).resolve().parent
-    runtime_files = [
-        "artifacts.py",
-        "browser.py",
-        "browser_web.py",
-        "compression.py",
-        "config.py",
-        "daemon.py",
-        "db.py",
-        "digest.py",
-        "llm.py",
-        "operator_context.py",
-        "source_quality.py",
-        "templates.py",
-        "tools.py",
-        "worker.py",
-    ]
     digest = hashlib.sha256()
     mtimes: list[float] = []
-    for name in runtime_files:
+    for name in RUNTIME_CODE_FILES:
         path = package_dir / name
         if not path.exists():
             continue
