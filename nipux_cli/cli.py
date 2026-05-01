@@ -2006,7 +2006,7 @@ def _hourly_update_lines(events: list[dict[str, Any]], *, width: int, limit: int
     buckets: dict[str, dict[str, Any]] = {}
     order: list[str] = []
     for event in events:
-        parsed = _model_update_event_parts(event, width=width)
+        parsed = _model_update_event_parts(event, width=max(width, 220))
         if not parsed:
             continue
         label, text, clock = parsed
@@ -2029,7 +2029,14 @@ def _hourly_update_lines(events: list[dict[str, Any]], *, width: int, limit: int
         summary = " ".join(f"{count} {label.lower()}" for label, count in sorted(counts.items()))
         rendered.append(_fit_ansi(f"{_muted(hour)} {_bold(summary or 'activity')}", width))
         for label, text in bucket["items"][-per_bucket:]:
-            rendered.append(_fit_ansi(f"  {_event_badge(label)} {_one_line(text, max(16, width - 11))}", width))
+            prefix = f"  {_event_badge(label)} "
+            available = max(16, width - len(_strip_ansi(prefix)))
+            parts = textwrap.wrap(text, width=available) or [""]
+            rendered.append(_fit_ansi(prefix + parts[0], width))
+            for part in parts[1:3]:
+                rendered.append(_fit_ansi(" " * len(_strip_ansi(prefix)) + part, width))
+                if len(rendered) >= limit:
+                    return rendered[:limit]
         if len(rendered) >= limit:
             return rendered[:limit]
     return rendered[-limit:]

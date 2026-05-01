@@ -119,6 +119,9 @@ def model_update_event_parts(event: dict[str, Any], *, width: int) -> tuple[str,
         return "LEARN", _one_line(event_title_body(title, body, fallback="lesson"), chars), clock
     if kind == "reflection":
         return "PLAN", _one_line(brief_reflection_text(body or title), chars), clock
+    if kind == "agent_message" and title.lower() in {"error", "blocked"}:
+        detail = _chat_agent_message_text(title, body) or event_title_body(title, body, fallback="error")
+        return "FAIL", _one_line(detail, chars), clock
     if kind == "agent_message" and title.lower() in {"progress", "update", "report", "plan", "planning"}:
         detail = _chat_agent_message_text(title, body) or event_title_body(title, body, fallback="update")
         return "UPDATE", _one_line(detail, chars), clock

@@ -969,6 +969,43 @@ def test_chat_updates_page_uses_deeper_summary_events():
     assert "Distillation method map" in frame
 
 
+def test_chat_updates_page_includes_agent_error_updates():
+    snapshot = {
+        "job_id": "job_demo",
+        "job": {
+            "id": "job_demo",
+            "title": "provider job",
+            "objective": "keep provider state visible",
+            "status": "paused",
+            "kind": "generic",
+            "metadata": {},
+        },
+        "jobs": [{"id": "job_demo", "title": "provider job", "status": "paused", "kind": "generic", "metadata": {}}],
+        "steps": [],
+        "artifacts": [],
+        "memory_entries": [],
+        "events": [],
+        "summary_events": [
+            {
+                "event_type": "agent_message",
+                "title": "error",
+                "body": "Model provider requires operator action.",
+                "metadata": {"reason": "llm_provider_blocked"},
+            },
+        ],
+        "daemon": {"running": True, "metadata": {"pid": 123}},
+        "model": "model/demo",
+    }
+
+    updates = _build_chat_frame(snapshot, "", [], width=132, height=34, right_view="updates")
+    status = _build_chat_frame(snapshot, "", [], width=132, height=34)
+
+    assert "Model provider requires" in updates
+    assert "operator action" in updates
+    assert "Outcome" in status
+    assert "Model provider re" in status
+
+
 def test_chat_status_page_shows_job_outputs():
     snapshot = {
         "job_id": "job_demo",
