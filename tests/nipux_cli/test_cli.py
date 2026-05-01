@@ -31,6 +31,7 @@ from nipux_cli.cli import (
 from nipux_cli.config import load_config
 from nipux_cli.daemon import append_daemon_event
 from nipux_cli.db import AgentDB
+from nipux_cli.tui_events import recent_model_update_lines
 
 
 def test_cli_has_operator_commands():
@@ -987,6 +988,27 @@ def test_chat_frame_has_model_updates_page():
     assert "Citation density check" in frame
     assert "paper.md" in frame
     assert "outline.md" in frame
+
+
+def test_recent_outcome_lines_wrap_long_updates():
+    lines = recent_model_update_lines(
+        [
+            {
+                "event_type": "finding",
+                "title": "Trajectory distillation improves agentic tool selection when teacher traces include failures and recovery actions",
+                "body": "",
+                "metadata": {},
+                "created_at": "2026-05-01T12:34:00+00:00",
+            }
+        ],
+        width=62,
+        limit=4,
+    )
+
+    rendered = "\n".join(lines)
+    assert len(lines) >= 2
+    assert "Trajectory distillation improves" in rendered
+    assert "teacher traces include failures" in rendered
 
 
 def test_chat_updates_page_uses_deeper_summary_events():

@@ -235,7 +235,15 @@ def recent_model_update_lines(events: list[dict[str, Any]], *, width: int, limit
         seen.add(key)
         prefix = f"{_muted(clock)} {_event_badge(label)} " if clock else f"{_event_badge(label)} "
         available = max(12, width - len(_strip_ansi(prefix)))
-        lines.append(_fit_ansi(prefix + _one_line(text, available), width))
+        wrapped = textwrap.wrap(text, width=available) or [""]
+        lines.append(_fit_ansi(prefix + wrapped[0], width))
+        if len(lines) >= limit:
+            return lines
+        continuation_prefix = " " * len(_strip_ansi(prefix))
+        for part in wrapped[1:2]:
+            lines.append(_fit_ansi(continuation_prefix + part, width))
+            if len(lines) >= limit:
+                return lines
         if len(lines) >= limit:
             return lines
     return lines
