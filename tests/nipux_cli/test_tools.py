@@ -595,6 +595,45 @@ def test_record_tasks_allows_done_artifact_after_delivery_evidence(tmp_path):
         db.close()
 
 
+def test_record_tasks_does_not_treat_stderr_redirect_as_delivery_write(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Update a deliverable")
+        run_id = db.start_run(job_id, model="fake")
+        shell_step = db.add_step(
+            job_id=job_id,
+            run_id=run_id,
+            kind="tool",
+            tool_name="shell_exec",
+            input_data={"arguments": {"command": "cat draft.md 2>/dev/null"}},
+        )
+        db.finish_step(shell_step, status="completed", summary="shell_exec rc=0")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="record_tasks")
+        ctx = ToolContext(config=config, db=db, artifacts=ArtifactStore(tmp_path, db), job_id=job_id, run_id=run_id, step_id=step_id)
+
+        raw = DEFAULT_REGISTRY.handle(
+            "record_tasks",
+            {
+                "tasks": [{
+                    "title": "Update report draft",
+                    "status": "done",
+                    "output_contract": "artifact",
+                    "result": "Saved final report draft",
+                }]
+            },
+            ctx,
+        )
+        result = json.loads(raw)
+        task = db.get_job(job_id)["metadata"]["task_queue"][0]
+
+        assert result["success"] is True
+        assert task["status"] == "active"
+        assert task["metadata"]["completion_validation"] == "missing_recent_deliverable_evidence"
+    finally:
+        db.close()
+
+
 def test_record_tasks_rejects_checkpoint_as_delivery_evidence(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

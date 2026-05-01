@@ -444,7 +444,8 @@ def _shell_command_looks_like_write(command: str) -> bool:
     if not text:
         return False
     write_patterns = [
-        r">\s*[^&]",
+        r"(?<!\d)>>?\s*[^&]",
+        r"\b1>>?\s*[^&]",
         r"\btee\b",
         r"\bcat\s+>\b",
         r"\bpython[0-9.]*\b.*\bwrite_text\b",

@@ -1314,7 +1314,7 @@ def test_delivery_experiment_next_action_blocks_read_only_shell(tmp_path):
             job_id,
             config=config,
             db=db,
-            llm=ScriptedLLM([LLMResponse(tool_calls=[ToolCall(name="shell_exec", arguments={"command": "ls -la outputs"})])]),
+            llm=ScriptedLLM([LLMResponse(tool_calls=[ToolCall(name="shell_exec", arguments={"command": "cat output.txt 2>/dev/null"})])]),
             registry=SuccessRegistry(),
         )
 
