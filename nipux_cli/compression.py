@@ -73,9 +73,79 @@ def refresh_memory_index(db: AgentDB, job_id: str, *, max_steps: int = 8, max_ar
         summary = artifact.get("summary") or ""
         lines.append(f"- {artifact['id']} {_clip_text(title, 120)} ({artifact['type']}): {_clip_text(summary, 240)}")
 
+    tasks = _metadata_list(metadata, "task_queue")
+    findings = _metadata_list(metadata, "finding_ledger")
+    sources = _metadata_list(metadata, "source_ledger")
+    experiments = _metadata_list(metadata, "experiment_ledger")
+    roadmap = metadata.get("roadmap") if isinstance(metadata.get("roadmap"), dict) else {}
+
+    lines.extend(["", "Durable progress ledgers:"])
+    lines.append(
+        "- "
+        + ", ".join(
+            [
+                f"tasks={len(tasks)}",
+                f"findings={len(findings)}",
+                f"sources={len(sources)}",
+                f"experiments={len(experiments)}",
+                f"roadmap={'yes' if roadmap else 'no'}",
+            ]
+        )
+    )
+    for task in _rank_tasks(tasks)[:4]:
+        lines.append(
+            "- task "
+            f"{task.get('status') or 'open'} "
+            f"{_clip_text(task.get('title') or '', 120)} "
+            f"contract={task.get('output_contract') or '?'}"
+        )
+    for experiment in experiments[-3:]:
+        metric = ""
+        if experiment.get("metric_value") not in (None, ""):
+            metric = (
+                f" metric={experiment.get('metric_name') or 'value'}="
+                f"{experiment.get('metric_value')}{experiment.get('metric_unit') or ''}"
+            )
+        lines.append(
+            "- experiment "
+            f"{experiment.get('status') or 'planned'} "
+            f"{_clip_text(experiment.get('title') or '', 120)}{metric}"
+        )
+    for finding in findings[-3:]:
+        lines.append(f"- finding {_clip_text(finding.get('name') or finding.get('title') or '', 140)}")
+    for source in sources[-3:]:
+        score = source.get("usefulness_score")
+        lines.append(f"- source {_clip_text(source.get('source') or '', 140)} score={score if score is not None else '?'}")
+    if roadmap:
+        lines.append(
+            "- roadmap "
+            f"{roadmap.get('status') or 'planned'} "
+            f"{_clip_text(roadmap.get('title') or 'Roadmap', 140)} "
+            f"current={_clip_text(roadmap.get('current_milestone') or '', 120)}"
+        )
+
     return db.upsert_memory(
         job_id=job_id,
         key="rolling_state",
         summary="\n".join(lines).strip(),
         artifact_refs=artifact_refs,
+    )
+
+
+def _metadata_list(metadata: dict, key: str) -> list[dict]:
+    values = metadata.get(key)
+    if not isinstance(values, list):
+        return []
+    return [value for value in values if isinstance(value, dict)]
+
+
+def _rank_tasks(tasks: list[dict]) -> list[dict]:
+    status_rank = {"active": 0, "open": 1, "blocked": 2, "validating": 3, "done": 4, "skipped": 5}
+    return sorted(
+        tasks,
+        key=lambda task: (
+            status_rank.get(str(task.get("status") or "open"), 9),
+            -int(task.get("priority") or 0),
+            str(task.get("title") or ""),
+        ),
     )

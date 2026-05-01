@@ -999,7 +999,12 @@ def test_create_sets_new_job_as_shell_focus(monkeypatch, tmp_path, capsys):
         assert job["status"] == "queued"
         assert job["metadata"]["planning_status"] == "auto_accepted"
         assert job["metadata"]["planning"]["questions"]
-        assert job["metadata"]["task_queue"]
+        tasks = job["metadata"]["task_queue"]
+        assert tasks
+        assert all(task["output_contract"] for task in tasks)
+        assert all(task["acceptance_criteria"] for task in tasks)
+        assert all(task["evidence_needed"] for task in tasks)
+        assert all(task["stall_behavior"] for task in tasks)
     finally:
         db.close()
 

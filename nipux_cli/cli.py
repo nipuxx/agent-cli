@@ -366,12 +366,17 @@ def _create_job(
             metadata={"phase": "initial_plan"},
         )
         for index, task in enumerate(plan["tasks"], start=1):
+            task_contract = _initial_task_contract(str(task))
             db.append_task_record(
                 job_id,
-                title=task,
+                title=str(task),
                 status="open",
                 priority=max(0, 10 - index),
                 goal=objective,
+                output_contract=task_contract["output_contract"],
+                acceptance_criteria=task_contract["acceptance_criteria"],
+                evidence_needed=task_contract["evidence_needed"],
+                stall_behavior=task_contract["stall_behavior"],
                 metadata={"phase": "initial_plan"},
             )
         program = config.runtime.jobs_dir / job_id / "program.md"
@@ -403,6 +408,44 @@ def _initial_plan_for_objective(objective: str) -> dict[str, Any]:
             "Should this run aggressively in the background or wait for review between branches?",
         ],
         "objective": objective_text,
+    }
+
+
+def _initial_task_contract(task_title: str) -> dict[str, str]:
+    lowered = task_title.lower()
+    if "clarify" in lowered or "criteria" in lowered or "constraint" in lowered:
+        return {
+            "output_contract": "decision",
+            "acceptance_criteria": "Success criteria, constraints, and first branches are explicit.",
+            "evidence_needed": "Operator context, durable notes, or an updated roadmap/task queue.",
+            "stall_behavior": "Ask for the missing constraint or record a decision with the best current assumption.",
+        }
+    if "map" in lowered or "research" in lowered or "branch" in lowered:
+        return {
+            "output_contract": "research",
+            "acceptance_criteria": "At least one viable branch is selected and low-value branches are avoided.",
+            "evidence_needed": "Source notes, branch rationale, source ledger entries, or saved research output.",
+            "stall_behavior": "Record a low-yield lesson and pivot to a different branch.",
+        }
+    if "collect" in lowered or "evidence" in lowered or "save" in lowered or "output" in lowered:
+        return {
+            "output_contract": "artifact",
+            "acceptance_criteria": "A durable output is saved and linked to the task or ledger.",
+            "evidence_needed": "Artifact, file output, finding record, source record, or experiment record.",
+            "stall_behavior": "Record what evidence is missing and create the next evidence-producing task.",
+        }
+    if "reflect" in lowered or "memory" in lowered or "continue" in lowered:
+        return {
+            "output_contract": "monitor",
+            "acceptance_criteria": "Progress is evaluated from durable deltas and the next branch is chosen.",
+            "evidence_needed": "Reflection, lesson, task update, roadmap validation, or experiment comparison.",
+            "stall_behavior": "Record a blocker or pivot when no durable delta was produced.",
+        }
+    return {
+        "output_contract": "action",
+        "acceptance_criteria": "The task produces an observable durable change.",
+        "evidence_needed": "Tool result plus artifact, ledger, task, roadmap, or experiment update.",
+        "stall_behavior": "Record a blocker and open a smaller follow-up task.",
     }
 
 
