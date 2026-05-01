@@ -2,15 +2,23 @@ from pathlib import Path
 
 
 FORBIDDEN_RUNTIME_LITERALS = {
-    "home-ssh.local",
-    "home ssh",
-    "treefrog",
-    "client finder",
-    "livebusiness",
-    "yelp",
+    "192.168",
     "9060 xt",
+    "canadian",
+    "client finder",
     "lead batch",
+    "lead ledger",
+    "client prospect",
+    "edmonton",
+    "home ssh",
+    "home-ssh.local",
+    "home@",
+    "huggingface.co/qwen",
+    "livebusiness",
     "qwen_qwen",
+    "ssh home",
+    "treefrog",
+    "yelp",
     "llama.cpp",
 }
 

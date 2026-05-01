@@ -5,7 +5,7 @@ from nipux_cli.artifacts import ArtifactStore
 from nipux_cli.config import AppConfig, RuntimeConfig
 from nipux_cli.db import AgentDB
 from nipux_cli.llm import LLMResponse, LLMResponseError, ScriptedLLM, ToolCall
-from nipux_cli.worker import MAX_WORKER_PROMPT_CHARS, build_messages, run_one_step
+from nipux_cli.worker import MAX_WORKER_PROMPT_CHARS, SYSTEM_PROMPT, build_messages, run_one_step
 
 
 class SnapshotRegistry:
@@ -137,6 +137,12 @@ class AntiBotBrowserRegistry:
                 },
             })
         return json.dumps({"success": True})
+
+
+def test_system_prompt_is_contract_first_not_research_first():
+    assert "Use a contract-first durable cycle" in SYSTEM_PROMPT
+    assert "Research is only one possible contract" in SYSTEM_PROMPT
+    assert "Use this durable cycle: discover one source" not in SYSTEM_PROMPT
 
 
 def test_run_one_step_executes_scripted_tool_call(tmp_path):
