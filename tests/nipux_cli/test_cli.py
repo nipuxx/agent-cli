@@ -1660,6 +1660,30 @@ def test_build_chat_messages_points_to_artifact_and_lessons(tmp_path):
         db.close()
 
 
+def test_build_chat_messages_clip_large_visible_state(tmp_path):
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Research topic", title="nightly research", kind="generic")
+        for index in range(30):
+            db.append_event(
+                job_id=job_id,
+                event_type="finding",
+                title=f"large finding {index}",
+                body="evidence " * 400,
+                metadata={},
+            )
+        job = db.get_job(job_id)
+
+        messages = _build_chat_messages(db, job, "keep this exact operator question visible")
+
+        content = messages[-1]["content"]
+        assert len(content) < 14_000
+        assert "clipped" in content
+        assert "keep this exact operator question visible" in content
+    finally:
+        db.close()
+
+
 def test_artifact_command_resolves_title_query(monkeypatch, tmp_path, capsys):
     monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
     db = AgentDB(tmp_path / "state.db")

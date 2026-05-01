@@ -3970,6 +3970,17 @@ def _build_chat_messages(db: AgentDB, job: dict[str, Any], message: str) -> list
         if isinstance(entry, dict)
     )
     timeline_lines = "\n".join(_event_line(event, chars=700, full=False) for event in timeline_events[-12:])
+    step_lines = _clip_chat_context(step_lines, 1_800)
+    artifact_lines = _clip_chat_context(artifact_lines, 1_200)
+    finding_lines = _clip_chat_context(finding_lines, 1_200)
+    task_lines = _clip_chat_context(task_lines, 1_300)
+    milestone_lines = _clip_chat_context(milestone_lines, 1_200)
+    experiment_lines = _clip_chat_context(experiment_lines, 1_300)
+    source_lines = _clip_chat_context(source_lines, 1_100)
+    lesson_lines = _clip_chat_context(lesson_lines, 1_000)
+    steering_lines = _clip_chat_context(steering_lines, 1_200)
+    update_lines = _clip_chat_context(update_lines, 1_200)
+    timeline_lines = _clip_chat_context(timeline_lines, 1_800)
     return [
         {
             "role": "system",
@@ -4004,6 +4015,14 @@ def _build_chat_messages(db: AgentDB, job: dict[str, Any], message: str) -> list
             ),
         },
     ]
+
+
+def _clip_chat_context(value: str, limit: int) -> str:
+    text = str(value or "")
+    if len(text) <= limit:
+        return text
+    marker = f"\n... clipped {len(text) - limit} chars from this visible state section ..."
+    return text[: max(0, limit - len(marker))].rstrip() + marker
 
 
 def cmd_shell(args: argparse.Namespace) -> None:
