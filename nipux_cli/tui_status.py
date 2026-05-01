@@ -11,7 +11,12 @@ from nipux_cli.tui_event_format import experiment_metric_text
 from nipux_cli.tui_events import (
     worker_activity_lines,
 )
-from nipux_cli.tui_outcomes import CHAT_RIGHT_PAGES, latest_durable_outcome_line, recent_model_update_lines
+from nipux_cli.tui_outcomes import (
+    CHAT_RIGHT_PAGES,
+    latest_durable_outcome_line,
+    model_update_event_parts,
+    recent_model_update_lines,
+)
 from nipux_cli.tui_layout import _format_compact_count, _metric_strip
 from nipux_cli.tui_style import (
     _accent,
@@ -22,6 +27,7 @@ from nipux_cli.tui_style import (
     _one_line,
     _page_indicator,
     _status_badge,
+    _strip_ansi,
 )
 
 
@@ -65,6 +71,7 @@ def right_pane_lines(
     job: dict[str, Any],
     jobs: list[dict[str, Any]],
     job_artifacts: dict[str, list[dict[str, Any]]],
+    job_summary_events: dict[str, list[dict[str, Any]]],
     job_counts: dict[str, dict[str, Any]],
     job_id: str,
     daemon_running: bool,
@@ -125,6 +132,7 @@ def right_pane_lines(
             daemon_running=daemon_running,
             width=width,
             job_artifacts=job_artifacts,
+            job_summary_events=job_summary_events,
             job_counts=job_counts,
             show_outputs=True,
         )
@@ -192,6 +200,7 @@ def frame_jobs_lines(
     daemon_running: bool,
     width: int,
     job_artifacts: dict[str, list[dict[str, Any]]] | None = None,
+    job_summary_events: dict[str, list[dict[str, Any]]] | None = None,
     job_counts: dict[str, dict[str, Any]] | None = None,
     show_outputs: bool = False,
 ) -> list[str]:
@@ -222,7 +231,30 @@ def frame_jobs_lines(
                 max(8, width - 14 - len(f"{output_total}x " if output_total > 1 else "")),
             )
             rendered.append(_fit_ansi(f"   {_event_badge('SAVE')} {count_prefix}{output_title}", width))
+        if show_outputs:
+            outcome_line = _job_latest_non_output_line(
+                (job_summary_events or {}).get(item_id) or [],
+                width=width,
+                skip_save=bool(outputs),
+            )
+            if outcome_line:
+                rendered.append(outcome_line)
     return rendered
+
+
+def _job_latest_non_output_line(events: list[dict[str, Any]], *, width: int, skip_save: bool) -> str:
+    for event in reversed(events):
+        parsed = model_update_event_parts(event, width=max(width, 120))
+        if not parsed:
+            continue
+        label, text, _clock = parsed
+        if label == "DONE":
+            continue
+        if skip_save and label == "SAVE":
+            continue
+        prefix = f"   {_event_badge(label)} "
+        return _fit_ansi(prefix + _one_line(text, max(12, width - len(_strip_ansi(prefix)))), width)
+    return ""
 
 
 def _defer_status_line(job: dict[str, Any], *, width: int) -> str:

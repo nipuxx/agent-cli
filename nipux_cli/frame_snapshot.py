@@ -38,6 +38,11 @@ def load_frame_snapshot(
             for item in jobs[:6]
             if item.get("id")
         },
+        "job_summary_events": {
+            str(item["id"]): _summary_events(db, str(item["id"]), history_limit=3)
+            for item in jobs[:6]
+            if item.get("id")
+        },
         "job_counts": {
             str(item["id"]): db.job_record_counts(str(item["id"]))
             for item in jobs[:6]

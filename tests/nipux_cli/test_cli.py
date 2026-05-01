@@ -1502,6 +1502,15 @@ def test_chat_status_page_shows_job_outputs():
             "job_demo": {"artifacts": 1},
             "job_other": {"artifacts": 4},
         },
+        "job_summary_events": {
+            "job_demo": [
+                {"event_type": "artifact", "title": "Primary Saved Draft", "body": "", "metadata": {}},
+                {"event_type": "experiment", "title": "Primary quality check", "body": "", "metadata": {"metric_name": "score", "metric_value": 8}},
+            ],
+            "job_other": [
+                {"event_type": "finding", "title": "Other job durable finding", "body": "", "metadata": {}},
+            ],
+        },
         "memory_entries": [],
         "events": [],
         "summary_events": [
@@ -1518,7 +1527,9 @@ def test_chat_status_page_shows_job_outputs():
     assert "Outcome" in frame
     assert "Latest durable milestone" in frame
     assert "Primary Saved Draft" in frame
+    assert "Primary quality check" in frame
     assert "Other Job Deliverable" in frame
+    assert "Other job durable finding" in frame
     assert "4x" in frame
 
 
