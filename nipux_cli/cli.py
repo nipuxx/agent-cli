@@ -7,7 +7,6 @@ import json
 import os
 import shlex
 import shutil
-import signal
 import subprocess
 import sys
 import threading
@@ -16,7 +15,6 @@ from contextlib import redirect_stdout
 from io import StringIO
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlparse
 
 from nipux_cli import __version__
 from nipux_cli.artifacts import ArtifactStore
@@ -81,6 +79,12 @@ from nipux_cli.config import (
     default_config_yaml,
     load_config,
 )
+from nipux_cli.daemon_control import cmd_restart_impl as _cmd_restart_impl
+from nipux_cli.daemon_control import cmd_start_impl as _cmd_start_impl
+from nipux_cli.daemon_control import ensure_remote_model_ready_for_worker as _daemon_ensure_remote_model_ready
+from nipux_cli.daemon_control import remote_model_preflight_failures as _daemon_remote_model_preflight_failures
+from nipux_cli.daemon_control import start_daemon_if_needed_impl as _start_daemon_if_needed_impl
+from nipux_cli.daemon_control import stop_daemon_process_impl as _stop_daemon_process_impl
 from nipux_cli.daemon import Daemon, DaemonAlreadyRunning, daemon_lock_status, read_daemon_events
 from nipux_cli.dashboard import collect_dashboard_state, render_dashboard, render_overview
 from nipux_cli.db import AgentDB
@@ -1694,130 +1698,44 @@ def cmd_usage(args: argparse.Namespace) -> None:
 
 
 def _remote_model_preflight_failures(config) -> list[str]:
-    host = (urlparse(config.model.base_url).hostname or "").lower()
-    local_hosts = {"", "localhost", "127.0.0.1", "::1", "0.0.0.0"}
-    if host in local_hosts or host.endswith(".local"):
-        return []
-    blocking = {"model_config", "model_auth", "model_endpoint", "model_generation"}
-    checks = run_doctor(config=config, check_model=True)
-    return [f"{check.name}: {check.detail}" for check in checks if not check.ok and check.name in blocking]
+    return _daemon_remote_model_preflight_failures(config, doctor_fn=run_doctor)
 
 
 def _ensure_remote_model_ready_for_worker(config, *, fake: bool) -> bool:
-    if fake:
-        return True
-    failures = _remote_model_preflight_failures(config)
-    if not failures:
-        return True
-    print("model is not ready; daemon not started")
-    for failure in failures:
-        print(f"  fail {failure}")
-    print("Run `nipux doctor --check-model` after fixing the model configuration.")
-    return False
+    return _daemon_ensure_remote_model_ready(config, fake=fake, doctor_fn=run_doctor)
 
 
 def cmd_start(args: argparse.Namespace) -> None:
-    config = load_config()
-    config.ensure_dirs()
-    status = daemon_lock_status(config.runtime.home / "agentd.lock")
-    if status["running"]:
-        metadata = status.get("metadata") or {}
-        if status.get("stale"):
-            print(f"nipux daemon stale pid={metadata.get('pid', 'unknown')}; restarting")
-            _stop_daemon_process(config, wait=5.0, quiet=True)
-            time.sleep(0.5)
-        else:
-            print(f"nipux daemon already running pid={metadata.get('pid', 'unknown')}")
-            return
-    if not _ensure_remote_model_ready_for_worker(config, fake=args.fake):
-        return
-    log_path = Path(args.log_file).expanduser() if args.log_file else config.runtime.logs_dir / "daemon.log"
-    log_path.parent.mkdir(parents=True, exist_ok=True)
-    command = [
-        sys.executable,
-        "-m",
-        "nipux_cli.cli",
-        "daemon",
-        "--poll-seconds",
-        str(args.poll_seconds),
-    ]
-    if args.fake:
-        command.append("--fake")
-    if args.quiet:
-        command.append("--quiet")
-    else:
-        command.append("--verbose")
-    with log_path.open("a", encoding="utf-8") as log_file:
-        process = subprocess.Popen(
-            command,
-            cwd=str(Path.cwd()),
-            stdout=log_file,
-            stderr=subprocess.STDOUT,
-            start_new_session=True,
-        )
-    time.sleep(0.5)
-    status = daemon_lock_status(config.runtime.home / "agentd.lock")
-    if status["running"]:
-        metadata = status.get("metadata") or {}
-        print(f"nipux daemon started pid={metadata.get('pid') or process.pid}")
-        print(f"log: {log_path}")
-        return
-    if process.poll() is None:
-        print(f"nipux daemon process started pid={process.pid}, waiting for lock")
-        print(f"log: {log_path}")
-        return
-    raise SystemExit(f"nipux daemon exited immediately with code {process.returncode}; see {log_path}")
+    return _cmd_start_impl(
+        args,
+        ready_fn=lambda config, fake: _ensure_remote_model_ready_for_worker(config, fake=fake),
+        stop_fn=lambda config, wait, quiet: _stop_daemon_process(config, wait=wait, quiet=quiet),
+    )
 
 
 def _start_daemon_if_needed(
     *, poll_seconds: float, fake: bool = False, quiet: bool = False, log_file: str | None = None
 ) -> None:
-    config = load_config()
-    config.ensure_dirs()
-    status = daemon_lock_status(config.runtime.home / "agentd.lock")
-    if status["running"]:
-        metadata = status.get("metadata") or {}
-        if status.get("stale"):
-            print(f"daemon stale pid={metadata.get('pid', 'unknown')}; restarting")
-            _stop_daemon_process(config, wait=5.0, quiet=True)
-            time.sleep(0.5)
-            cmd_start(argparse.Namespace(poll_seconds=poll_seconds, fake=fake, quiet=quiet, log_file=log_file))
-            return
-        print(f"daemon already running pid={metadata.get('pid', 'unknown')}")
-        return
-    cmd_start(argparse.Namespace(poll_seconds=poll_seconds, fake=fake, quiet=quiet, log_file=log_file))
+    return _start_daemon_if_needed_impl(
+        poll_seconds=poll_seconds,
+        fake=fake,
+        quiet=quiet,
+        log_file=log_file,
+        start_fn=cmd_start,
+        stop_fn=lambda config, wait, quiet: _stop_daemon_process(config, wait=wait, quiet=quiet),
+    )
 
 
 def cmd_restart(args: argparse.Namespace) -> None:
-    config = load_config()
-    config.ensure_dirs()
-    stopped = _stop_daemon_process(config, wait=args.wait, quiet=False)
-    if stopped:
-        time.sleep(0.5)
-    cmd_start(argparse.Namespace(poll_seconds=args.poll_seconds, fake=args.fake, quiet=args.quiet, log_file=args.log_file))
+    return _cmd_restart_impl(
+        args,
+        start_fn=cmd_start,
+        stop_fn=lambda config, wait, quiet: _stop_daemon_process(config, wait=wait, quiet=quiet),
+    )
 
 
 def _stop_daemon_process(config, *, wait: float, quiet: bool) -> bool:
-    status = daemon_lock_status(config.runtime.home / "agentd.lock")
-    if not status["running"]:
-        if not quiet:
-            print("nipux daemon is not running")
-        return False
-    metadata = status.get("metadata") or {}
-    pid = metadata.get("pid")
-    if not isinstance(pid, int):
-        raise SystemExit("daemon is running but lock file has no pid; stop it from the terminal that owns it")
-    os.kill(pid, signal.SIGTERM)
-    deadline = time.time() + wait
-    while time.time() < deadline:
-        if not _pid_is_alive(pid):
-            if not quiet:
-                print(f"nipux daemon stopped pid={pid}")
-            return True
-        time.sleep(0.2)
-    if not quiet:
-        print(f"sent SIGTERM to nipux daemon pid={pid}; it may still be shutting down")
-    return False
+    return _stop_daemon_process_impl(config, wait=wait, quiet=quiet, pid_alive=_pid_is_alive)
 
 
 def cmd_stop(args: argparse.Namespace) -> None:
