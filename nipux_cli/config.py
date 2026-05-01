@@ -10,9 +10,10 @@ from typing import Any
 import yaml
 
 
-DEFAULT_MODEL = "local-model"
 DEFAULT_OPENROUTER_MODEL = "qwen/qwen3.6-27b"
-DEFAULT_BASE_URL = "http://localhost:8000/v1"
+DEFAULT_MODEL = DEFAULT_OPENROUTER_MODEL
+DEFAULT_BASE_URL = "https://openrouter.ai/api/v1"
+DEFAULT_API_KEY_ENV = "OPENROUTER_API_KEY"
 DEFAULT_CONTEXT_LENGTH = 262_144
 
 
@@ -44,7 +45,7 @@ def load_env_file(path: str | Path) -> None:
 class ModelConfig:
     model: str = DEFAULT_MODEL
     base_url: str = DEFAULT_BASE_URL
-    api_key_env: str = "OPENAI_API_KEY"
+    api_key_env: str = DEFAULT_API_KEY_ENV
     context_length: int = DEFAULT_CONTEXT_LENGTH
     request_timeout_seconds: float = 120.0
 
@@ -113,7 +114,7 @@ def _as_dict(value: Any) -> dict[str, Any]:
 
 
 def load_config(path: str | Path | None = None) -> AppConfig:
-    """Load config.yaml, falling back to local-model defaults."""
+    """Load config.yaml, falling back to the default OpenAI-compatible provider."""
 
     home = get_agent_home()
     load_env_file(home / ".env")
@@ -139,7 +140,7 @@ def load_config(path: str | Path | None = None) -> AppConfig:
     model = ModelConfig(
         model=str(model_raw.get("name") or model_raw.get("model") or DEFAULT_MODEL),
         base_url=str(model_raw.get("base_url") or DEFAULT_BASE_URL).rstrip("/"),
-        api_key_env=str(model_raw.get("api_key_env") or "OPENAI_API_KEY"),
+        api_key_env=str(model_raw.get("api_key_env") or DEFAULT_API_KEY_ENV),
         context_length=int(model_raw.get("context_length", DEFAULT_CONTEXT_LENGTH)),
         request_timeout_seconds=float(model_raw.get("request_timeout_seconds", 120.0)),
     )
@@ -160,7 +161,7 @@ def default_config_yaml(
     *,
     model: str = DEFAULT_MODEL,
     base_url: str = DEFAULT_BASE_URL,
-    api_key_env: str = "OPENAI_API_KEY",
+    api_key_env: str = DEFAULT_API_KEY_ENV,
     context_length: int = DEFAULT_CONTEXT_LENGTH,
 ) -> str:
     """Return a starter config file for an OpenAI-compatible model server."""

@@ -3,14 +3,15 @@ from pathlib import Path
 from nipux_cli.config import DEFAULT_CONTEXT_LENGTH, default_config_yaml, load_config
 
 
-def test_load_config_defaults_to_local_model(tmp_path, monkeypatch):
+def test_load_config_defaults_to_qwen_openrouter(tmp_path, monkeypatch):
     monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
 
     config = load_config()
 
     assert config.runtime.home == tmp_path
-    assert config.model.model == "local-model"
-    assert config.model.base_url == "http://localhost:8000/v1"
+    assert config.model.model == "qwen/qwen3.6-27b"
+    assert config.model.base_url == "https://openrouter.ai/api/v1"
+    assert config.model.api_key_env == "OPENROUTER_API_KEY"
     assert config.model.context_length == DEFAULT_CONTEXT_LENGTH
     assert config.runtime.state_db_path == tmp_path / "state.db"
     assert config.runtime.daily_digest_enabled is True

@@ -28,6 +28,7 @@ import yaml
 from nipux_cli.artifacts import ArtifactStore
 from nipux_cli.config import (
     DEFAULT_BASE_URL,
+    DEFAULT_API_KEY_ENV,
     DEFAULT_CONTEXT_LENGTH,
     DEFAULT_MODEL,
     DEFAULT_OPENROUTER_MODEL,
@@ -204,10 +205,10 @@ def cmd_init(args: argparse.Namespace) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     model = args.model or DEFAULT_MODEL
     base_url = args.base_url or DEFAULT_BASE_URL
-    api_key_env = args.api_key_env or "OPENAI_API_KEY"
+    api_key_env = args.api_key_env or DEFAULT_API_KEY_ENV
     if args.openrouter:
         base_url = args.base_url or "https://openrouter.ai/api/v1"
-        api_key_env = args.api_key_env or "OPENROUTER_API_KEY"
+        api_key_env = args.api_key_env or DEFAULT_API_KEY_ENV
         model = args.model or DEFAULT_OPENROUTER_MODEL
     path.write_text(
         default_config_yaml(

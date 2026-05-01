@@ -8,10 +8,12 @@
 |_| \_|___|_|    \__,_|
 ```
 
-Nipux CLI is a small, restartable local-model worker for long-running browser,
-web research, and command-line jobs. It is maintained for Nipux and built around
-one practical idea: keep a worker moving in bounded steps, save exact evidence,
-learn from each branch, and recover cleanly when a process or model call fails.
+Nipux CLI is a small, restartable worker for long-running browser, web research,
+and command-line jobs. It defaults to Qwen 3.6 27B through OpenRouter, while
+still supporting any OpenAI-compatible local or remote endpoint. It is maintained
+for Nipux and built around one practical idea: keep a worker moving in bounded
+steps, save exact evidence, learn from each branch, and recover cleanly when a
+process or model call fails.
 
 - Website: [Nipux.com](https://nipux.com)
 - Source: [github.com/nipuxx/agent-cli](https://github.com/nipuxx/agent-cli)
@@ -26,7 +28,7 @@ continue through a daemon loop until the operator pauses or cancels it.
 
 The default runtime is intentionally narrow:
 
-- one OpenAI-compatible model endpoint
+- one OpenAI-compatible model endpoint, defaulting to `qwen/qwen3.6-27b`
 - one SQLite state store under `~/.nipux`
 - one restartable daemon with a single-instance lock
 - per-job artifact files for exact evidence
@@ -71,12 +73,12 @@ uv tool install git+https://github.com/nipuxx/agent-cli.git
 
 ## First Run
 
-Initialize local state under `~/.nipux`. This writes `config.yaml` and a local
-`.env` template. Real API keys stay in the environment or `~/.nipux/.env`, not
-in the git repo.
+Initialize local state under `~/.nipux`. This writes `config.yaml` for the
+default OpenRouter/Qwen setup and a local `.env` template. Real API keys stay in
+the environment or `~/.nipux/.env`, not in the git repo.
 
 ```bash
-nipux init --openrouter
+nipux init
 $EDITOR ~/.nipux/.env
 chmod 600 ~/.nipux/.env
 nipux doctor --check-model
