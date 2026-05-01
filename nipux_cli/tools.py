@@ -143,13 +143,35 @@ def _update_job_state(args: dict[str, Any], ctx: ToolContext) -> str:
     status = str(args.get("status") or "").strip().lower()
     if status in {"paused", "cancelled", "completed", "failed"}:
         note = str(args.get("note") or "")
+        follow_up_task = None
+        if status == "completed":
+            follow_up_task = ctx.db.append_task_record(
+                ctx.job_id,
+                title="Continue improving from latest result",
+                status="open",
+                priority=5,
+                goal=(
+                    "Use the latest saved result as the baseline, choose the next useful improvement branch, "
+                    "validate it with evidence, and report what changed."
+                ),
+                output_contract="decision",
+                acceptance_criteria=(
+                    "A next branch is chosen from evidence, or the result is explicitly marked blocked with a reason."
+                ),
+                evidence_needed="Latest artifact, finding, experiment, or operator context used to choose the branch.",
+                stall_behavior="If no useful improvement path remains, record the blocker and keep monitoring or refining.",
+                metadata={"source": "update_job_state", "requested_status": status},
+            )
+        metadata = {"requested_status": status, "kept_running": True}
+        if follow_up_task is not None:
+            metadata["follow_up_task"] = follow_up_task.get("key")
         ctx.db.append_agent_update(
             ctx.job_id,
             f"Worker requested {status}; job remains running. {note}".strip(),
             category="progress" if status == "completed" else "blocked",
-            metadata={"requested_status": status, "kept_running": True},
+            metadata=metadata,
         )
-        return _json({
+        result = {
             "success": True,
             "job_id": ctx.job_id,
             "status": "running",
@@ -159,7 +181,10 @@ def _update_job_state(args: dict[str, Any], ctx: ToolContext) -> str:
                 "Jobs are perpetual by default. Do not mark the job complete or failed. "
                 "Save the current result, create follow-up tasks, report a checkpoint, and continue."
             ),
-        })
+        }
+        if follow_up_task is not None:
+            result["follow_up_task"] = follow_up_task
+        return _json(result)
     if status not in {"queued", "running"}:
         return _json({"success": False, "error": f"invalid status: {status}"})
     note = str(args.get("note") or "")

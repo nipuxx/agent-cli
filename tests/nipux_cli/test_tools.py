@@ -206,6 +206,19 @@ def test_update_job_state_keeps_terminal_statuses_operator_only(tmp_path):
             assert result["requested_status"] == requested
             assert result["kept_running"] is True
             assert db.get_job(job_id)["status"] == "running"
+            if requested == "completed":
+                assert result["follow_up_task"]["title"] == "Continue improving from latest result"
+                assert result["follow_up_task"]["status"] == "open"
+                assert result["follow_up_task"]["output_contract"] == "decision"
+                assert result["follow_up_task"]["acceptance_criteria"]
+                assert result["follow_up_task"]["evidence_needed"]
+                assert result["follow_up_task"]["stall_behavior"]
+                assert result["follow_up_task"]["metadata"]["source"] == "update_job_state"
+            else:
+                assert "follow_up_task" not in result
+
+        tasks = db.get_job(job_id)["metadata"]["task_queue"]
+        assert [task["title"] for task in tasks] == ["Continue improving from latest result"]
     finally:
         db.close()
 
