@@ -70,7 +70,7 @@ def _compose_bar(
         visible_input = "•" * min(len(input_buffer), max(8, width - 8))
     else:
         visible_input = input_buffer[-max(8, width - 8) :]
-    hint = _muted(hint or "Enter sends  /jobs switches  /run starts  /help commands")
+    hint = _muted(hint or "Enter send  ·  / commands  ·  arrows navigate")
     label = _accent(prompt_label) if prompt_label == "❯" else _muted(prompt_label)
     prompt = f"{label} {visible_input}{_accent('▌')}"
     lines = []

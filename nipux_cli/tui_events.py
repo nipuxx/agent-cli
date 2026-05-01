@@ -134,14 +134,14 @@ def chat_empty_state_lines(*, width: int, rows: int) -> list[str]:
         content = [
             _center_ansi(_bold(_accent("NIPUX")), width),
             "",
-            _center_ansi(_muted("Type normally to talk."), width),
+            _center_ansi(_muted("Talk normally."), width),
         ]
         return content[:rows]
     content = [
         *[_center_ansi(_style(line, "37;1"), width) for line in NIPUX_HERO],
         "",
-        _center_ansi(_muted("A persistent agent workspace."), width),
-        _center_ansi(_muted("Enter sends  ·  / opens commands  ·  arrows switch panels"), width),
+        _center_ansi(_muted("Talk to create, steer, inspect, or resume long-running work."), width),
+        _center_ansi(_muted("Enter send  ·  / commands  ·  arrows navigate"), width),
     ]
     top_pad = max(0, (rows - len(content)) // 2 - 1)
     return ([""] * top_pad + content)[:rows]

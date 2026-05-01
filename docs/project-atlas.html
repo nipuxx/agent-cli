@@ -82,7 +82,7 @@ pre { max-height: 540px; overflow: auto; background: #050606; border: 1px solid 
 <div class="shell">
   <aside class="sidebar">
     <div class="logo">NIPUX ATLAS</div>
-    <div class="subtitle">Generated from tracked source on ecd18822.</div>
+    <div class="subtitle">Generated from tracked source on fd3971cc.</div>
     <input id="search" class="search" placeholder="filter files, prompts, tools..." autocomplete="off">
     <nav class="nav">
       <a href="#architecture">Architecture</a>
@@ -97,9 +97,9 @@ pre { max-height: 540px; overflow: auto; background: #050606; border: 1px solid 
       <a href="#risks">Review Points</a>
     </nav>
     <div class="stats">
-      <div class="stat"><b>87</b><span>tracked files</span></div>
-      <div class="stat"><b>27,764</b><span>tracked lines mapped</span></div>
-      <div class="stat"><b>1181</b><span>python symbols</span></div>
+      <div class="stat"><b>88</b><span>tracked files</span></div>
+      <div class="stat"><b>28,235</b><span>tracked lines mapped</span></div>
+      <div class="stat"><b>1196</b><span>python symbols</span></div>
       <div class="stat"><b>27</b><span>runtime tools</span></div>
     </div>
   </aside>
@@ -475,7 +475,7 @@ have incorporated or intentionally superseded a steer/follow_up message.
     </section>
 
     <section id="files" class="section">
-      <header><div><div class="kicker">Source index</div><h2>Important Files</h2></div><span class="muted">80 Python modules plus docs/config files.</span></header>
+      <header><div><div class="kicker">Source index</div><h2>Important Files</h2></div><span class="muted">81 Python modules plus docs/config files.</span></header>
       <div class="grid"><article class="file-card searchable" data-search="AGENTS.md This repo is a focused long-running worker, not a broad assistant distribution. none">
 <header><h3>AGENTS.md</h3><span>32 lines</span></header>
 <p>This repo is a focused long-running worker, not a broad assistant distribution.</p>
@@ -712,6 +712,12 @@ fixed tool surface. none">
 <p>Generic model-provider error classification.</p>
 <div class="meta"><span>4 symbols</span><span>0 TODOs</span></div>
 <details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> __future__, json, typing</p><p><strong>Symbols:</strong> provider_error_text, provider_action_required, provider_action_required_note, provider_rate_limited</p></details>
+</article>
+<article class="file-card searchable" data-search="nipux_cli/record_commands.py Read-only CLI commands for job records, ledgers, memory, and usage. RecordCommandDeps, cmd_findings_impl, cmd_tasks_impl, cmd_roadmap_impl, cmd_experiments_impl, cmd_sources_impl, cmd_memory_impl, cmd_metrics_impl, cmd_usage_impl, _resolve_or_print">
+<header><h3>nipux_cli/record_commands.py</h3><span>471 lines</span></header>
+<p>Read-only CLI commands for job records, ledgers, memory, and usage.</p>
+<div class="meta"><span>15 symbols</span><span>0 TODOs</span></div>
+<details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> __future__, json, dataclasses, typing, nipux_cli.cli_render, nipux_cli.cli_render, nipux_cli.daemon, nipux_cli.tui_status, nipux_cli.tui_style, nipux_cli.usage</p><p><strong>Symbols:</strong> RecordCommandDeps, cmd_findings_impl, cmd_tasks_impl, cmd_roadmap_impl, cmd_experiments_impl, cmd_sources_impl, cmd_memory_impl, cmd_metrics_impl, cmd_usage_impl, _resolve_or_print</p></details>
 </article>
 <article class="file-card searchable" data-search="nipux_cli/scheduling.py Shared scheduling helpers for deferred long-running work. job_deferred_until, job_is_deferred, job_provider_blocked, provider_retry_metadata, _metadata_time">
 <header><h3>nipux_cli/scheduling.py</h3><span>62 lines</span></header>
@@ -4040,6 +4046,96 @@ fixed tool surface. none">
 <p><span class="pill">function</span> <span class="pill">nipux_cli/provider_errors.py:62</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> any, provider_error_text</p>
+</article>
+<article class="symbol searchable" data-search="nipux_cli/record_commands.py RecordCommandDeps No docstring. dataclass">
+<h3>RecordCommandDeps</h3>
+<p><span class="pill">class</span> <span class="pill">nipux_cli/record_commands.py:18</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> dataclass</p>
+</article>
+<article class="symbol searchable" data-search="nipux_cli/record_commands.py cmd_findings_impl No docstring. _metadata_records, _one_line, _resolve_or_print, db.close, db.get_job, deps.db_factory, enumerate, finding.get, float, isinstance, join, json.dumps, len, print, rule, sorted">
+<h3>cmd_findings_impl</h3>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/record_commands.py:24</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> _metadata_records, _one_line, _resolve_or_print, db.close, db.get_job, deps.db_factory, enumerate, finding.get, float, isinstance, join, json.dumps, len, print, rule, sorted</p>
+</article>
+<article class="symbol searchable" data-search="nipux_cli/record_commands.py cmd_tasks_impl No docstring. _metadata_records, _one_line, _resolve_or_print, db.close, db.get_job, deps.db_factory, enumerate, int, join, json.dumps, len, lower, print, rule, sorted, status.strip">
+<h3>cmd_tasks_impl</h3>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/record_commands.py:64</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> _metadata_records, _one_line, _resolve_or_print, db.close, db.get_job, deps.db_factory, enumerate, int, join, json.dumps, len, lower, print, rule, sorted, status.strip</p>
+</article>
+<article class="symbol searchable" data-search="nipux_cli/record_commands.py cmd_roadmap_impl No docstring. _one_line, _print_milestones, _resolve_or_print, db.close, db.get_job, deps.db_factory, isinstance, job.get, json.dumps, len, metadata.get, print, roadmap.get, rule">
+<h3>cmd_roadmap_impl</h3>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/record_commands.py:115</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> _one_line, _print_milestones, _resolve_or_print, db.close, db.get_job, deps.db_factory, isinstance, job.get, json.dumps, len, metadata.get, print, roadmap.get, rule</p>
+</article>
+<article class="symbol searchable" data-search="nipux_cli/record_commands.py cmd_experiments_impl No docstring. _metadata_records, _one_line, _resolve_or_print, bool, db.close, db.get_job, deps.db_factory, enumerate, experiment.get, join, json.dumps, len, lower, print, rule, sorted">
+<h3>cmd_experiments_impl</h3>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/record_commands.py:147</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> _metadata_records, _one_line, _resolve_or_print, bool, db.close, db.get_job, deps.db_factory, enumerate, experiment.get, join, json.dumps, len, lower, print, rule, sorted</p>
+</article>
+<article class="symbol searchable" data-search="nipux_cli/record_commands.py cmd_sources_impl No docstring. _metadata_records, _one_line, _resolve_or_print, db.close, db.get_job, deps.db_factory, enumerate, float, int, isinstance, join, json.dumps, len, print, rule, sorted">
+<h3>cmd_sources_impl</h3>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/record_commands.py:204</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> _metadata_records, _one_line, _resolve_or_print, db.close, db.get_job, deps.db_factory, enumerate, float, int, isinstance, join, json.dumps, len, print, rule, sorted</p>
+</article>
+<article class="symbol searchable" data-search="nipux_cli/record_commands.py cmd_memory_impl No docstring. _metadata_records, _print_memory_sections, _resolve_or_print, active_operator_messages, db.close, db.get_job, db.list_memory, deps.db_factory, isinstance, job.get, len, metadata.get, print, rule">
+<h3>cmd_memory_impl</h3>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/record_commands.py:248</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> _metadata_records, _print_memory_sections, _resolve_or_print, active_operator_messages, db.close, db.get_job, db.list_memory, deps.db_factory, isinstance, job.get, len, metadata.get, print, rule</p>
+</article>
+<article class="symbol searchable" data-search="nipux_cli/record_commands.py cmd_metrics_impl No docstring. _metadata_records, _print_best_records, _resolve_or_print, _step_count, artifact.get, bool, daemon_lock_status, db.close, db.get_job, db.list_artifacts, db.list_steps, deps.db_factory, isinstance, job.get, len, lower">
+<h3>cmd_metrics_impl</h3>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/record_commands.py:281</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> _metadata_records, _print_best_records, _resolve_or_print, _step_count, artifact.get, bool, daemon_lock_status, db.close, db.get_job, db.list_artifacts, db.list_steps, deps.db_factory, isinstance, job.get, len, lower</p>
+</article>
+<article class="symbol searchable" data-search="nipux_cli/record_commands.py cmd_usage_impl No docstring. _resolve_or_print, db.close, db.get_job, db.job_token_usage, deps.db_factory, format_usage_report, int, job.get, join, json.dumps, print, str">
+<h3>cmd_usage_impl</h3>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/record_commands.py:322</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> _resolve_or_print, db.close, db.get_job, db.job_token_usage, deps.db_factory, format_usage_report, int, job.get, join, json.dumps, print, str</p>
+</article>
+<article class="symbol searchable" data-search="nipux_cli/record_commands.py _resolve_or_print No docstring. deps.job_ref_text, deps.resolve_job_id, print">
+<h3>_resolve_or_print</h3>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/record_commands.py:347</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> deps.job_ref_text, deps.resolve_job_id, print</p>
+</article>
+<article class="symbol searchable" data-search="nipux_cli/record_commands.py _metadata_records No docstring. isinstance, job.get, metadata.get">
+<h3>_metadata_records</h3>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/record_commands.py:356</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> isinstance, job.get, metadata.get</p>
+</article>
+<article class="symbol searchable" data-search="nipux_cli/record_commands.py _print_milestones No docstring. _one_line, enumerate, feature.get, int, isinstance, join, len, max, milestone.get, min, print, sorted, status_order.get, str, sum">
+<h3>_print_milestones</h3>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/record_commands.py:364</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> _one_line, enumerate, feature.get, int, isinstance, join, len, max, milestone.get, min, print, sorted, status_order.get, str, sum</p>
+</article>
+<article class="symbol searchable" data-search="nipux_cli/record_commands.py _print_memory_sections No docstring. _one_line, entry.get, isinstance, join, lesson.get, min, pending_measurement.get, print, reflection.get, str">
+<h3>_print_memory_sections</h3>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/record_commands.py:407</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> _one_line, entry.get, isinstance, join, lesson.get, min, pending_measurement.get, print, reflection.get, str</p>
+</article>
+<article class="symbol searchable" data-search="nipux_cli/record_commands.py _print_best_records No docstring. _one_line, best.get, best_experiment.get, best_finding.get, experiment.get, finding.get, float, max, print, source.get">
+<h3>_print_best_records</h3>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/record_commands.py:448</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> _one_line, best.get, best_experiment.get, best_finding.get, experiment.get, finding.get, float, max, print, source.get</p>
+</article>
+<article class="symbol searchable" data-search="nipux_cli/record_commands.py _step_count No docstring. int, max, step.get">
+<h3>_step_count</h3>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/record_commands.py:469</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> int, max, step.get</p>
 </article>
 <article class="symbol searchable" data-search="nipux_cli/scheduling.py job_deferred_until No docstring. astimezone, datetime.fromisoformat, datetime.now, isinstance, job.get, metadata.get, raw_until.replace, str, strip, until.astimezone, until.replace">
 <h3>job_deferred_until</h3>
@@ -11536,7 +11632,7 @@ def build_chat_frame(
 <span class='src-line'><b>  96</b><code>        hint = edit_target_hint(editing_field)</code></span>
 <span class='src-line'><b>  97</b><code>        prompt_label = edit_target_label(editing_field)</code></span>
 <span class='src-line'><b>  98</b><code>    else:</code></span>
-<span class='src-line'><b>  99</b><code>        hint = &quot;Enter sends  ·  / commands  ·  ←→ panels  ·  ↑↓ jobs&quot;</code></span>
+<span class='src-line'><b>  99</b><code>        hint = &quot;Enter send  ·  / commands  ·  ←→ pages  ·  ↑↓ jobs&quot;</code></span>
 <span class='src-line'><b> 100</b><code>        prompt_label = &quot;❯&quot;</code></span>
 <span class='src-line'><b> 101</b><code>    suggestions = [] if editing_field else slash_suggestion_lines(input_buffer, CHAT_SLASH_COMMANDS, width=width)</code></span>
 <span class='src-line'><b> 102</b><code>    compose_lines = _compose_bar(</code></span>
@@ -21478,7 +21574,7 @@ def build_first_run_frame(
         hint = edit_target_hint(editing_field, config)
         prompt_label = edit_target_label(editing_field)
     else:
-        hint = &quot;Type a goal to create a job. / opens commands. ↑↓ moves. Click selects.&quot;
+        hint = &quot;Type a goal. / commands. ↑↓ choose. Click selects.&quot;
         prompt_label = &quot;❯&quot;
     suggestions = [] if editing_field else slash_suggestion_lines(input_buffer, FIRST_RUN_SLASH_COMMANDS, width=width)
     compose_lines = _compose_bar(
@@ -21545,12 +21641,13 @@ def _first_run_left_lines(
         content = [
             *[_center_ansi(_style(line, &quot;37;1&quot;), width) for line in NIPUX_HERO],
             &quot;&quot;,
-            _center_ansi(_muted(&quot;A long-running agent harness.&quot;), width),
-            _center_ansi(_muted(&quot;Type an objective, or use slash commands for setup.&quot;), width),
+            _center_ansi(_muted(&quot;Long-running work, one prompt at a time.&quot;), width),
+            _center_ansi(_muted(&quot;Type an objective or open / commands.&quot;), width),
             &quot;&quot;,
             _center_ansi(f&quot;{_muted(&#x27;Selected&#x27;)} {_accent(selected_label)}&quot;, width),
         ]
-        top_pad = max(0, (rows - len(content)) //">
+        top_pad = max(0, (rows - len(content)) // 2 - 1)
+        return (">
 <summary>nipux_cli/first_run_tui.py <span>223 lines</span></summary>
 <pre class="source-code"><span class='src-line'><b>   1</b><code>&quot;&quot;&quot;First-run terminal UI rendering for Nipux.&quot;&quot;&quot;</code></span>
 <span class='src-line'><b>   2</b><code></code></span>
@@ -21604,7 +21701,7 @@ def _first_run_left_lines(
 <span class='src-line'><b>  50</b><code>        hint = edit_target_hint(editing_field, config)</code></span>
 <span class='src-line'><b>  51</b><code>        prompt_label = edit_target_label(editing_field)</code></span>
 <span class='src-line'><b>  52</b><code>    else:</code></span>
-<span class='src-line'><b>  53</b><code>        hint = &quot;Type a goal to create a job. / opens commands. ↑↓ moves. Click selects.&quot;</code></span>
+<span class='src-line'><b>  53</b><code>        hint = &quot;Type a goal. / commands. ↑↓ choose. Click selects.&quot;</code></span>
 <span class='src-line'><b>  54</b><code>        prompt_label = &quot;❯&quot;</code></span>
 <span class='src-line'><b>  55</b><code>    suggestions = [] if editing_field else slash_suggestion_lines(input_buffer, FIRST_RUN_SLASH_COMMANDS, width=width)</code></span>
 <span class='src-line'><b>  56</b><code>    compose_lines = _compose_bar(</code></span>
@@ -21671,8 +21768,8 @@ def _first_run_left_lines(
 <span class='src-line'><b> 117</b><code>        content = [</code></span>
 <span class='src-line'><b> 118</b><code>            *[_center_ansi(_style(line, &quot;37;1&quot;), width) for line in NIPUX_HERO],</code></span>
 <span class='src-line'><b> 119</b><code>            &quot;&quot;,</code></span>
-<span class='src-line'><b> 120</b><code>            _center_ansi(_muted(&quot;A long-running agent harness.&quot;), width),</code></span>
-<span class='src-line'><b> 121</b><code>            _center_ansi(_muted(&quot;Type an objective, or use slash commands for setup.&quot;), width),</code></span>
+<span class='src-line'><b> 120</b><code>            _center_ansi(_muted(&quot;Long-running work, one prompt at a time.&quot;), width),</code></span>
+<span class='src-line'><b> 121</b><code>            _center_ansi(_muted(&quot;Type an objective or open / commands.&quot;), width),</code></span>
 <span class='src-line'><b> 122</b><code>            &quot;&quot;,</code></span>
 <span class='src-line'><b> 123</b><code>            _center_ansi(f&quot;{_muted(&#x27;Selected&#x27;)} {_accent(selected_label)}&quot;, width),</code></span>
 <span class='src-line'><b> 124</b><code>        ]</code></span>
@@ -24015,6 +24112,578 @@ def provider_rate_limited(text_or_error: Any) -&gt; bool:
 <span class='src-line'><b>  62</b><code>def provider_rate_limited(text_or_error: Any) -&gt; bool:</code></span>
 <span class='src-line'><b>  63</b><code>    text = provider_error_text(text_or_error)</code></span>
 <span class='src-line'><b>  64</b><code>    return any(marker in text for marker in RATE_LIMIT_MARKERS)</code></span></pre>
+</details>
+<details class="source-file searchable" data-search="nipux_cli/record_commands.py &quot;&quot;&quot;Read-only CLI commands for job records, ledgers, memory, and usage.&quot;&quot;&quot;
+
+from __future__ import annotations
+
+import json
+from dataclasses import dataclass
+from typing import Any, Callable
+
+from nipux_cli.cli_render import job_ref_text as default_job_ref_text
+from nipux_cli.cli_render import json_default, rule
+from nipux_cli.daemon import daemon_lock_status
+from nipux_cli.tui_status import active_operator_messages, worker_label
+from nipux_cli.tui_style import _one_line
+from nipux_cli.usage import format_usage_report
+
+
+@dataclass(frozen=True)
+class RecordCommandDeps:
+    db_factory: Callable[[], tuple[Any, Any]]
+    resolve_job_id: Callable[[Any, Any], str | None]
+    job_ref_text: Callable[[Any], str] = default_job_ref_text
+
+
+def cmd_findings_impl(args: Any, deps: RecordCommandDeps) -&gt; None:
+    db, _ = deps.db_factory()
+    try:
+        job_id = _resolve_or_print(db, args, deps)
+        if not job_id:
+            return
+        job = db.get_job(job_id)
+        findings = _metadata_records(job, &quot;finding_ledger&quot;)
+        if args.json:
+            print(json.dumps(findings, ensure_ascii=False, indent=2, default=json_default))
+            return
+        print(f&quot;findings {job[&#x27;title&#x27;]} | {len(findings)} unique&quot;)
+        print(rule(&quot;=&quot;))
+        if not findings:
+            print(&quot;none yet&quot;)
+            return
+        ranked = sorted(findings, key=lambda finding: float(finding.get(&quot;score&quot;) or 0), reverse=True)
+        for index, finding in enumerate(ranked[: args.limit], start=1):
+            score = finding.get(&quot;score&quot;)
+            score_text = f&quot; score={score:g}&quot; if isinstance(score, (int, float)) else &quot;&quot;
+            print(f&quot;{index:&gt;2}. {_one_line(finding.get(&#x27;name&#x27;) or &#x27;unknown&#x27;, 54)}{score_text}&quot;)
+            details = &quot; | &quot;.join(
+                value
+                for value in [
+                    str(finding.get(&quot;location&quot;) or &quot;&quot;).strip(),
+                    str(finding.get(&quot;category&quot;) or &quot;&quot;).strip(),
+                    str(finding.get(&quot;status&quot;) or &quot;&quot;).strip(),
+                ]
+                if value
+            )
+            if details:
+                print(f&quot;    {details}&quot;)
+            if finding.get(&quot;url&quot;) or finding.get(&quot;source_url&quot;):
+                print(f&quot;    {finding.get(&#x27;url&#x27;) or finding.get(&#x27;source_url&#x27;)}&quot;)
+            if finding.get(&quot;reason&quot;):
+                print(f&quot;    {_one_line(finding[&#x27;reason&#x27;], args.chars)}&quot;)
+    finally:
+        db.close()
+
+
+def cmd_tasks_impl(args: Any, deps: RecordCommandDeps) -&gt; None:
+    db, _ = deps.db_factory()
+    try:
+        job_id = _resolve_or_print(db, args, deps)
+        if not job_id:
+            return
+        job = db.get_job(job_id)
+        tasks = _metadata_records(job, &quot;task_queue&quot;)
+        if args.status:
+            wanted = {status.strip().lower() for status in args.status}
+            tasks = [task for task in tasks if str(task.get(&quot;status&quot;) or &quot;open&quot;).lower() in wanted]
+        if args.json:
+            print(json.dumps(tasks, ensure_ascii=False, indent=2, default=json_default))
+            return
+        status_order = {&quot;active&quot;: 0, &quot;open&quot;: 1, &quot;blocked&quot;: 2, &quot;done&quot;: 3, &quot;skipped&quot;: 4}
+        ranked = sorted(
+            tasks,
+            key=lambda task: (
+                status_order.get(str(task.get(&quot;status&quot;) or &quot;open&quot;), 9),
+                -int(task.get(&quot;priority&quot;) or 0),
+                str(task.get(&quot;title&quot;) or &quot;&quot;),
+            ),
+        )
+        print(f&quot;tasks {job[&#x27;title&#x27;]} | {len(ranked)} tracked&quot;)
+        print(rule(&quot;=&quot;))
+        if not ranked:
+            print(&quot;none yet&quot;)
+            return
+        for index, task in enumerate(ranked[: args.limit], start=1):
+            status = str(task.get(&quot;status&quot;) or &quot;open&quot;)
+            priority = int(task.get(&quot;priority&quot;) or 0)
+            print(f&quot;{index:&gt;2}. {status:&lt;7} p={priority:&lt;3} {_one_line(task.get(&#x27;title&#x27;) or &#x27;untitled&#x27;, 54)}&quot;)
+            details = &quot; | &quot;.join(
+                value
+                for value in [
+                    f&quot;contract={task.get(&#x27;output_contract&#x27;)}&quot; if task.get(&quot;output_contra">
+<summary>nipux_cli/record_commands.py <span>471 lines</span></summary>
+<pre class="source-code"><span class='src-line'><b>   1</b><code>&quot;&quot;&quot;Read-only CLI commands for job records, ledgers, memory, and usage.&quot;&quot;&quot;</code></span>
+<span class='src-line'><b>   2</b><code></code></span>
+<span class='src-line'><b>   3</b><code>from __future__ import annotations</code></span>
+<span class='src-line'><b>   4</b><code></code></span>
+<span class='src-line'><b>   5</b><code>import json</code></span>
+<span class='src-line'><b>   6</b><code>from dataclasses import dataclass</code></span>
+<span class='src-line'><b>   7</b><code>from typing import Any, Callable</code></span>
+<span class='src-line'><b>   8</b><code></code></span>
+<span class='src-line'><b>   9</b><code>from nipux_cli.cli_render import job_ref_text as default_job_ref_text</code></span>
+<span class='src-line'><b>  10</b><code>from nipux_cli.cli_render import json_default, rule</code></span>
+<span class='src-line'><b>  11</b><code>from nipux_cli.daemon import daemon_lock_status</code></span>
+<span class='src-line'><b>  12</b><code>from nipux_cli.tui_status import active_operator_messages, worker_label</code></span>
+<span class='src-line'><b>  13</b><code>from nipux_cli.tui_style import _one_line</code></span>
+<span class='src-line'><b>  14</b><code>from nipux_cli.usage import format_usage_report</code></span>
+<span class='src-line'><b>  15</b><code></code></span>
+<span class='src-line'><b>  16</b><code></code></span>
+<span class='src-line'><b>  17</b><code>@dataclass(frozen=True)</code></span>
+<span class='src-line'><b>  18</b><code>class RecordCommandDeps:</code></span>
+<span class='src-line'><b>  19</b><code>    db_factory: Callable[[], tuple[Any, Any]]</code></span>
+<span class='src-line'><b>  20</b><code>    resolve_job_id: Callable[[Any, Any], str | None]</code></span>
+<span class='src-line'><b>  21</b><code>    job_ref_text: Callable[[Any], str] = default_job_ref_text</code></span>
+<span class='src-line'><b>  22</b><code></code></span>
+<span class='src-line'><b>  23</b><code></code></span>
+<span class='src-line'><b>  24</b><code>def cmd_findings_impl(args: Any, deps: RecordCommandDeps) -&gt; None:</code></span>
+<span class='src-line'><b>  25</b><code>    db, _ = deps.db_factory()</code></span>
+<span class='src-line'><b>  26</b><code>    try:</code></span>
+<span class='src-line'><b>  27</b><code>        job_id = _resolve_or_print(db, args, deps)</code></span>
+<span class='src-line'><b>  28</b><code>        if not job_id:</code></span>
+<span class='src-line'><b>  29</b><code>            return</code></span>
+<span class='src-line'><b>  30</b><code>        job = db.get_job(job_id)</code></span>
+<span class='src-line'><b>  31</b><code>        findings = _metadata_records(job, &quot;finding_ledger&quot;)</code></span>
+<span class='src-line'><b>  32</b><code>        if args.json:</code></span>
+<span class='src-line'><b>  33</b><code>            print(json.dumps(findings, ensure_ascii=False, indent=2, default=json_default))</code></span>
+<span class='src-line'><b>  34</b><code>            return</code></span>
+<span class='src-line'><b>  35</b><code>        print(f&quot;findings {job[&#x27;title&#x27;]} | {len(findings)} unique&quot;)</code></span>
+<span class='src-line'><b>  36</b><code>        print(rule(&quot;=&quot;))</code></span>
+<span class='src-line'><b>  37</b><code>        if not findings:</code></span>
+<span class='src-line'><b>  38</b><code>            print(&quot;none yet&quot;)</code></span>
+<span class='src-line'><b>  39</b><code>            return</code></span>
+<span class='src-line'><b>  40</b><code>        ranked = sorted(findings, key=lambda finding: float(finding.get(&quot;score&quot;) or 0), reverse=True)</code></span>
+<span class='src-line'><b>  41</b><code>        for index, finding in enumerate(ranked[: args.limit], start=1):</code></span>
+<span class='src-line'><b>  42</b><code>            score = finding.get(&quot;score&quot;)</code></span>
+<span class='src-line'><b>  43</b><code>            score_text = f&quot; score={score:g}&quot; if isinstance(score, (int, float)) else &quot;&quot;</code></span>
+<span class='src-line'><b>  44</b><code>            print(f&quot;{index:&gt;2}. {_one_line(finding.get(&#x27;name&#x27;) or &#x27;unknown&#x27;, 54)}{score_text}&quot;)</code></span>
+<span class='src-line'><b>  45</b><code>            details = &quot; | &quot;.join(</code></span>
+<span class='src-line'><b>  46</b><code>                value</code></span>
+<span class='src-line'><b>  47</b><code>                for value in [</code></span>
+<span class='src-line'><b>  48</b><code>                    str(finding.get(&quot;location&quot;) or &quot;&quot;).strip(),</code></span>
+<span class='src-line'><b>  49</b><code>                    str(finding.get(&quot;category&quot;) or &quot;&quot;).strip(),</code></span>
+<span class='src-line'><b>  50</b><code>                    str(finding.get(&quot;status&quot;) or &quot;&quot;).strip(),</code></span>
+<span class='src-line'><b>  51</b><code>                ]</code></span>
+<span class='src-line'><b>  52</b><code>                if value</code></span>
+<span class='src-line'><b>  53</b><code>            )</code></span>
+<span class='src-line'><b>  54</b><code>            if details:</code></span>
+<span class='src-line'><b>  55</b><code>                print(f&quot;    {details}&quot;)</code></span>
+<span class='src-line'><b>  56</b><code>            if finding.get(&quot;url&quot;) or finding.get(&quot;source_url&quot;):</code></span>
+<span class='src-line'><b>  57</b><code>                print(f&quot;    {finding.get(&#x27;url&#x27;) or finding.get(&#x27;source_url&#x27;)}&quot;)</code></span>
+<span class='src-line'><b>  58</b><code>            if finding.get(&quot;reason&quot;):</code></span>
+<span class='src-line'><b>  59</b><code>                print(f&quot;    {_one_line(finding[&#x27;reason&#x27;], args.chars)}&quot;)</code></span>
+<span class='src-line'><b>  60</b><code>    finally:</code></span>
+<span class='src-line'><b>  61</b><code>        db.close()</code></span>
+<span class='src-line'><b>  62</b><code></code></span>
+<span class='src-line'><b>  63</b><code></code></span>
+<span class='src-line'><b>  64</b><code>def cmd_tasks_impl(args: Any, deps: RecordCommandDeps) -&gt; None:</code></span>
+<span class='src-line'><b>  65</b><code>    db, _ = deps.db_factory()</code></span>
+<span class='src-line'><b>  66</b><code>    try:</code></span>
+<span class='src-line'><b>  67</b><code>        job_id = _resolve_or_print(db, args, deps)</code></span>
+<span class='src-line'><b>  68</b><code>        if not job_id:</code></span>
+<span class='src-line'><b>  69</b><code>            return</code></span>
+<span class='src-line'><b>  70</b><code>        job = db.get_job(job_id)</code></span>
+<span class='src-line'><b>  71</b><code>        tasks = _metadata_records(job, &quot;task_queue&quot;)</code></span>
+<span class='src-line'><b>  72</b><code>        if args.status:</code></span>
+<span class='src-line'><b>  73</b><code>            wanted = {status.strip().lower() for status in args.status}</code></span>
+<span class='src-line'><b>  74</b><code>            tasks = [task for task in tasks if str(task.get(&quot;status&quot;) or &quot;open&quot;).lower() in wanted]</code></span>
+<span class='src-line'><b>  75</b><code>        if args.json:</code></span>
+<span class='src-line'><b>  76</b><code>            print(json.dumps(tasks, ensure_ascii=False, indent=2, default=json_default))</code></span>
+<span class='src-line'><b>  77</b><code>            return</code></span>
+<span class='src-line'><b>  78</b><code>        status_order = {&quot;active&quot;: 0, &quot;open&quot;: 1, &quot;blocked&quot;: 2, &quot;done&quot;: 3, &quot;skipped&quot;: 4}</code></span>
+<span class='src-line'><b>  79</b><code>        ranked = sorted(</code></span>
+<span class='src-line'><b>  80</b><code>            tasks,</code></span>
+<span class='src-line'><b>  81</b><code>            key=lambda task: (</code></span>
+<span class='src-line'><b>  82</b><code>                status_order.get(str(task.get(&quot;status&quot;) or &quot;open&quot;), 9),</code></span>
+<span class='src-line'><b>  83</b><code>                -int(task.get(&quot;priority&quot;) or 0),</code></span>
+<span class='src-line'><b>  84</b><code>                str(task.get(&quot;title&quot;) or &quot;&quot;),</code></span>
+<span class='src-line'><b>  85</b><code>            ),</code></span>
+<span class='src-line'><b>  86</b><code>        )</code></span>
+<span class='src-line'><b>  87</b><code>        print(f&quot;tasks {job[&#x27;title&#x27;]} | {len(ranked)} tracked&quot;)</code></span>
+<span class='src-line'><b>  88</b><code>        print(rule(&quot;=&quot;))</code></span>
+<span class='src-line'><b>  89</b><code>        if not ranked:</code></span>
+<span class='src-line'><b>  90</b><code>            print(&quot;none yet&quot;)</code></span>
+<span class='src-line'><b>  91</b><code>            return</code></span>
+<span class='src-line'><b>  92</b><code>        for index, task in enumerate(ranked[: args.limit], start=1):</code></span>
+<span class='src-line'><b>  93</b><code>            status = str(task.get(&quot;status&quot;) or &quot;open&quot;)</code></span>
+<span class='src-line'><b>  94</b><code>            priority = int(task.get(&quot;priority&quot;) or 0)</code></span>
+<span class='src-line'><b>  95</b><code>            print(f&quot;{index:&gt;2}. {status:&lt;7} p={priority:&lt;3} {_one_line(task.get(&#x27;title&#x27;) or &#x27;untitled&#x27;, 54)}&quot;)</code></span>
+<span class='src-line'><b>  96</b><code>            details = &quot; | &quot;.join(</code></span>
+<span class='src-line'><b>  97</b><code>                value</code></span>
+<span class='src-line'><b>  98</b><code>                for value in [</code></span>
+<span class='src-line'><b>  99</b><code>                    f&quot;contract={task.get(&#x27;output_contract&#x27;)}&quot; if task.get(&quot;output_contract&quot;) else &quot;&quot;,</code></span>
+<span class='src-line'><b> 100</b><code>                    f&quot;accept={task.get(&#x27;acceptance_criteria&#x27;)}&quot; if task.get(&quot;acceptance_criteria&quot;) else &quot;&quot;,</code></span>
+<span class='src-line'><b> 101</b><code>                    f&quot;evidence={task.get(&#x27;evidence_needed&#x27;)}&quot; if task.get(&quot;evidence_needed&quot;) else &quot;&quot;,</code></span>
+<span class='src-line'><b> 102</b><code>                    f&quot;stall={task.get(&#x27;stall_behavior&#x27;)}&quot; if task.get(&quot;stall_behavior&quot;) else &quot;&quot;,</code></span>
+<span class='src-line'><b> 103</b><code>                    str(task.get(&quot;goal&quot;) or &quot;&quot;).strip(),</code></span>
+<span class='src-line'><b> 104</b><code>                    str(task.get(&quot;source_hint&quot;) or &quot;&quot;).strip(),</code></span>
+<span class='src-line'><b> 105</b><code>                    str(task.get(&quot;result&quot;) or &quot;&quot;).strip(),</code></span>
+<span class='src-line'><b> 106</b><code>                ]</code></span>
+<span class='src-line'><b> 107</b><code>                if value</code></span>
+<span class='src-line'><b> 108</b><code>            )</code></span>
+<span class='src-line'><b> 109</b><code>            if details:</code></span>
+<span class='src-line'><b> 110</b><code>                print(f&quot;    {_one_line(details, args.chars)}&quot;)</code></span>
+<span class='src-line'><b> 111</b><code>    finally:</code></span>
+<span class='src-line'><b> 112</b><code>        db.close()</code></span>
+<span class='src-line'><b> 113</b><code></code></span>
+<span class='src-line'><b> 114</b><code></code></span>
+<span class='src-line'><b> 115</b><code>def cmd_roadmap_impl(args: Any, deps: RecordCommandDeps) -&gt; None:</code></span>
+<span class='src-line'><b> 116</b><code>    db, _ = deps.db_factory()</code></span>
+<span class='src-line'><b> 117</b><code>    try:</code></span>
+<span class='src-line'><b> 118</b><code>        job_id = _resolve_or_print(db, args, deps)</code></span>
+<span class='src-line'><b> 119</b><code>        if not job_id:</code></span>
+<span class='src-line'><b> 120</b><code>            return</code></span>
+<span class='src-line'><b> 121</b><code>        job = db.get_job(job_id)</code></span>
+<span class='src-line'><b> 122</b><code>        metadata = job.get(&quot;metadata&quot;) if isinstance(job.get(&quot;metadata&quot;), dict) else {}</code></span>
+<span class='src-line'><b> 123</b><code>        roadmap = metadata.get(&quot;roadmap&quot;) if isinstance(metadata.get(&quot;roadmap&quot;), dict) else {}</code></span>
+<span class='src-line'><b> 124</b><code>        if args.json:</code></span>
+<span class='src-line'><b> 125</b><code>            print(json.dumps(roadmap, ensure_ascii=False, indent=2, default=json_default))</code></span>
+<span class='src-line'><b> 126</b><code>            return</code></span>
+<span class='src-line'><b> 127</b><code>        print(f&quot;roadmap {job[&#x27;title&#x27;]}&quot;)</code></span>
+<span class='src-line'><b> 128</b><code>        print(rule(&quot;=&quot;))</code></span>
+<span class='src-line'><b> 129</b><code>        if not roadmap:</code></span>
+<span class='src-line'><b> 130</b><code>            print(&quot;none yet&quot;)</code></span>
+<span class='src-line'><b> 131</b><code>            print(&quot;the worker can create one with record_roadmap when broad work needs milestones&quot;)</code></span>
+<span class='src-line'><b> 132</b><code>            return</code></span>
+<span class='src-line'><b> 133</b><code>        milestones = roadmap.get(&quot;milestones&quot;) if isinstance(roadmap.get(&quot;milestones&quot;), list) else []</code></span>
+<span class='src-line'><b> 134</b><code>        print(f&quot;title: {roadmap.get(&#x27;title&#x27;) or &#x27;Roadmap&#x27;}&quot;)</code></span>
+<span class='src-line'><b> 135</b><code>        print(f&quot;status: {roadmap.get(&#x27;status&#x27;) or &#x27;planned&#x27;} | milestones: {len(milestones)}&quot;)</code></span>
+<span class='src-line'><b> 136</b><code>        if roadmap.get(&quot;current_milestone&quot;):</code></span>
+<span class='src-line'><b> 137</b><code>            print(f&quot;current: {_one_line(roadmap.get(&#x27;current_milestone&#x27;) or &#x27;&#x27;, args.chars)}&quot;)</code></span>
+<span class='src-line'><b> 138</b><code>        if roadmap.get(&quot;scope&quot;):</code></span>
+<span class='src-line'><b> 139</b><code>            print(f&quot;scope: {_one_line(roadmap.get(&#x27;scope&#x27;) or &#x27;&#x27;, args.chars)}&quot;)</code></span>
+<span class='src-line'><b> 140</b><code>        if roadmap.get(&quot;validation_contract&quot;):</code></span>
+<span class='src-line'><b> 141</b><code>            print(f&quot;validation: {_one_line(roadmap.get(&#x27;validation_contract&#x27;) or &#x27;&#x27;, args.chars)}&quot;)</code></span>
+<span class='src-line'><b> 142</b><code>        _print_milestones(milestones, limit=args.limit, features=args.features, chars=args.chars)</code></span>
+<span class='src-line'><b> 143</b><code>    finally:</code></span>
+<span class='src-line'><b> 144</b><code>        db.close()</code></span>
+<span class='src-line'><b> 145</b><code></code></span>
+<span class='src-line'><b> 146</b><code></code></span>
+<span class='src-line'><b> 147</b><code>def cmd_experiments_impl(args: Any, deps: RecordCommandDeps) -&gt; None:</code></span>
+<span class='src-line'><b> 148</b><code>    db, _ = deps.db_factory()</code></span>
+<span class='src-line'><b> 149</b><code>    try:</code></span>
+<span class='src-line'><b> 150</b><code>        job_id = _resolve_or_print(db, args, deps)</code></span>
+<span class='src-line'><b> 151</b><code>        if not job_id:</code></span>
+<span class='src-line'><b> 152</b><code>            return</code></span>
+<span class='src-line'><b> 153</b><code>        job = db.get_job(job_id)</code></span>
+<span class='src-line'><b> 154</b><code>        experiments = _metadata_records(job, &quot;experiment_ledger&quot;)</code></span>
+<span class='src-line'><b> 155</b><code>        if args.status:</code></span>
+<span class='src-line'><b> 156</b><code>            wanted = {status.strip().lower() for status in args.status}</code></span>
+<span class='src-line'><b> 157</b><code>            experiments = [</code></span>
+<span class='src-line'><b> 158</b><code>                experiment for experiment in experiments if str(experiment.get(&quot;status&quot;) or &quot;planned&quot;).lower() in wanted</code></span>
+<span class='src-line'><b> 159</b><code>            ]</code></span>
+<span class='src-line'><b> 160</b><code>        if args.json:</code></span>
+<span class='src-line'><b> 161</b><code>            print(json.dumps(experiments, ensure_ascii=False, indent=2, default=json_default))</code></span>
+<span class='src-line'><b> 162</b><code>            return</code></span>
+<span class='src-line'><b> 163</b><code>        status_order = {&quot;running&quot;: 0, &quot;planned&quot;: 1, &quot;measured&quot;: 2, &quot;blocked&quot;: 3, &quot;failed&quot;: 4, &quot;skipped&quot;: 5}</code></span>
+<span class='src-line'><b> 164</b><code>        ranked = sorted(</code></span>
+<span class='src-line'><b> 165</b><code>            experiments,</code></span>
+<span class='src-line'><b> 166</b><code>            key=lambda experiment: (</code></span>
+<span class='src-line'><b> 167</b><code>                not bool(experiment.get(&quot;best_observed&quot;)),</code></span>
+<span class='src-line'><b> 168</b><code>                status_order.get(str(experiment.get(&quot;status&quot;) or &quot;planned&quot;), 9),</code></span>
+<span class='src-line'><b> 169</b><code>                str(experiment.get(&quot;updated_at&quot;) or experiment.get(&quot;created_at&quot;) or &quot;&quot;),</code></span>
+<span class='src-line'><b> 170</b><code>            ),</code></span>
+<span class='src-line'><b> 171</b><code>        )</code></span>
+<span class='src-line'><b> 172</b><code>        print(f&quot;experiments {job[&#x27;title&#x27;]} | {len(ranked)} tracked&quot;)</code></span>
+<span class='src-line'><b> 173</b><code>        print(rule(&quot;=&quot;))</code></span>
+<span class='src-line'><b> 174</b><code>        if not ranked:</code></span>
+<span class='src-line'><b> 175</b><code>            print(&quot;none yet&quot;)</code></span>
+<span class='src-line'><b> 176</b><code>            return</code></span>
+<span class='src-line'><b> 177</b><code>        for index, experiment in enumerate(ranked[: args.limit], start=1):</code></span>
+<span class='src-line'><b> 178</b><code>            status = str(experiment.get(&quot;status&quot;) or &quot;planned&quot;)</code></span>
+<span class='src-line'><b> 179</b><code>            best = &quot; *best*&quot; if experiment.get(&quot;best_observed&quot;) else &quot;&quot;</code></span>
+<span class='src-line'><b> 180</b><code>            metric = &quot;&quot;</code></span>
+<span class='src-line'><b> 181</b><code>            if experiment.get(&quot;metric_value&quot;) is not None:</code></span>
+<span class='src-line'><b> 182</b><code>                metric = (</code></span>
+<span class='src-line'><b> 183</b><code>                    f&quot; {experiment.get(&#x27;metric_name&#x27;) or &#x27;metric&#x27;}=&quot;</code></span>
+<span class='src-line'><b> 184</b><code>                    f&quot;{experiment.get(&#x27;metric_value&#x27;)}{experiment.get(&#x27;metric_unit&#x27;) or &#x27;&#x27;}&quot;</code></span>
+<span class='src-line'><b> 185</b><code>                )</code></span>
+<span class='src-line'><b> 186</b><code>            print(f&quot;{index:&gt;2}. {status:&lt;8} {_one_line(experiment.get(&#x27;title&#x27;) or &#x27;experiment&#x27;, 54)}{metric}{best}&quot;)</code></span>
+<span class='src-line'><b> 187</b><code>            details = &quot; | &quot;.join(</code></span>
+<span class='src-line'><b> 188</b><code>                value</code></span>
+<span class='src-line'><b> 189</b><code>                for value in [</code></span>
+<span class='src-line'><b> 190</b><code>                    str(experiment.get(&quot;result&quot;) or &quot;&quot;).strip(),</code></span>
+<span class='src-line'><b> 191</b><code>                    f&quot;next: {experiment.get(&#x27;next_action&#x27;)}&quot; if experiment.get(&quot;next_action&quot;) else &quot;&quot;,</code></span>
+<span class='src-line'><b> 192</b><code>                    f&quot;delta: {experiment.get(&#x27;delta_from_previous_best&#x27;)}&quot;</code></span>
+<span class='src-line'><b> 193</b><code>                    if experiment.get(&quot;delta_from_previous_best&quot;) is not None</code></span>
+<span class='src-line'><b> 194</b><code>                    else &quot;&quot;,</code></span>
+<span class='src-line'><b> 195</b><code>                ]</code></span>
+<span class='src-line'><b> 196</b><code>                if value</code></span>
+<span class='src-line'><b> 197</b><code>            )</code></span>
+<span class='src-line'><b> 198</b><code>            if details:</code></span>
+<span class='src-line'><b> 199</b><code>                print(f&quot;    {_one_line(details, args.chars)}&quot;)</code></span>
+<span class='src-line'><b> 200</b><code>    finally:</code></span>
+<span class='src-line'><b> 201</b><code>        db.close()</code></span>
+<span class='src-line'><b> 202</b><code></code></span>
+<span class='src-line'><b> 203</b><code></code></span>
+<span class='src-line'><b> 204</b><code>def cmd_sources_impl(args: Any, deps: RecordCommandDeps) -&gt; None:</code></span>
+<span class='src-line'><b> 205</b><code>    db, _ = deps.db_factory()</code></span>
+<span class='src-line'><b> 206</b><code>    try:</code></span>
+<span class='src-line'><b> 207</b><code>        job_id = _resolve_or_print(db, args, deps)</code></span>
+<span class='src-line'><b> 208</b><code>        if not job_id:</code></span>
+<span class='src-line'><b> 209</b><code>            return</code></span>
+<span class='src-line'><b> 210</b><code>        job = db.get_job(job_id)</code></span>
+<span class='src-line'><b> 211</b><code>        sources = _metadata_records(job, &quot;source_ledger&quot;)</code></span>
+<span class='src-line'><b> 212</b><code>        if args.json:</code></span>
+<span class='src-line'><b> 213</b><code>            print(json.dumps(sources, ensure_ascii=False, indent=2, default=json_default))</code></span>
+<span class='src-line'><b> 214</b><code>            return</code></span>
+<span class='src-line'><b> 215</b><code>        ranked = sorted(</code></span>
+<span class='src-line'><b> 216</b><code>            sources,</code></span>
+<span class='src-line'><b> 217</b><code>            key=lambda source: (float(source.get(&quot;usefulness_score&quot;) or 0), int(source.get(&quot;yield_count&quot;) or 0)),</code></span>
+<span class='src-line'><b> 218</b><code>            reverse=True,</code></span>
+<span class='src-line'><b> 219</b><code>        )</code></span>
+<span class='src-line'><b> 220</b><code>        print(f&quot;sources {job[&#x27;title&#x27;]} | {len(sources)} scored&quot;)</code></span>
+<span class='src-line'><b> 221</b><code>        print(rule(&quot;=&quot;))</code></span>
+<span class='src-line'><b> 222</b><code>        if not ranked:</code></span>
+<span class='src-line'><b> 223</b><code>            print(&quot;none yet&quot;)</code></span>
+<span class='src-line'><b> 224</b><code>            return</code></span>
+<span class='src-line'><b> 225</b><code>        for index, source in enumerate(ranked[: args.limit], start=1):</code></span>
+<span class='src-line'><b> 226</b><code>            score = float(source.get(&quot;usefulness_score&quot;) or 0)</code></span>
+<span class='src-line'><b> 227</b><code>            print(</code></span>
+<span class='src-line'><b> 228</b><code>                f&quot;{index:&gt;2}. {_one_line(source.get(&#x27;source&#x27;) or &#x27;unknown&#x27;, 58)} &quot;</code></span>
+<span class='src-line'><b> 229</b><code>                f&quot;score={score:g} findings={source.get(&#x27;yield_count&#x27;) or 0} fails={source.get(&#x27;fail_count&#x27;) or 0}&quot;</code></span>
+<span class='src-line'><b> 230</b><code>            )</code></span>
+<span class='src-line'><b> 231</b><code>            detail = &quot; | &quot;.join(</code></span>
+<span class='src-line'><b> 232</b><code>                value</code></span>
+<span class='src-line'><b> 233</b><code>                for value in [</code></span>
+<span class='src-line'><b> 234</b><code>                    str(source.get(&quot;source_type&quot;) or &quot;&quot;).strip(),</code></span>
+<span class='src-line'><b> 235</b><code>                    str(source.get(&quot;last_outcome&quot;) or &quot;&quot;).strip(),</code></span>
+<span class='src-line'><b> 236</b><code>                ]</code></span>
+<span class='src-line'><b> 237</b><code>                if value</code></span>
+<span class='src-line'><b> 238</b><code>            )</code></span>
+<span class='src-line'><b> 239</b><code>            if detail:</code></span>
+<span class='src-line'><b> 240</b><code>                print(f&quot;    {_one_line(detail, args.chars)}&quot;)</code></span>
+<span class='src-line'><b> 241</b><code>            warnings = source.get(&quot;warnings&quot;) if isinstance(source.get(&quot;warnings&quot;), list) else []</code></span>
+<span class='src-line'><b> 242</b><code>            if warnings:</code></span>
+<span class='src-line'><b> 243</b><code>                print(f&quot;    warnings: {_one_line(&#x27;, &#x27;.join(str(item) for item in warnings[-3:]), args.chars)}&quot;)</code></span>
+<span class='src-line'><b> 244</b><code>    finally:</code></span>
+<span class='src-line'><b> 245</b><code>        db.close()</code></span>
+<span class='src-line'><b> 246</b><code></code></span>
+<span class='src-line'><b> 247</b><code></code></span>
+<span class='src-line'><b> 248</b><code>def cmd_memory_impl(args: Any, deps: RecordCommandDeps) -&gt; None:</code></span>
+<span class='src-line'><b> 249</b><code>    db, _ = deps.db_factory()</code></span>
+<span class='src-line'><b> 250</b><code>    try:</code></span>
+<span class='src-line'><b> 251</b><code>        job_id = _resolve_or_print(db, args, deps)</code></span>
+<span class='src-line'><b> 252</b><code>        if not job_id:</code></span>
+<span class='src-line'><b> 253</b><code>            return</code></span>
+<span class='src-line'><b> 254</b><code>        job = db.get_job(job_id)</code></span>
+<span class='src-line'><b> 255</b><code>        metadata = job.get(&quot;metadata&quot;) if isinstance(job.get(&quot;metadata&quot;), dict) else {}</code></span>
+<span class='src-line'><b> 256</b><code>        lessons = _metadata_records(job, &quot;lessons&quot;)</code></span>
+<span class='src-line'><b> 257</b><code>        reflections = _metadata_records(job, &quot;reflections&quot;)</code></span>
+<span class='src-line'><b> 258</b><code>        compact = db.list_memory(job_id)</code></span>
+<span class='src-line'><b> 259</b><code>        active_operator = active_operator_messages(metadata)</code></span>
+<span class='src-line'><b> 260</b><code>        pending_measurement = (</code></span>
+<span class='src-line'><b> 261</b><code>            metadata.get(&quot;pending_measurement_obligation&quot;)</code></span>
+<span class='src-line'><b> 262</b><code>            if isinstance(metadata.get(&quot;pending_measurement_obligation&quot;), dict)</code></span>
+<span class='src-line'><b> 263</b><code>            else {}</code></span>
+<span class='src-line'><b> 264</b><code>        )</code></span>
+<span class='src-line'><b> 265</b><code>        print(f&quot;memory {job[&#x27;title&#x27;]}&quot;)</code></span>
+<span class='src-line'><b> 266</b><code>        print(rule(&quot;=&quot;))</code></span>
+<span class='src-line'><b> 267</b><code>        print(f&quot;lessons={len(lessons)} reflections={len(reflections)} compact_entries={len(compact)}&quot;)</code></span>
+<span class='src-line'><b> 268</b><code>        _print_memory_sections(</code></span>
+<span class='src-line'><b> 269</b><code>            active_operator=active_operator,</code></span>
+<span class='src-line'><b> 270</b><code>            pending_measurement=pending_measurement,</code></span>
+<span class='src-line'><b> 271</b><code>            reflections=reflections,</code></span>
+<span class='src-line'><b> 272</b><code>            lessons=lessons,</code></span>
+<span class='src-line'><b> 273</b><code>            compact=compact,</code></span>
+<span class='src-line'><b> 274</b><code>            limit=args.limit,</code></span>
+<span class='src-line'><b> 275</b><code>            chars=args.chars,</code></span>
+<span class='src-line'><b> 276</b><code>        )</code></span>
+<span class='src-line'><b> 277</b><code>    finally:</code></span>
+<span class='src-line'><b> 278</b><code>        db.close()</code></span>
+<span class='src-line'><b> 279</b><code></code></span>
+<span class='src-line'><b> 280</b><code></code></span>
+<span class='src-line'><b> 281</b><code>def cmd_metrics_impl(args: Any, deps: RecordCommandDeps) -&gt; None:</code></span>
+<span class='src-line'><b> 282</b><code>    db, config = deps.db_factory()</code></span>
+<span class='src-line'><b> 283</b><code>    try:</code></span>
+<span class='src-line'><b> 284</b><code>        job_id = _resolve_or_print(db, args, deps)</code></span>
+<span class='src-line'><b> 285</b><code>        if not job_id:</code></span>
+<span class='src-line'><b> 286</b><code>            return</code></span>
+<span class='src-line'><b> 287</b><code>        job = db.get_job(job_id)</code></span>
+<span class='src-line'><b> 288</b><code>        steps = db.list_steps(job_id=job_id)</code></span>
+<span class='src-line'><b> 289</b><code>        artifacts = db.list_artifacts(job_id, limit=1000)</code></span>
+<span class='src-line'><b> 290</b><code>        findings = _metadata_records(job, &quot;finding_ledger&quot;)</code></span>
+<span class='src-line'><b> 291</b><code>        sources = _metadata_records(job, &quot;source_ledger&quot;)</code></span>
+<span class='src-line'><b> 292</b><code>        tasks = _metadata_records(job, &quot;task_queue&quot;)</code></span>
+<span class='src-line'><b> 293</b><code>        experiments = _metadata_records(job, &quot;experiment_ledger&quot;)</code></span>
+<span class='src-line'><b> 294</b><code>        lessons = _metadata_records(job, &quot;lessons&quot;)</code></span>
+<span class='src-line'><b> 295</b><code>        reflections = _metadata_records(job, &quot;reflections&quot;)</code></span>
+<span class='src-line'><b> 296</b><code>        metadata = job.get(&quot;metadata&quot;) if isinstance(job.get(&quot;metadata&quot;), dict) else {}</code></span>
+<span class='src-line'><b> 297</b><code>        roadmap = metadata.get(&quot;roadmap&quot;) if isinstance(metadata.get(&quot;roadmap&quot;), dict) else {}</code></span>
+<span class='src-line'><b> 298</b><code>        milestones = roadmap.get(&quot;milestones&quot;) if isinstance(roadmap.get(&quot;milestones&quot;), list) else []</code></span>
+<span class='src-line'><b> 299</b><code>        daemon = daemon_lock_status(config.runtime.home / &quot;agentd.lock&quot;)</code></span>
+<span class='src-line'><b> 300</b><code>        finding_batches = [</code></span>
+<span class='src-line'><b> 301</b><code>            artifact</code></span>
+<span class='src-line'><b> 302</b><code>            for artifact in artifacts</code></span>
+<span class='src-line'><b> 303</b><code>            if &quot;finding&quot; in str(artifact.get(&quot;title&quot;) or artifact.get(&quot;summary&quot;) or &quot;&quot;).lower()</code></span>
+<span class='src-line'><b> 304</b><code>        ]</code></span>
+<span class='src-line'><b> 305</b><code>        blocked = [step for step in steps if step.get(&quot;status&quot;) == &quot;blocked&quot;]</code></span>
+<span class='src-line'><b> 306</b><code>        failed = [step for step in steps if step.get(&quot;status&quot;) == &quot;failed&quot;]</code></span>
+<span class='src-line'><b> 307</b><code>        print(f&quot;metrics {job[&#x27;title&#x27;]}&quot;)</code></span>
+<span class='src-line'><b> 308</b><code>        print(rule(&quot;=&quot;))</code></span>
+<span class='src-line'><b> 309</b><code>        print(f&quot;daemon: {&#x27;running&#x27; if daemon[&#x27;running&#x27;] else &#x27;stopped&#x27;} | worker: {worker_label(job, bool(daemon[&#x27;running&#x27;]))}&quot;)</code></span>
+<span class='src-line'><b> 310</b><code>        print(f&quot;steps: {_step_count(steps)} | failed: {len(failed)} | blocked/recovered: {len(blocked)}&quot;)</code></span>
+<span class='src-line'><b> 311</b><code>        print(f&quot;artifacts: {len(artifacts)} | finding_batches: {len(finding_batches)}&quot;)</code></span>
+<span class='src-line'><b> 312</b><code>        print(</code></span>
+<span class='src-line'><b> 313</b><code>            f&quot;findings: {len(findings)} | sources: {len(sources)} | tasks: {len(tasks)} | &quot;</code></span>
+<span class='src-line'><b> 314</b><code>            f&quot;milestones: {len(milestones)} | experiments: {len(experiments)} | &quot;</code></span>
+<span class='src-line'><b> 315</b><code>            f&quot;lessons: {len(lessons)} | reflections: {len(reflections)}&quot;</code></span>
+<span class='src-line'><b> 316</b><code>        )</code></span>
+<span class='src-line'><b> 317</b><code>        _print_best_records(sources=sources, findings=findings, experiments=experiments, chars=args.chars)</code></span>
+<span class='src-line'><b> 318</b><code>    finally:</code></span>
+<span class='src-line'><b> 319</b><code>        db.close()</code></span>
+<span class='src-line'><b> 320</b><code></code></span>
+<span class='src-line'><b> 321</b><code></code></span>
+<span class='src-line'><b> 322</b><code>def cmd_usage_impl(args: Any, deps: RecordCommandDeps) -&gt; None:</code></span>
+<span class='src-line'><b> 323</b><code>    db, config = deps.db_factory()</code></span>
+<span class='src-line'><b> 324</b><code>    try:</code></span>
+<span class='src-line'><b> 325</b><code>        job_id = _resolve_or_print(db, args, deps)</code></span>
+<span class='src-line'><b> 326</b><code>        if not job_id:</code></span>
+<span class='src-line'><b> 327</b><code>            return</code></span>
+<span class='src-line'><b> 328</b><code>        job = db.get_job(job_id)</code></span>
+<span class='src-line'><b> 329</b><code>        usage = db.job_token_usage(job_id)</code></span>
+<span class='src-line'><b> 330</b><code>        usage[&quot;input_cost_per_million&quot;] = config.model.input_cost_per_million</code></span>
+<span class='src-line'><b> 331</b><code>        usage[&quot;output_cost_per_million&quot;] = config.model.output_cost_per_million</code></span>
+<span class='src-line'><b> 332</b><code>        if args.json:</code></span>
+<span class='src-line'><b> 333</b><code>            print(json.dumps(usage, ensure_ascii=False, indent=2, sort_keys=True))</code></span>
+<span class='src-line'><b> 334</b><code>            return</code></span>
+<span class='src-line'><b> 335</b><code>        lines = format_usage_report(</code></span>
+<span class='src-line'><b> 336</b><code>            title=str(job.get(&quot;title&quot;) or job_id),</code></span>
+<span class='src-line'><b> 337</b><code>            usage=usage,</code></span>
+<span class='src-line'><b> 338</b><code>            context_length=int(config.model.context_length or 0),</code></span>
+<span class='src-line'><b> 339</b><code>            model=str(config.model.model),</code></span>
+<span class='src-line'><b> 340</b><code>            base_url=str(config.model.base_url),</code></span>
+<span class='src-line'><b> 341</b><code>        )</code></span>
+<span class='src-line'><b> 342</b><code>        print(&quot;\n&quot;.join(lines))</code></span>
+<span class='src-line'><b> 343</b><code>    finally:</code></span>
+<span class='src-line'><b> 344</b><code>        db.close()</code></span>
+<span class='src-line'><b> 345</b><code></code></span>
+<span class='src-line'><b> 346</b><code></code></span>
+<span class='src-line'><b> 347</b><code>def _resolve_or_print(db: Any, args: Any, deps: RecordCommandDeps) -&gt; str | None:</code></span>
+<span class='src-line'><b> 348</b><code>    job_id = deps.resolve_job_id(db, args.job_id)</code></span>
+<span class='src-line'><b> 349</b><code>    if job_id:</code></span>
+<span class='src-line'><b> 350</b><code>        return job_id</code></span>
+<span class='src-line'><b> 351</b><code>    ref = deps.job_ref_text(args.job_id)</code></span>
+<span class='src-line'><b> 352</b><code>    print(f&quot;No job matched: {ref}&quot; if ref else &quot;No jobs found.&quot;)</code></span>
+<span class='src-line'><b> 353</b><code>    return None</code></span>
+<span class='src-line'><b> 354</b><code></code></span>
+<span class='src-line'><b> 355</b><code></code></span>
+<span class='src-line'><b> 356</b><code>def _metadata_records(job: dict[str, Any], key: str) -&gt; list[dict[str, Any]]:</code></span>
+<span class='src-line'><b> 357</b><code>    metadata = job.get(&quot;metadata&quot;) if isinstance(job.get(&quot;metadata&quot;), dict) else {}</code></span>
+<span class='src-line'><b> 358</b><code>    values = metadata.get(key)</code></span>
+<span class='src-line'><b> 359</b><code>    if not isinstance(values, list):</code></span>
+<span class='src-line'><b> 360</b><code>        return []</code></span>
+<span class='src-line'><b> 361</b><code>    return [value for value in values if isinstance(value, dict)]</code></span>
+<span class='src-line'><b> 362</b><code></code></span>
+<span class='src-line'><b> 363</b><code></code></span>
+<span class='src-line'><b> 364</b><code>def _print_milestones(milestones: list[Any], *, limit: int, features: int, chars: int) -&gt; None:</code></span>
+<span class='src-line'><b> 365</b><code>    if not milestones:</code></span>
+<span class='src-line'><b> 366</b><code>        return</code></span>
+<span class='src-line'><b> 367</b><code>    print()</code></span>
+<span class='src-line'><b> 368</b><code>    status_order = {&quot;active&quot;: 0, &quot;validating&quot;: 1, &quot;planned&quot;: 2, &quot;blocked&quot;: 3, &quot;done&quot;: 4, &quot;skipped&quot;: 5}</code></span>
+<span class='src-line'><b> 369</b><code>    ranked = sorted(</code></span>
+<span class='src-line'><b> 370</b><code>        [milestone for milestone in milestones if isinstance(milestone, dict)],</code></span>
+<span class='src-line'><b> 371</b><code>        key=lambda milestone: (</code></span>
+<span class='src-line'><b> 372</b><code>            status_order.get(str(milestone.get(&quot;status&quot;) or &quot;planned&quot;), 9),</code></span>
+<span class='src-line'><b> 373</b><code>            -int(milestone.get(&quot;priority&quot;) or 0),</code></span>
+<span class='src-line'><b> 374</b><code>            str(milestone.get(&quot;title&quot;) or &quot;&quot;),</code></span>
+<span class='src-line'><b> 375</b><code>        ),</code></span>
+<span class='src-line'><b> 376</b><code>    )</code></span>
+<span class='src-line'><b> 377</b><code>    for index, milestone in enumerate(ranked[:limit], start=1):</code></span>
+<span class='src-line'><b> 378</b><code>        status = str(milestone.get(&quot;status&quot;) or &quot;planned&quot;)</code></span>
+<span class='src-line'><b> 379</b><code>        validation = str(milestone.get(&quot;validation_status&quot;) or &quot;not_started&quot;)</code></span>
+<span class='src-line'><b> 380</b><code>        milestone_features = milestone.get(&quot;features&quot;) if isinstance(milestone.get(&quot;features&quot;), list) else []</code></span>
+<span class='src-line'><b> 381</b><code>        open_features = sum(</code></span>
+<span class='src-line'><b> 382</b><code>            1 for feature in milestone_features</code></span>
+<span class='src-line'><b> 383</b><code>            if isinstance(feature, dict) and str(feature.get(&quot;status&quot;) or &quot;planned&quot;) in {&quot;planned&quot;, &quot;active&quot;}</code></span>
+<span class='src-line'><b> 384</b><code>        )</code></span>
+<span class='src-line'><b> 385</b><code>        print(</code></span>
+<span class='src-line'><b> 386</b><code>            f&quot;{index:&gt;2}. {status:&lt;10} validation={validation:&lt;11} &quot;</code></span>
+<span class='src-line'><b> 387</b><code>            f&quot;p={int(milestone.get(&#x27;priority&#x27;) or 0):&lt;3} {_one_line(milestone.get(&#x27;title&#x27;) or &#x27;milestone&#x27;, 54)}&quot;</code></span>
+<span class='src-line'><b> 388</b><code>        )</code></span>
+<span class='src-line'><b> 389</b><code>        details = &quot; | &quot;.join(</code></span>
+<span class='src-line'><b> 390</b><code>            value</code></span>
+<span class='src-line'><b> 391</b><code>            for value in [</code></span>
+<span class='src-line'><b> 392</b><code>                f&quot;features={len(milestone_features)}/{open_features} open&quot; if milestone_features else &quot;&quot;,</code></span>
+<span class='src-line'><b> 393</b><code>                f&quot;accept={milestone.get(&#x27;acceptance_criteria&#x27;)}&quot; if milestone.get(&quot;acceptance_criteria&quot;) else &quot;&quot;,</code></span>
+<span class='src-line'><b> 394</b><code>                f&quot;evidence={milestone.get(&#x27;evidence_needed&#x27;)}&quot; if milestone.get(&quot;evidence_needed&quot;) else &quot;&quot;,</code></span>
+<span class='src-line'><b> 395</b><code>                f&quot;result={milestone.get(&#x27;validation_result&#x27;)}&quot; if milestone.get(&quot;validation_result&quot;) else &quot;&quot;,</code></span>
+<span class='src-line'><b> 396</b><code>                f&quot;next={milestone.get(&#x27;next_action&#x27;)}&quot; if milestone.get(&quot;next_action&quot;) else &quot;&quot;,</code></span>
+<span class='src-line'><b> 397</b><code>            ]</code></span>
+<span class='src-line'><b> 398</b><code>            if value</code></span>
+<span class='src-line'><b> 399</b><code>        )</code></span>
+<span class='src-line'><b> 400</b><code>        if details:</code></span>
+<span class='src-line'><b> 401</b><code>            print(f&quot;    {_one_line(details, chars)}&quot;)</code></span>
+<span class='src-line'><b> 402</b><code>        for feature in milestone_features[: min(3, features)]:</code></span>
+<span class='src-line'><b> 403</b><code>            if isinstance(feature, dict):</code></span>
+<span class='src-line'><b> 404</b><code>                print(f&quot;    - {str(feature.get(&#x27;status&#x27;) or &#x27;planned&#x27;):&lt;7} {_one_line(feature.get(&#x27;title&#x27;) or &#x27;feature&#x27;, max(30, chars - 16))}&quot;)</code></span>
+<span class='src-line'><b> 405</b><code></code></span>
+<span class='src-line'><b> 406</b><code></code></span>
+<span class='src-line'><b> 407</b><code>def _print_memory_sections(</code></span>
+<span class='src-line'><b> 408</b><code>    *,</code></span>
+<span class='src-line'><b> 409</b><code>    active_operator: list[dict[str, Any]],</code></span>
+<span class='src-line'><b> 410</b><code>    pending_measurement: dict[str, Any],</code></span>
+<span class='src-line'><b> 411</b><code>    reflections: list[dict[str, Any]],</code></span>
+<span class='src-line'><b> 412</b><code>    lessons: list[dict[str, Any]],</code></span>
+<span class='src-line'><b> 413</b><code>    compact: list[dict[str, Any]],</code></span>
+<span class='src-line'><b> 414</b><code>    limit: int,</code></span>
+<span class='src-line'><b> 415</b><code>    chars: int,</code></span>
+<span class='src-line'><b> 416</b><code>) -&gt; None:</code></span>
+<span class='src-line'><b> 417</b><code>    if active_operator:</code></span>
+<span class='src-line'><b> 418</b><code>        print()</code></span>
+<span class='src-line'><b> 419</b><code>        print(&quot;active operator context:&quot;)</code></span>
+<span class='src-line'><b> 420</b><code>        for entry in active_operator[-min(limit, 8) :]:</code></span>
+<span class='src-line'><b> 421</b><code>            marker = entry.get(&quot;event_id&quot;) or &quot;operator&quot;</code></span>
+<span class='src-line'><b> 422</b><code>            print(f&quot;  {marker}: {_one_line(entry.get(&#x27;message&#x27;) or &#x27;&#x27;, chars)}&quot;)</code></span>
+<span class='src-line'><b> 423</b><code>    if pending_measurement:</code></span>
+<span class='src-line'><b> 424</b><code>        print()</code></span>
+<span class='src-line'><b> 425</b><code>        print(f&quot;pending measurement: step #{pending_measurement.get(&#x27;source_step_no&#x27;) or &#x27;?&#x27;}&quot;)</code></span>
+<span class='src-line'><b> 426</b><code>        candidates = pending_measurement.get(&quot;metric_candidates&quot;) if isinstance(pending_measurement.get(&quot;metric_candidates&quot;), list) else []</code></span>
+<span class='src-line'><b> 427</b><code>        if candidates:</code></span>
+<span class='src-line'><b> 428</b><code>            print(f&quot;  candidates: {_one_line(&#x27;, &#x27;.join(str(item) for item in candidates[:5]), chars)}&quot;)</code></span>
+<span class='src-line'><b> 429</b><code>    if reflections:</code></span>
+<span class='src-line'><b> 430</b><code>        print()</code></span>
+<span class='src-line'><b> 431</b><code>        print(&quot;latest reflection:&quot;)</code></span>
+<span class='src-line'><b> 432</b><code>        reflection = reflections[-1]</code></span>
+<span class='src-line'><b> 433</b><code>        print(f&quot;  {_one_line(reflection.get(&#x27;summary&#x27;) or &#x27;&#x27;, chars)}&quot;)</code></span>
+<span class='src-line'><b> 434</b><code>        if reflection.get(&quot;strategy&quot;):</code></span>
+<span class='src-line'><b> 435</b><code>            print(f&quot;  strategy: {_one_line(reflection[&#x27;strategy&#x27;], chars)}&quot;)</code></span>
+<span class='src-line'><b> 436</b><code>    if lessons:</code></span>
+<span class='src-line'><b> 437</b><code>        print()</code></span>
+<span class='src-line'><b> 438</b><code>        print(&quot;latest lessons:&quot;)</code></span>
+<span class='src-line'><b> 439</b><code>        for lesson in lessons[-min(limit, 8) :]:</code></span>
+<span class='src-line'><b> 440</b><code>            print(f&quot;  {lesson.get(&#x27;category&#x27;) or &#x27;memory&#x27;}: {_one_line(lesson.get(&#x27;lesson&#x27;) or &#x27;&#x27;, chars)}&quot;)</code></span>
+<span class='src-line'><b> 441</b><code>    if compact:</code></span>
+<span class='src-line'><b> 442</b><code>        print()</code></span>
+<span class='src-line'><b> 443</b><code>        print(&quot;compact memory:&quot;)</code></span>
+<span class='src-line'><b> 444</b><code>        for entry in compact[: min(limit, 3)]:</code></span>
+<span class='src-line'><b> 445</b><code>            print(f&quot;  {entry.get(&#x27;key&#x27;)}: {_one_line(entry.get(&#x27;summary&#x27;) or &#x27;&#x27;, chars)}&quot;)</code></span>
+<span class='src-line'><b> 446</b><code></code></span>
+<span class='src-line'><b> 447</b><code></code></span>
+<span class='src-line'><b> 448</b><code>def _print_best_records(</code></span>
+<span class='src-line'><b> 449</b><code>    *,</code></span>
+<span class='src-line'><b> 450</b><code>    sources: list[dict[str, Any]],</code></span>
+<span class='src-line'><b> 451</b><code>    findings: list[dict[str, Any]],</code></span>
+<span class='src-line'><b> 452</b><code>    experiments: list[dict[str, Any]],</code></span>
+<span class='src-line'><b> 453</b><code>    chars: int,</code></span>
+<span class='src-line'><b> 454</b><code>) -&gt; None:</code></span>
+<span class='src-line'><b> 455</b><code>    if sources:</code></span>
+<span class='src-line'><b> 456</b><code>        best = max(sources, key=lambda source: float(source.get(&quot;usefulness_score&quot;) or 0))</code></span>
+<span class='src-line'><b> 457</b><code>        print(f&quot;best source: {_one_line(best.get(&#x27;source&#x27;) or &#x27;&#x27;, chars)} score={best.get(&#x27;usefulness_score&#x27;)}&quot;)</code></span>
+<span class='src-line'><b> 458</b><code>    if findings:</code></span>
+<span class='src-line'><b> 459</b><code>        best_finding = max(findings, key=lambda finding: float(finding.get(&quot;score&quot;) or 0))</code></span>
+<span class='src-line'><b> 460</b><code>        print(f&quot;best finding: {_one_line(best_finding.get(&#x27;name&#x27;) or &#x27;&#x27;, chars)} score={best_finding.get(&#x27;score&#x27;)}&quot;)</code></span>
+<span class='src-line'><b> 461</b><code>    measured = [experiment for experiment in experiments if experiment.get(&quot;metric_value&quot;) is not None]</code></span>
+<span class='src-line'><b> 462</b><code>    best_experiments = [experiment for experiment in measured if experiment.get(&quot;best_observed&quot;)]</code></span>
+<span class='src-line'><b> 463</b><code>    if best_experiments:</code></span>
+<span class='src-line'><b> 464</b><code>        best_experiment = best_experiments[-1]</code></span>
+<span class='src-line'><b> 465</b><code>        metric = f&quot;{best_experiment.get(&#x27;metric_name&#x27;) or &#x27;metric&#x27;}={best_experiment.get(&#x27;metric_value&#x27;)}{best_experiment.get(&#x27;metric_unit&#x27;) or &#x27;&#x27;}&quot;</code></span>
+<span class='src-line'><b> 466</b><code>        print(f&quot;best experiment: {_one_line(best_experiment.get(&#x27;title&#x27;) or &#x27;&#x27;, chars)} {metric}&quot;)</code></span>
+<span class='src-line'><b> 467</b><code></code></span>
+<span class='src-line'><b> 468</b><code></code></span>
+<span class='src-line'><b> 469</b><code>def _step_count(steps: list[dict[str, Any]]) -&gt; int:</code></span>
+<span class='src-line'><b> 470</b><code>    numbers = [int(step.get(&quot;step_no&quot;) or 0) for step in steps]</code></span>
+<span class='src-line'><b> 471</b><code>    return max(numbers, default=0)</code></span></pre>
 </details>
 <details class="source-file searchable" data-search="nipux_cli/scheduling.py &quot;&quot;&quot;Shared scheduling helpers for deferred long-running work.&quot;&quot;&quot;
 
@@ -26800,7 +27469,7 @@ def slash_suggestion_lines(
 <span class='src-line'><b> 140</b><code>        if description:</code></span>
 <span class='src-line'><b> 141</b><code>            body += f&quot;  {_muted(description)}&quot;</code></span>
 <span class='src-line'><b> 142</b><code>        return [</code></span>
-<span class='src-line'><b> 143</b><code>            _fit_ansi(_bold(&quot;Command&quot;), width),</code></span>
+<span class='src-line'><b> 143</b><code>            _fit_ansi(_bold(&quot;/ command&quot;), width),</code></span>
 <span class='src-line'><b> 144</b><code>            _fit_ansi(body, width),</code></span>
 <span class='src-line'><b> 145</b><code>            _fit_ansi(_muted(&quot;enter sends&quot;), width),</code></span>
 <span class='src-line'><b> 146</b><code>        ]</code></span>
@@ -26810,11 +27479,11 @@ def slash_suggestion_lines(
 <span class='src-line'><b> 150</b><code>    matches = all_matches[:limit]</code></span>
 <span class='src-line'><b> 151</b><code>    if not matches:</code></span>
 <span class='src-line'><b> 152</b><code>        return [</code></span>
-<span class='src-line'><b> 153</b><code>            _fit_ansi(_bold(&quot;Commands&quot;), width),</code></span>
+<span class='src-line'><b> 153</b><code>            _fit_ansi(_bold(&quot;/ commands&quot;), width),</code></span>
 <span class='src-line'><b> 154</b><code>            _fit_ansi(_muted(&quot;no matches&quot;), width),</code></span>
 <span class='src-line'><b> 155</b><code>        ]</code></span>
 <span class='src-line'><b> 156</b><code>    cmd_width = min(14, max(len(cmd) for cmd, _ in matches) + 2)</code></span>
-<span class='src-line'><b> 157</b><code>    lines = [_fit_ansi(_bold(&quot;Commands&quot;) + _muted(f&quot; {len(all_matches)}&quot;), width)]</code></span>
+<span class='src-line'><b> 157</b><code>    lines = [_fit_ansi(_bold(&quot;/ commands&quot;) + _muted(f&quot; {len(all_matches)}&quot;), width)]</code></span>
 <span class='src-line'><b> 158</b><code>    for index, (cmd, desc) in enumerate(matches):</code></span>
 <span class='src-line'><b> 159</b><code>        marker = _accent(&quot;›&quot;) if index == 0 else _muted(&quot; &quot;)</code></span>
 <span class='src-line'><b> 160</b><code>        hint = SLASH_ARGUMENT_HINTS.get(cmd[1:])</code></span>
@@ -26826,7 +27495,7 @@ def slash_suggestion_lines(
 <span class='src-line'><b> 166</b><code>    if hidden:</code></span>
 <span class='src-line'><b> 167</b><code>        lines.append(_fit_ansi(_muted(f&quot;+{hidden} more; type to filter&quot;), width))</code></span>
 <span class='src-line'><b> 168</b><code>    else:</code></span>
-<span class='src-line'><b> 169</b><code>        lines.append(_fit_ansi(_muted(&quot;tab completes highlighted command&quot;), width))</code></span>
+<span class='src-line'><b> 169</b><code>        lines.append(_fit_ansi(_muted(&quot;tab fills highlighted command&quot;), width))</code></span>
 <span class='src-line'><b> 170</b><code>    return lines</code></span>
 <span class='src-line'><b> 171</b><code></code></span>
 <span class='src-line'><b> 172</b><code></code></span>
@@ -27468,14 +28137,14 @@ def _chat_item_lines(label: str, body: Any, *, clock: str, wid">
 <span class='src-line'><b> 134</b><code>        content = [</code></span>
 <span class='src-line'><b> 135</b><code>            _center_ansi(_bold(_accent(&quot;NIPUX&quot;)), width),</code></span>
 <span class='src-line'><b> 136</b><code>            &quot;&quot;,</code></span>
-<span class='src-line'><b> 137</b><code>            _center_ansi(_muted(&quot;Type normally to talk.&quot;), width),</code></span>
+<span class='src-line'><b> 137</b><code>            _center_ansi(_muted(&quot;Talk normally.&quot;), width),</code></span>
 <span class='src-line'><b> 138</b><code>        ]</code></span>
 <span class='src-line'><b> 139</b><code>        return content[:rows]</code></span>
 <span class='src-line'><b> 140</b><code>    content = [</code></span>
 <span class='src-line'><b> 141</b><code>        *[_center_ansi(_style(line, &quot;37;1&quot;), width) for line in NIPUX_HERO],</code></span>
 <span class='src-line'><b> 142</b><code>        &quot;&quot;,</code></span>
-<span class='src-line'><b> 143</b><code>        _center_ansi(_muted(&quot;A persistent agent workspace.&quot;), width),</code></span>
-<span class='src-line'><b> 144</b><code>        _center_ansi(_muted(&quot;Enter sends  ·  / opens commands  ·  arrows switch panels&quot;), width),</code></span>
+<span class='src-line'><b> 143</b><code>        _center_ansi(_muted(&quot;Talk to create, steer, inspect, or resume long-running work.&quot;), width),</code></span>
+<span class='src-line'><b> 144</b><code>        _center_ansi(_muted(&quot;Enter send  ·  / commands  ·  arrows navigate&quot;), width),</code></span>
 <span class='src-line'><b> 145</b><code>    ]</code></span>
 <span class='src-line'><b> 146</b><code>    top_pad = max(0, (rows - len(content)) // 2 - 1)</code></span>
 <span class='src-line'><b> 147</b><code>    return ([&quot;&quot;] * top_pad + content)[:rows]</code></span>
@@ -27845,7 +28514,7 @@ def _compose_bar(
         visible_input = &quot;•&quot; * min(len(input_buffer), max(8, width - 8))
     else:
         visible_input = input_buffer[-max(8, width - 8) :]
-    hint = _muted(hint or &quot;Enter sends  /jobs switches  /run starts  /help commands&quot;)
+    hint = _muted(hint or &quot;Enter send  ·  / commands  ·  arrows navigate&quot;)
     label = _accent(prompt_label) if prompt_label == &quot;❯&quot; else _muted(prompt_label)
     prompt = f&quot;{label} {visible_input}{_accent(&#x27;▌&#x27;)}&quot;
     lines = []
@@ -27898,7 +28567,7 @@ def _token_usage_topline(
             f&quot;{_muted(&#x27;tok&#x27;)} {_style(&#x27;0&#x27;, &#x27;36&#x27;)}  &quot;
             f&quot;{_muted(&#x27;cost&#x27;)} {_style(&#x27;$0.00&#x27;, &#x27;36&#x27;)}&quot;
         )
-    latest_p">
+    latest_prompt = _sa">
 <summary>nipux_cli/tui_layout.py <span>211 lines</span></summary>
 <pre class="source-code"><span class='src-line'><b>   1</b><code>&quot;&quot;&quot;Reusable terminal layout primitives for Nipux frames.&quot;&quot;&quot;</code></span>
 <span class='src-line'><b>   2</b><code></code></span>
@@ -27972,7 +28641,7 @@ def _token_usage_topline(
 <span class='src-line'><b>  70</b><code>        visible_input = &quot;•&quot; * min(len(input_buffer), max(8, width - 8))</code></span>
 <span class='src-line'><b>  71</b><code>    else:</code></span>
 <span class='src-line'><b>  72</b><code>        visible_input = input_buffer[-max(8, width - 8) :]</code></span>
-<span class='src-line'><b>  73</b><code>    hint = _muted(hint or &quot;Enter sends  /jobs switches  /run starts  /help commands&quot;)</code></span>
+<span class='src-line'><b>  73</b><code>    hint = _muted(hint or &quot;Enter send  ·  / commands  ·  arrows navigate&quot;)</code></span>
 <span class='src-line'><b>  74</b><code>    label = _accent(prompt_label) if prompt_label == &quot;❯&quot; else _muted(prompt_label)</code></span>
 <span class='src-line'><b>  75</b><code>    prompt = f&quot;{label} {visible_input}{_accent(&#x27;▌&#x27;)}&quot;</code></span>
 <span class='src-line'><b>  76</b><code>    lines = []</code></span>
@@ -35032,9 +35701,9 @@ def test_cli_has_operator_commands():
 <span class='src-line'><b> 267</b><code>    assert &quot;Nipux&quot; in frame</code></span>
 <span class='src-line'><b> 268</b><code>    assert &quot;Nipux Chat&quot; in frame</code></span>
 <span class='src-line'><b> 269</b><code>    assert &quot;Workspace&quot; in frame</code></span>
-<span class='src-line'><b> 270</b><code>    assert &quot;Type a goal to create a job&quot; in frame</code></span>
+<span class='src-line'><b> 270</b><code>    assert &quot;Type a goal&quot; in frame</code></span>
 <span class='src-line'><b> 271</b><code>    assert &quot;New job&quot; in frame</code></span>
-<span class='src-line'><b> 272</b><code>    assert &quot;slash commands for setup&quot; in frame</code></span>
+<span class='src-line'><b> 272</b><code>    assert &quot;/ commands&quot; in frame</code></span>
 <span class='src-line'><b> 273</b><code>    assert &quot;controls on the right&quot; not in frame</code></span>
 <span class='src-line'><b> 274</b><code>    assert &quot;Control&quot; not in frame</code></span>
 <span class='src-line'><b> 275</b><code>    assert &quot;_   _&quot; in frame</code></span>
@@ -35543,7 +36212,7 @@ def test_cli_has_operator_commands():
 <span class='src-line'><b> 778</b><code>    assert &quot;tok&quot; in frame</code></span>
 <span class='src-line'><b> 779</b><code>    assert &quot;5.3K&quot; in frame</code></span>
 <span class='src-line'><b> 780</b><code>    assert &quot;$0.0123&quot; in frame</code></span>
-<span class='src-line'><b> 781</b><code>    assert &quot;Enter sends&quot; in frame</code></span>
+<span class='src-line'><b> 781</b><code>    assert &quot;Enter send&quot; in frame</code></span>
 <span class='src-line'><b> 782</b><code>    assert &quot;❯ hello&quot; in frame</code></span>
 <span class='src-line'><b> 783</b><code>    task_frame = _build_chat_frame(snapshot, &quot;&quot;, [], width=100, height=26)</code></span>
 <span class='src-line'><b> 784</b><code>    assert &quot;Draft next deli&quot; in task_frame</code></span>
@@ -35628,7 +36297,7 @@ def test_cli_has_operator_commands():
 <span class='src-line'><b> 863</b><code>    frame = _build_chat_frame(snapshot, &quot;&quot;, [], width=120, height=28)</code></span>
 <span class='src-line'><b> 864</b><code></code></span>
 <span class='src-line'><b> 865</b><code>    assert &quot;_   _ ___&quot; in frame</code></span>
-<span class='src-line'><b> 866</b><code>    assert &quot;A persistent agent workspace.&quot; in frame</code></span>
+<span class='src-line'><b> 866</b><code>    assert &quot;Talk to create, steer, inspect&quot; in frame</code></span>
 <span class='src-line'><b> 867</b><code>    assert &quot;No chat yet.&quot; not in frame</code></span>
 <span class='src-line'><b> 868</b><code></code></span>
 <span class='src-line'><b> 869</b><code></code></span>
@@ -43899,7 +44568,7 @@ class AntiBotBrowserRegistry:
       <div class="grid"><article class='card warning searchable' data-search='Large modules tests/nipux_cli/test_worker.py (2786 lines), nipux_cli/worker.py (2742 lines), nipux_cli/cli.py (2517 lines), tests/nipux_cli/test_cli.py (2440 lines), nipux_cli/db.py (2407 lines)'><h3>Large modules</h3><p>tests/nipux_cli/test_worker.py (2786 lines), nipux_cli/worker.py (2742 lines), nipux_cli/cli.py (2517 lines), tests/nipux_cli/test_cli.py (2440 lines), nipux_cli/db.py (2407 lines)</p></article>
 <article class='card warning searchable' data-search='Prompt surfaces 12 prompt/instruction-like strings were extracted. Inspect this section after any agent-behavior change.'><h3>Prompt surfaces</h3><p>12 prompt/instruction-like strings were extracted. Inspect this section after any agent-behavior change.</p></article>
 <article class='card warning searchable' data-search='Tool surface 27 tools are exposed to the worker. Review descriptions whenever generic behavior changes.'><h3>Tool surface</h3><p>27 tools are exposed to the worker. Review descriptions whenever generic behavior changes.</p></article>
-<article class='card warning searchable' data-search='Symbol map 1181 symbols were parsed. Large modules are candidates for refactoring once behavior stabilizes.'><h3>Symbol map</h3><p>1181 symbols were parsed. Large modules are candidates for refactoring once behavior stabilizes.</p></article></div>
+<article class='card warning searchable' data-search='Symbol map 1196 symbols were parsed. Large modules are candidates for refactoring once behavior stabilizes.'><h3>Symbol map</h3><p>1196 symbols were parsed. Large modules are candidates for refactoring once behavior stabilizes.</p></article></div>
     </section>
   </main>
 </div>

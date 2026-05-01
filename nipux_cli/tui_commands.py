@@ -140,7 +140,7 @@ def slash_suggestion_lines(
         if description:
             body += f"  {_muted(description)}"
         return [
-            _fit_ansi(_bold("Command"), width),
+            _fit_ansi(_bold("/ command"), width),
             _fit_ansi(body, width),
             _fit_ansi(_muted("enter sends"), width),
         ]
@@ -150,11 +150,11 @@ def slash_suggestion_lines(
     matches = all_matches[:limit]
     if not matches:
         return [
-            _fit_ansi(_bold("Commands"), width),
+            _fit_ansi(_bold("/ commands"), width),
             _fit_ansi(_muted("no matches"), width),
         ]
     cmd_width = min(14, max(len(cmd) for cmd, _ in matches) + 2)
-    lines = [_fit_ansi(_bold("Commands") + _muted(f" {len(all_matches)}"), width)]
+    lines = [_fit_ansi(_bold("/ commands") + _muted(f" {len(all_matches)}"), width)]
     for index, (cmd, desc) in enumerate(matches):
         marker = _accent("›") if index == 0 else _muted(" ")
         hint = SLASH_ARGUMENT_HINTS.get(cmd[1:])
@@ -166,7 +166,7 @@ def slash_suggestion_lines(
     if hidden:
         lines.append(_fit_ansi(_muted(f"+{hidden} more; type to filter"), width))
     else:
-        lines.append(_fit_ansi(_muted("tab completes highlighted command"), width))
+        lines.append(_fit_ansi(_muted("tab fills highlighted command"), width))
     return lines
 
 

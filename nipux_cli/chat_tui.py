@@ -96,7 +96,7 @@ def build_chat_frame(
         hint = edit_target_hint(editing_field)
         prompt_label = edit_target_label(editing_field)
     else:
-        hint = "Enter sends  ·  / commands  ·  ←→ panels  ·  ↑↓ jobs"
+        hint = "Enter send  ·  / commands  ·  ←→ pages  ·  ↑↓ jobs"
         prompt_label = "❯"
     suggestions = [] if editing_field else slash_suggestion_lines(input_buffer, CHAT_SLASH_COMMANDS, width=width)
     compose_lines = _compose_bar(
