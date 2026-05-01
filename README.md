@@ -226,12 +226,15 @@ The worker exposes a deliberately small tool registry:
 - `web_search`
 - `web_extract`
 - `shell_exec`
+- `write_file`
 - `write_artifact`
 - `read_artifact`
 - `search_artifacts`
 - `update_job_state`
+- `defer_job`
 - `report_update`
 - `record_lesson`
+- `acknowledge_operator_context`
 - `record_source`
 - `record_findings`
 - `record_tasks`
@@ -244,6 +247,11 @@ The worker exposes a deliberately small tool registry:
 per-job profiles under `~/.nipux/browser-profiles/`. Anti-bot, CAPTCHA, login,
 and paywall pages are recorded as visible source-quality warnings; Nipux does
 not bypass protections.
+
+Workers can use `defer_job` for scheduled follow-up, monitor intervals, long
+external processes, or cooldowns. Deferred jobs stay runnable but show as
+waiting until their next check time, so the daemon can keep other work moving
+without burning model calls on repeated polling.
 
 ## Command Reference
 

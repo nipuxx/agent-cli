@@ -82,7 +82,7 @@ pre { max-height: 540px; overflow: auto; background: #050606; border: 1px solid 
 <div class="shell">
   <aside class="sidebar">
     <div class="logo">NIPUX ATLAS</div>
-    <div class="subtitle">Generated from tracked source on 763e4e61.</div>
+    <div class="subtitle">Generated from tracked source on 5c321118.</div>
     <input id="search" class="search" placeholder="filter files, prompts, tools..." autocomplete="off">
     <nav class="nav">
       <a href="#architecture">Architecture</a>
@@ -97,9 +97,9 @@ pre { max-height: 540px; overflow: auto; background: #050606; border: 1px solid 
       <a href="#risks">Review Points</a>
     </nav>
     <div class="stats">
-      <div class="stat"><b>52</b><span>tracked files</span></div>
-      <div class="stat"><b>24,468</b><span>tracked lines mapped</span></div>
-      <div class="stat"><b>1020</b><span>python symbols</span></div>
+      <div class="stat"><b>53</b><span>tracked files</span></div>
+      <div class="stat"><b>24,502</b><span>tracked lines mapped</span></div>
+      <div class="stat"><b>1022</b><span>python symbols</span></div>
       <div class="stat"><b>27</b><span>runtime tools</span></div>
     </div>
   </aside>
@@ -465,7 +465,7 @@ have incorporated or intentionally superseded a steer/follow_up message.
     </section>
 
     <section id="files" class="section">
-      <header><div><div class="kicker">Source index</div><h2>Important Files</h2></div><span class="muted">45 Python modules plus docs/config files.</span></header>
+      <header><div><div class="kicker">Source index</div><h2>Important Files</h2></div><span class="muted">46 Python modules plus docs/config files.</span></header>
       <div class="grid"><article class="file-card searchable" data-search="AGENTS.md This repo is a focused long-running worker, not a broad assistant distribution. none">
 <header><h3>AGENTS.md</h3><span>32 lines</span></header>
 <p>This repo is a focused long-running worker, not a broad assistant distribution.</p>
@@ -473,7 +473,7 @@ have incorporated or intentionally superseded a steer/follow_up message.
 <details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> none</p><p><strong>Symbols:</strong> none</p></details>
 </article>
 <article class="file-card searchable" data-search="README.md ```text none">
-<header><h3>README.md</h3><span>306 lines</span></header>
+<header><h3>README.md</h3><span>314 lines</span></header>
 <p>```text</p>
 <div class="meta"><span>0 symbols</span><span>0 TODOs</span></div>
 <details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> none</p><p><strong>Symbols:</strong> none</p></details>
@@ -588,6 +588,12 @@ fixed tool surface. none">
 <p>Generic progress summaries for long-running jobs.</p>
 <div class="meta"><span>7 symbols</span><span>0 TODOs</span></div>
 <details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> __future__, dataclasses, typing</p><p><strong>Symbols:</strong> ProgressCheckpoint, build_progress_checkpoint, ledger_counts, recent_progress_bits, _metadata_list, _clip_text, _as_int</p></details>
+</article>
+<article class="file-card searchable" data-search="nipux_cli/scheduling.py Shared scheduling helpers for deferred long-running work. job_deferred_until, job_is_deferred">
+<header><h3>nipux_cli/scheduling.py</h3><span>26 lines</span></header>
+<p>Shared scheduling helpers for deferred long-running work.</p>
+<div class="meta"><span>2 symbols</span><span>0 TODOs</span></div>
+<details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> __future__, datetime, typing</p><p><strong>Symbols:</strong> job_deferred_until, job_is_deferred</p></details>
 </article>
 <article class="file-card searchable" data-search="nipux_cli/source_quality.py Source quality checks for web and browser tools. anti_bot_reason">
 <header><h3>nipux_cli/source_quality.py</h3><span>32 lines</span></header>
@@ -3520,6 +3526,18 @@ fixed tool surface. none">
 <p><span class="pill">function</span> <span class="pill">nipux_cli/progress.py:126</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> int</p>
+</article>
+<article class="symbol searchable" data-search="nipux_cli/scheduling.py job_deferred_until No docstring. astimezone, datetime.fromisoformat, datetime.now, isinstance, job.get, metadata.get, raw_until.replace, str, strip, until.astimezone, until.replace">
+<h3>job_deferred_until</h3>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/scheduling.py:9</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> astimezone, datetime.fromisoformat, datetime.now, isinstance, job.get, metadata.get, raw_until.replace, str, strip, until.astimezone, until.replace</p>
+</article>
+<article class="symbol searchable" data-search="nipux_cli/scheduling.py job_is_deferred No docstring. job_deferred_until">
+<h3>job_is_deferred</h3>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/scheduling.py:25</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> job_deferred_until</p>
 </article>
 <article class="symbol searchable" data-search="nipux_cli/source_quality.py anti_bot_reason Return a short reason if text looks like an anti-bot interstitial. join, lower">
 <h3>anti_bot_reason</h3>
@@ -7125,7 +7143,7 @@ OPENROUTER_API_KEY = &lt;redacted&gt;
 
 The repository includes `.env.example` and `config.example.yaml` as templates.
 Do not commit real `.env`, state data">
-<summary>README.md <span>306 lines</span></summary>
+<summary>README.md <span>314 lines</span></summary>
 <pre class="source-code"><span class='src-line'><b>   1</b><code># Nipux CLI</code></span>
 <span class='src-line'><b>   2</b><code></code></span>
 <span class='src-line'><b>   3</b><code>```text</code></span>
@@ -7354,84 +7372,92 @@ Do not commit real `.env`, state data">
 <span class='src-line'><b> 226</b><code>- `web_search`</code></span>
 <span class='src-line'><b> 227</b><code>- `web_extract`</code></span>
 <span class='src-line'><b> 228</b><code>- `shell_exec`</code></span>
-<span class='src-line'><b> 229</b><code>- `write_artifact`</code></span>
-<span class='src-line'><b> 230</b><code>- `read_artifact`</code></span>
-<span class='src-line'><b> 231</b><code>- `search_artifacts`</code></span>
-<span class='src-line'><b> 232</b><code>- `update_job_state`</code></span>
-<span class='src-line'><b> 233</b><code>- `report_update`</code></span>
-<span class='src-line'><b> 234</b><code>- `record_lesson`</code></span>
-<span class='src-line'><b> 235</b><code>- `record_source`</code></span>
-<span class='src-line'><b> 236</b><code>- `record_findings`</code></span>
-<span class='src-line'><b> 237</b><code>- `record_tasks`</code></span>
-<span class='src-line'><b> 238</b><code>- `record_roadmap`</code></span>
-<span class='src-line'><b> 239</b><code>- `record_milestone_validation`</code></span>
-<span class='src-line'><b> 240</b><code>- `record_experiment`</code></span>
-<span class='src-line'><b> 241</b><code>- `send_digest_email`</code></span>
-<span class='src-line'><b> 242</b><code></code></span>
-<span class='src-line'><b> 243</b><code>`shell_exec` is bounded with timeouts and output capture. Browser sessions use</code></span>
-<span class='src-line'><b> 244</b><code>per-job profiles under `~/.nipux/browser-profiles/`. Anti-bot, CAPTCHA, login,</code></span>
-<span class='src-line'><b> 245</b><code>and paywall pages are recorded as visible source-quality warnings; Nipux does</code></span>
-<span class='src-line'><b> 246</b><code>not bypass protections.</code></span>
-<span class='src-line'><b> 247</b><code></code></span>
-<span class='src-line'><b> 248</b><code>## Command Reference</code></span>
-<span class='src-line'><b> 249</b><code></code></span>
-<span class='src-line'><b> 250</b><code>```bash</code></span>
-<span class='src-line'><b> 251</b><code>nipux init [--force] [--openrouter] [--model MODEL] [--base-url URL] [--api-key-env ENV]</code></span>
-<span class='src-line'><b> 252</b><code>nipux doctor [--check-model]</code></span>
-<span class='src-line'><b> 253</b><code>nipux shell [--status]</code></span>
-<span class='src-line'><b> 254</b><code>nipux create &quot;objective&quot; [--title TITLE] [--kind KIND] [--cadence CADENCE]</code></span>
-<span class='src-line'><b> 255</b><code>nipux jobs</code></span>
-<span class='src-line'><b> 256</b><code>nipux ls</code></span>
-<span class='src-line'><b> 257</b><code>nipux focus [JOB_TITLE]</code></span>
-<span class='src-line'><b> 258</b><code>nipux rename JOB_TITLE --title NEW_TITLE</code></span>
-<span class='src-line'><b> 259</b><code>nipux delete JOB_TITLE [--keep-files]</code></span>
-<span class='src-line'><b> 260</b><code>nipux chat [JOB_TITLE] [--no-history]</code></span>
-<span class='src-line'><b> 261</b><code>nipux steer [--job JOB_TITLE] MESSAGE</code></span>
-<span class='src-line'><b> 262</b><code>nipux pause [JOB_TITLE] [note...]</code></span>
-<span class='src-line'><b> 263</b><code>nipux resume [JOB_TITLE]</code></span>
-<span class='src-line'><b> 264</b><code>nipux cancel [JOB_TITLE] [note...]</code></span>
-<span class='src-line'><b> 265</b><code>nipux start [--poll-seconds N]</code></span>
-<span class='src-line'><b> 266</b><code>nipux stop</code></span>
-<span class='src-line'><b> 267</b><code>nipux autostart install|status|uninstall [--poll-seconds N]</code></span>
-<span class='src-line'><b> 268</b><code>nipux service install|status|uninstall [--poll-seconds N]</code></span>
-<span class='src-line'><b> 269</b><code>nipux browser-dashboard [--port N] [--foreground] [--stop]</code></span>
-<span class='src-line'><b> 270</b><code>nipux health</code></span>
-<span class='src-line'><b> 271</b><code>nipux status [JOB_TITLE] [--full] [--json]</code></span>
-<span class='src-line'><b> 272</b><code>nipux history [JOB_TITLE] [--full] [--json]</code></span>
-<span class='src-line'><b> 273</b><code>nipux events [JOB_TITLE] [--follow] [--json]</code></span>
-<span class='src-line'><b> 274</b><code>nipux activity [JOB_TITLE] [--follow] [--verbose]</code></span>
-<span class='src-line'><b> 275</b><code>nipux updates [JOB_TITLE]</code></span>
-<span class='src-line'><b> 276</b><code>nipux dashboard [JOB_TITLE]</code></span>
-<span class='src-line'><b> 277</b><code>nipux findings [JOB_TITLE] [--limit N] [--json]</code></span>
-<span class='src-line'><b> 278</b><code>nipux tasks [JOB_TITLE] [--limit N] [--status STATUS] [--json]</code></span>
-<span class='src-line'><b> 279</b><code>nipux roadmap [JOB_TITLE] [--limit N] [--json]</code></span>
-<span class='src-line'><b> 280</b><code>nipux experiments [JOB_TITLE] [--limit N] [--status STATUS] [--json]</code></span>
-<span class='src-line'><b> 281</b><code>nipux sources [JOB_TITLE] [--limit N] [--json]</code></span>
-<span class='src-line'><b> 282</b><code>nipux memory [JOB_TITLE]</code></span>
-<span class='src-line'><b> 283</b><code>nipux metrics [JOB_TITLE]</code></span>
-<span class='src-line'><b> 284</b><code>nipux artifacts [JOB_TITLE] [--paths]</code></span>
-<span class='src-line'><b> 285</b><code>nipux artifact QUERY_OR_TITLE [--job JOB_TITLE]</code></span>
-<span class='src-line'><b> 286</b><code>nipux lessons [JOB_TITLE]</code></span>
-<span class='src-line'><b> 287</b><code>nipux learn [--job JOB_TITLE] [--category CATEGORY] LESSON</code></span>
-<span class='src-line'><b> 288</b><code>nipux logs [JOB_TITLE] [--limit N] [--verbose]</code></span>
-<span class='src-line'><b> 289</b><code>nipux outputs [JOB_TITLE] [--limit N] [--verbose]</code></span>
-<span class='src-line'><b> 290</b><code>nipux watch JOB_TITLE [--verbose]</code></span>
-<span class='src-line'><b> 291</b><code>nipux run-one JOB_TITLE [--fake]</code></span>
-<span class='src-line'><b> 292</b><code>nipux work [JOB_TITLE] [--steps N] [--verbose] [--dashboard]</code></span>
-<span class='src-line'><b> 293</b><code>nipux run [JOB_TITLE] [--poll-seconds N] [--no-follow]</code></span>
-<span class='src-line'><b> 294</b><code>nipux daemon [--once] [--fake] [--verbose] [--poll-seconds N]</code></span>
-<span class='src-line'><b> 295</b><code>nipux digest JOB_TITLE</code></span>
-<span class='src-line'><b> 296</b><code>nipux daily-digest [--day YYYY-MM-DD]</code></span>
-<span class='src-line'><b> 297</b><code>```</code></span>
-<span class='src-line'><b> 298</b><code></code></span>
-<span class='src-line'><b> 299</b><code>## Development</code></span>
-<span class='src-line'><b> 300</b><code></code></span>
-<span class='src-line'><b> 301</b><code>```bash</code></span>
-<span class='src-line'><b> 302</b><code>PYTEST_ADDOPTS=&#x27;&#x27; uv run --extra dev python -m pytest -q</code></span>
-<span class='src-line'><b> 303</b><code>uv run --extra dev ruff check --isolated nipux_cli tests/nipux_cli</code></span>
-<span class='src-line'><b> 304</b><code>```</code></span>
-<span class='src-line'><b> 305</b><code></code></span>
-<span class='src-line'><b> 306</b><code>The active implementation notes live in `plans/nipux-runtime-notes.md`.</code></span></pre>
+<span class='src-line'><b> 229</b><code>- `write_file`</code></span>
+<span class='src-line'><b> 230</b><code>- `write_artifact`</code></span>
+<span class='src-line'><b> 231</b><code>- `read_artifact`</code></span>
+<span class='src-line'><b> 232</b><code>- `search_artifacts`</code></span>
+<span class='src-line'><b> 233</b><code>- `update_job_state`</code></span>
+<span class='src-line'><b> 234</b><code>- `defer_job`</code></span>
+<span class='src-line'><b> 235</b><code>- `report_update`</code></span>
+<span class='src-line'><b> 236</b><code>- `record_lesson`</code></span>
+<span class='src-line'><b> 237</b><code>- `acknowledge_operator_context`</code></span>
+<span class='src-line'><b> 238</b><code>- `record_source`</code></span>
+<span class='src-line'><b> 239</b><code>- `record_findings`</code></span>
+<span class='src-line'><b> 240</b><code>- `record_tasks`</code></span>
+<span class='src-line'><b> 241</b><code>- `record_roadmap`</code></span>
+<span class='src-line'><b> 242</b><code>- `record_milestone_validation`</code></span>
+<span class='src-line'><b> 243</b><code>- `record_experiment`</code></span>
+<span class='src-line'><b> 244</b><code>- `send_digest_email`</code></span>
+<span class='src-line'><b> 245</b><code></code></span>
+<span class='src-line'><b> 246</b><code>`shell_exec` is bounded with timeouts and output capture. Browser sessions use</code></span>
+<span class='src-line'><b> 247</b><code>per-job profiles under `~/.nipux/browser-profiles/`. Anti-bot, CAPTCHA, login,</code></span>
+<span class='src-line'><b> 248</b><code>and paywall pages are recorded as visible source-quality warnings; Nipux does</code></span>
+<span class='src-line'><b> 249</b><code>not bypass protections.</code></span>
+<span class='src-line'><b> 250</b><code></code></span>
+<span class='src-line'><b> 251</b><code>Workers can use `defer_job` for scheduled follow-up, monitor intervals, long</code></span>
+<span class='src-line'><b> 252</b><code>external processes, or cooldowns. Deferred jobs stay runnable but show as</code></span>
+<span class='src-line'><b> 253</b><code>waiting until their next check time, so the daemon can keep other work moving</code></span>
+<span class='src-line'><b> 254</b><code>without burning model calls on repeated polling.</code></span>
+<span class='src-line'><b> 255</b><code></code></span>
+<span class='src-line'><b> 256</b><code>## Command Reference</code></span>
+<span class='src-line'><b> 257</b><code></code></span>
+<span class='src-line'><b> 258</b><code>```bash</code></span>
+<span class='src-line'><b> 259</b><code>nipux init [--force] [--openrouter] [--model MODEL] [--base-url URL] [--api-key-env ENV]</code></span>
+<span class='src-line'><b> 260</b><code>nipux doctor [--check-model]</code></span>
+<span class='src-line'><b> 261</b><code>nipux shell [--status]</code></span>
+<span class='src-line'><b> 262</b><code>nipux create &quot;objective&quot; [--title TITLE] [--kind KIND] [--cadence CADENCE]</code></span>
+<span class='src-line'><b> 263</b><code>nipux jobs</code></span>
+<span class='src-line'><b> 264</b><code>nipux ls</code></span>
+<span class='src-line'><b> 265</b><code>nipux focus [JOB_TITLE]</code></span>
+<span class='src-line'><b> 266</b><code>nipux rename JOB_TITLE --title NEW_TITLE</code></span>
+<span class='src-line'><b> 267</b><code>nipux delete JOB_TITLE [--keep-files]</code></span>
+<span class='src-line'><b> 268</b><code>nipux chat [JOB_TITLE] [--no-history]</code></span>
+<span class='src-line'><b> 269</b><code>nipux steer [--job JOB_TITLE] MESSAGE</code></span>
+<span class='src-line'><b> 270</b><code>nipux pause [JOB_TITLE] [note...]</code></span>
+<span class='src-line'><b> 271</b><code>nipux resume [JOB_TITLE]</code></span>
+<span class='src-line'><b> 272</b><code>nipux cancel [JOB_TITLE] [note...]</code></span>
+<span class='src-line'><b> 273</b><code>nipux start [--poll-seconds N]</code></span>
+<span class='src-line'><b> 274</b><code>nipux stop</code></span>
+<span class='src-line'><b> 275</b><code>nipux autostart install|status|uninstall [--poll-seconds N]</code></span>
+<span class='src-line'><b> 276</b><code>nipux service install|status|uninstall [--poll-seconds N]</code></span>
+<span class='src-line'><b> 277</b><code>nipux browser-dashboard [--port N] [--foreground] [--stop]</code></span>
+<span class='src-line'><b> 278</b><code>nipux health</code></span>
+<span class='src-line'><b> 279</b><code>nipux status [JOB_TITLE] [--full] [--json]</code></span>
+<span class='src-line'><b> 280</b><code>nipux history [JOB_TITLE] [--full] [--json]</code></span>
+<span class='src-line'><b> 281</b><code>nipux events [JOB_TITLE] [--follow] [--json]</code></span>
+<span class='src-line'><b> 282</b><code>nipux activity [JOB_TITLE] [--follow] [--verbose]</code></span>
+<span class='src-line'><b> 283</b><code>nipux updates [JOB_TITLE]</code></span>
+<span class='src-line'><b> 284</b><code>nipux dashboard [JOB_TITLE]</code></span>
+<span class='src-line'><b> 285</b><code>nipux findings [JOB_TITLE] [--limit N] [--json]</code></span>
+<span class='src-line'><b> 286</b><code>nipux tasks [JOB_TITLE] [--limit N] [--status STATUS] [--json]</code></span>
+<span class='src-line'><b> 287</b><code>nipux roadmap [JOB_TITLE] [--limit N] [--json]</code></span>
+<span class='src-line'><b> 288</b><code>nipux experiments [JOB_TITLE] [--limit N] [--status STATUS] [--json]</code></span>
+<span class='src-line'><b> 289</b><code>nipux sources [JOB_TITLE] [--limit N] [--json]</code></span>
+<span class='src-line'><b> 290</b><code>nipux memory [JOB_TITLE]</code></span>
+<span class='src-line'><b> 291</b><code>nipux metrics [JOB_TITLE]</code></span>
+<span class='src-line'><b> 292</b><code>nipux artifacts [JOB_TITLE] [--paths]</code></span>
+<span class='src-line'><b> 293</b><code>nipux artifact QUERY_OR_TITLE [--job JOB_TITLE]</code></span>
+<span class='src-line'><b> 294</b><code>nipux lessons [JOB_TITLE]</code></span>
+<span class='src-line'><b> 295</b><code>nipux learn [--job JOB_TITLE] [--category CATEGORY] LESSON</code></span>
+<span class='src-line'><b> 296</b><code>nipux logs [JOB_TITLE] [--limit N] [--verbose]</code></span>
+<span class='src-line'><b> 297</b><code>nipux outputs [JOB_TITLE] [--limit N] [--verbose]</code></span>
+<span class='src-line'><b> 298</b><code>nipux watch JOB_TITLE [--verbose]</code></span>
+<span class='src-line'><b> 299</b><code>nipux run-one JOB_TITLE [--fake]</code></span>
+<span class='src-line'><b> 300</b><code>nipux work [JOB_TITLE] [--steps N] [--verbose] [--dashboard]</code></span>
+<span class='src-line'><b> 301</b><code>nipux run [JOB_TITLE] [--poll-seconds N] [--no-follow]</code></span>
+<span class='src-line'><b> 302</b><code>nipux daemon [--once] [--fake] [--verbose] [--poll-seconds N]</code></span>
+<span class='src-line'><b> 303</b><code>nipux digest JOB_TITLE</code></span>
+<span class='src-line'><b> 304</b><code>nipux daily-digest [--day YYYY-MM-DD]</code></span>
+<span class='src-line'><b> 305</b><code>```</code></span>
+<span class='src-line'><b> 306</b><code></code></span>
+<span class='src-line'><b> 307</b><code>## Development</code></span>
+<span class='src-line'><b> 308</b><code></code></span>
+<span class='src-line'><b> 309</b><code>```bash</code></span>
+<span class='src-line'><b> 310</b><code>PYTEST_ADDOPTS=&#x27;&#x27; uv run --extra dev python -m pytest -q</code></span>
+<span class='src-line'><b> 311</b><code>uv run --extra dev ruff check --isolated nipux_cli tests/nipux_cli</code></span>
+<span class='src-line'><b> 312</b><code>```</code></span>
+<span class='src-line'><b> 313</b><code></code></span>
+<span class='src-line'><b> 314</b><code>The active implementation notes live in `plans/nipux-runtime-notes.md`.</code></span></pre>
 </details>
 <details class="source-file searchable" data-search="RELEASE_CHECKLIST.md # Release Checklist
 
@@ -20258,6 +20284,60 @@ def recent_progress_bits(metadata: dict[str, Any]) -&gt; str:
 <span class='src-line'><b> 128</b><code>        return int(value)</code></span>
 <span class='src-line'><b> 129</b><code>    except (TypeError, ValueError):</code></span>
 <span class='src-line'><b> 130</b><code>        return 0</code></span></pre>
+</details>
+<details class="source-file searchable" data-search="nipux_cli/scheduling.py &quot;&quot;&quot;Shared scheduling helpers for deferred long-running work.&quot;&quot;&quot;
+
+from __future__ import annotations
+
+from datetime import datetime, timezone
+from typing import Any
+
+
+def job_deferred_until(job: dict[str, Any], *, now: datetime | None = None) -&gt; datetime | None:
+    metadata = job.get(&quot;metadata&quot;) if isinstance(job.get(&quot;metadata&quot;), dict) else {}
+    raw_until = str(metadata.get(&quot;defer_until&quot;) or &quot;&quot;).strip()
+    if not raw_until:
+        return None
+    try:
+        until = datetime.fromisoformat(raw_until.replace(&quot;Z&quot;, &quot;+00:00&quot;))
+    except ValueError:
+        return None
+    if until.tzinfo is None:
+        until = until.replace(tzinfo=timezone.utc)
+    until = until.astimezone(timezone.utc)
+    now = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
+    return until if until &gt; now else None
+
+
+def job_is_deferred(job: dict[str, Any], *, now: datetime | None = None) -&gt; bool:
+    return job_deferred_until(job, now=now) is not None">
+<summary>nipux_cli/scheduling.py <span>26 lines</span></summary>
+<pre class="source-code"><span class='src-line'><b>   1</b><code>&quot;&quot;&quot;Shared scheduling helpers for deferred long-running work.&quot;&quot;&quot;</code></span>
+<span class='src-line'><b>   2</b><code></code></span>
+<span class='src-line'><b>   3</b><code>from __future__ import annotations</code></span>
+<span class='src-line'><b>   4</b><code></code></span>
+<span class='src-line'><b>   5</b><code>from datetime import datetime, timezone</code></span>
+<span class='src-line'><b>   6</b><code>from typing import Any</code></span>
+<span class='src-line'><b>   7</b><code></code></span>
+<span class='src-line'><b>   8</b><code></code></span>
+<span class='src-line'><b>   9</b><code>def job_deferred_until(job: dict[str, Any], *, now: datetime | None = None) -&gt; datetime | None:</code></span>
+<span class='src-line'><b>  10</b><code>    metadata = job.get(&quot;metadata&quot;) if isinstance(job.get(&quot;metadata&quot;), dict) else {}</code></span>
+<span class='src-line'><b>  11</b><code>    raw_until = str(metadata.get(&quot;defer_until&quot;) or &quot;&quot;).strip()</code></span>
+<span class='src-line'><b>  12</b><code>    if not raw_until:</code></span>
+<span class='src-line'><b>  13</b><code>        return None</code></span>
+<span class='src-line'><b>  14</b><code>    try:</code></span>
+<span class='src-line'><b>  15</b><code>        until = datetime.fromisoformat(raw_until.replace(&quot;Z&quot;, &quot;+00:00&quot;))</code></span>
+<span class='src-line'><b>  16</b><code>    except ValueError:</code></span>
+<span class='src-line'><b>  17</b><code>        return None</code></span>
+<span class='src-line'><b>  18</b><code>    if until.tzinfo is None:</code></span>
+<span class='src-line'><b>  19</b><code>        until = until.replace(tzinfo=timezone.utc)</code></span>
+<span class='src-line'><b>  20</b><code>    until = until.astimezone(timezone.utc)</code></span>
+<span class='src-line'><b>  21</b><code>    now = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)</code></span>
+<span class='src-line'><b>  22</b><code>    return until if until &gt; now else None</code></span>
+<span class='src-line'><b>  23</b><code></code></span>
+<span class='src-line'><b>  24</b><code></code></span>
+<span class='src-line'><b>  25</b><code>def job_is_deferred(job: dict[str, Any], *, now: datetime | None = None) -&gt; bool:</code></span>
+<span class='src-line'><b>  26</b><code>    return job_deferred_until(job, now=now) is not None</code></span></pre>
 </details>
 <details class="source-file searchable" data-search="nipux_cli/source_quality.py &quot;&quot;&quot;Source quality checks for web and browser tools.&quot;&quot;&quot;
 
@@ -36104,7 +36184,7 @@ class AntiBotBrowserRegistry:
       <div class="grid"><article class='card warning searchable' data-search='Large modules nipux_cli/cli.py (5480 lines), nipux_cli/worker.py (3247 lines), tests/nipux_cli/test_worker.py (2571 lines), nipux_cli/db.py (2396 lines), tests/nipux_cli/test_cli.py (1758 lines)'><h3>Large modules</h3><p>nipux_cli/cli.py (5480 lines), nipux_cli/worker.py (3247 lines), tests/nipux_cli/test_worker.py (2571 lines), nipux_cli/db.py (2396 lines), tests/nipux_cli/test_cli.py (1758 lines)</p></article>
 <article class='card warning searchable' data-search='Prompt surfaces 12 prompt/instruction-like strings were extracted. Inspect this section after any agent-behavior change.'><h3>Prompt surfaces</h3><p>12 prompt/instruction-like strings were extracted. Inspect this section after any agent-behavior change.</p></article>
 <article class='card warning searchable' data-search='Tool surface 27 tools are exposed to the worker. Review descriptions whenever generic behavior changes.'><h3>Tool surface</h3><p>27 tools are exposed to the worker. Review descriptions whenever generic behavior changes.</p></article>
-<article class='card warning searchable' data-search='Symbol map 1020 symbols were parsed. Large modules are candidates for refactoring once behavior stabilizes.'><h3>Symbol map</h3><p>1020 symbols were parsed. Large modules are candidates for refactoring once behavior stabilizes.</p></article></div>
+<article class='card warning searchable' data-search='Symbol map 1022 symbols were parsed. Large modules are candidates for refactoring once behavior stabilizes.'><h3>Symbol map</h3><p>1022 symbols were parsed. Large modules are candidates for refactoring once behavior stabilizes.</p></article></div>
     </section>
   </main>
 </div>
