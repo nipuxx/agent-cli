@@ -383,6 +383,51 @@ def test_evidence_artifact_does_not_complete_deliverable_task(tmp_path):
         db.close()
 
 
+def test_audit_report_draft_counts_as_deliverable_output(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job(
+            "Write a durable audit report",
+            title="audit report",
+            kind="generic",
+            metadata={
+                "task_queue": [
+                    {
+                        "title": "Write audit report draft",
+                        "status": "open",
+                        "priority": 5,
+                        "output_contract": "artifact",
+                        "acceptance_criteria": "A report draft is saved.",
+                        "evidence_needed": "Saved report draft, not only notes.",
+                    }
+                ]
+            },
+        )
+        llm = ScriptedLLM([
+            LLMResponse(tool_calls=[
+                ToolCall(
+                    name="write_artifact",
+                    arguments={
+                        "title": "Market Readiness Audit Report Draft",
+                        "summary": "Saved audit report draft with current findings and recommendations",
+                        "content": "This is the current audit report draft.",
+                    },
+                )
+            ])
+        ])
+
+        result = run_one_step(job_id, config=config, db=db, llm=llm)
+
+        assert result.status == "completed"
+        job = db.get_job(job_id)
+        task = job["metadata"]["task_queue"][0]
+        assert task["status"] == "done"
+        assert task["metadata"]["auto_reconciled_from_artifact"]
+    finally:
+        db.close()
+
+
 def test_checkpoint_artifact_does_not_complete_deliverable_task(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

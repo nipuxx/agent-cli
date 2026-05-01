@@ -270,7 +270,6 @@ TEXT_TOKEN_STOPWORDS = {
 }
 
 EVIDENCE_ARTIFACT_TERMS = {
-    "audit",
     "checkpoint",
     "evidence",
     "extract",
