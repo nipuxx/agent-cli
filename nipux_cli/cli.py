@@ -448,7 +448,7 @@ def _print_first_run_menu() -> None:
     print(f"  daemon  {'running' if daemon['running'] else 'stopped'}")
     print(f"  home    {_short_path(config.runtime.home)}")
     print()
-    print("Actions")
+    print("Commands")
     print("  1  new       create a long-running job")
     print("  2  jobs      list saved jobs")
     print("  3  doctor    check local setup")
@@ -536,7 +536,7 @@ def _prompt_first_run_value(label: str) -> str:
 def _first_run_create_and_open(objective: str, *, history_limit: int = 12) -> None:
     job_id, title = _create_job(objective=objective, title=None, kind="generic", cadence=None)
     print(f"created {title}")
-    print("Opening workspace. Use the right-side controls to run, switch jobs, or inspect output.")
+    print("Opening workspace. Use the right pane to run, switch jobs, or inspect output.")
     _enter_chat(job_id, show_history=True, history_limit=history_limit)
 
 
@@ -786,7 +786,7 @@ def _handle_first_run_frame_line(line: str) -> tuple[str, str | list[str] | None
     if lowered in {"help", "?", "commands"}:
         return "notice", [
             "Talk normally here, or ask Nipux to create a job with a concrete goal.",
-            "Use the right-side controls for jobs, setup checks, and exit.",
+            "Use the right pane for jobs, setup checks, and exit.",
             "When a job exists, the left pane becomes its chat and output stream.",
         ]
     if lowered in {"1", "new"}:
@@ -3702,7 +3702,7 @@ def _maybe_spawn_job_from_chat(job_id: str, message: str, *, quiet: bool = False
         if run_now:
             update += " Starting the daemon so it can begin work."
         else:
-            update += " Use the right-side controls to run it."
+            update += " Use the right pane to run it."
         db.append_agent_update(created_id, update, category="chat")
         db.append_agent_update(
             job_id,

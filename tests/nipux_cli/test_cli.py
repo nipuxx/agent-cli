@@ -265,11 +265,12 @@ def test_first_run_frame_uses_full_screen_ui_not_banner(monkeypatch, tmp_path):
 
     assert "Nipux" in frame
     assert "Nipux Chat" in frame
-    assert "Control" in frame
+    assert "Workspace" in frame
     assert "Compose" in frame
     assert "New job" in frame
     assert "slash commands for setup" in frame
     assert "controls on the right" not in frame
+    assert "Control" not in frame
     assert "_   _" in frame
     assert "FIRST RUN" not in frame
     assert "nipux menu >" not in frame

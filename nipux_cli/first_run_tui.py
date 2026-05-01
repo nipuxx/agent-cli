@@ -82,7 +82,7 @@ def build_first_run_frame(
         width=right_width,
         rows=body_rows,
     )
-    lines = [*header, _two_col_title(left_width, right_width, "Nipux Chat", "Control")]
+    lines = [*header, _two_col_title(left_width, right_width, "Nipux Chat", "Workspace")]
     for index in range(body_rows):
         left = left_lines[index] if index < len(left_lines) else ""
         right = right_lines[index] if index < len(right_lines) else ""
@@ -134,7 +134,7 @@ def _first_run_left_lines(
         "",
         _muted("After a job exists, this side becomes the agent conversation and output stream."),
         "",
-        _muted("Use arrows, Enter, click, or / commands. Controls stay on the right."),
+        _muted("Use arrows, Enter, click, or / commands. The right pane shows jobs and setup."),
         "",
         _muted("Recent"),
     ]
@@ -165,7 +165,7 @@ def _first_run_right_lines(
     )
     lines = [
         *profile_lines,
-        _bold("Actions"),
+        _bold("Commands"),
         *_first_run_action_lines(_first_run_actions(view), selected, width=width),
         "",
         _bold("Jobs"),
