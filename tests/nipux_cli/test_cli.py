@@ -1038,7 +1038,8 @@ def test_chat_frame_surfaces_actual_work_events():
     assert "Paper roadmap" in frame
     assert "passed Draft" in frame
     assert "Citation coverage check" in frame
-    assert "learned strategy" in frame
+    assert "LEARN" in frame
+    assert "strategy" in frame
     assert "reflected #10" in frame
 
 
@@ -1190,6 +1191,30 @@ def test_hourly_outcomes_prioritize_durable_work_over_research_noise():
     assert "1 measurements" in rendered
     assert "Harness Architecture Notes" in rendered
     assert "Context budget check" in rendered
+    assert "generic harness patterns" not in rendered
+
+
+def test_status_recent_outcomes_hide_research_noise():
+    events = [
+        {
+            "event_type": "tool_result",
+            "title": "web_search",
+            "body": "web_search query='generic harness patterns' returned 5 results",
+            "metadata": {"status": "completed", "input": {"arguments": {"query": "generic harness patterns"}}},
+            "created_at": "2026-05-01T12:05:00+00:00",
+        },
+        {
+            "event_type": "artifact",
+            "title": "Harness Architecture Notes",
+            "body": "saved design notes",
+            "metadata": {},
+            "created_at": "2026-05-01T12:20:00+00:00",
+        },
+    ]
+
+    rendered = "\n".join(recent_model_update_lines(events, width=96, limit=4))
+
+    assert "Harness Architecture Notes" in rendered
     assert "generic harness patterns" not in rendered
 
 
@@ -1401,6 +1426,40 @@ def test_chat_frame_collapses_repeated_failures_and_hides_memory_noise():
 
     assert "FAIL x3" in frame
     assert "very long compact memory" not in frame
+
+
+def test_work_pane_uses_badges_without_duplicate_action_verbs():
+    snapshot = {
+        "job_id": "job_demo",
+        "job": {
+            "id": "job_demo",
+            "title": "demo job",
+            "objective": "stay readable",
+            "status": "running",
+            "kind": "generic",
+            "metadata": {"task_queue": []},
+        },
+        "jobs": [{"id": "job_demo", "title": "demo job", "status": "running", "kind": "generic", "metadata": {}}],
+        "steps": [],
+        "artifacts": [],
+        "memory_entries": [],
+        "events": [
+            {"event_type": "artifact", "title": "Demo Output", "body": "", "metadata": {}},
+            {"event_type": "finding", "title": "Demo Finding", "body": "", "metadata": {}},
+            {"event_type": "experiment", "title": "Demo Measurement", "body": "", "metadata": {}},
+        ],
+        "daemon": {"running": True, "metadata": {"pid": 123}},
+        "model": "model/demo",
+    }
+
+    frame = _build_chat_frame(snapshot, "", [], width=120, height=24, right_view="work")
+
+    assert "save Demo Output" in frame
+    assert "find Demo Finding" in frame
+    assert "test Demo Measurement" in frame
+    assert "save saved" not in frame
+    assert "find finding" not in frame
+    assert "test experiment" not in frame
 
 
 def test_run_reopens_completed_focused_job(monkeypatch, tmp_path, capsys):

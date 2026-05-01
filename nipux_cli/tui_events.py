@@ -187,9 +187,7 @@ def worker_activity_lines(events: list[dict[str, Any]], *, width: int, limit: in
     for item in items[-limit:]:
         line = str(item["line"])
         count = int(item.get("count") or 1)
-        if count > 1:
-            line = f"x{count} {line}"
-        rendered.append(f"{live_badge(line)} {_one_line(line, max(16, width - 9))}")
+        rendered.append(f"{live_badge(line)} {_one_line(live_display_text(line, count=count), max(16, width - 9))}")
     return rendered
 
 
@@ -270,7 +268,13 @@ def latest_durable_outcome_line(events: list[dict[str, Any]], *, width: int) -> 
     return ""
 
 
-def recent_model_update_lines(events: list[dict[str, Any]], *, width: int, limit: int) -> list[str]:
+def recent_model_update_lines(
+    events: list[dict[str, Any]],
+    *,
+    width: int,
+    limit: int,
+    include_research: bool = False,
+) -> list[str]:
     """Render recent durable worker outcomes for the compact status pane."""
     if limit <= 0:
         return []
@@ -281,6 +285,8 @@ def recent_model_update_lines(events: list[dict[str, Any]], *, width: int, limit
         if not parsed:
             continue
         label, text, clock = parsed
+        if label == "DONE" and not include_research:
+            continue
         key = (label, text)
         if key in seen:
             continue
@@ -454,6 +460,12 @@ def live_badge(text: str) -> str:
         return _style("done", "32")
     if badge_text.startswith("saved"):
         return _style("save", "32")
+    if badge_text.startswith("finding"):
+        return _style("find", "32")
+    if badge_text.startswith("source"):
+        return _style("src ", "36")
+    if badge_text.startswith("experiment"):
+        return _style("test", "33")
     if badge_text.startswith("task"):
         return _style("task", "33")
     if badge_text.startswith("learned"):
@@ -463,6 +475,34 @@ def live_badge(text: str) -> str:
     if badge_text.startswith("update"):
         return _style("note", "35")
     return _style("info", "2")
+
+
+def live_display_text(text: str, *, count: int = 1) -> str:
+    if count > 1 and (
+        text.startswith("error")
+        or text.startswith("failed")
+        or text.startswith("blocked")
+    ):
+        return f"x{count} {text}"
+    base = text
+    for prefix in (
+        "start ",
+        "done ",
+        "saved ",
+        "finding ",
+        "source ",
+        "experiment ",
+        "task ",
+        "learned ",
+        "reflect ",
+        "update ",
+    ):
+        if text.startswith(prefix):
+            base = text[len(prefix) :]
+            break
+    if count > 1:
+        return f"{base} x{count}"
+    return base
 
 
 def tool_live_summary(tool: str, metadata: dict[str, Any], body: str) -> str:
