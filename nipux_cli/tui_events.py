@@ -218,6 +218,29 @@ def latest_durable_outcome_line(events: list[dict[str, Any]], *, width: int) -> 
     return ""
 
 
+def recent_model_update_lines(events: list[dict[str, Any]], *, width: int, limit: int) -> list[str]:
+    """Render recent durable worker outcomes for the compact status pane."""
+    if limit <= 0:
+        return []
+    lines: list[str] = []
+    seen: set[tuple[str, str]] = set()
+    for event in reversed(events):
+        parsed = model_update_event_parts(event, width=max(width, 180))
+        if not parsed:
+            continue
+        label, text, clock = parsed
+        key = (label, text)
+        if key in seen:
+            continue
+        seen.add(key)
+        prefix = f"{_muted(clock)} {_event_badge(label)} " if clock else f"{_event_badge(label)} "
+        available = max(12, width - len(_strip_ansi(prefix)))
+        lines.append(_fit_ansi(prefix + _one_line(text, available), width))
+        if len(lines) >= limit:
+            return lines
+    return lines
+
+
 def chat_updates_pane_lines(
     *,
     job: dict[str, Any],

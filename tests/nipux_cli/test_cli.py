@@ -679,7 +679,7 @@ def test_chat_frame_is_bounded_and_has_composer():
     assert "Status" in frame
     assert "Latest" in frame
     assert "Jobs" in frame
-    assert "Saved outputs" in frame
+    assert "Recent outcomes" in frame
     assert "ctx" in frame
     assert "4.1K/8.2K" in frame
     assert "out" in frame

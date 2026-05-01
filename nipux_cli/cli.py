@@ -72,6 +72,7 @@ from nipux_cli.tui_events import (
     latest_durable_outcome_line as _latest_durable_outcome_line,
     live_badge as _live_badge,
     minimal_live_event_line as _minimal_live_event_line,
+    recent_model_update_lines as _recent_model_update_lines,
     worker_activity_lines as _worker_activity_lines,
 )
 from nipux_cli.tui_layout import (
@@ -1870,15 +1871,19 @@ def _right_pane_lines(
             show_outputs=True,
         )
     )
-    current_outputs = job_artifacts.get(job_id) or []
     info_lines.append("")
-    info_lines.append(_bold("Saved outputs"))
-    if current_outputs:
-        for index, artifact in enumerate(current_outputs[:4], start=1):
-            title = _one_line(str(artifact.get("title") or artifact.get("id") or "output"), max(10, width - 8))
-            info_lines.append(_fit_ansi(f"{index}. {_event_badge('SAVE')} {title}", width))
+    info_lines.append(_bold("Recent outcomes"))
+    outcome_lines = _recent_model_update_lines(events, width=width, limit=max(3, rows - len(info_lines)))
+    if outcome_lines:
+        info_lines.extend(outcome_lines)
     else:
-        info_lines.append(_muted("No saved outputs yet."))
+        current_outputs = job_artifacts.get(job_id) or []
+        if current_outputs:
+            for artifact in current_outputs[:4]:
+                title = _one_line(str(artifact.get("title") or artifact.get("id") or "output"), max(10, width - 8))
+                info_lines.append(_fit_ansi(f"{_event_badge('SAVE')} {title}", width))
+        else:
+            info_lines.append(_muted("No durable outcomes yet."))
     return info_lines[:rows]
 
 
