@@ -3,7 +3,7 @@ import json
 from nipux_cli.artifacts import ArtifactStore
 from nipux_cli.config import AppConfig, RuntimeConfig
 from nipux_cli.db import AgentDB
-from nipux_cli.llm import LLMResponse, ScriptedLLM, ToolCall
+from nipux_cli.llm import LLMResponse, LLMResponseError, ScriptedLLM, ToolCall
 from nipux_cli.worker import MAX_WORKER_PROMPT_CHARS, build_messages, run_one_step
 
 
@@ -791,6 +791,15 @@ class FailingLLM:
         raise RuntimeError("provider returned no choices")
 
 
+class HardProviderFailingLLM:
+    def next_action(self, *, messages, tools):
+        del messages, tools
+        raise LLMResponseError(
+            "Key limit exceeded (total limit)",
+            payload={"error": {"message": "Key limit exceeded (total limit)", "code": 403}},
+        )
+
+
 def test_run_one_step_records_model_failures_instead_of_raising(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")
@@ -806,6 +815,27 @@ def test_run_one_step_records_model_failures_instead_of_raising(tmp_path):
         assert steps[0]["status"] == "failed"
         assert steps[0]["error"] == "provider returned no choices"
         assert db.list_runs(job_id)[0]["status"] == "failed"
+    finally:
+        db.close()
+
+
+def test_run_one_step_pauses_job_on_hard_provider_failure(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Keep running when provider is configured", title="provider")
+
+        result = run_one_step(job_id, config=config, db=db, llm=HardProviderFailingLLM())
+
+        assert result.status == "failed"
+        assert result.result["provider_action_required"] is True
+        assert result.result["pause_reason"] == "llm_provider_blocked"
+        job = db.get_job(job_id)
+        assert job["status"] == "paused"
+        assert "operator action" in job["metadata"]["last_note"]
+        assert job["metadata"]["provider_blocked_at"]
+        events = db.list_events(job_id=job_id, limit=10)
+        assert any(event["event_type"] == "agent_message" and event["title"] == "error" for event in events)
     finally:
         db.close()
 

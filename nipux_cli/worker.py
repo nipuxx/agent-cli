@@ -2332,6 +2332,42 @@ def _error_result(exc: Exception) -> dict[str, Any]:
     return result
 
 
+def _hard_llm_provider_failure_note(exc: Exception) -> str:
+    text = _provider_error_text(exc)
+    hard_markers = {
+        "authenticationerror",
+        "permissiondeniederror",
+        "authentication failed",
+        "permission denied",
+        "invalid api key",
+        "incorrect api key",
+        "user not found",
+        "key limit exceeded",
+        "insufficient_quota",
+        "insufficient quota",
+        "insufficient credits",
+        "billing",
+        "payment required",
+        "credit limit",
+        "quota exceeded",
+        "401",
+        "403",
+    }
+    if not any(marker in text for marker in hard_markers):
+        return ""
+    return (
+        "Model provider requires operator action: authentication, permission, billing, or quota is blocking calls. "
+        "Paused this job so the daemon does not repeat failing model requests. Update credentials/model access, then resume."
+    )
+
+
+def _provider_error_text(exc: Exception) -> str:
+    parts = [type(exc).__name__, str(exc)]
+    if isinstance(exc, LLMResponseError) and exc.payload:
+        parts.append(json.dumps(exc.payload, ensure_ascii=False, default=str))
+    return " ".join(parts).lower()
+
+
 def _max_step_no(steps: list[dict[str, Any]]) -> int:
     return max((int(step.get("step_no") or 0) for step in steps), default=0)
 
@@ -3111,6 +3147,24 @@ def run_one_step(
                 input_data={"model": config.model.model},
             )
             result = _error_result(exc)
+            hard_failure_note = _hard_llm_provider_failure_note(exc)
+            if hard_failure_note:
+                result["provider_action_required"] = True
+                result["pause_reason"] = "llm_provider_blocked"
+                db.update_job_status(
+                    job_id,
+                    "paused",
+                    metadata_patch={
+                        "last_note": hard_failure_note,
+                        "provider_blocked_at": datetime.now(timezone.utc).isoformat(),
+                    },
+                )
+                db.append_agent_update(
+                    job_id,
+                    hard_failure_note,
+                    category="error",
+                    metadata={"reason": "llm_provider_blocked", "error_type": type(exc).__name__},
+                )
             db.finish_step(step_id, status="failed", output_data=result, error=str(exc))
             db.finish_run(run_id, "failed", error=str(exc))
             _emit_loop_end(db, job_id, run_id, status="failed", step_id=step_id, detail=str(exc))
