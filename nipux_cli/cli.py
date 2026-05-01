@@ -18,7 +18,6 @@ import textwrap
 import time
 import tty
 from contextlib import redirect_stdout
-from datetime import datetime, timezone
 from io import StringIO
 from pathlib import Path
 from typing import Any
@@ -50,6 +49,7 @@ from nipux_cli.planning import (
     initial_roadmap_for_objective,
     initial_task_contract,
 )
+from nipux_cli.scheduling import job_deferred_until
 from nipux_cli.templates import program_for_job
 from nipux_cli.tui_commands import (
     CHAT_SETTING_COMMANDS,
@@ -1912,7 +1912,7 @@ def _right_pane_lines(
 
 
 def _defer_status_line(job: dict[str, Any], *, width: int) -> str:
-    until = _job_deferred_until(job)
+    until = job_deferred_until(job)
     if not until:
         return ""
     metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
@@ -3723,7 +3723,7 @@ def _worker_label(job: dict[str, Any], daemon_running: bool) -> str:
         return "waiting"
     if status in {"paused", "completed", "cancelled", "failed"}:
         return status
-    if _job_deferred_until(job):
+    if job_deferred_until(job):
         return "waiting"
     return "active" if daemon_running and status in {"running", "queued"} else "idle"
 
@@ -3731,25 +3731,10 @@ def _worker_label(job: dict[str, Any], daemon_running: bool) -> str:
 def _job_display_state(job: dict[str, Any], daemon_running: bool) -> str:
     status = str(job.get("status") or "")
     if status in {"running", "queued"}:
-        if _job_deferred_until(job):
+        if job_deferred_until(job):
             return "waiting"
         return "advancing" if daemon_running else "open"
     return status or "unknown"
-
-
-def _job_deferred_until(job: dict[str, Any]) -> datetime | None:
-    metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
-    raw_until = str(metadata.get("defer_until") or "").strip()
-    if not raw_until:
-        return None
-    try:
-        until = datetime.fromisoformat(raw_until.replace("Z", "+00:00"))
-    except ValueError:
-        return None
-    if until.tzinfo is None:
-        until = until.replace(tzinfo=timezone.utc)
-    until = until.astimezone(timezone.utc)
-    return until if until > datetime.now(timezone.utc) else None
 
 
 def _daemon_event_line(event: dict[str, Any], *, chars: int, job_titles: dict[str, str] | None = None) -> str:

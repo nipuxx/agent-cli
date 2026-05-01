@@ -12,6 +12,7 @@ from nipux_cli.config import AppConfig
 from nipux_cli.daemon import daemon_lock_status
 from nipux_cli.db import AgentDB
 from nipux_cli.operator_context import active_prompt_operator_entries
+from nipux_cli.scheduling import job_deferred_until
 from nipux_cli.tools import DEFAULT_REGISTRY
 
 
@@ -433,7 +434,7 @@ def _worker_text(job: dict[str, Any], daemon_running: bool) -> str:
     status = str(job.get("status") or "")
     if status in {"paused", "completed", "cancelled", "failed"}:
         return status
-    if _job_deferred_until(job):
+    if job_deferred_until(job):
         return "waiting"
     return "active" if daemon_running and status in {"running", "queued"} else "idle"
 
@@ -441,25 +442,10 @@ def _worker_text(job: dict[str, Any], daemon_running: bool) -> str:
 def _job_state_text(job: dict[str, Any], daemon_running: bool) -> str:
     status = str(job.get("status") or "")
     if status in {"running", "queued"}:
-        if _job_deferred_until(job):
+        if job_deferred_until(job):
             return "waiting"
         return "advancing" if daemon_running else "open"
     return status or "unknown"
-
-
-def _job_deferred_until(job: dict[str, Any]) -> datetime | None:
-    metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
-    raw_until = str(metadata.get("defer_until") or "").strip()
-    if not raw_until:
-        return None
-    try:
-        until = datetime.fromisoformat(raw_until.replace("Z", "+00:00"))
-    except ValueError:
-        return None
-    if until.tzinfo is None:
-        until = until.replace(tzinfo=timezone.utc)
-    until = until.astimezone(timezone.utc)
-    return until if until > datetime.now(timezone.utc) else None
 
 
 def _age_seconds(value: str) -> float | None:
