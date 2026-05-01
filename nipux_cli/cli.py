@@ -2400,6 +2400,11 @@ def _model_update_event_parts(event: dict[str, Any], *, width: int) -> tuple[str
             return "DONE", _one_line(_tool_live_summary(tool, metadata, body), chars), clock
         if tool == "web_extract":
             return "DONE", _one_line(_tool_live_summary(tool, metadata, body), chars), clock
+        if tool == "shell_exec":
+            command = str(_event_tool_args(metadata).get("command") or "")
+            target = _shell_write_target(command)
+            if target:
+                return "FILE", _one_line(f"updated {_short_path(target, max_width=chars - 8)} via shell", chars), clock
         if tool == "write_file":
             output = metadata.get("output") if isinstance(metadata.get("output"), dict) else {}
             path = str(output.get("path") or _event_tool_args(metadata).get("path") or "")
@@ -4154,6 +4159,28 @@ def _short_command(command: str) -> str:
     if parts[0] in {"python", "python3", "uv", "npm", "pnpm", "yarn", "node"} and len(parts) > 1:
         return " ".join(parts[:3])
     return " ".join(parts[:2])
+
+
+def _shell_write_target(command: str) -> str:
+    if not command.strip():
+        return ""
+    redirect = re.search(r"(?:^|\s)(?:1?>|>>)\s*([^\s;&|]+)", command)
+    if redirect:
+        target = redirect.group(1).strip("'\"")
+        if target and not target.startswith("&"):
+            return target
+    try:
+        parts = shlex.split(command)
+    except ValueError:
+        parts = command.split()
+    for index, part in enumerate(parts):
+        if part != "tee":
+            continue
+        for candidate in parts[index + 1 :]:
+            if candidate.startswith("-"):
+                continue
+            return candidate
+    return ""
 
 
 def _print_wrapped(prefix: str, text: Any, *, width: int, subsequent_indent: str = "") -> None:

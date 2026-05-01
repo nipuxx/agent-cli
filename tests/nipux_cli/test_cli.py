@@ -892,6 +892,7 @@ def test_chat_frame_has_model_updates_page():
             {"event_type": "finding", "title": "Trajectory distillation", "body": "teacher traces improve tool use", "metadata": {}},
             {"event_type": "experiment", "title": "Citation density check", "body": "", "metadata": {"metric_name": "citations", "metric_value": 12, "metric_unit": "count"}},
             {"event_type": "tool_result", "title": "write_file", "body": "write_file overwrite /tmp/paper.md", "metadata": {"status": "completed", "input": {"arguments": {"path": "/tmp/paper.md"}}, "output": {"path": "/tmp/paper.md"}}},
+            {"event_type": "tool_result", "title": "shell_exec", "body": "shell_exec rc=0", "metadata": {"status": "completed", "input": {"arguments": {"command": "printf draft | tee /tmp/outline.md"}}}},
         ],
         "daemon": {"running": True, "metadata": {"pid": 123}},
         "model": "model/demo",
@@ -906,6 +907,7 @@ def test_chat_frame_has_model_updates_page():
     assert "Trajectory distillation" in frame
     assert "Citation density check" in frame
     assert "paper.md" in frame
+    assert "outline.md" in frame
 
 
 def test_chat_status_page_shows_job_outputs():
