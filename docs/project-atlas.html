@@ -82,7 +82,7 @@ pre { max-height: 540px; overflow: auto; background: #050606; border: 1px solid 
 <div class="shell">
   <aside class="sidebar">
     <div class="logo">NIPUX ATLAS</div>
-    <div class="subtitle">Generated from tracked source on a650d31e.</div>
+    <div class="subtitle">Generated from tracked source on 704ac9fd.</div>
     <input id="search" class="search" placeholder="filter files, prompts, tools..." autocomplete="off">
     <nav class="nav">
       <a href="#architecture">Architecture</a>
@@ -37231,8 +37231,8 @@ def test_cli_has_operator_commands():
 <span class='src-line'><b>2258</b><code>        db.append_task_record(job_id, title=&quot;Explore primary sources&quot;, status=&quot;open&quot;, priority=5)</code></span>
 <span class='src-line'><b>2259</b><code>        db.append_experiment_record(job_id, title=&quot;Variant A&quot;, status=&quot;measured&quot;, metric_name=&quot;score&quot;, metric_value=1.5)</code></span>
 <span class='src-line'><b>2260</b><code>        db.append_source_record(job_id, &quot;https://example.com&quot;, usefulness_score=0.9, yield_count=1)</code></span>
-<span class='src-line'><b>2261</b><code>        db.append_lesson(job_id, &quot;Directories work.&quot;, category=&quot;strategy&quot;)</code></span>
-<span class='src-line'><b>2262</b><code>        db.append_reflection(job_id, &quot;Keep using directories.&quot;, strategy=&quot;Try chambers.&quot;)</code></span>
+<span class='src-line'><b>2261</b><code>        db.append_lesson(job_id, &quot;Source indexes work.&quot;, category=&quot;strategy&quot;)</code></span>
+<span class='src-line'><b>2262</b><code>        db.append_reflection(job_id, &quot;Keep using source indexes.&quot;, strategy=&quot;Try primary records.&quot;)</code></span>
 <span class='src-line'><b>2263</b><code>    finally:</code></span>
 <span class='src-line'><b>2264</b><code>        db.close()</code></span>
 <span class='src-line'><b>2265</b><code></code></span>
@@ -37246,7 +37246,7 @@ def test_cli_has_operator_commands():
 <span class='src-line'><b>2273</b><code>    assert &quot;Explore primary sources&quot; in out</code></span>
 <span class='src-line'><b>2274</b><code>    assert &quot;Variant A&quot; in out</code></span>
 <span class='src-line'><b>2275</b><code>    assert &quot;https://example.com&quot; in out</code></span>
-<span class='src-line'><b>2276</b><code>    assert &quot;Keep using directories&quot; in out</code></span>
+<span class='src-line'><b>2276</b><code>    assert &quot;Keep using source indexes&quot; in out</code></span>
 <span class='src-line'><b>2277</b><code>    assert &quot;tasks: 1&quot; in out</code></span>
 <span class='src-line'><b>2278</b><code>    assert &quot;experiments: 1&quot; in out</code></span>
 <span class='src-line'><b>2279</b><code>    assert &quot;findings: 1&quot; in out</code></span>
@@ -38947,8 +38947,8 @@ def test_job_token_usage_aggregates_message_usage(tmp_path):
 <span class='src-line'><b> 269</b><code>    try:</code></span>
 <span class='src-line'><b> 270</b><code>        job_id = db.create_job(&quot;Research topic&quot;)</code></span>
 <span class='src-line'><b> 271</b><code></code></span>
-<span class='src-line'><b> 272</b><code>        first = db.append_lesson(job_id, &quot;Use chamber directories.&quot;, category=&quot;strategy&quot;, metadata={&quot;step&quot;: 1})</code></span>
-<span class='src-line'><b> 273</b><code>        second = db.append_lesson(job_id, &quot;Use chamber directories.&quot;, category=&quot;strategy&quot;, metadata={&quot;step&quot;: 2})</code></span>
+<span class='src-line'><b> 272</b><code>        first = db.append_lesson(job_id, &quot;Use primary source indexes.&quot;, category=&quot;strategy&quot;, metadata={&quot;step&quot;: 1})</code></span>
+<span class='src-line'><b> 273</b><code>        second = db.append_lesson(job_id, &quot;Use primary source indexes.&quot;, category=&quot;strategy&quot;, metadata={&quot;step&quot;: 2})</code></span>
 <span class='src-line'><b> 274</b><code>        job = db.get_job(job_id)</code></span>
 <span class='src-line'><b> 275</b><code></code></span>
 <span class='src-line'><b> 276</b><code>        assert first[&quot;lesson&quot;] == second[&quot;lesson&quot;]</code></span>
@@ -38993,7 +38993,7 @@ def test_job_token_usage_aggregates_message_usage(tmp_path):
 <span class='src-line'><b> 315</b><code>            contact=&quot;source note&quot;,</code></span>
 <span class='src-line'><b> 316</b><code>            score=0.85,</code></span>
 <span class='src-line'><b> 317</b><code>        )</code></span>
-<span class='src-line'><b> 318</b><code>        reflection = db.append_reflection(job_id, &quot;Keep using directories&quot;, strategy=&quot;Prioritize chambers&quot;)</code></span>
+<span class='src-line'><b> 318</b><code>        reflection = db.append_reflection(job_id, &quot;Keep using source indexes&quot;, strategy=&quot;Prioritize primary records&quot;)</code></span>
 <span class='src-line'><b> 319</b><code>        job = db.get_job(job_id)</code></span>
 <span class='src-line'><b> 320</b><code></code></span>
 <span class='src-line'><b> 321</b><code>        assert source[&quot;key&quot;] == updated_source[&quot;key&quot;]</code></span>
@@ -39098,7 +39098,7 @@ def test_daily_digest_includes_ledgers_lessons_sources_and_strategy(tmp_path):
         db.append_task_record(job_id, title=&quot;Explore primary sources&quot;, status=&quot;open&quot;, priority=5)
         db.append_source_record(job_id, &quot;https://example.com&quot;, usefulness_score=0.9, yield_count=1, outcome=&quot;yielded findings&quot;)
         db.append_lesson(job_id, &quot;Low-evidence pages are not finding sources.&quot;, category=&quot;source_quality&quot;)
-        db.append_reflection(job_id, &quot;Directories are working.&quot;, strategy=&quot;Try chambers next.&quot;)
+        db.append_reflection(job_id, &quot;Primary source map is working.&quot;, strategy=&quot;Try archival sources next.&quot;)
         db.start_run(job_id, model=&quot;test-model&quot;)
         db.append_event(
             job_id,
@@ -39122,7 +39122,7 @@ def test_daily_digest_includes_ledgers_lessons_sources_and_strategy(tmp_path):
         assert &quot;Explore primary sources&quot; in body
         assert &quot;Low-evidence pages are not finding sources.&quot; in body
         assert &quot;https://example.com&quot; in body
-        assert &quot;Try chambers next.&quot; in body
+        assert &quot;Try archival sources next.&quot; in body
         assert result[&quot;status&quot;] == &quot;dry_run&quot;
         assert (tmp_path / &quot;digests&quot; / &quot;2026-04-25-daily.md&quot;).exists()
     finally:
@@ -39142,7 +39142,7 @@ def test_daily_digest_includes_ledgers_lessons_sources_and_strategy(tmp_path):
 <span class='src-line'><b>  12</b><code>        db.append_task_record(job_id, title=&quot;Explore primary sources&quot;, status=&quot;open&quot;, priority=5)</code></span>
 <span class='src-line'><b>  13</b><code>        db.append_source_record(job_id, &quot;https://example.com&quot;, usefulness_score=0.9, yield_count=1, outcome=&quot;yielded findings&quot;)</code></span>
 <span class='src-line'><b>  14</b><code>        db.append_lesson(job_id, &quot;Low-evidence pages are not finding sources.&quot;, category=&quot;source_quality&quot;)</code></span>
-<span class='src-line'><b>  15</b><code>        db.append_reflection(job_id, &quot;Directories are working.&quot;, strategy=&quot;Try chambers next.&quot;)</code></span>
+<span class='src-line'><b>  15</b><code>        db.append_reflection(job_id, &quot;Primary source map is working.&quot;, strategy=&quot;Try archival sources next.&quot;)</code></span>
 <span class='src-line'><b>  16</b><code>        db.start_run(job_id, model=&quot;test-model&quot;)</code></span>
 <span class='src-line'><b>  17</b><code>        db.append_event(</code></span>
 <span class='src-line'><b>  18</b><code>            job_id,</code></span>
@@ -39166,7 +39166,7 @@ def test_daily_digest_includes_ledgers_lessons_sources_and_strategy(tmp_path):
 <span class='src-line'><b>  36</b><code>        assert &quot;Explore primary sources&quot; in body</code></span>
 <span class='src-line'><b>  37</b><code>        assert &quot;Low-evidence pages are not finding sources.&quot; in body</code></span>
 <span class='src-line'><b>  38</b><code>        assert &quot;https://example.com&quot; in body</code></span>
-<span class='src-line'><b>  39</b><code>        assert &quot;Try chambers next.&quot; in body</code></span>
+<span class='src-line'><b>  39</b><code>        assert &quot;Try archival sources next.&quot; in body</code></span>
 <span class='src-line'><b>  40</b><code>        assert result[&quot;status&quot;] == &quot;dry_run&quot;</code></span>
 <span class='src-line'><b>  41</b><code>        assert (tmp_path / &quot;digests&quot; / &quot;2026-04-25-daily.md&quot;).exists()</code></span>
 <span class='src-line'><b>  42</b><code>    finally:</code></span>
@@ -42718,7 +42718,7 @@ class AntiBotBrowserRegistry:
 <span class='src-line'><b>1505</b><code>            &quot;finding_ledger&quot;: [{&quot;name&quot;: &quot;Acme Finding&quot;, &quot;category&quot;: &quot;example category&quot;, &quot;location&quot;: &quot;Toronto&quot;, &quot;score&quot;: 0.8}],</code></span>
 <span class='src-line'><b>1506</b><code>            &quot;task_queue&quot;: [{&quot;title&quot;: &quot;Explore primary sources&quot;, &quot;status&quot;: &quot;open&quot;, &quot;priority&quot;: 5, &quot;goal&quot;: &quot;Find evidence&quot;}],</code></span>
 <span class='src-line'><b>1507</b><code>            &quot;source_ledger&quot;: [{&quot;source&quot;: &quot;https://example.com&quot;, &quot;source_type&quot;: &quot;web_source&quot;, &quot;usefulness_score&quot;: 0.9, &quot;yield_count&quot;: 3}],</code></span>
-<span class='src-line'><b>1508</b><code>            &quot;reflections&quot;: [{&quot;summary&quot;: &quot;Directories are working&quot;, &quot;strategy&quot;: &quot;Use chambers next&quot;}],</code></span>
+<span class='src-line'><b>1508</b><code>            &quot;reflections&quot;: [{&quot;summary&quot;: &quot;Primary source map is working&quot;, &quot;strategy&quot;: &quot;Try archival sources next&quot;}],</code></span>
 <span class='src-line'><b>1509</b><code>        },</code></span>
 <span class='src-line'><b>1510</b><code>    }</code></span>
 <span class='src-line'><b>1511</b><code></code></span>
@@ -42729,7 +42729,7 @@ class AntiBotBrowserRegistry:
 <span class='src-line'><b>1516</b><code>    assert &quot;Acme Finding&quot; in content</code></span>
 <span class='src-line'><b>1517</b><code>    assert &quot;Explore primary sources&quot; in content</code></span>
 <span class='src-line'><b>1518</b><code>    assert &quot;https://example.com&quot; in content</code></span>
-<span class='src-line'><b>1519</b><code>    assert &quot;Directories are working&quot; in content</code></span>
+<span class='src-line'><b>1519</b><code>    assert &quot;Primary source map is working&quot; in content</code></span>
 <span class='src-line'><b>1520</b><code></code></span>
 <span class='src-line'><b>1521</b><code></code></span>
 <span class='src-line'><b>1522</b><code>def test_prompt_includes_experiment_ledger_and_best_result():</code></span>
@@ -43041,7 +43041,7 @@ class AntiBotBrowserRegistry:
 <span class='src-line'><b>1828</b><code>                    &quot;e100&quot;: {&quot;name&quot;: &quot;Organization Name&quot;, &quot;role&quot;: &quot;cell&quot;},</code></span>
 <span class='src-line'><b>1829</b><code>                &quot;e101&quot;: {&quot;name&quot;: &quot;Services&quot;, &quot;role&quot;: &quot;cell&quot;},</code></span>
 <span class='src-line'><b>1830</b><code>                &quot;e102&quot;: {</code></span>
-<span class='src-line'><b>1831</b><code>                    &quot;name&quot;: &quot;Custom ecommerce, SEO, digital strategy, headless commerce, Shopify/WooCommerce/Magento&quot;,</code></span>
+<span class='src-line'><b>1831</b><code>                    &quot;name&quot;: &quot;Custom integration, workflow automation, reliability testing, reporting&quot;,</code></span>
 <span class='src-line'><b>1832</b><code>                    &quot;role&quot;: &quot;cell&quot;,</code></span>
 <span class='src-line'><b>1833</b><code>                },</code></span>
 <span class='src-line'><b>1834</b><code>                &quot;e103&quot;: {&quot;name&quot;: &quot;4.8&quot;, &quot;role&quot;: &quot;cell&quot;},</code></span>

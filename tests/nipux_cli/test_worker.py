@@ -1505,7 +1505,7 @@ def test_prompt_includes_finding_source_ledgers_and_reflections():
             "finding_ledger": [{"name": "Acme Finding", "category": "example category", "location": "Toronto", "score": 0.8}],
             "task_queue": [{"title": "Explore primary sources", "status": "open", "priority": 5, "goal": "Find evidence"}],
             "source_ledger": [{"source": "https://example.com", "source_type": "web_source", "usefulness_score": 0.9, "yield_count": 3}],
-            "reflections": [{"summary": "Directories are working", "strategy": "Use chambers next"}],
+            "reflections": [{"summary": "Primary source map is working", "strategy": "Try archival sources next"}],
         },
     }
 
@@ -1516,7 +1516,7 @@ def test_prompt_includes_finding_source_ledgers_and_reflections():
     assert "Acme Finding" in content
     assert "Explore primary sources" in content
     assert "https://example.com" in content
-    assert "Directories are working" in content
+    assert "Primary source map is working" in content
 
 
 def test_prompt_includes_experiment_ledger_and_best_result():
@@ -1828,7 +1828,7 @@ def test_prompt_includes_candidate_names_from_table_cells():
                     "e100": {"name": "Organization Name", "role": "cell"},
                 "e101": {"name": "Services", "role": "cell"},
                 "e102": {
-                    "name": "Custom ecommerce, SEO, digital strategy, headless commerce, Shopify/WooCommerce/Magento",
+                    "name": "Custom integration, workflow automation, reliability testing, reporting",
                     "role": "cell",
                 },
                 "e103": {"name": "4.8", "role": "cell"},

@@ -12,7 +12,7 @@ def test_daily_digest_includes_ledgers_lessons_sources_and_strategy(tmp_path):
         db.append_task_record(job_id, title="Explore primary sources", status="open", priority=5)
         db.append_source_record(job_id, "https://example.com", usefulness_score=0.9, yield_count=1, outcome="yielded findings")
         db.append_lesson(job_id, "Low-evidence pages are not finding sources.", category="source_quality")
-        db.append_reflection(job_id, "Directories are working.", strategy="Try chambers next.")
+        db.append_reflection(job_id, "Primary source map is working.", strategy="Try archival sources next.")
         db.start_run(job_id, model="test-model")
         db.append_event(
             job_id,
@@ -36,7 +36,7 @@ def test_daily_digest_includes_ledgers_lessons_sources_and_strategy(tmp_path):
         assert "Explore primary sources" in body
         assert "Low-evidence pages are not finding sources." in body
         assert "https://example.com" in body
-        assert "Try chambers next." in body
+        assert "Try archival sources next." in body
         assert result["status"] == "dry_run"
         assert (tmp_path / "digests" / "2026-04-25-daily.md").exists()
     finally:

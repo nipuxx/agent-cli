@@ -269,8 +269,8 @@ def test_append_lesson_dedupes_repeated_memory(tmp_path):
     try:
         job_id = db.create_job("Research topic")
 
-        first = db.append_lesson(job_id, "Use chamber directories.", category="strategy", metadata={"step": 1})
-        second = db.append_lesson(job_id, "Use chamber directories.", category="strategy", metadata={"step": 2})
+        first = db.append_lesson(job_id, "Use primary source indexes.", category="strategy", metadata={"step": 1})
+        second = db.append_lesson(job_id, "Use primary source indexes.", category="strategy", metadata={"step": 2})
         job = db.get_job(job_id)
 
         assert first["lesson"] == second["lesson"]
@@ -315,7 +315,7 @@ def test_source_and_finding_ledgers_dedupe_and_update(tmp_path):
             contact="source note",
             score=0.85,
         )
-        reflection = db.append_reflection(job_id, "Keep using directories", strategy="Prioritize chambers")
+        reflection = db.append_reflection(job_id, "Keep using source indexes", strategy="Prioritize primary records")
         job = db.get_job(job_id)
 
         assert source["key"] == updated_source["key"]

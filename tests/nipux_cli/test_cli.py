@@ -2258,8 +2258,8 @@ def test_findings_sources_memory_metrics_commands(monkeypatch, tmp_path, capsys)
         db.append_task_record(job_id, title="Explore primary sources", status="open", priority=5)
         db.append_experiment_record(job_id, title="Variant A", status="measured", metric_name="score", metric_value=1.5)
         db.append_source_record(job_id, "https://example.com", usefulness_score=0.9, yield_count=1)
-        db.append_lesson(job_id, "Directories work.", category="strategy")
-        db.append_reflection(job_id, "Keep using directories.", strategy="Try chambers.")
+        db.append_lesson(job_id, "Source indexes work.", category="strategy")
+        db.append_reflection(job_id, "Keep using source indexes.", strategy="Try primary records.")
     finally:
         db.close()
 
@@ -2273,7 +2273,7 @@ def test_findings_sources_memory_metrics_commands(monkeypatch, tmp_path, capsys)
     assert "Explore primary sources" in out
     assert "Variant A" in out
     assert "https://example.com" in out
-    assert "Keep using directories" in out
+    assert "Keep using source indexes" in out
     assert "tasks: 1" in out
     assert "experiments: 1" in out
     assert "findings: 1" in out
