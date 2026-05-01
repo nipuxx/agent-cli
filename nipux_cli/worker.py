@@ -177,6 +177,7 @@ MEASURABLE_PROGRESS_PATTERN = re.compile(
 RECOVERABLE_GUARD_ERRORS = {
     "artifact search loop blocked",
     "duplicate tool call blocked",
+    "known bad source blocked",
     "measurement obligation pending",
     "measured progress required",
     "progress accounting required",

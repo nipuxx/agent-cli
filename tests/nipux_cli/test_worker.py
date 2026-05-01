@@ -512,6 +512,39 @@ def test_run_one_step_recovers_repeated_guard_blocks_without_llm(tmp_path):
         db.close()
 
 
+def test_run_one_step_recovers_repeated_known_bad_source_blocks(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Avoid repeatedly blocked sources", title="guard")
+        for index in range(3):
+            run_id = db.start_run(job_id, model="test")
+            step_id = db.add_step(
+                job_id=job_id,
+                run_id=run_id,
+                kind="tool",
+                tool_name="web_extract",
+                input_data={"arguments": {"urls": ["https://bad.example/source"]}},
+            )
+            db.finish_step(
+                step_id,
+                status="blocked",
+                summary="blocked web_extract; known bad source https://bad.example/source",
+                output_data={"success": False, "error": "known bad source blocked"},
+            )
+            db.finish_run(run_id, "completed")
+
+        result = run_one_step(job_id, config=config, db=db, llm=ExplodingLLM())
+
+        assert result.status == "completed"
+        assert result.tool_name == "guard_recovery"
+        assert result.result["guard_recovery"]["error"] == "known bad source blocked"
+        job = db.get_job(job_id)
+        assert any(task["title"] == "Resolve guard: known bad source blocked" for task in job["metadata"]["task_queue"])
+    finally:
+        db.close()
+
+
 def test_guard_recovery_does_not_repeat_after_recovery_step(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")
