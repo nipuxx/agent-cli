@@ -82,7 +82,7 @@ pre { max-height: 540px; overflow: auto; background: #050606; border: 1px solid 
 <div class="shell">
   <aside class="sidebar">
     <div class="logo">NIPUX ATLAS</div>
-    <div class="subtitle">Generated from tracked source on 3e58041b.</div>
+    <div class="subtitle">Generated from tracked source on a70c20a1.</div>
     <input id="search" class="search" placeholder="filter files, prompts, tools..." autocomplete="off">
     <nav class="nav">
       <a href="#architecture">Architecture</a>
@@ -97,9 +97,9 @@ pre { max-height: 540px; overflow: auto; background: #050606; border: 1px solid 
       <a href="#risks">Review Points</a>
     </nav>
     <div class="stats">
-      <div class="stat"><b>65</b><span>tracked files</span></div>
-      <div class="stat"><b>25,518</b><span>tracked lines mapped</span></div>
-      <div class="stat"><b>1055</b><span>python symbols</span></div>
+      <div class="stat"><b>66</b><span>tracked files</span></div>
+      <div class="stat"><b>25,636</b><span>tracked lines mapped</span></div>
+      <div class="stat"><b>1059</b><span>python symbols</span></div>
       <div class="stat"><b>27</b><span>runtime tools</span></div>
     </div>
   </aside>
@@ -475,7 +475,7 @@ have incorporated or intentionally superseded a steer/follow_up message.
     </section>
 
     <section id="files" class="section">
-      <header><div><div class="kicker">Source index</div><h2>Important Files</h2></div><span class="muted">58 Python modules plus docs/config files.</span></header>
+      <header><div><div class="kicker">Source index</div><h2>Important Files</h2></div><span class="muted">59 Python modules plus docs/config files.</span></header>
       <div class="grid"><article class="file-card searchable" data-search="AGENTS.md This repo is a focused long-running worker, not a broad assistant distribution. none">
 <header><h3>AGENTS.md</h3><span>32 lines</span></header>
 <p>This repo is a focused long-running worker, not a broad assistant distribution.</p>
@@ -592,6 +592,12 @@ fixed tool surface. none">
 <p>Runtime checks for the Nipux agent.</p>
 <div class="meta"><span>13 symbols</span><span>0 TODOs</span></div>
 <details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> __future__, json, shutil, urllib.error, urllib.request, dataclasses, pathlib, typing, urllib.parse, nipux_cli.config, nipux_cli.db, nipux_cli.tools</p><p><strong>Symbols:</strong> Check, as_dict, _check_writable_dir, _check_db, _check_tool_surface, _check_model_config, _check_browser_runtime, _check_model_endpoint, _check_model_generation, _check_openrouter_auth</p></details>
+</article>
+<article class="file-card searchable" data-search="nipux_cli/event_render.py Readable event rendering shared by CLI history and chat context. event_line, event_display_parts, event_label, compact_time">
+<header><h3>nipux_cli/event_render.py</h3><span>118 lines</span></header>
+<p>Readable event rendering shared by CLI history and chat context.</p>
+<div class="meta"><span>4 symbols</span><span>0 TODOs</span></div>
+<details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> __future__, shlex, typing, nipux_cli.metric_format, nipux_cli.tui_events, nipux_cli.tui_style</p><p><strong>Symbols:</strong> event_line, event_display_parts, event_label, compact_time</p></details>
 </article>
 <article class="file-card searchable" data-search="nipux_cli/first_run_tui.py First-run terminal UI rendering for Nipux. build_first_run_frame, first_run_columns, first_run_themed_lines, _first_run_left_lines, _first_run_right_lines, _first_run_profile_lines, _first_run_action_lines, _first_run_actions, _clamp_first_run_selection">
 <header><h3>nipux_cli/first_run_tui.py</h3><span>223 lines</span></header>
@@ -3206,6 +3212,30 @@ fixed tool surface. none">
 <p><span class="pill">function</span> <span class="pill">nipux_cli/doctor.py:200</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> _check_browser_runtime, _check_db, _check_model_config, _check_model_endpoint, _check_tool_surface, _check_writable_dir, checks.append, load_config</p>
+</article>
+<article class="symbol searchable" data-search="nipux_cli/event_render.py event_line No docstring. _one_line, event_display_parts">
+<h3>event_line</h3>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/event_render.py:13</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> _one_line, event_display_parts</p>
+</article>
+<article class="symbol searchable" data-search="nipux_cli/event_render.py event_display_parts No docstring. _one_line, body.startswith, clean_step_summary, compact_time, event.get, event_label, format_metric_value, generic_display_text, isinstance, kind.startswith, metadata.get, min, shlex.quote, str, strip">
+<h3>event_display_parts</h3>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/event_render.py:19</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> _one_line, body.startswith, clean_step_summary, compact_time, event.get, event_label, format_metric_value, generic_display_text, isinstance, kind.startswith, metadata.get, min, shlex.quote, str, strip</p>
+</article>
+<article class="symbol searchable" data-search="nipux_cli/event_render.py event_label No docstring. kind.endswith, kind.startswith, kind.upper, labels.get, metadata.get, str">
+<h3>event_label</h3>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/event_render.py:77</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> kind.endswith, kind.startswith, kind.upper, labels.get, metadata.get, str</p>
+</article>
+<article class="symbol searchable" data-search="nipux_cli/event_render.py compact_time No docstring. _one_line, len, value.replace">
+<h3>compact_time</h3>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/event_render.py:114</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> _one_line, len, value.replace</p>
 </article>
 <article class="symbol searchable" data-search="nipux_cli/first_run_tui.py build_first_run_frame No docstring. _compose_bar, _first_run_left_lines, _first_run_right_lines, _top_bar, _two_col_line, _two_col_title, edit_target_hint, edit_target_label, edit_target_masks_input, first_run_columns, first_run_themed_lines, join, len, lines.append, lines.extend, max">
 <h3>build_first_run_frame</h3>
@@ -19398,6 +19428,218 @@ def _check_model_endpoint(config: AppConfig) -&gt; Check:
 <span class='src-line'><b> 209</b><code>    if check_model:</code></span>
 <span class='src-line'><b> 210</b><code>        checks.append(_check_model_endpoint(config))</code></span>
 <span class='src-line'><b> 211</b><code>    return checks</code></span></pre>
+</details>
+<details class="source-file searchable" data-search="nipux_cli/event_render.py &quot;&quot;&quot;Readable event rendering shared by CLI history and chat context.&quot;&quot;&quot;
+
+from __future__ import annotations
+
+import shlex
+from typing import Any
+
+from nipux_cli.metric_format import format_metric_value
+from nipux_cli.tui_events import clean_step_summary, generic_display_text
+from nipux_cli.tui_style import _one_line
+
+
+def event_line(event: dict[str, Any], *, chars: int, full: bool = False) -&gt; str:
+    when, label, detail, access = event_display_parts(event, chars=chars, full=full)
+    suffix = f&quot; | {access}&quot; if access and full else &quot;&quot;
+    return f&quot;{when:&lt;16} {label:&lt;8} {_one_line(detail + suffix, chars)}&quot;
+
+
+def event_display_parts(event: dict[str, Any], *, chars: int, full: bool = False) -&gt; tuple[str, str, str, str]:
+    when = compact_time(str(event.get(&quot;created_at&quot;) or &quot;?&quot;))
+    kind = str(event.get(&quot;event_type&quot;) or &quot;event&quot;)
+    title = str(event.get(&quot;title&quot;) or &quot;&quot;).strip()
+    body = generic_display_text(event.get(&quot;body&quot;) or &quot;&quot;)
+    ref_table = str(event.get(&quot;ref_table&quot;) or &quot;&quot;)
+    ref_id = str(event.get(&quot;ref_id&quot;) or &quot;&quot;)
+    metadata = event.get(&quot;metadata&quot;) if isinstance(event.get(&quot;metadata&quot;), dict) else {}
+    label = event_label(kind, metadata)
+    access = &quot;&quot;
+    if kind == &quot;tool_result&quot; and metadata.get(&quot;status&quot;):
+        label = event_label(f&quot;{kind}:{metadata.get(&#x27;status&#x27;)}&quot;, metadata)
+    if kind == &quot;error&quot;:
+        label = &quot;ERROR&quot;
+    if kind.startswith(&quot;tool_result&quot;) or kind == &quot;error&quot;:
+        body = clean_step_summary(body)
+    if kind == &quot;artifact&quot;:
+        title = title or ref_id
+        if body.startswith(&quot;/&quot;) or &quot;/.nipux/jobs/&quot; in body or &quot;/jobs/job_&quot; in body:
+            body = generic_display_text(metadata.get(&quot;summary&quot;) or &quot;saved output&quot;)
+        if title:
+            access = f&quot;open: /artifact {shlex.quote(title)}&quot;
+    if kind == &quot;operator_message&quot; and metadata.get(&quot;mode&quot;):
+        title = f&quot;{title or &#x27;operator&#x27;} {metadata.get(&#x27;mode&#x27;)}&quot;
+    if kind == &quot;operator_context&quot;:
+        body = body or f&quot;{metadata.get(&#x27;count&#x27;) or 0} message(s)&quot;
+    if kind in {&quot;tool_call&quot;, &quot;tool_result&quot;, &quot;error&quot;} and metadata.get(&quot;step_no&quot;):
+        title = f&quot;#{metadata.get(&#x27;step_no&#x27;)} {title}&quot;.strip()
+    if not body and kind == &quot;artifact&quot; and metadata.get(&quot;path&quot;):
+        body = str(metadata.get(&quot;type&quot;) or &quot;saved artifact&quot;)
+    if not body and kind == &quot;finding&quot; and metadata.get(&quot;category&quot;):
+        body = str(metadata.get(&quot;category&quot;) or &quot;&quot;)
+    if not body and kind == &quot;task&quot; and metadata.get(&quot;status&quot;):
+        body = str(metadata.get(&quot;status&quot;) or &quot;&quot;)
+    if not body and kind == &quot;roadmap&quot; and metadata.get(&quot;status&quot;):
+        body = str(metadata.get(&quot;status&quot;) or &quot;&quot;)
+    if not body and kind == &quot;milestone_validation&quot; and metadata.get(&quot;validation_status&quot;):
+        body = str(metadata.get(&quot;validation_status&quot;) or &quot;&quot;)
+    if not body and kind == &quot;experiment&quot;:
+        metric_value = metadata.get(&quot;metric_value&quot;)
+        if metric_value is not None:
+            body = format_metric_value(
+                metadata.get(&quot;metric_name&quot;) or &quot;metric&quot;,
+                metric_value,
+                metadata.get(&quot;metric_unit&quot;) or &quot;&quot;,
+            )
+    if kind == &quot;compaction&quot;:
+        body = _one_line(body, min(chars, 140))
+    if kind == &quot;daemon&quot; and title == &quot;run started&quot;:
+        body = body or str(metadata.get(&quot;model&quot;) or &quot;&quot;)
+    detail = title if title else kind
+    if body:
+        detail = f&quot;{detail} - {body}&quot;
+    if ref_table and ref_id and full:
+        detail = f&quot;{detail} [{ref_table}:{ref_id}]&quot;
+    return when, label, detail, access
+
+
+def event_label(kind: str, metadata: dict[str, Any]) -&gt; str:
+    if kind == &quot;operator_message&quot;:
+        mode = str(metadata.get(&quot;mode&quot;) or &quot;&quot;)
+        return &quot;FOLLOW&quot; if mode == &quot;follow_up&quot; else &quot;USER&quot;
+    if kind == &quot;operator_context&quot;:
+        return &quot;ACK&quot;
+    if kind == &quot;agent_message&quot;:
+        return &quot;AGENT&quot;
+    if kind == &quot;roadmap&quot;:
+        return &quot;ROAD&quot;
+    if kind == &quot;milestone_validation&quot;:
+        return &quot;VALID&quot;
+    if kind == &quot;tool_call&quot;:
+        return &quot;TOOL&quot;
+    if kind.startswith(&quot;tool_result&quot;):
+    ">
+<summary>nipux_cli/event_render.py <span>118 lines</span></summary>
+<pre class="source-code"><span class='src-line'><b>   1</b><code>&quot;&quot;&quot;Readable event rendering shared by CLI history and chat context.&quot;&quot;&quot;</code></span>
+<span class='src-line'><b>   2</b><code></code></span>
+<span class='src-line'><b>   3</b><code>from __future__ import annotations</code></span>
+<span class='src-line'><b>   4</b><code></code></span>
+<span class='src-line'><b>   5</b><code>import shlex</code></span>
+<span class='src-line'><b>   6</b><code>from typing import Any</code></span>
+<span class='src-line'><b>   7</b><code></code></span>
+<span class='src-line'><b>   8</b><code>from nipux_cli.metric_format import format_metric_value</code></span>
+<span class='src-line'><b>   9</b><code>from nipux_cli.tui_events import clean_step_summary, generic_display_text</code></span>
+<span class='src-line'><b>  10</b><code>from nipux_cli.tui_style import _one_line</code></span>
+<span class='src-line'><b>  11</b><code></code></span>
+<span class='src-line'><b>  12</b><code></code></span>
+<span class='src-line'><b>  13</b><code>def event_line(event: dict[str, Any], *, chars: int, full: bool = False) -&gt; str:</code></span>
+<span class='src-line'><b>  14</b><code>    when, label, detail, access = event_display_parts(event, chars=chars, full=full)</code></span>
+<span class='src-line'><b>  15</b><code>    suffix = f&quot; | {access}&quot; if access and full else &quot;&quot;</code></span>
+<span class='src-line'><b>  16</b><code>    return f&quot;{when:&lt;16} {label:&lt;8} {_one_line(detail + suffix, chars)}&quot;</code></span>
+<span class='src-line'><b>  17</b><code></code></span>
+<span class='src-line'><b>  18</b><code></code></span>
+<span class='src-line'><b>  19</b><code>def event_display_parts(event: dict[str, Any], *, chars: int, full: bool = False) -&gt; tuple[str, str, str, str]:</code></span>
+<span class='src-line'><b>  20</b><code>    when = compact_time(str(event.get(&quot;created_at&quot;) or &quot;?&quot;))</code></span>
+<span class='src-line'><b>  21</b><code>    kind = str(event.get(&quot;event_type&quot;) or &quot;event&quot;)</code></span>
+<span class='src-line'><b>  22</b><code>    title = str(event.get(&quot;title&quot;) or &quot;&quot;).strip()</code></span>
+<span class='src-line'><b>  23</b><code>    body = generic_display_text(event.get(&quot;body&quot;) or &quot;&quot;)</code></span>
+<span class='src-line'><b>  24</b><code>    ref_table = str(event.get(&quot;ref_table&quot;) or &quot;&quot;)</code></span>
+<span class='src-line'><b>  25</b><code>    ref_id = str(event.get(&quot;ref_id&quot;) or &quot;&quot;)</code></span>
+<span class='src-line'><b>  26</b><code>    metadata = event.get(&quot;metadata&quot;) if isinstance(event.get(&quot;metadata&quot;), dict) else {}</code></span>
+<span class='src-line'><b>  27</b><code>    label = event_label(kind, metadata)</code></span>
+<span class='src-line'><b>  28</b><code>    access = &quot;&quot;</code></span>
+<span class='src-line'><b>  29</b><code>    if kind == &quot;tool_result&quot; and metadata.get(&quot;status&quot;):</code></span>
+<span class='src-line'><b>  30</b><code>        label = event_label(f&quot;{kind}:{metadata.get(&#x27;status&#x27;)}&quot;, metadata)</code></span>
+<span class='src-line'><b>  31</b><code>    if kind == &quot;error&quot;:</code></span>
+<span class='src-line'><b>  32</b><code>        label = &quot;ERROR&quot;</code></span>
+<span class='src-line'><b>  33</b><code>    if kind.startswith(&quot;tool_result&quot;) or kind == &quot;error&quot;:</code></span>
+<span class='src-line'><b>  34</b><code>        body = clean_step_summary(body)</code></span>
+<span class='src-line'><b>  35</b><code>    if kind == &quot;artifact&quot;:</code></span>
+<span class='src-line'><b>  36</b><code>        title = title or ref_id</code></span>
+<span class='src-line'><b>  37</b><code>        if body.startswith(&quot;/&quot;) or &quot;/.nipux/jobs/&quot; in body or &quot;/jobs/job_&quot; in body:</code></span>
+<span class='src-line'><b>  38</b><code>            body = generic_display_text(metadata.get(&quot;summary&quot;) or &quot;saved output&quot;)</code></span>
+<span class='src-line'><b>  39</b><code>        if title:</code></span>
+<span class='src-line'><b>  40</b><code>            access = f&quot;open: /artifact {shlex.quote(title)}&quot;</code></span>
+<span class='src-line'><b>  41</b><code>    if kind == &quot;operator_message&quot; and metadata.get(&quot;mode&quot;):</code></span>
+<span class='src-line'><b>  42</b><code>        title = f&quot;{title or &#x27;operator&#x27;} {metadata.get(&#x27;mode&#x27;)}&quot;</code></span>
+<span class='src-line'><b>  43</b><code>    if kind == &quot;operator_context&quot;:</code></span>
+<span class='src-line'><b>  44</b><code>        body = body or f&quot;{metadata.get(&#x27;count&#x27;) or 0} message(s)&quot;</code></span>
+<span class='src-line'><b>  45</b><code>    if kind in {&quot;tool_call&quot;, &quot;tool_result&quot;, &quot;error&quot;} and metadata.get(&quot;step_no&quot;):</code></span>
+<span class='src-line'><b>  46</b><code>        title = f&quot;#{metadata.get(&#x27;step_no&#x27;)} {title}&quot;.strip()</code></span>
+<span class='src-line'><b>  47</b><code>    if not body and kind == &quot;artifact&quot; and metadata.get(&quot;path&quot;):</code></span>
+<span class='src-line'><b>  48</b><code>        body = str(metadata.get(&quot;type&quot;) or &quot;saved artifact&quot;)</code></span>
+<span class='src-line'><b>  49</b><code>    if not body and kind == &quot;finding&quot; and metadata.get(&quot;category&quot;):</code></span>
+<span class='src-line'><b>  50</b><code>        body = str(metadata.get(&quot;category&quot;) or &quot;&quot;)</code></span>
+<span class='src-line'><b>  51</b><code>    if not body and kind == &quot;task&quot; and metadata.get(&quot;status&quot;):</code></span>
+<span class='src-line'><b>  52</b><code>        body = str(metadata.get(&quot;status&quot;) or &quot;&quot;)</code></span>
+<span class='src-line'><b>  53</b><code>    if not body and kind == &quot;roadmap&quot; and metadata.get(&quot;status&quot;):</code></span>
+<span class='src-line'><b>  54</b><code>        body = str(metadata.get(&quot;status&quot;) or &quot;&quot;)</code></span>
+<span class='src-line'><b>  55</b><code>    if not body and kind == &quot;milestone_validation&quot; and metadata.get(&quot;validation_status&quot;):</code></span>
+<span class='src-line'><b>  56</b><code>        body = str(metadata.get(&quot;validation_status&quot;) or &quot;&quot;)</code></span>
+<span class='src-line'><b>  57</b><code>    if not body and kind == &quot;experiment&quot;:</code></span>
+<span class='src-line'><b>  58</b><code>        metric_value = metadata.get(&quot;metric_value&quot;)</code></span>
+<span class='src-line'><b>  59</b><code>        if metric_value is not None:</code></span>
+<span class='src-line'><b>  60</b><code>            body = format_metric_value(</code></span>
+<span class='src-line'><b>  61</b><code>                metadata.get(&quot;metric_name&quot;) or &quot;metric&quot;,</code></span>
+<span class='src-line'><b>  62</b><code>                metric_value,</code></span>
+<span class='src-line'><b>  63</b><code>                metadata.get(&quot;metric_unit&quot;) or &quot;&quot;,</code></span>
+<span class='src-line'><b>  64</b><code>            )</code></span>
+<span class='src-line'><b>  65</b><code>    if kind == &quot;compaction&quot;:</code></span>
+<span class='src-line'><b>  66</b><code>        body = _one_line(body, min(chars, 140))</code></span>
+<span class='src-line'><b>  67</b><code>    if kind == &quot;daemon&quot; and title == &quot;run started&quot;:</code></span>
+<span class='src-line'><b>  68</b><code>        body = body or str(metadata.get(&quot;model&quot;) or &quot;&quot;)</code></span>
+<span class='src-line'><b>  69</b><code>    detail = title if title else kind</code></span>
+<span class='src-line'><b>  70</b><code>    if body:</code></span>
+<span class='src-line'><b>  71</b><code>        detail = f&quot;{detail} - {body}&quot;</code></span>
+<span class='src-line'><b>  72</b><code>    if ref_table and ref_id and full:</code></span>
+<span class='src-line'><b>  73</b><code>        detail = f&quot;{detail} [{ref_table}:{ref_id}]&quot;</code></span>
+<span class='src-line'><b>  74</b><code>    return when, label, detail, access</code></span>
+<span class='src-line'><b>  75</b><code></code></span>
+<span class='src-line'><b>  76</b><code></code></span>
+<span class='src-line'><b>  77</b><code>def event_label(kind: str, metadata: dict[str, Any]) -&gt; str:</code></span>
+<span class='src-line'><b>  78</b><code>    if kind == &quot;operator_message&quot;:</code></span>
+<span class='src-line'><b>  79</b><code>        mode = str(metadata.get(&quot;mode&quot;) or &quot;&quot;)</code></span>
+<span class='src-line'><b>  80</b><code>        return &quot;FOLLOW&quot; if mode == &quot;follow_up&quot; else &quot;USER&quot;</code></span>
+<span class='src-line'><b>  81</b><code>    if kind == &quot;operator_context&quot;:</code></span>
+<span class='src-line'><b>  82</b><code>        return &quot;ACK&quot;</code></span>
+<span class='src-line'><b>  83</b><code>    if kind == &quot;agent_message&quot;:</code></span>
+<span class='src-line'><b>  84</b><code>        return &quot;AGENT&quot;</code></span>
+<span class='src-line'><b>  85</b><code>    if kind == &quot;roadmap&quot;:</code></span>
+<span class='src-line'><b>  86</b><code>        return &quot;ROAD&quot;</code></span>
+<span class='src-line'><b>  87</b><code>    if kind == &quot;milestone_validation&quot;:</code></span>
+<span class='src-line'><b>  88</b><code>        return &quot;VALID&quot;</code></span>
+<span class='src-line'><b>  89</b><code>    if kind == &quot;tool_call&quot;:</code></span>
+<span class='src-line'><b>  90</b><code>        return &quot;TOOL&quot;</code></span>
+<span class='src-line'><b>  91</b><code>    if kind.startswith(&quot;tool_result&quot;):</code></span>
+<span class='src-line'><b>  92</b><code>        status = str(metadata.get(&quot;status&quot;) or &quot;&quot;)</code></span>
+<span class='src-line'><b>  93</b><code>        if status == &quot;blocked&quot;:</code></span>
+<span class='src-line'><b>  94</b><code>            return &quot;BLOCK&quot;</code></span>
+<span class='src-line'><b>  95</b><code>        if status == &quot;failed&quot; or kind.endswith(&quot;:failed&quot;):</code></span>
+<span class='src-line'><b>  96</b><code>            return &quot;ERROR&quot;</code></span>
+<span class='src-line'><b>  97</b><code>        return &quot;DONE&quot;</code></span>
+<span class='src-line'><b>  98</b><code>    labels = {</code></span>
+<span class='src-line'><b>  99</b><code>        &quot;artifact&quot;: &quot;OUTPUT&quot;,</code></span>
+<span class='src-line'><b> 100</b><code>        &quot;compaction&quot;: &quot;MEMORY&quot;,</code></span>
+<span class='src-line'><b> 101</b><code>        &quot;daemon&quot;: &quot;SYSTEM&quot;,</code></span>
+<span class='src-line'><b> 102</b><code>        &quot;digest&quot;: &quot;DIGEST&quot;,</code></span>
+<span class='src-line'><b> 103</b><code>        &quot;error&quot;: &quot;ERROR&quot;,</code></span>
+<span class='src-line'><b> 104</b><code>        &quot;experiment&quot;: &quot;TEST&quot;,</code></span>
+<span class='src-line'><b> 105</b><code>        &quot;finding&quot;: &quot;FIND&quot;,</code></span>
+<span class='src-line'><b> 106</b><code>        &quot;lesson&quot;: &quot;LEARN&quot;,</code></span>
+<span class='src-line'><b> 107</b><code>        &quot;reflection&quot;: &quot;PLAN&quot;,</code></span>
+<span class='src-line'><b> 108</b><code>        &quot;source&quot;: &quot;SOURCE&quot;,</code></span>
+<span class='src-line'><b> 109</b><code>        &quot;task&quot;: &quot;TASK&quot;,</code></span>
+<span class='src-line'><b> 110</b><code>    }</code></span>
+<span class='src-line'><b> 111</b><code>    return labels.get(kind, kind.upper()[:8])</code></span>
+<span class='src-line'><b> 112</b><code></code></span>
+<span class='src-line'><b> 113</b><code></code></span>
+<span class='src-line'><b> 114</b><code>def compact_time(value: str) -&gt; str:</code></span>
+<span class='src-line'><b> 115</b><code>    text = value.replace(&quot;T&quot;, &quot; &quot;)</code></span>
+<span class='src-line'><b> 116</b><code>    if len(text) &gt;= 16 and text[4:5] == &quot;-&quot; and text[13:14] == &quot;:&quot;:</code></span>
+<span class='src-line'><b> 117</b><code>        return text[:16]</code></span>
+<span class='src-line'><b> 118</b><code>    return _one_line(text, 16)</code></span></pre>
 </details>
 <details class="source-file searchable" data-search="nipux_cli/first_run_tui.py &quot;&quot;&quot;First-run terminal UI rendering for Nipux.&quot;&quot;&quot;
 
@@ -38550,7 +38792,7 @@ class AntiBotBrowserRegistry:
       <div class="grid"><article class='card warning searchable' data-search='Large modules nipux_cli/cli.py (4329 lines), nipux_cli/worker.py (3278 lines), tests/nipux_cli/test_worker.py (2611 lines), nipux_cli/db.py (2403 lines), tests/nipux_cli/test_cli.py (1989 lines)'><h3>Large modules</h3><p>nipux_cli/cli.py (4329 lines), nipux_cli/worker.py (3278 lines), tests/nipux_cli/test_worker.py (2611 lines), nipux_cli/db.py (2403 lines), tests/nipux_cli/test_cli.py (1989 lines)</p></article>
 <article class='card warning searchable' data-search='Prompt surfaces 12 prompt/instruction-like strings were extracted. Inspect this section after any agent-behavior change.'><h3>Prompt surfaces</h3><p>12 prompt/instruction-like strings were extracted. Inspect this section after any agent-behavior change.</p></article>
 <article class='card warning searchable' data-search='Tool surface 27 tools are exposed to the worker. Review descriptions whenever generic behavior changes.'><h3>Tool surface</h3><p>27 tools are exposed to the worker. Review descriptions whenever generic behavior changes.</p></article>
-<article class='card warning searchable' data-search='Symbol map 1055 symbols were parsed. Large modules are candidates for refactoring once behavior stabilizes.'><h3>Symbol map</h3><p>1055 symbols were parsed. Large modules are candidates for refactoring once behavior stabilizes.</p></article></div>
+<article class='card warning searchable' data-search='Symbol map 1059 symbols were parsed. Large modules are candidates for refactoring once behavior stabilizes.'><h3>Symbol map</h3><p>1059 symbols were parsed. Large modules are candidates for refactoring once behavior stabilizes.</p></article></div>
     </section>
   </main>
 </div>
