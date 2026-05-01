@@ -825,6 +825,7 @@ def test_frame_emit_skips_unchanged_render(capsys):
     assert second == "frame"
     assert third == "next"
     assert out.count("\033[H") == 2
+    assert out.count("\033[J") == 2
 
 
 def test_chat_frame_does_not_cap_long_agent_messages():
