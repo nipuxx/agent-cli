@@ -1211,6 +1211,43 @@ def test_source_code_shell_output_does_not_create_measurement_obligation(tmp_pat
         db.close()
 
 
+def test_prose_from_timed_command_does_not_create_measurement_obligation(tmp_path):
+    class ProseShellRegistry:
+        def openai_tools(self):
+            return []
+
+        def handle(self, name, args, ctx):
+            del args, ctx
+            if name == "shell_exec":
+                return json.dumps({
+                    "success": True,
+                    "command": "time cat draft.txt",
+                    "returncode": 0,
+                    "stdout": 'This draft says "time". 2 examples are listed. It asks readers to rate a story.',
+                    "stderr": "",
+                })
+            return json.dumps({"success": True})
+
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Improve a measurable process", title="measure", kind="generic")
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([LLMResponse(tool_calls=[ToolCall(name="shell_exec", arguments={"command": "time cat draft.txt"})])]),
+            registry=ProseShellRegistry(),
+        )
+
+        job = db.get_job(job_id)
+        assert result.tool_name == "shell_exec"
+        assert job["metadata"].get("pending_measurement_obligation") in (None, {})
+    finally:
+        db.close()
+
+
 def test_large_shell_output_must_be_saved_before_more_shell_churn(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

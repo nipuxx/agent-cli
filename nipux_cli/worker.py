@@ -1301,7 +1301,7 @@ LABELED_MEASUREMENT_PATTERN = re.compile(
     r"(?i)^\s*(?:score|rate|speed|throughput|latency|accuracy|loss|error|duration|runtime|time)\s*(?:=|:)\s*[-+]?\d"
 )
 EXPLICIT_RESULT_UNIT_PATTERN = re.compile(
-    r"(?i)\b\d+(?:\.\d+)?\s*(?:ms|msec|sec|secs|seconds|it/s|ops/s|req/s|qps|rps|samples/s|items/s|units/s|"
+    r"(?i)\b\d+(?:\.\d+)?\s*(?:%|ms|msec|sec|secs|seconds|it/s|ops/s|req/s|qps|rps|samples/s|items/s|units/s|"
     r"tokens/s|tok/s|t/s|kb/s|mb/s|gb/s|tb/s)\b"
 )
 
@@ -1318,6 +1318,10 @@ def _measurement_candidates(output: dict[str, Any], *, command: str = "", limit:
     candidates: list[str] = []
     for match in MEASUREMENT_PATTERN.finditer(text[:20000]):
         candidate = " ".join(match.group(0).split())
+        if not EXPLICIT_RESULT_UNIT_PATTERN.search(candidate):
+            expanded = " ".join(text[match.start() : min(len(text), match.end() + 32)].split())
+            if EXPLICIT_RESULT_UNIT_PATTERN.search(expanded):
+                candidate = expanded
         if _candidate_is_diagnostic_only(candidate, command_has_measurement_intent):
             continue
         if candidate not in candidates:
@@ -1328,8 +1332,9 @@ def _measurement_candidates(output: dict[str, Any], *, command: str = "", limit:
 
 
 def _candidate_is_diagnostic_only(candidate: str, command_has_measurement_intent: bool) -> bool:
+    has_structured_metric = bool(EXPLICIT_RESULT_UNIT_PATTERN.search(candidate) or LABELED_MEASUREMENT_PATTERN.search(candidate))
     if command_has_measurement_intent:
-        return False
+        return not has_structured_metric
     if DIAGNOSTIC_MEASUREMENT_PATTERN.search(candidate):
         return True
     if EXPLICIT_RESULT_UNIT_PATTERN.search(candidate) and not re.search(r"(?i)\b(?:cpu|gpu|ram|mem|memory)\b", candidate):
