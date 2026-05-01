@@ -25,6 +25,7 @@ from urllib.parse import urlparse
 
 from nipux_cli import __version__
 from nipux_cli.artifacts import ArtifactStore
+from nipux_cli.chat_tui import build_chat_frame as _build_chat_tui_frame
 from nipux_cli.config import (
     DEFAULT_BASE_URL,
     DEFAULT_API_KEY_ENV,
@@ -42,7 +43,6 @@ from nipux_cli.doctor import run_doctor
 from nipux_cli.first_run_tui import (
     build_first_run_frame as _build_first_run_tui_frame,
     first_run_columns as _first_run_columns,
-    first_run_themed_lines as _first_run_themed_lines,
 )
 from nipux_cli.operator_context import active_prompt_operator_entries
 from nipux_cli.planning import (
@@ -58,37 +58,24 @@ from nipux_cli.tui_commands import (
     FIRST_RUN_ACTIONS,
     FIRST_RUN_SLASH_COMMANDS,
     autocomplete_slash as _autocomplete_slash,
-    slash_suggestion_lines as _slash_suggestion_lines,
+    slash_suggestion_lines,
 )
 from nipux_cli.settings import (
     config_field_value as _config_field_value,
-    edit_target_hint as _edit_target_hint,
-    edit_target_label as _edit_target_label,
-    edit_target_masks_input as _edit_target_masks_input,
     inline_setting_notice as _inline_setting_notice,
     save_config_field,
 )
 from nipux_cli.tui_events import (
     CHAT_RIGHT_PAGES,
-    chat_pane_lines as _chat_pane_lines,
-    chat_updates_pane_lines as _chat_updates_pane_lines,
     clean_step_summary as _clean_step_summary,
     friendly_error_text as _friendly_error_text,
     generic_display_text as _generic_display_text,
     live_badge as _live_badge,
     minimal_live_event_line as _minimal_live_event_line,
 )
-from nipux_cli.tui_layout import (
-    _compose_bar,
-    _top_bar,
-    _two_col_line,
-    _two_col_title,
-)
 from nipux_cli.tui_status import (
     active_operator_messages as _active_operator_messages,
-    chat_work_pane_lines as _chat_work_pane_lines,
     job_display_state as _job_display_state,
-    right_pane_lines as _right_pane_lines,
     worker_label as _worker_label,
 )
 from nipux_cli.tui_style import (
@@ -103,6 +90,7 @@ from nipux_cli.updates import render_updates_report
 from nipux_cli.usage import format_usage_report
 
 _save_config_field = save_config_field
+_slash_suggestion_lines = slash_suggestion_lines
 
 
 SHELL_BUILTINS = {"help", "?", "commands", "exit", "quit", ":q", "clear"}
@@ -1419,135 +1407,16 @@ def _build_chat_frame(
     selected_control: int = 0,
     editing_field: str | None = None,
 ) -> str:
-    width = max(92, width)
-    height = max(22, height)
-    job = snapshot["job"]
-    jobs = snapshot["jobs"]
-    steps = snapshot["steps"]
-    artifacts = snapshot["artifacts"]
-    job_id = str(snapshot["job_id"])
-    job_artifacts = snapshot.get("job_artifacts") if isinstance(snapshot.get("job_artifacts"), dict) else {}
-    if artifacts:
-        job_artifacts.setdefault(job_id, artifacts)
-    memory_entries = snapshot["memory_entries"]
-    events = snapshot["events"]
-    summary_events = snapshot.get("summary_events") if isinstance(snapshot.get("summary_events"), list) else events
-    daemon = snapshot["daemon"]
-    model = str(snapshot["model"])
-    base_url = str(snapshot.get("base_url") or "")
-    token_usage = snapshot.get("token_usage") if isinstance(snapshot.get("token_usage"), dict) else {}
-    context_length = int(snapshot.get("context_length") or 0)
-    counts = snapshot.get("counts") if isinstance(snapshot.get("counts"), dict) else {}
-    findings = _metadata_records(job, "finding_ledger")
-    sources = _metadata_records(job, "source_ledger")
-    tasks = _metadata_records(job, "task_queue")
-    experiments = _metadata_records(job, "experiment_ledger")
-    lessons = _metadata_records(job, "lessons")
-    roadmap = job.get("metadata", {}).get("roadmap") if isinstance(job.get("metadata"), dict) else {}
-    milestones = roadmap.get("milestones") if isinstance(roadmap, dict) and isinstance(roadmap.get("milestones"), list) else []
-    open_tasks = sum(1 for task in tasks if str(task.get("status") or "open") in {"open", "active"})
-    state = _job_display_state(job, bool(daemon["running"]))
-    worker = _worker_label(job, bool(daemon["running"]))
-    latest_step = steps[-1] if steps else None
-    left_width = max(56, int(width * 0.64))
-    right_width = max(34, width - left_width - 3)
-    if right_width < 34:
-        right_width = 34
-        left_width = max(48, width - right_width - 3)
-    latest_text = _step_line(latest_step, chars=right_width - 6) if latest_step else "no worker steps yet"
-    daemon_text = _daemon_state_line(daemon)
-    goal_text = " ".join(str(job.get("objective") or "").split())
-    metrics = [
-        ("actions", counts.get("steps", _step_count(steps))),
-        ("outputs", counts.get("artifacts", len(artifacts))),
-        ("findings", len(findings)),
-        ("sources", len(sources)),
-        ("tasks", f"{len(tasks)}/{open_tasks} open"),
-        ("roadmap", len(milestones)),
-        ("experiments", len(experiments)),
-        ("lessons", len(lessons)),
-        ("memory", counts.get("memory", len(memory_entries))),
-    ]
-
-    header = _top_bar(
-        width,
-        state=state,
-        daemon=daemon_text,
-        model=model,
-        token_usage=token_usage,
-        context_length=context_length,
-        base_url=base_url,
-    )
-    if editing_field:
-        hint = _edit_target_hint(editing_field)
-        prompt_label = _edit_target_label(editing_field)
-    else:
-        hint = "Enter sends  ·  / commands  ·  ←→ panels  ·  ↑↓ jobs"
-        prompt_label = "❯"
-    suggestions = [] if editing_field else _slash_suggestion_lines(input_buffer, CHAT_SLASH_COMMANDS, width=width)
-    compose_lines = _compose_bar(
+    return _build_chat_tui_frame(
+        snapshot,
         input_buffer,
+        notices,
         width=width,
-        hint=hint,
-        suggestions=suggestions,
-        prompt_label=prompt_label,
-        mask_input=_edit_target_masks_input(editing_field),
+        height=height,
+        right_view=right_view,
+        selected_control=selected_control,
+        editing_field=editing_field,
     )
-    footer_rows = len(compose_lines)
-    body_rows = max(10, height - len(header) - 1 - footer_rows)
-    chat_rows = body_rows
-    right_rows = body_rows
-    chat_lines = _chat_pane_lines(events, notices, width=left_width, rows=chat_rows)
-    if right_view == "updates":
-        right_lines = _chat_updates_pane_lines(
-            job=job,
-            events=summary_events,
-            width=right_width,
-            rows=right_rows,
-        )
-        right_title = "Progress"
-    elif right_view == "work":
-        right_lines = _chat_work_pane_lines(
-            job=job,
-            events=events,
-            tasks=tasks,
-            experiments=experiments,
-            width=right_width,
-            rows=right_rows,
-        )
-        right_title = "Work"
-    else:
-        right_lines = _right_pane_lines(
-            job=job,
-            jobs=jobs,
-            job_artifacts=job_artifacts,
-            job_id=job_id,
-            daemon_running=bool(daemon["running"]),
-            state=state,
-            worker=worker,
-            daemon_text=daemon_text,
-            model=model,
-            goal_text=goal_text,
-            latest_text=latest_text,
-            metrics=metrics,
-            events=summary_events,
-            width=right_width,
-            rows=right_rows,
-            right_view=right_view,
-        )
-        right_title = "Status"
-    lines = [*header, _two_col_title(left_width, right_width, "Chat", right_title)]
-    for index in range(body_rows):
-        left = chat_lines[index] if index < len(chat_lines) else ""
-        right = right_lines[index] if index < len(right_lines) else ""
-        lines.append(_two_col_line(left, right, left_width=left_width, right_width=right_width))
-    lines.extend(compose_lines)
-    if len(lines) > height:
-        keep_top = min(4, len(header) + 1)
-        keep_bottom = footer_rows
-        middle_budget = max(0, height - keep_top - keep_bottom)
-        lines = lines[:keep_top] + lines[-(middle_budget + keep_bottom) : -keep_bottom] + lines[-keep_bottom:]
-    return "\n".join(_first_run_themed_lines(lines[:height], width=width))
 
 
 def _resolve_job_id(db: AgentDB, requested: Any = None) -> str | None:
