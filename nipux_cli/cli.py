@@ -78,6 +78,7 @@ from nipux_cli.event_render import (
     event_line as _event_line,
 )
 from nipux_cli.frame_snapshot import load_frame_snapshot
+from nipux_cli.parser_builder import build_arg_parser
 from nipux_cli.planning import (
     format_initial_plan,
     initial_plan_for_objective,
@@ -3657,321 +3658,58 @@ def _steer_default_job(message: str) -> None:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="nipux")
-    parser.add_argument("--version", action="version", version=f"nipux {__version__}")
-    sub = parser.add_subparsers(dest="command", required=True)
-
-    init = sub.add_parser("init")
-    init.add_argument("--path")
-    init.add_argument("--force", action="store_true")
-    init.add_argument("--openrouter", action="store_true", help="Write an OpenRouter config that reads OPENROUTER_API_KEY")
-    init.add_argument("--model", help="Model name to write into config.yaml")
-    init.add_argument("--base-url", help="OpenAI-compatible API base URL")
-    init.add_argument("--api-key-env", help="Environment variable that stores the API key")
-    init.add_argument("--context-length", type=int, default=DEFAULT_CONTEXT_LENGTH)
-    init.set_defaults(func=cmd_init)
-
-    create = sub.add_parser("create")
-    create.add_argument("objective")
-    create.add_argument("--title")
-    create.add_argument("--kind", default="generic")
-    create.add_argument("--cadence")
-    create.set_defaults(func=cmd_create)
-
-    jobs = sub.add_parser("jobs")
-    jobs.set_defaults(func=cmd_jobs)
-
-    ls_cmd = sub.add_parser("ls")
-    ls_cmd.set_defaults(func=cmd_jobs)
-
-    focus = sub.add_parser("focus")
-    focus.add_argument("query", nargs="*")
-    focus.set_defaults(func=cmd_focus)
-
-    rename = sub.add_parser("rename")
-    rename.add_argument("job_id", nargs="*")
-    rename.add_argument("--title", nargs="+", required=True)
-    rename.set_defaults(func=cmd_rename)
-
-    delete = sub.add_parser("delete", aliases=["rm"])
-    delete.add_argument("job_id", nargs="*")
-    delete.add_argument("--keep-files", action="store_true")
-    delete.set_defaults(func=cmd_delete)
-
-    chat = sub.add_parser("chat")
-    chat.add_argument("job_id", nargs="*")
-    chat.add_argument("--history-limit", type=int, default=12)
-    chat.add_argument("--no-history", action="store_true")
-    chat.set_defaults(func=cmd_chat)
-
-    shell = sub.add_parser("shell")
-    shell.add_argument("--status", action="store_true", help="Render the full dashboard when the shell opens")
-    shell.add_argument("--no-status", action="store_true", help=argparse.SUPPRESS)
-    shell.add_argument("--limit", type=int, default=8)
-    shell.add_argument("--chars", type=int, default=180)
-    shell.set_defaults(func=cmd_shell)
-
-    steer = sub.add_parser("steer", aliases=["say"])
-    steer.add_argument("--job", dest="job_id")
-    steer.add_argument("message", nargs="+")
-    steer.set_defaults(func=cmd_steer)
-
-    pause = sub.add_parser("pause")
-    pause.add_argument("parts", nargs="*", help="Optional job title/id followed by an optional note")
-    pause.set_defaults(func=cmd_pause)
-
-    resume = sub.add_parser("resume")
-    resume.add_argument("job_id", nargs="*")
-    resume.set_defaults(func=cmd_resume)
-
-    cancel = sub.add_parser("cancel")
-    cancel.add_argument("parts", nargs="*", help="Optional job title/id followed by an optional note")
-    cancel.set_defaults(func=cmd_cancel)
-
-    status = sub.add_parser("status")
-    status.add_argument("job_id", nargs="*")
-    status.add_argument("--limit", type=int, default=8)
-    status.add_argument("--chars", type=int, default=180)
-    status.add_argument("--full", action="store_true", help="Render the full dashboard")
-    status.add_argument("--json", action="store_true")
-    status.set_defaults(func=cmd_status)
-
-    health = sub.add_parser("health")
-    health.add_argument("--limit", type=int, default=8)
-    health.add_argument("--chars", type=int, default=180)
-    health.set_defaults(func=cmd_health)
-
-    history = sub.add_parser("history")
-    history.add_argument("job_id", nargs="*")
-    history.add_argument("--limit", type=int, default=80)
-    history.add_argument("--chars", type=int, default=260)
-    history.add_argument("--full", action="store_true")
-    history.add_argument("--json", action="store_true")
-    history.set_defaults(func=cmd_history)
-
-    events = sub.add_parser("events")
-    events.add_argument("job_id", nargs="*")
-    events.add_argument("--limit", type=int, default=80)
-    events.add_argument("--chars", type=int, default=260)
-    events.add_argument("--full", action="store_true")
-    events.add_argument("--follow", action="store_true")
-    events.add_argument("--interval", type=float, default=2.0)
-    events.add_argument("--json", action="store_true")
-    events.set_defaults(func=cmd_events)
-
-    dashboard = sub.add_parser("dashboard", aliases=["dash"])
-    dashboard.add_argument("job_id", nargs="*")
-    dashboard.add_argument("--interval", type=float, default=2.0)
-    dashboard.add_argument("--limit", type=int, default=12)
-    dashboard.add_argument("--chars", type=int, default=260)
-    dashboard.add_argument("--no-follow", dest="follow", action="store_false")
-    dashboard.add_argument("--no-clear", dest="clear", action="store_false")
-    dashboard.set_defaults(func=cmd_dashboard, follow=True, clear=True)
-
-    start = sub.add_parser("start")
-    start.add_argument("--poll-seconds", type=float, default=0.0)
-    start.add_argument("--fake", action="store_true", help="Use deterministic fake model responses")
-    start.add_argument("--quiet", action="store_true", help="Write fewer daemon log lines")
-    start.add_argument("--log-file")
-    start.set_defaults(func=cmd_start)
-
-    stop = sub.add_parser("stop")
-    stop.add_argument("job_id", nargs="*", help="Optional job title/id to pause instead of stopping the daemon")
-    stop.add_argument("--wait", type=float, default=5.0)
-    stop.set_defaults(func=cmd_stop)
-
-    restart = sub.add_parser("restart")
-    restart.add_argument("--poll-seconds", type=float, default=0.0)
-    restart.add_argument("--wait", type=float, default=5.0)
-    restart.add_argument("--fake", action="store_true", help="Use deterministic fake model responses")
-    restart.add_argument("--quiet", action="store_true", help="Write fewer daemon log lines")
-    restart.add_argument("--log-file")
-    restart.set_defaults(func=cmd_restart)
-
-    browser_dashboard = sub.add_parser("browser-dashboard")
-    browser_dashboard.add_argument("--port", type=int, default=4848)
-    browser_dashboard.add_argument("--foreground", action="store_true")
-    browser_dashboard.add_argument("--stop", action="store_true")
-    browser_dashboard.add_argument("--log-file")
-    browser_dashboard.set_defaults(func=cmd_browser_dashboard)
-
-    autostart = sub.add_parser("autostart")
-    autostart.add_argument("action", choices=["install", "status", "uninstall"])
-    autostart.add_argument("--poll-seconds", type=float, default=5.0)
-    autostart.add_argument("--quiet", action="store_true")
-    autostart.set_defaults(func=cmd_autostart)
-
-    service = sub.add_parser("service")
-    service.add_argument("action", choices=["install", "status", "uninstall"])
-    service.add_argument("--poll-seconds", type=float, default=0.0)
-    service.add_argument("--quiet", action="store_true")
-    service.set_defaults(func=cmd_service)
-
-    artifacts = sub.add_parser("artifacts")
-    artifacts.add_argument("job_id", nargs="*")
-    artifacts.add_argument("--limit", type=int, default=25)
-    artifacts.add_argument("--chars", type=int, default=220)
-    artifacts.add_argument("--paths", action="store_true", help="Show full artifact paths")
-    artifacts.set_defaults(func=cmd_artifacts)
-
-    artifact = sub.add_parser("artifact")
-    artifact.add_argument("artifact_id_or_path", nargs="+")
-    artifact.add_argument("--job", dest="job_id")
-    artifact.add_argument("--chars", type=int, default=12000)
-    artifact.set_defaults(func=cmd_artifact)
-
-    lessons = sub.add_parser("lessons")
-    lessons.add_argument("job_id", nargs="*")
-    lessons.add_argument("--limit", type=int, default=25)
-    lessons.add_argument("--chars", type=int, default=220)
-    lessons.set_defaults(func=cmd_lessons)
-
-    learn = sub.add_parser("learn")
-    learn.add_argument("--job", dest="job_id")
-    learn.add_argument("--category", default="operator_preference")
-    learn.add_argument("--chars", type=int, default=220)
-    learn.add_argument("lesson", nargs="+")
-    learn.set_defaults(func=cmd_learn)
-
-    findings = sub.add_parser("findings")
-    findings.add_argument("job_id", nargs="*")
-    findings.add_argument("--limit", type=int, default=25)
-    findings.add_argument("--chars", type=int, default=220)
-    findings.add_argument("--json", action="store_true")
-    findings.set_defaults(func=cmd_findings)
-
-    tasks = sub.add_parser("tasks")
-    tasks.add_argument("job_id", nargs="*")
-    tasks.add_argument("--limit", type=int, default=25)
-    tasks.add_argument("--chars", type=int, default=220)
-    tasks.add_argument("--status", nargs="+")
-    tasks.add_argument("--json", action="store_true")
-    tasks.set_defaults(func=cmd_tasks)
-
-    roadmap = sub.add_parser("roadmap")
-    roadmap.add_argument("job_id", nargs="*")
-    roadmap.add_argument("--limit", type=int, default=25)
-    roadmap.add_argument("--features", type=int, default=3)
-    roadmap.add_argument("--chars", type=int, default=220)
-    roadmap.add_argument("--json", action="store_true")
-    roadmap.set_defaults(func=cmd_roadmap)
-
-    experiments = sub.add_parser("experiments")
-    experiments.add_argument("job_id", nargs="*")
-    experiments.add_argument("--limit", type=int, default=25)
-    experiments.add_argument("--chars", type=int, default=220)
-    experiments.add_argument("--status", nargs="+")
-    experiments.add_argument("--json", action="store_true")
-    experiments.set_defaults(func=cmd_experiments)
-
-    sources = sub.add_parser("sources")
-    sources.add_argument("job_id", nargs="*")
-    sources.add_argument("--limit", type=int, default=25)
-    sources.add_argument("--chars", type=int, default=220)
-    sources.add_argument("--json", action="store_true")
-    sources.set_defaults(func=cmd_sources)
-
-    memory = sub.add_parser("memory")
-    memory.add_argument("job_id", nargs="*")
-    memory.add_argument("--limit", type=int, default=10)
-    memory.add_argument("--chars", type=int, default=260)
-    memory.set_defaults(func=cmd_memory)
-
-    metrics = sub.add_parser("metrics")
-    metrics.add_argument("job_id", nargs="*")
-    metrics.add_argument("--chars", type=int, default=220)
-    metrics.set_defaults(func=cmd_metrics)
-
-    usage = sub.add_parser("usage")
-    usage.add_argument("job_id", nargs="*")
-    usage.add_argument("--json", action="store_true")
-    usage.set_defaults(func=cmd_usage)
-
-    logs = sub.add_parser("logs", aliases=["outputs", "output"])
-    logs.add_argument("job_id", nargs="*")
-    logs.add_argument("--limit", type=int, default=25)
-    logs.add_argument("--verbose", action="store_true")
-    logs.add_argument("--chars", type=int, default=4000)
-    logs.set_defaults(func=cmd_logs)
-
-    activity = sub.add_parser("activity", aliases=["feed", "tail"])
-    activity.add_argument("job_id", nargs="*")
-    activity.add_argument("--limit", type=int, default=20)
-    activity.add_argument("--chars", type=int, default=180)
-    activity.add_argument("--follow", action="store_true")
-    activity.add_argument("--interval", type=float, default=2.0)
-    activity.add_argument("--verbose", action="store_true")
-    activity.add_argument("--paths", action="store_true", help="Show full artifact paths")
-    activity.set_defaults(func=cmd_activity)
-
-    updates = sub.add_parser("updates", aliases=["update", "outcomes", "outcome"])
-    updates.add_argument("job_id", nargs="*")
-    updates.add_argument("--limit", type=int, default=5)
-    updates.add_argument("--chars", type=int, default=180)
-    updates.add_argument("--paths", action="store_true", help="Show full artifact paths")
-    updates.set_defaults(func=cmd_updates)
-
-    watch = sub.add_parser("watch")
-    watch.add_argument("job_id", nargs="+")
-    watch.add_argument("--interval", type=float, default=2.0)
-    watch.add_argument("--limit", type=int, default=20)
-    watch.add_argument("--verbose", action="store_true")
-    watch.add_argument("--chars", type=int, default=4000)
-    watch.add_argument("--no-follow", dest="follow", action="store_false")
-    watch.set_defaults(func=cmd_watch, follow=True)
-
-    run_one = sub.add_parser("run-one")
-    run_one.add_argument("job_id", nargs="+")
-    run_one.add_argument("--fake", action="store_true", help="Use a deterministic fake model response")
-    run_one.set_defaults(func=cmd_run_one)
-
-    work = sub.add_parser("work")
-    work.add_argument("job_id", nargs="*")
-    work.add_argument("--steps", type=int, default=5)
-    work.add_argument("--poll-seconds", type=float, default=0.5)
-    work.add_argument("--fake", action="store_true", help="Use deterministic fake model responses")
-    work.add_argument("--verbose", action="store_true", help="Print step inputs and outputs")
-    work.add_argument("--dashboard", action="store_true", help="Render a dashboard snapshot after each step")
-    work.add_argument("--limit", type=int, default=12)
-    work.add_argument("--chars", type=int, default=4000)
-    work.add_argument("--continue-on-error", action="store_true")
-    work.set_defaults(func=cmd_work)
-
-    run = sub.add_parser("run")
-    run.add_argument("job_id", nargs="*")
-    run.add_argument("--poll-seconds", type=float, default=0.0)
-    run.add_argument("--interval", type=float, default=2.0)
-    run.add_argument("--limit", type=int, default=20)
-    run.add_argument("--chars", type=int, default=180)
-    run.add_argument("--verbose", action="store_true")
-    run.add_argument("--paths", action="store_true")
-    run.add_argument("--fake", action="store_true", help="Use deterministic fake model responses")
-    run.add_argument("--quiet", action="store_true", help="Write fewer daemon log lines")
-    run.add_argument("--log-file")
-    run.add_argument("--no-follow", action="store_true", help="Start daemon and return without tailing activity")
-    run.set_defaults(func=cmd_run)
-
-    digest = sub.add_parser("digest")
-    digest.add_argument("job_id", nargs="+")
-    digest.set_defaults(func=cmd_digest)
-
-    daily_digest = sub.add_parser("daily-digest")
-    daily_digest.add_argument("--day", help="YYYY-MM-DD. Defaults to today.")
-    daily_digest.set_defaults(func=cmd_daily_digest)
-
-    daemon = sub.add_parser("daemon")
-    daemon.add_argument("--once", action="store_true", help="Run at most one job step and exit")
-    daemon.add_argument("--fake", action="store_true", help="Use deterministic fake model responses")
-    daemon.add_argument("--poll-seconds", type=float, default=0.0)
-    daemon.add_argument("--quiet", action="store_true", help="Do not print foreground progress lines")
-    daemon.add_argument("--verbose", action="store_true", help="Print model-visible job state and step results")
-    daemon.set_defaults(func=cmd_daemon)
-
-    doctor = sub.add_parser("doctor")
-    doctor.add_argument("--check-model", action="store_true", help="Also call the local model /models endpoint")
-    doctor.set_defaults(func=cmd_doctor)
-
-    return parser
+    return build_arg_parser(
+        handlers={
+            "init": cmd_init,
+            "create": cmd_create,
+            "jobs": cmd_jobs,
+            "focus": cmd_focus,
+            "rename": cmd_rename,
+            "delete": cmd_delete,
+            "chat": cmd_chat,
+            "shell": cmd_shell,
+            "steer": cmd_steer,
+            "pause": cmd_pause,
+            "resume": cmd_resume,
+            "cancel": cmd_cancel,
+            "status": cmd_status,
+            "health": cmd_health,
+            "history": cmd_history,
+            "events": cmd_events,
+            "dashboard": cmd_dashboard,
+            "start": cmd_start,
+            "stop": cmd_stop,
+            "restart": cmd_restart,
+            "browser_dashboard": cmd_browser_dashboard,
+            "autostart": cmd_autostart,
+            "service": cmd_service,
+            "artifacts": cmd_artifacts,
+            "artifact": cmd_artifact,
+            "lessons": cmd_lessons,
+            "learn": cmd_learn,
+            "findings": cmd_findings,
+            "tasks": cmd_tasks,
+            "roadmap": cmd_roadmap,
+            "experiments": cmd_experiments,
+            "sources": cmd_sources,
+            "memory": cmd_memory,
+            "metrics": cmd_metrics,
+            "usage": cmd_usage,
+            "logs": cmd_logs,
+            "activity": cmd_activity,
+            "updates": cmd_updates,
+            "watch": cmd_watch,
+            "run_one": cmd_run_one,
+            "work": cmd_work,
+            "run": cmd_run,
+            "digest": cmd_digest,
+            "daily_digest": cmd_daily_digest,
+            "daemon": cmd_daemon,
+            "doctor": cmd_doctor,
+        },
+        version=__version__,
+        default_context_length=DEFAULT_CONTEXT_LENGTH,
+    )
 
 
 def main(argv: list[str] | None = None) -> None:
