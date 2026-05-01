@@ -213,6 +213,21 @@ Use `nipux health` for daemon truth without opening the dashboard. It reports
 the lock state, heartbeat, recent failures, log paths, autostart state, focused
 job, and latest daemon events.
 
+### Seeing What It Actually Did
+
+Use these views when a job has been running unattended:
+
+- `nipux outcomes JOB` or the **Progress** pane: durable work grouped by time,
+  including saved outputs, findings, measurements, decisions, lessons, and file
+  changes.
+- `nipux activity JOB --follow` or the **Work** pane: the raw live tool stream
+  for debugging what the worker is doing right now.
+- `nipux usage JOB`: model calls, context pressure, output tokens, and cost when
+  the provider returns cost metadata.
+- `nipux digest JOB` and `nipux daily-digest`: durable summary reports that
+  include progress counts, active operator context, experiments, artifacts, and
+  token/cost usage.
+
 ## Tool Surface
 
 The worker exposes a deliberately small tool registry:
