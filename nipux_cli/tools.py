@@ -256,6 +256,19 @@ def _report_update(args: dict[str, Any], ctx: ToolContext) -> str:
     if normalized_message != message:
         metadata = {**metadata, "original_message": message, "rewritten_completion_claim": True}
         message = normalized_message
+        follow_up_task = ctx.db.append_task_record(
+            ctx.job_id,
+            title="Continue improving from latest checkpoint",
+            status="open",
+            priority=6,
+            goal="Use the checkpoint as a baseline, choose the next useful improvement branch, and validate it with evidence.",
+            output_contract="decision",
+            acceptance_criteria="A next branch is selected from durable evidence, or the branch is marked blocked with a reason.",
+            evidence_needed="Latest checkpoint, artifact, finding, experiment, task, or operator context used to choose the branch.",
+            stall_behavior="If no immediate improvement path is available, create a monitor/review branch rather than declaring completion.",
+            metadata={"source": "report_update", "rewritten_completion_claim": True},
+        )
+        metadata["follow_up_task"] = follow_up_task.get("key")
     entry = ctx.db.append_agent_update(ctx.job_id, message, category=category, metadata=metadata)
     return _json({"success": True, "job_id": ctx.job_id, "update": entry})
 

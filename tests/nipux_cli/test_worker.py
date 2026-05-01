@@ -988,6 +988,12 @@ def test_report_update_completion_claim_is_rewritten_as_checkpoint(tmp_path):
         assert update["message"] == "Checkpoint reported; continuing work. Best result saved."
         assert update["metadata"]["rewritten_completion_claim"] is True
         assert update["metadata"]["original_message"] == "Job completed. Best result saved."
+        assert update["metadata"]["follow_up_task"]
+        tasks = db.get_job(job_id)["metadata"]["task_queue"]
+        follow_up = next(task for task in tasks if task["key"] == update["metadata"]["follow_up_task"])
+        assert follow_up["title"] == "Continue improving from latest checkpoint"
+        assert follow_up["status"] == "open"
+        assert follow_up["output_contract"] == "decision"
     finally:
         db.close()
 
