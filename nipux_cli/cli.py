@@ -154,6 +154,17 @@ FIRST_RUN_SLASH_COMMANDS = [
     ("/new", "create a job"),
     ("/jobs", "list jobs"),
     ("/settings", "open settings"),
+    ("/model", "set model"),
+    ("/base-url", "set endpoint"),
+    ("/api-key", "save key"),
+    ("/api-key-env", "key env var"),
+    ("/context", "token budget"),
+    ("/timeout", "request timeout"),
+    ("/home", "state directory"),
+    ("/step-limit", "worker timeout"),
+    ("/output-chars", "output preview size"),
+    ("/daily-digest", "daily digest on/off"),
+    ("/digest-time", "digest time"),
     ("/doctor", "check setup"),
     ("/init", "write config"),
     ("/help", "show commands"),
@@ -176,7 +187,15 @@ CHAT_SLASH_COMMANDS = [
     ("/model", "set model"),
     ("/base-url", "set endpoint"),
     ("/api-key", "save key"),
+    ("/api-key-env", "key env var"),
     ("/context", "token budget"),
+    ("/timeout", "request timeout"),
+    ("/home", "state directory"),
+    ("/step-limit", "worker timeout"),
+    ("/output-chars", "output preview size"),
+    ("/daily-digest", "daily digest on/off"),
+    ("/digest-time", "digest time"),
+    ("/doctor", "check setup"),
     ("/pause", "pause job"),
     ("/resume", "resume job"),
     ("/stop", "pause job"),
@@ -194,16 +213,6 @@ FIRST_RUN_ACTIONS = [
 ]
 
 FIRST_RUN_SETTINGS_ACTIONS = [
-    ("edit:model.name", "Model", "model name"),
-    ("edit:model.base_url", "Base URL", "OpenAI-compatible endpoint"),
-    ("secret:model.api_key", "API key", "stored locally"),
-    ("edit:model.context_length", "Context", "token budget"),
-    ("edit:model.request_timeout_seconds", "Timeout", "request seconds"),
-    ("edit:runtime.home", "Home", "state directory"),
-    ("edit:runtime.max_step_seconds", "Step limit", "worker timeout seconds"),
-    ("edit:runtime.artifact_inline_char_limit", "Output chars", "inline artifact limit"),
-    ("edit:runtime.daily_digest_enabled", "Digest", "true or false"),
-    ("edit:runtime.daily_digest_time", "Digest time", "HH:MM"),
     ("back", "Back", "return to start"),
     ("doctor", "Doctor", "check local setup"),
     ("init", "Init config", "write starter config"),
@@ -705,6 +714,21 @@ def _handle_chat_setting_command(command: str, rest: list[str]) -> bool:
     return True
 
 
+def _capture_setting_command(line: str) -> list[str]:
+    try:
+        parts = shlex.split(line[1:] if line.startswith("/") else line)
+    except ValueError as exc:
+        return [f"parse error: {exc}"]
+    if not parts:
+        return []
+    stream = StringIO()
+    with redirect_stdout(stream):
+        if not _handle_chat_setting_command(parts[0], parts[1:]):
+            print(f"unknown setting command: /{parts[0]}")
+    lines = [" ".join(item.split()) for item in stream.getvalue().splitlines() if item.strip()]
+    return lines[-12:] or ["done"]
+
+
 def _prompt_first_run_value(label: str) -> str:
     try:
         return input(f"{label} > ").strip()
@@ -1165,6 +1189,8 @@ def _handle_first_run_frame_line(line: str) -> tuple[str, str | list[str] | None
     first = _first_token(original)
     if first == "shell":
         return "notice", "The old console is only available as `nipux shell` from your terminal."
+    if first in CHAT_SETTING_COMMANDS or first in {"settings", "api-key", "key"}:
+        return "notice", _capture_setting_command(original)
     if first in SHELL_COMMAND_NAMES:
         before_job_id = _current_default_job_id()
         output = _capture_first_run_command(original)
@@ -1372,7 +1398,10 @@ def _first_run_right_lines(
     if view == "settings":
         lines = [
             *profile_lines,
-            _bold("Editable"),
+            _bold("Commands"),
+            *_settings_command_lines(config=load_config(), width=width, limit=max(4, rows - len(profile_lines) - 6)),
+            "",
+            _bold("Actions"),
             *_first_run_action_lines(_first_run_actions(view), selected, width=width),
         ]
         return [_fit_ansi(line, width) for line in lines[:rows]]
@@ -1424,6 +1453,34 @@ def _first_run_action_lines(actions: list[tuple[str, str, str]], selected: int, 
             state = "set" if config.model.api_key else "missing"
             detail = state
         lines.append(_fit_ansi(f"{marker} {_fit_ansi(name, 14)} {_muted(detail)}", width))
+    return lines
+
+
+def _settings_command_lines(*, config: Any, width: int, limit: int | None = None) -> list[str]:
+    key_state = "set" if config.model.api_key else "missing"
+    entries = [
+        ("/model MODEL", config.model.model),
+        ("/base-url URL", config.model.base_url),
+        ("/api-key KEY", f"{key_state} via {config.model.api_key_env}"),
+        ("/api-key-env ENV", config.model.api_key_env),
+        ("/context TOKENS", str(config.model.context_length)),
+        ("/timeout SECONDS", f"{config.model.request_timeout_seconds:g}"),
+        ("/home PATH", _short_path(config.runtime.home, max_width=max(12, width - 24))),
+        ("/step-limit SEC", str(config.runtime.max_step_seconds)),
+        ("/output-chars N", str(config.runtime.artifact_inline_char_limit)),
+        ("/daily-digest BOOL", str(config.runtime.daily_digest_enabled).lower()),
+        ("/digest-time HH:MM", config.runtime.daily_digest_time),
+    ]
+    visible = entries if limit is None else entries[: max(0, limit)]
+    lines: list[str] = []
+    command_width = min(22, max(len(command) for command, _value in entries) + 1)
+    for command, value in visible:
+        command_text = _fit_ansi(_accent(command), command_width)
+        value_text = _muted(_one_line(value, max(10, width - command_width - 1)))
+        lines.append(_fit_ansi(f"{command_text} {value_text}", width))
+    hidden = len(entries) - len(visible)
+    if hidden > 0:
+        lines.append(_muted(f"... {hidden} more settings commands. Use /settings for the full list."))
     return lines
 
 
@@ -2447,10 +2504,9 @@ def _chat_settings_pane_lines(
             metrics=metrics,
             width=width,
         ),
-        _bold("Editable"),
+        _bold("Commands"),
         f"{_muted('Config')} {_one_line(_short_path(_config_path()), width - 8)}",
-        f"{_muted('Home')}   {_one_line(_short_path(config.runtime.home), width - 8)}",
-        *_first_run_action_lines(_first_run_actions("settings"), selected, width=width),
+        *_settings_command_lines(config=config, width=width, limit=max(4, rows - 12)),
     ]
     return [_fit_ansi(line, width) for line in lines[:rows]]
 
@@ -5228,7 +5284,8 @@ def _chat_handle_line(job_id: str, line: str, *, reply_fn=None) -> bool:
         print("  /jobs /focus JOB_TITLE /switch JOB_TITLE /new OBJECTIVE /delete [JOB_TITLE]")
         print("  /history /events /activity /outputs /updates /status /health")
         print("  /artifacts /artifact QUERY /findings /tasks /roadmap /experiments /sources /memory /metrics /lessons")
-        print("  /settings /model MODEL /base-url URL /api-key KEY /context TOKENS /doctor")
+        print("  /settings /model MODEL /base-url URL /api-key KEY /api-key-env ENV /context TOKENS")
+        print("  /timeout SECONDS /home PATH /step-limit SECONDS /output-chars CHARS /daily-digest BOOL /digest-time HH:MM /doctor")
         print("  /run /start /restart /work N /work-verbose N /stop /pause [note] /resume /cancel [note]")
         print("  /learn LESSON /note MESSAGE /follow MESSAGE /digest /clear /exit")
         print("Plain text gets a model reply and is saved as model-visible steering.")

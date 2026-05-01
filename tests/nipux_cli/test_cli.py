@@ -13,6 +13,7 @@ from nipux_cli.cli import (
     _first_run_click_action,
     _frame_next_job_id,
     _handle_first_run_menu_line,
+    _handle_first_run_frame_line,
     _handle_chat_message,
     _inline_setting_notice,
     _launch_agent_plist,
@@ -249,8 +250,9 @@ def test_first_run_frame_has_settings_view(monkeypatch, tmp_path):
 
     assert "Settings" in frame
     assert "Config" in frame
-    assert "Base URL" in frame
-    assert "API key" in frame
+    assert "/base-url URL" in frame
+    assert "/api-key KEY" in frame
+    assert "/timeout SECONDS" in frame
     assert "API env" not in frame
     assert "Page" in frame
     assert "/shell" not in frame
@@ -288,6 +290,8 @@ def test_slash_autocomplete_filters_commands():
     assert _autocomplete_slash("/do", FIRST_RUN_SLASH_COMMANDS) == "/doctor "
     assert _autocomplete_slash("/se", FIRST_RUN_SLASH_COMMANDS) == "/settings "
     assert _autocomplete_slash("/sta", CHAT_SLASH_COMMANDS) == "/status "
+    assert _autocomplete_slash("/step", CHAT_SLASH_COMMANDS) == "/step-limit "
+    assert _autocomplete_slash("/out", FIRST_RUN_SLASH_COMMANDS) == "/output-chars "
     assert _autocomplete_slash("plain text", CHAT_SLASH_COMMANDS) == "plain text"
     lines = _slash_suggestion_lines("/art", CHAT_SLASH_COMMANDS, width=80)
     text = "\n".join(lines)
@@ -339,6 +343,9 @@ def test_chat_help_has_settings_without_shell(monkeypatch, tmp_path, capsys):
     assert "/settings" in out
     assert "/model MODEL" in out
     assert "/api-key KEY" in out
+    assert "/timeout SECONDS" in out
+    assert "/home PATH" in out
+    assert "/digest-time HH:MM" in out
     assert "/shell" not in out
 
 
@@ -360,6 +367,11 @@ def test_chat_settings_slash_commands_persist_config(monkeypatch, tmp_path, caps
     assert _chat_handle_line(job_id, "/model provider/model") is True
     assert _chat_handle_line(job_id, "/base-url https://example.com/v1") is True
     assert _chat_handle_line(job_id, "/context 8192") is True
+    assert _chat_handle_line(job_id, "/timeout 45") is True
+    assert _chat_handle_line(job_id, "/step-limit 90") is True
+    assert _chat_handle_line(job_id, "/output-chars 4096") is True
+    assert _chat_handle_line(job_id, "/daily-digest false") is True
+    assert _chat_handle_line(job_id, "/digest-time 08:30") is True
     assert _chat_handle_line(job_id, "/api-key-env NIPUX_TEST_KEY") is True
     assert _chat_handle_line(job_id, "/api-key sk-test-value") is True
     out = capsys.readouterr().out
@@ -367,13 +379,34 @@ def test_chat_settings_slash_commands_persist_config(monkeypatch, tmp_path, caps
     assert "saved model.name = provider/model" in out
     assert "saved model.base_url = https://example.com/v1" in out
     assert "saved model.context_length = 8192" in out
+    assert "saved model.request_timeout_seconds = 45.0" in out
+    assert "saved runtime.max_step_seconds = 90" in out
+    assert "saved runtime.artifact_inline_char_limit = 4096" in out
+    assert "saved runtime.daily_digest_enabled = False" in out
+    assert "saved runtime.daily_digest_time = 08:30" in out
     assert "saved model.api_key_env = NIPUX_TEST_KEY" in out
     assert "saved NIPUX_TEST_KEY" in out
     assert "sk-test-value" not in out
     assert _config_field_value("model.name") == "provider/model"
     assert _config_field_value("model.base_url") == "https://example.com/v1"
     assert _config_field_value("model.context_length") == 8192
+    assert _config_field_value("model.request_timeout_seconds") == 45.0
+    assert _config_field_value("runtime.max_step_seconds") == 90
+    assert _config_field_value("runtime.artifact_inline_char_limit") == 4096
+    assert _config_field_value("runtime.daily_digest_enabled") is False
+    assert _config_field_value("runtime.daily_digest_time") == "08:30"
     assert "NIPUX_TEST_KEY=sk-test-value" in (tmp_path / ".env").read_text(encoding="utf-8")
+
+
+def test_first_run_settings_slash_commands_persist_config(monkeypatch, tmp_path):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+
+    action, payload = _handle_first_run_frame_line("/model provider/model")
+
+    assert action == "notice"
+    assert isinstance(payload, list)
+    assert any("saved model.name = provider/model" in line for line in payload)
+    assert _config_field_value("model.name") == "provider/model"
 
 
 def test_shell_ls_alias_lists_jobs_instead_of_steering(monkeypatch, tmp_path, capsys):
@@ -612,7 +645,8 @@ def test_chat_frame_is_bounded_and_has_composer():
 
     settings = _build_chat_frame(snapshot, "", [], width=100, height=24, right_view="settings", selected_control=1)
     assert "Settings" in settings
-    assert "Base URL" in settings
+    assert "/base-url URL" in settings
+    assert "/timeout SECONDS" in settings
 
     editing = _build_chat_frame(
         snapshot,
