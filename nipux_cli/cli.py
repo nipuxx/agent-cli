@@ -111,6 +111,7 @@ from nipux_cli.planning import (
     initial_roadmap_for_objective,
     initial_task_contract,
 )
+from nipux_cli.scheduling import job_provider_blocked, provider_retry_metadata
 from nipux_cli.templates import program_for_job
 from nipux_cli.tui_commands import (
     CHAT_SLASH_COMMANDS,
@@ -1221,11 +1222,13 @@ def _ensure_job_runnable(db: AgentDB, job_id: str) -> None:
         return
     job = db.get_job(job_id)
     status = str(job.get("status") or "")
-    if status in {"completed", "paused", "cancelled", "failed"}:
+    if status in {"completed", "paused", "cancelled", "failed"} or job_provider_blocked(job):
+        patch = provider_retry_metadata()
+        patch["last_note"] = f"reopened from {status} by operator run command"
         db.update_job_status(
             job_id,
             "queued",
-            metadata_patch={"last_note": f"reopened from {status} by operator run command"},
+            metadata_patch=patch,
         )
         db.append_agent_update(
             job_id,
@@ -1278,7 +1281,7 @@ def cmd_resume(args: argparse.Namespace) -> None:
             ref = _job_ref_text(args.job_id)
             print(f"No job matched: {ref}" if ref else "No jobs found.")
             return
-        db.update_job_status(job_id, "queued")
+        db.update_job_status(job_id, "queued", metadata_patch=provider_retry_metadata())
         job = db.get_job(job_id)
         print(f"resumed {job['title']}")
     finally:

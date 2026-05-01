@@ -181,6 +181,32 @@ def test_daemon_skips_deferred_jobs_until_due(tmp_path):
         db.close()
 
 
+def test_daemon_quarantines_provider_blocked_jobs(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        blocked = db.create_job("Provider blocked job", title="blocked")
+        ready = db.create_job("Ready job", title="ready")
+        db.update_job_status(
+            blocked,
+            "running",
+            metadata_patch={"provider_blocked_at": datetime.now(timezone.utc).isoformat()},
+        )
+        daemon = Daemon(config=config, db=db)
+
+        job = daemon.next_runnable_job()
+
+        assert job is not None
+        assert job["id"] == ready
+        blocked_job = db.get_job(blocked)
+        assert blocked_job["status"] == "paused"
+        assert "provider" in blocked_job["metadata"]["last_note"].lower()
+        events = db.list_events(job_id=blocked, limit=10)
+        assert any(event["event_type"] == "agent_message" and event["metadata"].get("reason") == "llm_provider_blocked" for event in events)
+    finally:
+        db.close()
+
+
 def test_daemon_idle_sleep_wakes_for_deferred_job(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

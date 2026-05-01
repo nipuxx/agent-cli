@@ -1635,6 +1635,33 @@ def test_shell_stop_job_title_pauses_job_instead_of_stopping_daemon(monkeypatch,
         db.close()
 
 
+def test_resume_clears_provider_block_before_retry(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Research topic", title="nightly research")
+        db.update_job_status(
+            job_id,
+            "paused",
+            metadata_patch={"provider_blocked_at": "2026-05-01T00:00:00+00:00"},
+        )
+    finally:
+        db.close()
+
+    main(["resume", "nightly research"])
+
+    out = capsys.readouterr().out
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job = db.get_job(job_id)
+        assert "resumed nightly research" in out
+        assert job["status"] == "queued"
+        assert job["metadata"]["provider_blocked_at"] == ""
+        assert job["metadata"]["provider_unblocked_at"]
+    finally:
+        db.close()
+
+
 def test_shell_cancel_prefers_multiword_job_title_over_note(monkeypatch, tmp_path, capsys):
     monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
     db = AgentDB(tmp_path / "state.db")

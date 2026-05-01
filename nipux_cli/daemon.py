@@ -20,7 +20,7 @@ from nipux_cli.config import AppConfig, load_config
 from nipux_cli.db import AgentDB
 from nipux_cli.digest import write_daily_digest
 from nipux_cli.provider_errors import provider_action_required, provider_rate_limited
-from nipux_cli.scheduling import job_deferred_until, job_is_deferred
+from nipux_cli.scheduling import job_deferred_until, job_is_deferred, job_provider_blocked
 
 
 class DaemonAlreadyRunning(RuntimeError):
@@ -249,7 +249,26 @@ class Daemon:
         """
 
         now = datetime.now(timezone.utc)
-        for job in self.db.list_jobs(statuses=["queued", "running"]):
+        runnable_jobs = self.db.list_jobs(statuses=["queued", "running"])
+        for job in runnable_jobs:
+            if job_provider_blocked(job):
+                self.db.update_job_status(
+                    job["id"],
+                    "paused",
+                    metadata_patch={
+                        "last_note": "Model provider still requires operator action; paused before retrying failed calls.",
+                    },
+                )
+                self.db.append_agent_update(
+                    job["id"],
+                    "Model provider still requires operator action; paused before retrying failed calls.",
+                    category="error",
+                    metadata={"reason": "llm_provider_blocked"},
+                )
+                continue
+        for job in runnable_jobs:
+            if job_provider_blocked(job):
+                continue
             if job_is_deferred(job, now=now):
                 continue
             return job
