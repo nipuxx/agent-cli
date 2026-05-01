@@ -781,7 +781,8 @@ def test_chat_frame_is_bounded_and_has_composer():
     assert "Nipux CLI" in frame
     assert "Chat" in frame
     assert "Status" in frame
-    assert "Latest" in frame
+    assert "Outcome" in frame
+    assert "#3" not in frame
     assert "Jobs" in frame
     assert "Recent outcomes" in frame
     assert "ctx" in frame

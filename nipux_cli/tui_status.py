@@ -89,7 +89,7 @@ def right_pane_lines(
     rows: int,
     right_view: str = "status",
 ) -> list[str]:
-    del model
+    del model, latest_text
     info_lines = _chat_workspace_lines(
         right_view=right_view,
         job=job,
@@ -97,8 +97,6 @@ def right_pane_lines(
         worker=worker,
         daemon_text=daemon_text,
         goal_text=goal_text,
-        latest_text=latest_text,
-        metrics=metrics,
         token_usage=token_usage,
         context_length=context_length,
         width=width,
@@ -126,6 +124,7 @@ def right_pane_lines(
     latest_outcome = latest_durable_outcome_line(events, width=width)
     if latest_outcome:
         info_lines.append(latest_outcome)
+    info_lines.extend(_metrics_grid_lines(metrics, width=width))
     info_lines.append("")
     info_lines.append(_bold("Jobs"))
     info_lines.extend(
@@ -319,8 +318,6 @@ def _chat_workspace_lines(
     worker: str,
     daemon_text: str,
     goal_text: str,
-    latest_text: str,
-    metrics: list[tuple[str, Any]],
     token_usage: dict[str, Any],
     context_length: int,
     width: int,
@@ -335,7 +332,6 @@ def _chat_workspace_lines(
         f"{_status_badge(state)} {_muted('worker')} {_status_badge(worker)}  {_muted(_one_line(daemon_text, max(8, width - 28)))}",
         f"{_muted('Goal')}   {goal_lines[0]}",
         f"{_muted('       ')}{goal_lines[1]}",
-        f"{_muted('Latest')} {_one_line(latest_text, width - 8)}",
     ]
     task_line = _current_task_line(job, width=width)
     if task_line:
@@ -343,7 +339,6 @@ def _chat_workspace_lines(
     context_line = _context_pressure_line(token_usage, context_length=context_length, width=width)
     if context_line:
         lines.append(context_line)
-    lines.extend(_metrics_grid_lines(metrics, width=width))
     return lines
 
 
