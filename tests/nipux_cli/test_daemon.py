@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 import json
 import time
 
@@ -155,6 +155,27 @@ def test_daemon_ignores_ui_focus_for_worker_scheduling(tmp_path):
         assert first != second
         assert job is not None
         assert job["id"] == first
+    finally:
+        db.close()
+
+
+def test_daemon_skips_deferred_jobs_until_due(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        deferred = db.create_job("Deferred job", title="deferred")
+        ready = db.create_job("Ready job", title="ready")
+        db.update_job_status(
+            deferred,
+            "queued",
+            metadata_patch={"defer_until": (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()},
+        )
+        daemon = Daemon(config=config, db=db)
+
+        job = daemon.next_runnable_job()
+
+        assert job is not None
+        assert job["id"] == ready
     finally:
         db.close()
 

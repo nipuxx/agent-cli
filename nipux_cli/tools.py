@@ -9,6 +9,7 @@ import signal
 import subprocess
 import time
 from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable
 
@@ -195,6 +196,59 @@ def _update_job_state(args: dict[str, Any], ctx: ToolContext) -> str:
     patch = {"last_note": note} if note else None
     ctx.db.update_job_status(ctx.job_id, status, metadata_patch=patch)
     return _json({"success": True, "job_id": ctx.job_id, "status": status})
+
+
+def _defer_job(args: dict[str, Any], ctx: ToolContext) -> str:
+    until = _defer_until(args)
+    reason = str(args.get("reason") or "").strip()
+    next_action = str(args.get("next_action") or "").strip()
+    patch = {
+        "defer_until": until.isoformat(),
+        "defer_reason": reason,
+        "defer_next_action": next_action,
+    }
+    job = ctx.db.get_job(ctx.job_id)
+    status = str(job.get("status") or "queued")
+    if status not in {"queued", "running"}:
+        status = "queued"
+    ctx.db.update_job_status(ctx.job_id, status, metadata_patch=patch)
+    message = f"Deferred until {until.isoformat()}"
+    if reason:
+        message += f": {reason}"
+    if next_action:
+        message += f" Next: {next_action}"
+    ctx.db.append_agent_update(
+        ctx.job_id,
+        message,
+        category="progress",
+        metadata={"defer_until": until.isoformat(), "reason": reason, "next_action": next_action},
+    )
+    return _json({
+        "success": True,
+        "job_id": ctx.job_id,
+        "status": status,
+        "defer_until": until.isoformat(),
+        "reason": reason,
+        "next_action": next_action,
+    })
+
+
+def _defer_until(args: dict[str, Any]) -> datetime:
+    raw_until = str(args.get("until") or "").strip()
+    if raw_until:
+        try:
+            parsed = datetime.fromisoformat(raw_until.replace("Z", "+00:00"))
+        except ValueError:
+            parsed = datetime.now(timezone.utc)
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return parsed.astimezone(timezone.utc)
+    seconds = args.get("seconds", args.get("delay_seconds", 300))
+    try:
+        delay = max(1.0, float(seconds))
+    except (TypeError, ValueError):
+        delay = 300.0
+    return datetime.now(timezone.utc) + timedelta(seconds=delay)
 
 
 def _report_update(args: dict[str, Any], ctx: ToolContext) -> str:
@@ -947,6 +1001,16 @@ SUPPORT_SCHEMAS: list[ToolSpec] = [
         },
         "required": ["status"],
     }, _update_job_state),
+    ToolSpec("defer_job", "Wait before the next worker turn for this job. Use for long external processes, monitor/check-later tasks, cooldowns, or scheduled follow-up without completing or pausing the job.", {
+        "type": "object",
+        "properties": {
+            "seconds": {"type": "number", "description": "Delay in seconds before this job is runnable again.", "default": 300},
+            "until": {"type": "string", "description": "Optional ISO timestamp to resume after."},
+            "reason": {"type": "string"},
+            "next_action": {"type": "string"},
+        },
+        "required": [],
+    }, _defer_job),
     ToolSpec("report_update", "Leave a short operator-readable progress note. Do not use this instead of write_artifact for durable evidence.", {
         "type": "object",
         "properties": {

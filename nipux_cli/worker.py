@@ -66,6 +66,9 @@ file, document, config, dataset, or other workspace output. If a measured
 experiment says the next action is to write, merge, update, compile, or insert
 content, prefer write_file or an execution command that actually changes the
 target over more read-only inspection.
+Use defer_job when the next useful step is to wait for an external process,
+scheduled check, cooldown, long-running command, or monitor interval. Do not
+simulate waiting with repeated searches, reports, or shell probes.
 Use record_lesson when you learn something that should change future behavior:
 bad source patterns, task-specific success criteria, repeated mistakes, operator
 preferences, or a better strategy. Keep lessons short and reusable.
@@ -2264,6 +2267,8 @@ def _summarize_tool_result(name: str, args: dict[str, Any], result: dict[str, An
         return f"write_artifact saved {result.get('artifact_id')} at {result.get('path')}"
     if name == "write_file":
         return f"write_file {result.get('mode') or 'overwrite'} {result.get('path')} bytes={result.get('bytes')}"
+    if name == "defer_job":
+        return f"defer_job until {result.get('defer_until')}"
     if name == "report_update":
         update = result.get("update") if isinstance(result.get("update"), dict) else {}
         return f"report_update saved: {str(update.get('message') or '')[:160]}"

@@ -15,6 +15,7 @@ def test_static_tool_surface_is_focused():
     assert "shell_exec" in DEFAULT_REGISTRY.names()
     assert "write_file" in DEFAULT_REGISTRY.names()
     assert "write_artifact" in DEFAULT_REGISTRY.names()
+    assert "defer_job" in DEFAULT_REGISTRY.names()
     assert "report_update" in DEFAULT_REGISTRY.names()
     assert "record_lesson" in DEFAULT_REGISTRY.names()
     assert "record_source" in DEFAULT_REGISTRY.names()
@@ -53,6 +54,34 @@ def test_artifact_tools_roundtrip(tmp_path):
 
         search_raw = DEFAULT_REGISTRY.handle("search_artifacts", {"query": "needle"}, ctx)
         assert json.loads(search_raw)["results"][0]["id"] == result["artifact_id"]
+    finally:
+        db.close()
+
+
+def test_defer_job_records_resume_time_without_pausing(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Monitor a long process")
+        run_id = db.start_run(job_id, model="fake")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="defer_job")
+        ctx = ToolContext(config=config, db=db, artifacts=ArtifactStore(tmp_path, db), job_id=job_id, run_id=run_id, step_id=step_id)
+
+        raw = DEFAULT_REGISTRY.handle(
+            "defer_job",
+            {"seconds": 60, "reason": "process is still running", "next_action": "check status"},
+            ctx,
+        )
+        result = json.loads(raw)
+
+        assert result["success"] is True
+        assert result["status"] == "running"
+        job = db.get_job(job_id)
+        assert job["status"] == "running"
+        assert job["metadata"]["defer_until"]
+        assert job["metadata"]["defer_reason"] == "process is still running"
+        assert job["metadata"]["defer_next_action"] == "check status"
+        assert any(event["event_type"] == "agent_message" for event in db.list_events(job_id=job_id, limit=10))
     finally:
         db.close()
 

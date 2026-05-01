@@ -337,6 +337,12 @@ def tool_live_summary(tool: str, metadata: dict[str, Any], body: str) -> str:
         output = metadata.get("output") if isinstance(metadata.get("output"), dict) else {}
         path = str(output.get("path") or args_path)
         return f"update {_short_path(path, max_width=36)}" if path else "update file"
+    if tool == "defer_job":
+        seconds = args.get("seconds") or args.get("delay_seconds")
+        until = args.get("until")
+        if until:
+            return f"wait until {until}"
+        return f"wait {seconds}s" if seconds else "wait before next check"
     if tool == "record_lesson":
         return "learn memory"
     if tool == "record_source":

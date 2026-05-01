@@ -249,8 +249,12 @@ class Daemon:
         chat view; the daemon should keep all runnable jobs advancing.
         """
 
-        jobs = self.db.list_jobs(statuses=["queued", "running"])
-        return jobs[0] if jobs else None
+        now = datetime.now(timezone.utc)
+        for job in self.db.list_jobs(statuses=["queued", "running"]):
+            if _job_is_deferred(job, now=now):
+                continue
+            return job
+        return None
 
     def run_once(self, *, fake: bool = False, verbose: bool = False):
         from nipux_cli.worker import run_one_step
@@ -429,6 +433,20 @@ def _is_digest_due(now: datetime, configured_time: str) -> bool:
 
 def _raise_keyboard_interrupt(signum, frame) -> None:
     raise KeyboardInterrupt
+
+
+def _job_is_deferred(job: dict, *, now: datetime) -> bool:
+    metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
+    raw_until = str(metadata.get("defer_until") or "").strip()
+    if not raw_until:
+        return False
+    try:
+        until = datetime.fromisoformat(raw_until.replace("Z", "+00:00"))
+    except ValueError:
+        return False
+    if until.tzinfo is None:
+        until = until.replace(tzinfo=timezone.utc)
+    return until.astimezone(timezone.utc) > now
 
 
 def _exception_payload(exc: Exception) -> dict[str, str]:
