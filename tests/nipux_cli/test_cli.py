@@ -2,9 +2,8 @@ import json
 
 from nipux_cli.artifacts import ArtifactStore
 from nipux_cli import __version__
+from nipux_cli.chat_frame_runtime import frame_next_job_id as _frame_next_job_id
 from nipux_cli.cli import (
-    CHAT_SLASH_COMMANDS,
-    FIRST_RUN_SLASH_COMMANDS,
     _autocomplete_slash,
     _build_first_run_frame,
     _build_chat_frame,
@@ -15,7 +14,6 @@ from nipux_cli.cli import (
     _decode_terminal_escape,
     _emit_frame_if_changed,
     _first_run_click_action,
-    _frame_next_job_id,
     _handle_first_run_menu_line,
     _handle_first_run_frame_line,
     _handle_chat_message,
@@ -35,6 +33,7 @@ from nipux_cli.config import load_config
 from nipux_cli.daemon import append_daemon_event
 from nipux_cli.db import AgentDB
 from nipux_cli.llm import LLMResponse
+from nipux_cli.tui_commands import CHAT_SLASH_COMMANDS, FIRST_RUN_SLASH_COMMANDS
 from nipux_cli.tui_events import chat_pane_lines
 from nipux_cli.tui_outcomes import hourly_update_lines, recent_model_update_lines
 

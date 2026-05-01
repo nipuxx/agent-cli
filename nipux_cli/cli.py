@@ -69,10 +69,10 @@ from nipux_cli.chat_controller import (
     queue_chat_note as _controller_queue_chat_note,
 )
 from nipux_cli.chat_frame_runtime import (
+    ChatFrameDeps,
     compact_command_output as _compact_command_output,
     emit_frame_if_changed as _emit_frame_if_changed,
-    frame_next_job_id as _frame_next_job_id,
-    next_chat_right_view as _next_chat_right_view,
+    run_chat_frame as _run_chat_frame,
 )
 from nipux_cli.chat_tui import build_chat_frame as _build_chat_tui_frame
 from nipux_cli.config import (
@@ -114,7 +114,6 @@ from nipux_cli.planning import (
 from nipux_cli.scheduling import job_provider_blocked, provider_retry_metadata
 from nipux_cli.templates import program_for_job
 from nipux_cli.tui_commands import (
-    CHAT_SLASH_COMMANDS,
     FIRST_RUN_ACTIONS,
     FIRST_RUN_SLASH_COMMANDS,
     autocomplete_slash as _autocomplete_slash,
@@ -953,169 +952,27 @@ def _frame_chat_enabled() -> bool:
 
 
 def _enter_chat_frame(job_id: str, *, history_limit: int = 12) -> None:
-    _write_shell_state({"focus_job_id": job_id})
-    buffer = ""
-    notices: list[str] = []
-    right_view = "status"
-    selected_control = 0
-    editing_field: str | None = None
-    snapshot = _load_frame_snapshot(job_id, history_limit=history_limit)
-    job_id = str(snapshot["job_id"])
-    old_attrs = termios.tcgetattr(sys.stdin)
-    print("\033[?1049h\033[H\033[?25l\033[?1000h\033[?1002h\033[?1006h", end="", flush=True)
-    try:
-        stdin_fd = sys.stdin.fileno()
-        tty.setcbreak(stdin_fd)
-        last_snapshot = 0.0
-        needs_render = True
-        last_frame = ""
-        while True:
-            now = time.monotonic()
-            if now - last_snapshot >= 0.75:
-                try:
-                    snapshot = _load_frame_snapshot(job_id, history_limit=history_limit)
-                    job_id = str(snapshot["job_id"])
-                    last_snapshot = now
-                    needs_render = True
-                except Exception as exc:
-                    notices.append(f"frame refresh failed: {type(exc).__name__}")
-                    notices[:] = notices[-12:]
-            if needs_render:
-                selected_control = 0
-                last_frame = _render_chat_frame(
-                    snapshot,
-                    buffer,
-                    notices,
-                    right_view=right_view,
-                    selected_control=selected_control,
-                    editing_field=editing_field,
-                    previous_frame=last_frame,
-                )
-                needs_render = False
-            readable, _, _ = select.select([stdin_fd], [], [], 0.05)
-            if not readable:
-                continue
-            char = _read_terminal_char(stdin_fd)
-            if editing_field is not None:
-                if char in {"\r", "\n"}:
-                    notices.append(_inline_setting_notice(editing_field, buffer))
-                    notices[:] = notices[-12:]
-                    editing_field = None
-                    buffer = ""
-                    needs_render = True
-                    continue
-                if char in {"\x04"}:
-                    return
-                if char == "\x03":
-                    notices.append("cancelled edit")
-                    notices[:] = notices[-12:]
-                    editing_field = None
-                    buffer = ""
-                    needs_render = True
-                    continue
-                if char in {"\x7f", "\b"}:
-                    buffer = buffer[:-1]
-                    needs_render = True
-                    continue
-                if char == "\x1b":
-                    key, _payload = _decode_terminal_escape(_read_escape_sequence(char, fd=stdin_fd))
-                    if key == "unknown":
-                        notices.append("cancelled edit")
-                        notices[:] = notices[-12:]
-                        editing_field = None
-                        buffer = ""
-                    needs_render = True
-                    continue
-                if char.isprintable():
-                    buffer += char
-                    needs_render = True
-                continue
-            if char in {"\r", "\n"}:
-                line = buffer.strip()
-                buffer = ""
-                if not line:
-                    needs_render = True
-                    continue
-                if line in {"clear", "/clear"}:
-                    notices.clear()
-                    needs_render = True
-                    continue
-                notices.append(f"> {line}")
-                notices[:] = notices[-12:]
-                last_frame = _render_chat_frame(
-                    snapshot,
-                    buffer,
-                    notices,
-                    right_view=right_view,
-                    selected_control=selected_control,
-                    editing_field=editing_field,
-                    previous_frame=last_frame,
-                )
-                if _is_plain_chat_line(line):
-                    keep_running, message = _handle_chat_message(job_id, line, quiet=True)
-                    notices = [notice for notice in notices if notice != f"> {line}"]
-                    if message:
-                        notices.append(message)
-                        notices[:] = notices[-12:]
-                else:
-                    keep_running, output = _capture_chat_command(job_id, line)
-                    for output_line in _compact_command_output(output):
-                        notices.append(output_line)
-                    notices[:] = notices[-12:]
-                snapshot = _load_frame_snapshot(job_id, history_limit=history_limit)
-                job_id = str(snapshot["job_id"])
-                needs_render = True
-                if not keep_running:
-                    return
-                continue
-            if char in {"\x04"}:
-                return
-            if char == "\x03":
-                buffer = ""
-                notices.append("cancelled input")
-                notices[:] = notices[-12:]
-                needs_render = True
-                continue
-            if char in {"\x7f", "\b"}:
-                buffer = buffer[:-1]
-                needs_render = True
-                continue
-            if char == "\t":
-                buffer = _autocomplete_slash(buffer, CHAT_SLASH_COMMANDS)
-                needs_render = True
-                continue
-            if char == "\x1b":
-                key, payload = _decode_terminal_escape(_read_escape_sequence(char, fd=stdin_fd))
-                if key == "right" and not buffer:
-                    right_view = _next_chat_right_view(right_view, 1)
-                    selected_control = 0
-                elif key == "left" and not buffer:
-                    right_view = _next_chat_right_view(right_view, -1)
-                    selected_control = 0
-                elif key in {"up", "down"} and not buffer:
-                    next_focus = _frame_next_job_id(snapshot, job_id, direction=-1 if key == "up" else 1)
-                    if next_focus and next_focus != job_id:
-                        job_id = next_focus
-                        _write_shell_state({"focus_job_id": job_id})
-                        snapshot = _load_frame_snapshot(job_id, history_limit=history_limit)
-                        title = snapshot["job"].get("title") or job_id
-                        notices.append(f"focus {title}")
-                        notices[:] = notices[-12:]
-                elif key == "click" and isinstance(payload, tuple):
-                    clicked_view = _chat_page_click(payload[0], payload[1], right_view=right_view)
-                    if clicked_view:
-                        right_view = clicked_view
-                        selected_control = 0
-                else:
-                    _drain_pending_input(stdin_fd)
-                needs_render = True
-                continue
-            if char.isprintable():
-                buffer += char
-                needs_render = True
-    finally:
-        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_attrs)
-        print("\033[?1006l\033[?1002l\033[?1000l\033[?25h\033[0m\033[?1049l", flush=True)
+    _run_chat_frame(job_id, history_limit=history_limit, deps=_chat_frame_deps())
+
+
+def _chat_frame_deps() -> ChatFrameDeps:
+    return ChatFrameDeps(
+        load_snapshot=lambda job_id, history_limit: _load_frame_snapshot(job_id, history_limit=history_limit),
+        render_frame=lambda snapshot, buffer, notices, right_view, selected, editing_field, previous: _render_chat_frame(
+            snapshot,
+            buffer,
+            notices,
+            right_view=right_view,
+            selected_control=selected,
+            editing_field=editing_field,
+            previous_frame=previous,
+        ),
+        handle_chat_message=lambda job_id, line: _handle_chat_message(job_id, line, quiet=True),
+        capture_chat_command=_capture_chat_command,
+        write_shell_state=_write_shell_state,
+        is_plain_chat_line=_is_plain_chat_line,
+        page_click=lambda x, y, right_view: _chat_page_click(x, y, right_view=right_view),
+    )
 
 
 def _capture_chat_command(job_id: str, line: str) -> tuple[bool, str]:
