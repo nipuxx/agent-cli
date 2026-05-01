@@ -390,7 +390,11 @@ class Daemon:
                             )
                             if verbose:
                                 print(json.dumps(result.result, ensure_ascii=False, indent=2)[:8000], flush=True)
-                        sleep_seconds = _failure_backoff(poll_seconds, consecutive_failures) if result.status == "failed" else max(0.0, poll_seconds)
+                        sleep_seconds = (
+                            _step_failure_backoff(result, poll_seconds, consecutive_failures)
+                            if result.status == "failed"
+                            else max(0.0, poll_seconds)
+                        )
                         _sleep_or_stop(sleep_seconds, max_iterations, iterations)
                     if max_iterations is not None and iterations >= max_iterations:
                         return
@@ -436,6 +440,37 @@ def _failure_backoff(poll_seconds: float, consecutive_failures: int) -> float:
     return min(60.0, base * min(8, max(1, consecutive_failures)))
 
 
+def _step_failure_backoff(result: Any, poll_seconds: float, consecutive_failures: int) -> float:
+    """Return a retry delay for failed worker steps.
+
+    Worker LLM/provider failures are recorded as failed steps rather than
+    escaping as daemon exceptions, so they need the same throttling path here.
+    This keeps bad credentials, quota limits, and provider throttles from
+    flooding the timeline while preserving the forever loop.
+    """
+
+    fallback = _failure_backoff(poll_seconds, consecutive_failures)
+    text = _step_failure_text(result)
+    if _is_provider_config_text(text):
+        return max(fallback, 300.0)
+    if _is_rate_limit_text(text):
+        return max(fallback, 60.0)
+    return fallback
+
+
+def _step_failure_text(result: Any) -> str:
+    payload = getattr(result, "result", None)
+    if not isinstance(payload, dict):
+        return str(result)
+    parts = [
+        payload.get("error"),
+        payload.get("error_type"),
+        payload.get("detail"),
+        payload.get("message"),
+    ]
+    return " ".join(str(part) for part in parts if part)
+
+
 def _exception_backoff(exc: Exception, poll_seconds: float, consecutive_failures: int) -> float:
     fallback = _failure_backoff(poll_seconds, consecutive_failures)
     if not _is_rate_limit_error(exc):
@@ -450,8 +485,36 @@ def _is_rate_limit_error(exc: Exception) -> bool:
     status_code = getattr(exc, "status_code", None)
     if status_code == 429:
         return True
-    text = f"{type(exc).__name__} {exc}".lower()
-    return "rate limit" in text or "ratelimit" in text or "too many requests" in text
+    return _is_rate_limit_text(f"{type(exc).__name__} {exc}")
+
+
+def _is_rate_limit_text(text: str) -> bool:
+    lowered = text.lower()
+    return (
+        "429" in lowered
+        or "rate limit" in lowered
+        or "ratelimit" in lowered
+        or "too many requests" in lowered
+        or "temporarily over capacity" in lowered
+    )
+
+
+def _is_provider_config_text(text: str) -> bool:
+    lowered = text.lower()
+    return (
+        "401" in lowered
+        or "403" in lowered
+        or "authentication" in lowered
+        or "permissiondenied" in lowered
+        or "permission denied" in lowered
+        or "invalid api key" in lowered
+        or ("api key" in lowered and ("missing" in lowered or "invalid" in lowered))
+        or "key limit exceeded" in lowered
+        or "insufficient quota" in lowered
+        or "quota exceeded" in lowered
+        or "billing" in lowered
+        or "credits" in lowered
+    )
 
 
 def _retry_after_seconds(exc: Exception) -> float | None:

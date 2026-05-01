@@ -17,6 +17,7 @@ from nipux_cli.daemon import (
     update_lock_metadata,
     _exception_backoff,
     _parse_retry_after,
+    _step_failure_backoff,
 )
 from nipux_cli.db import AgentDB
 from nipux_cli.worker import StepExecution
@@ -75,6 +76,38 @@ def test_rate_limit_backoff_has_conservative_fallback():
         status_code = 429
 
     assert _exception_backoff(RateLimit("rate limit exceeded"), poll_seconds=0, consecutive_failures=1) == 10
+
+
+def test_failed_step_provider_config_error_gets_long_backoff():
+    result = StepExecution(
+        job_id="job",
+        run_id="run",
+        step_id="step",
+        tool_name=None,
+        status="failed",
+        result={
+            "error_type": "PermissionDeniedError",
+            "error": "Error code: 403 - key limit exceeded",
+        },
+    )
+
+    assert _step_failure_backoff(result, poll_seconds=0, consecutive_failures=1) == 300
+
+
+def test_failed_step_rate_limit_gets_throttled_backoff():
+    result = StepExecution(
+        job_id="job",
+        run_id="run",
+        step_id="step",
+        tool_name=None,
+        status="failed",
+        result={
+            "error_type": "RateLimitError",
+            "error": "429 too many requests",
+        },
+    )
+
+    assert _step_failure_backoff(result, poll_seconds=0, consecutive_failures=1) == 60
 
 
 def test_retry_after_parses_epoch_milliseconds():
