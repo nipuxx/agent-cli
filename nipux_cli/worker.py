@@ -222,6 +222,21 @@ RECENT_STATE_PROMPT_CHARS = 3000
 TIMELINE_PROMPT_EVENTS = 8
 SECTION_ITEM_CHARS = 420
 MAX_WORKER_PROMPT_CHARS = 18_000
+TIMELINE_PROMPT_EVENT_TYPES = {
+    "agent_message",
+    "artifact",
+    "error",
+    "experiment",
+    "finding",
+    "lesson",
+    "milestone_validation",
+    "reflection",
+    "roadmap",
+    "source",
+    "task",
+}
+TIMELINE_PROMPT_AGENT_TITLES = {"blocked", "error", "plan", "progress", "report", "update"}
+TIMELINE_PROMPT_TOOL_STATUSES = {"blocked", "failed"}
 PROMPT_SECTION_BUDGETS = {
     "Workspace": 520,
     "Operator context": 2_200,
@@ -718,19 +733,50 @@ def _tasks_for_prompt(job: dict[str, Any]) -> str:
 def _timeline_for_prompt(events: list[dict[str, Any]]) -> str:
     if not events:
         return "No timeline events yet."
-    lines = []
-    for event in events[-TIMELINE_PROMPT_EVENTS:]:
-        event_type = str(event.get("event_type") or "event")
-        if event_type == "operator_message":
+    selected: list[tuple[str, str, str]] = []
+    counts: dict[str, int] = {}
+    for event in events:
+        rendered = _timeline_event_for_prompt(event)
+        if not rendered:
             continue
-        title = " ".join(str(event.get("title") or "").split())
-        body = " ".join(str(event.get("body") or "").split())
-        at = str(event.get("created_at") or "")
-        detail = title if title else event_type
-        if body:
-            detail = f"{detail}: {body}"
-        lines.append(f"- {at} {event_type}: {_clip_text(detail, SECTION_ITEM_CHARS)}")
+        at, event_type, detail = rendered
+        counts[event_type] = counts.get(event_type, 0) + 1
+        selected.append((at, event_type, detail))
+    if not selected:
+        return "No high-signal timeline events yet. Recent state covers raw tool activity."
+    summary = ", ".join(f"{key}={value}" for key, value in sorted(counts.items()))
+    lines = [f"High-signal timeline counts: {summary}"]
+    for at, event_type, detail in selected[-TIMELINE_PROMPT_EVENTS:]:
+        prefix = f"- {at} {event_type}: " if at else f"- {event_type}: "
+        lines.append(prefix + _clip_text(detail, SECTION_ITEM_CHARS))
     return "\n".join(lines)
+
+
+def _timeline_event_for_prompt(event: dict[str, Any]) -> tuple[str, str, str] | None:
+    event_type = str(event.get("event_type") or "event")
+    if event_type == "operator_message":
+        return None
+    title = " ".join(str(event.get("title") or "").split())
+    body = " ".join(str(event.get("body") or "").split())
+    metadata = event.get("metadata") if isinstance(event.get("metadata"), dict) else {}
+    title_lower = title.lower()
+    if event_type == "tool_result":
+        status = str(metadata.get("status") or "").lower()
+        if status not in TIMELINE_PROMPT_TOOL_STATUSES:
+            return None
+    elif event_type == "agent_message":
+        if title_lower not in TIMELINE_PROMPT_AGENT_TITLES:
+            return None
+    elif event_type not in TIMELINE_PROMPT_EVENT_TYPES:
+        return None
+    at = str(event.get("created_at") or "")
+    detail = title if title else event_type
+    if body:
+        detail = f"{detail}: {body}"
+    if event_type == "tool_result":
+        status = str(metadata.get("status") or "").lower()
+        detail = f"{status} {detail}".strip()
+    return at, event_type, detail
 
 
 def _as_float(value: Any, default: float = 0.0) -> float:

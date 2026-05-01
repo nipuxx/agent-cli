@@ -1030,6 +1030,57 @@ def test_build_messages_keeps_generic_context_under_budget():
     assert "Next-action constraint:" in content
 
 
+def test_prompt_timeline_filters_low_signal_tool_noise():
+    job = {
+        "title": "timeline",
+        "kind": "generic",
+        "objective": "keep useful context visible",
+        "metadata": {},
+    }
+    timeline = [
+        {
+            "event_type": "tool_result",
+            "title": "web_search",
+            "body": f"search noise {index}",
+            "metadata": {"status": "completed"},
+            "created_at": f"2026-05-01T12:{index:02d}:00+00:00",
+        }
+        for index in range(20)
+    ]
+    timeline.extend([
+        {
+            "event_type": "artifact",
+            "title": "Saved durable report",
+            "body": "operator-visible output",
+            "metadata": {},
+            "created_at": "2026-05-01T13:00:00+00:00",
+        },
+        {
+            "event_type": "finding",
+            "title": "Useful durable finding",
+            "body": "result worth keeping",
+            "metadata": {},
+            "created_at": "2026-05-01T13:01:00+00:00",
+        },
+        {
+            "event_type": "tool_result",
+            "title": "shell_exec",
+            "body": "command failed with actionable blocker",
+            "metadata": {"status": "failed"},
+            "created_at": "2026-05-01T13:02:00+00:00",
+        },
+    ])
+
+    content = build_messages(job, [], timeline_events=timeline)[-1]["content"]
+
+    assert "Recent visible timeline:" in content
+    assert "High-signal timeline counts:" in content
+    assert "Saved durable report" in content
+    assert "Useful durable finding" in content
+    assert "command failed with actionable blocker" in content
+    assert "search noise" not in content
+
+
 def test_emergency_prompt_clipping_repeats_operator_and_next_action():
     job = {"title": "clip", "kind": "generic", "objective": "keep context safe"}
     sections = [(f"Noise {index}", "noise " * 2000) for index in range(90)]
