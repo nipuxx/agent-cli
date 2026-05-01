@@ -1,7 +1,7 @@
 from types import SimpleNamespace
 
 from nipux_cli.config import ModelConfig
-from nipux_cli.llm import OpenAIChatLLM
+from nipux_cli.llm import OpenAIChatLLM, _enrich_openrouter_generation_usage
 
 
 class _FakeCompletions:
@@ -39,3 +39,41 @@ def test_chat_llm_omits_redundant_tool_choice(monkeypatch):
     assert response.response_id == "gen_test"
     assert fake_completions.kwargs["tools"]
     assert "tool_choice" not in fake_completions.kwargs
+
+
+def test_openrouter_generation_usage_enriches_cost_and_tokens(monkeypatch):
+    class FakeHTTPResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def read(self):
+            return (
+                b'{"data":{"total_cost":"0.0042","native_tokens_prompt":123,'
+                b'"native_tokens_completion":45,"native_tokens_total":168}}'
+            )
+
+    captured = {}
+
+    def fake_urlopen(request, timeout):
+        captured["url"] = request.full_url
+        captured["timeout"] = timeout
+        return FakeHTTPResponse()
+
+    monkeypatch.setattr("nipux_cli.llm.urllib.request.urlopen", fake_urlopen)
+
+    usage = _enrich_openrouter_generation_usage(
+        {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15, "estimated": False},
+        response_id="gen_123",
+        base_url="https://openrouter.ai/api/v1",
+        api_key="sk-test",
+    )
+
+    assert captured["url"] == "https://openrouter.ai/api/v1/generation?id=gen_123"
+    assert captured["timeout"] == 5
+    assert usage["cost"] == 0.0042
+    assert usage["prompt_tokens"] == 123
+    assert usage["completion_tokens"] == 45
+    assert usage["total_tokens"] == 168
