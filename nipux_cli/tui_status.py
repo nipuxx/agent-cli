@@ -63,6 +63,7 @@ def right_pane_lines(
     job: dict[str, Any],
     jobs: list[dict[str, Any]],
     job_artifacts: dict[str, list[dict[str, Any]]],
+    job_counts: dict[str, dict[str, Any]],
     job_id: str,
     daemon_running: bool,
     state: str,
@@ -116,6 +117,7 @@ def right_pane_lines(
             daemon_running=daemon_running,
             width=width,
             job_artifacts=job_artifacts,
+            job_counts=job_counts,
             show_outputs=True,
         )
     )
@@ -182,6 +184,7 @@ def frame_jobs_lines(
     daemon_running: bool,
     width: int,
     job_artifacts: dict[str, list[dict[str, Any]]] | None = None,
+    job_counts: dict[str, dict[str, Any]] | None = None,
     show_outputs: bool = False,
 ) -> list[str]:
     rendered = []
@@ -203,8 +206,14 @@ def frame_jobs_lines(
         outputs = (job_artifacts or {}).get(item_id) or []
         if show_outputs and outputs:
             latest = outputs[0]
-            output_title = _one_line(str(latest.get("title") or latest.get("id") or "saved output"), max(8, width - 15))
-            rendered.append(_fit_ansi(f"   {_event_badge('SAVE')} {output_title}", width))
+            counts = (job_counts or {}).get(item_id) or {}
+            output_total = int(counts.get("artifacts") or len(outputs))
+            count_prefix = f"{_muted(str(output_total) + 'x')} " if output_total > 1 else ""
+            output_title = _one_line(
+                str(latest.get("title") or latest.get("id") or "saved output"),
+                max(8, width - 14 - len(f"{output_total}x " if output_total > 1 else "")),
+            )
+            rendered.append(_fit_ansi(f"   {_event_badge('SAVE')} {count_prefix}{output_title}", width))
     return rendered
 
 

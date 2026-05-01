@@ -37,6 +37,11 @@ def load_frame_snapshot(
             for item in jobs[:6]
             if item.get("id")
         },
+        "job_counts": {
+            str(item["id"]): db.job_record_counts(str(item["id"]))
+            for item in jobs[:6]
+            if item.get("id")
+        },
         "memory_entries": db.list_memory(resolved_job_id)[:8],
         "events": db.list_events(job_id=resolved_job_id, limit=max(history_limit * 16, 240)),
         "summary_events": db.list_events(

@@ -44,6 +44,7 @@ def build_chat_frame(
     job_artifacts = snapshot.get("job_artifacts") if isinstance(snapshot.get("job_artifacts"), dict) else {}
     if artifacts:
         job_artifacts.setdefault(job_id, artifacts)
+    job_counts = snapshot.get("job_counts") if isinstance(snapshot.get("job_counts"), dict) else {}
     memory_entries = snapshot["memory_entries"]
     events = snapshot["events"]
     summary_events = snapshot.get("summary_events") if isinstance(snapshot.get("summary_events"), list) else events
@@ -134,6 +135,7 @@ def build_chat_frame(
             job=job,
             jobs=jobs,
             job_artifacts=job_artifacts,
+            job_counts=job_counts,
             job_id=job_id,
             daemon_running=bool(daemon["running"]),
             state=state,

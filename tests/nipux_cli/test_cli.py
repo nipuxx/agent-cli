@@ -1338,6 +1338,10 @@ def test_chat_status_page_shows_job_outputs():
             "job_demo": [{"id": "art_demo", "title": "Primary Saved Draft"}],
             "job_other": [{"id": "art_other", "title": "Other Job Deliverable"}],
         },
+        "job_counts": {
+            "job_demo": {"artifacts": 1},
+            "job_other": {"artifacts": 4},
+        },
         "memory_entries": [],
         "events": [],
         "summary_events": [
@@ -1355,6 +1359,7 @@ def test_chat_status_page_shows_job_outputs():
     assert "Latest durable milestone" in frame
     assert "Primary Saved Draft" in frame
     assert "Other Job Deliverable" in frame
+    assert "4x" in frame
 
 
 def test_frame_snapshot_keeps_summary_events_durable(monkeypatch, tmp_path):
