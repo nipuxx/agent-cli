@@ -177,6 +177,7 @@ MEASURABLE_PROGRESS_PATTERN = re.compile(
 RECOVERABLE_GUARD_ERRORS = {
     "artifact search loop blocked",
     "duplicate tool call blocked",
+    "experiment next action pending",
     "known bad source blocked",
     "measurement obligation pending",
     "measured progress required",
@@ -256,6 +257,43 @@ TASK_DELIVERABLE_ACTION_TERMS = {
     "update",
     "write",
 }
+EXPERIMENT_DELIVERY_ACTION_TERMS = {
+    "append",
+    "apply",
+    "build",
+    "compile",
+    "create",
+    "edit",
+    "finish",
+    "fix",
+    "generate",
+    "implement",
+    "insert",
+    "merge",
+    "patch",
+    "produce",
+    "publish",
+    "replace",
+    "rewrite",
+    "save",
+    "update",
+    "write",
+}
+EXPERIMENT_INFORMATION_ACTION_TERMS = {
+    "audit",
+    "collect",
+    "extract",
+    "find",
+    "gather",
+    "inspect",
+    "read",
+    "research",
+    "review",
+    "search",
+    "source",
+    "survey",
+}
+EXPERIMENT_NEXT_ACTION_BLOCKED_TOOLS = INFORMATION_GATHERING_TOOLS | ARTIFACT_REVIEW_TOOLS | {"report_update"}
 
 BROWSER_REF_IGNORE_NAMES = {
     "about us",
@@ -931,6 +969,18 @@ def _latest_experiment_next_action_context(job: dict[str, Any]) -> dict[str, Any
                 "next_action": next_action,
             }
     return None
+
+
+def _experiment_next_action_requires_delivery(context: dict[str, Any] | None) -> bool:
+    if not context:
+        return False
+    next_action = str(context.get("next_action") or "").lower()
+    if not next_action:
+        return False
+    tokens = set(re.findall(r"[a-z][a-z0-9_-]+", next_action))
+    if not tokens & EXPERIMENT_DELIVERY_ACTION_TERMS:
+        return False
+    return not bool(tokens & EXPERIMENT_INFORMATION_ACTION_TERMS)
 
 
 def _roadmap_staleness_context(job: dict[str, Any], recent_steps: list[dict[str, Any]]) -> dict[str, Any] | None:
@@ -1911,6 +1961,25 @@ def _blocked_tool_call_result(
             "guidance": "Write an artifact summarizing the browser, extracted, or shell evidence before doing more search, browsing, or shell work.",
         }
         return result, f"blocked {name}; write_artifact required after evidence step #{unpersisted_evidence['step_no']}"
+
+    experiment_next_action = _latest_experiment_next_action_context(job)
+    if (
+        _experiment_next_action_requires_delivery(experiment_next_action)
+        and name in EXPERIMENT_NEXT_ACTION_BLOCKED_TOOLS
+    ):
+        result = {
+            "success": False,
+            "error": "experiment next action pending",
+            "blocked_tool": name,
+            "blocked_arguments": args,
+            "experiment_next_action": experiment_next_action,
+            "guidance": (
+                "The latest measured experiment selected a delivery/action next step. "
+                "Act on that next action with an execution or ledger tool, or use record_tasks/record_lesson "
+                "to explain why it is invalid or blocked before doing more research or artifact review."
+            ),
+        }
+        return result, f"blocked {name}; experiment next action pending"
 
     shell_budget_exhausted = (
         name == "shell_exec"
