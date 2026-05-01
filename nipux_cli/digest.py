@@ -50,8 +50,12 @@ def _usage_lines(
     model: str | None = None,
     base_url: str = "",
     context_length: int = 0,
+    input_cost_per_million: float | None = None,
+    output_cost_per_million: float | None = None,
 ) -> list[str]:
     usage = db.job_token_usage(job_id)
+    usage["input_cost_per_million"] = input_cost_per_million
+    usage["output_cost_per_million"] = output_cost_per_million
     calls = _safe_int(usage.get("calls"))
     if calls <= 0:
         return ["- No model usage recorded yet."]
@@ -86,6 +90,8 @@ def render_job_digest(
     model: str | None = None,
     base_url: str = "",
     context_length: int = 0,
+    input_cost_per_million: float | None = None,
+    output_cost_per_million: float | None = None,
 ) -> str:
     job = db.get_job(job_id)
     artifacts = db.list_artifacts(job_id, limit=50)
@@ -110,7 +116,15 @@ def render_job_digest(
         "",
         "## Model Usage",
         "",
-        *_usage_lines(db, job_id, model=model, base_url=base_url, context_length=context_length),
+        *_usage_lines(
+            db,
+            job_id,
+            model=model,
+            base_url=base_url,
+            context_length=context_length,
+            input_cost_per_million=input_cost_per_million,
+            output_cost_per_million=output_cost_per_million,
+        ),
         "",
         "## Objective",
         "",
@@ -221,6 +235,8 @@ def render_daily_digest(
     model: str | None = None,
     base_url: str = "",
     context_length: int = 0,
+    input_cost_per_million: float | None = None,
+    output_cost_per_million: float | None = None,
 ) -> str:
     jobs = [job for job in db.list_jobs() if job["status"] not in {"cancelled"}]
     lines = ["# Nipux CLI Daily Digest", ""]
@@ -249,7 +265,17 @@ def render_daily_digest(
             "",
             "Model usage:",
         ])
-        lines.extend(_usage_lines(db, job["id"], model=model, base_url=base_url, context_length=context_length))
+        lines.extend(
+            _usage_lines(
+                db,
+                job["id"],
+                model=model,
+                base_url=base_url,
+                context_length=context_length,
+                input_cost_per_million=input_cost_per_million,
+                output_cost_per_million=output_cost_per_million,
+            )
+        )
         lines.extend([
             "",
             "Recent steps:",
@@ -323,6 +349,8 @@ def write_daily_digest(config: AppConfig, db: AgentDB, *, day: str | None = None
         model=config.model.model,
         base_url=config.model.base_url,
         context_length=config.model.context_length,
+        input_cost_per_million=config.model.input_cost_per_million,
+        output_cost_per_million=config.model.output_cost_per_million,
     )
     config.runtime.digests_dir.mkdir(parents=True, exist_ok=True)
     body_path = Path(config.runtime.digests_dir) / f"{day}-daily.md"

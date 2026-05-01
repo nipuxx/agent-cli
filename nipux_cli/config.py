@@ -48,6 +48,8 @@ class ModelConfig:
     api_key_env: str = DEFAULT_API_KEY_ENV
     context_length: int = DEFAULT_CONTEXT_LENGTH
     request_timeout_seconds: float = 120.0
+    input_cost_per_million: float | None = None
+    output_cost_per_million: float | None = None
 
     @property
     def api_key(self) -> str:
@@ -113,6 +115,12 @@ def _as_dict(value: Any) -> dict[str, Any]:
     return value if isinstance(value, dict) else {}
 
 
+def _optional_float(value: Any) -> float | None:
+    if value in (None, ""):
+        return None
+    return float(value)
+
+
 def load_config(path: str | Path | None = None) -> AppConfig:
     """Load config.yaml, falling back to the default OpenAI-compatible provider."""
 
@@ -143,6 +151,8 @@ def load_config(path: str | Path | None = None) -> AppConfig:
         api_key_env=str(model_raw.get("api_key_env") or DEFAULT_API_KEY_ENV),
         context_length=int(model_raw.get("context_length", DEFAULT_CONTEXT_LENGTH)),
         request_timeout_seconds=float(model_raw.get("request_timeout_seconds", 120.0)),
+        input_cost_per_million=_optional_float(model_raw.get("input_cost_per_million")),
+        output_cost_per_million=_optional_float(model_raw.get("output_cost_per_million")),
     )
     email = EmailConfig(
         enabled=bool(email_raw.get("enabled", False)),
@@ -172,6 +182,8 @@ def default_config_yaml(
         f"  base_url: {base_url.rstrip('/')}\n"
         f"  api_key_env: {api_key_env}\n"
         f"  context_length: {context_length}\n"
+        "  input_cost_per_million: null\n"
+        "  output_cost_per_million: null\n"
         "runtime:\n"
         "  max_step_seconds: 600\n"
         "  max_steps_per_run: 1\n"

@@ -137,6 +137,9 @@ model:
   name: qwen/qwen3.6-27b
   base_url: https://openrouter.ai/api/v1
   api_key_env: OPENROUTER_API_KEY
+  # Optional fallback pricing when the provider does not return cost metadata.
+  input_cost_per_million: null
+  output_cost_per_million: null
 ```
 
 Put secrets in your shell, your process manager, or `~/.nipux/.env`:
@@ -223,7 +226,8 @@ Use these views when a job has been running unattended:
 - `nipux activity JOB --follow` or the **Work** pane: the raw live tool stream
   for debugging what the worker is doing right now.
 - `nipux usage JOB`: model calls, context pressure, output tokens, and cost when
-  the provider returns cost metadata.
+  the provider returns cost metadata. If the provider does not return cost,
+  configure `/input-cost` and `/output-cost` to estimate it from token counts.
 - `nipux digest JOB` and `nipux daily-digest`: durable summary reports that
   include progress counts, active operator context, experiments, artifacts, and
   token/cost usage.

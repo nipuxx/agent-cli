@@ -410,6 +410,8 @@ def test_chat_settings_slash_commands_persist_config(monkeypatch, tmp_path, caps
     assert _chat_handle_line(job_id, "/model provider/model") is True
     assert _chat_handle_line(job_id, "/base-url https://example.com/v1") is True
     assert _chat_handle_line(job_id, "/context 8192") is True
+    assert _chat_handle_line(job_id, "/input-cost 0.10") is True
+    assert _chat_handle_line(job_id, "/output-cost 0.20") is True
     assert _chat_handle_line(job_id, "/timeout 45") is True
     assert _chat_handle_line(job_id, "/step-limit 90") is True
     assert _chat_handle_line(job_id, "/output-chars 4096") is True
@@ -422,6 +424,8 @@ def test_chat_settings_slash_commands_persist_config(monkeypatch, tmp_path, caps
     assert "saved model.name = provider/model" in out
     assert "saved model.base_url = https://example.com/v1" in out
     assert "saved model.context_length = 8192" in out
+    assert "saved model.input_cost_per_million = 0.1" in out
+    assert "saved model.output_cost_per_million = 0.2" in out
     assert "saved model.request_timeout_seconds = 45.0" in out
     assert "saved runtime.max_step_seconds = 90" in out
     assert "saved runtime.artifact_inline_char_limit = 4096" in out
@@ -433,6 +437,8 @@ def test_chat_settings_slash_commands_persist_config(monkeypatch, tmp_path, caps
     assert _config_field_value("model.name") == "provider/model"
     assert _config_field_value("model.base_url") == "https://example.com/v1"
     assert _config_field_value("model.context_length") == 8192
+    assert _config_field_value("model.input_cost_per_million") == 0.1
+    assert _config_field_value("model.output_cost_per_million") == 0.2
     assert _config_field_value("model.request_timeout_seconds") == 45.0
     assert _config_field_value("runtime.max_step_seconds") == 90
     assert _config_field_value("runtime.artifact_inline_char_limit") == 4096
@@ -468,6 +474,43 @@ def test_chat_usage_slash_command_reports_tokens(monkeypatch, tmp_path, capsys):
     assert "usage research" in out
     assert "tokens: total=1.2K prompt=1.0K output=250" in out
     assert "cost=$0.0042" in out
+
+
+def test_chat_usage_estimates_cost_from_configured_rates(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    (tmp_path / "config.yaml").write_text(
+        """
+model:
+  name: provider/model
+  base_url: https://example.com/v1
+  input_cost_per_million: 1.0
+  output_cost_per_million: 2.0
+""",
+        encoding="utf-8",
+    )
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Research topic", title="research")
+        db.append_event(
+            job_id,
+            event_type="loop",
+            title="message_end",
+            metadata={
+                "usage": {
+                    "prompt_tokens": 1000,
+                    "completion_tokens": 500,
+                    "total_tokens": 1500,
+                    "estimated": True,
+                }
+            },
+        )
+    finally:
+        db.close()
+
+    assert _chat_handle_line(job_id, "/usage") is True
+
+    out = capsys.readouterr().out
+    assert "cost=~$0.0020" in out
 
 
 def test_first_run_settings_slash_commands_persist_config(monkeypatch, tmp_path):

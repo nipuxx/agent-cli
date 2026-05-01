@@ -2011,6 +2011,8 @@ def cmd_usage(args: argparse.Namespace) -> None:
             return
         job = db.get_job(job_id)
         usage = db.job_token_usage(job_id)
+        usage["input_cost_per_million"] = config.model.input_cost_per_million
+        usage["output_cost_per_million"] = config.model.output_cost_per_million
         if args.json:
             print(json.dumps(usage, ensure_ascii=False, indent=2, sort_keys=True))
             return
@@ -3339,6 +3341,8 @@ def cmd_digest(args: argparse.Namespace) -> None:
                 model=config.model.model,
                 base_url=config.model.base_url,
                 context_length=config.model.context_length,
+                input_cost_per_million=config.model.input_cost_per_million,
+                output_cost_per_million=config.model.output_cost_per_million,
             ),
             end="",
         )
@@ -3401,6 +3405,7 @@ def _chat_handle_line(job_id: str, line: str, *, reply_fn=None) -> bool:
         print("  /history /events /activity /outputs /updates /outcomes /status /usage /health")
         print("  /artifacts /artifact QUERY /findings /tasks /roadmap /experiments /sources /memory /metrics /lessons")
         print("  /model MODEL /base-url URL /api-key KEY /api-key-env ENV /context TOKENS")
+        print("  /input-cost DOLLARS_PER_1M_INPUT_TOKENS /output-cost DOLLARS_PER_1M_OUTPUT_TOKENS")
         print("  /timeout SECONDS /home PATH /step-limit SECONDS /output-chars CHARS /daily-digest BOOL /digest-time HH:MM /doctor")
         print("  /run /start /restart /work N /work-verbose N /stop /pause [note] /resume /cancel [note]")
         print("  /learn LESSON /note MESSAGE /follow MESSAGE /digest /clear /exit")

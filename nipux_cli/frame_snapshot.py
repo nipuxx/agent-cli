@@ -23,6 +23,9 @@ def load_frame_snapshot(
     resolved_job_id = default_job_id or job_id
     job = db.get_job(resolved_job_id)
     jobs = db.list_jobs()
+    token_usage = db.job_token_usage(resolved_job_id)
+    token_usage["input_cost_per_million"] = config.model.input_cost_per_million
+    token_usage["output_cost_per_million"] = config.model.output_cost_per_million
     return {
         "job_id": resolved_job_id,
         "job": job,
@@ -45,6 +48,6 @@ def load_frame_snapshot(
         "model": config.model.model,
         "base_url": config.model.base_url,
         "context_length": config.model.context_length,
-        "token_usage": db.job_token_usage(resolved_job_id),
+        "token_usage": token_usage,
         "counts": db.job_record_counts(resolved_job_id),
     }

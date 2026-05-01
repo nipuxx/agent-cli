@@ -20,6 +20,8 @@ def config_field_value(field: str, config: Any | None = None) -> Any:
         "model.api_key_env": config.model.api_key_env,
         "model.context_length": config.model.context_length,
         "model.request_timeout_seconds": config.model.request_timeout_seconds,
+        "model.input_cost_per_million": config.model.input_cost_per_million,
+        "model.output_cost_per_million": config.model.output_cost_per_million,
         "runtime.home": str(config.runtime.home),
         "runtime.max_step_seconds": config.runtime.max_step_seconds,
         "runtime.artifact_inline_char_limit": config.runtime.artifact_inline_char_limit,

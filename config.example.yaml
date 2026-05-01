@@ -3,6 +3,8 @@ model:
   base_url: https://openrouter.ai/api/v1
   api_key_env: OPENROUTER_API_KEY
   context_length: 262144
+  input_cost_per_million: null
+  output_cost_per_million: null
 runtime:
   max_step_seconds: 600
   max_steps_per_run: 1

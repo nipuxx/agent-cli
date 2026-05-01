@@ -155,6 +155,14 @@ def _format_usage_cost(usage: dict[str, Any], *, model: str, base_url: str) -> s
         return f"${_safe_float(usage.get('cost')):.4f}"
     if _model_cost_is_zero(model=model, base_url=base_url):
         return "$0.00"
+    input_rate = _safe_optional_float(usage.get("input_cost_per_million"))
+    output_rate = _safe_optional_float(usage.get("output_cost_per_million"))
+    if input_rate is not None and output_rate is not None:
+        prompt = _safe_int(usage.get("prompt_tokens"))
+        completion = _safe_int(usage.get("completion_tokens"))
+        if prompt > 0 or completion > 0:
+            estimated = (prompt / 1_000_000 * input_rate) + (completion / 1_000_000 * output_rate)
+            return f"~${estimated:.4f}"
     if _safe_int(usage.get("estimated_calls")):
         return "pending"
     return "pending"
@@ -183,6 +191,15 @@ def _safe_float(value: Any) -> float:
         return float(value)
     except (TypeError, ValueError):
         return 0.0
+
+
+def _safe_optional_float(value: Any) -> float | None:
+    if value in (None, ""):
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
 
 
 def _status_dot(state: str) -> str:

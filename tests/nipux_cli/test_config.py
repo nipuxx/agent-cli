@@ -27,6 +27,8 @@ model:
   name: local-test
   base_url: http://127.0.0.1:9999/v1/
   context_length: 12345
+  input_cost_per_million: 0.1
+  output_cost_per_million: 0.2
 runtime:
   home: ./agent-home
   max_step_seconds: 42
@@ -44,6 +46,8 @@ email:
     assert config.model.model == "local-test"
     assert config.model.base_url == "http://127.0.0.1:9999/v1"
     assert config.model.context_length == 12345
+    assert config.model.input_cost_per_million == 0.1
+    assert config.model.output_cost_per_million == 0.2
     assert config.runtime.home == Path("./agent-home")
     assert config.runtime.max_step_seconds == 42
     assert config.runtime.daily_digest_enabled is False
@@ -83,6 +87,8 @@ def test_default_config_yaml_allows_provider_template_without_secret():
     assert "base_url: https://openrouter.ai/api/v1" in text
     assert "api_key_env: OPENROUTER_API_KEY" in text
     assert "context_length: 8192" in text
+    assert "input_cost_per_million: null" in text
+    assert "output_cost_per_million: null" in text
     assert "sk-" not in text
 
 
@@ -93,3 +99,5 @@ def test_config_example_matches_default_provider():
     assert "name: qwen/qwen3.6-27b" in text
     assert "base_url: https://openrouter.ai/api/v1" in text
     assert "api_key_env: OPENROUTER_API_KEY" in text
+    assert "input_cost_per_million: null" in text
+    assert "output_cost_per_million: null" in text
