@@ -43,7 +43,10 @@ def format_usage_report(
     elif estimated:
         lines.append("some usage is estimated because the provider did not return complete token/cost metadata")
     elif not bool(usage.get("has_cost")):
-        lines.append("cost is pending unless the provider returns cost metadata or the model is configured as local/free")
+        lines.append(
+            "cost is pending unless the provider returns cost metadata, configured token rates are set, "
+            "or the model is local/free"
+        )
     return lines
 
 

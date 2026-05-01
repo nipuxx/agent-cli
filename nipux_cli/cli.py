@@ -857,7 +857,7 @@ def _handle_first_run_frame_line(line: str) -> tuple[str, str | list[str] | None
 def _first_run_chat_reply(message: str) -> str:
     lowered = message.strip().lower()
     if lowered in {"hi", "hello", "hey", "yo"}:
-        return "Hi. Tell me what long-running work you want, or use the controls on the right to create a job."
+        return "Hi. Tell me what long-running work you want, or type /new followed by an objective."
     if "what can" in lowered or "help" in lowered:
         return "I can spin up long-running jobs, keep their output on the left, and let you monitor work from the right."
     return "I can chat here, but I only create a job when you give me a concrete goal like 'create a job to monitor nightly benchmarks'."

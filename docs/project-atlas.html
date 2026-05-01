@@ -82,7 +82,7 @@ pre { max-height: 540px; overflow: auto; background: #050606; border: 1px solid 
 <div class="shell">
   <aside class="sidebar">
     <div class="logo">NIPUX ATLAS</div>
-    <div class="subtitle">Generated from tracked source on 18dd81eb.</div>
+    <div class="subtitle">Generated from tracked source on 727285e6.</div>
     <input id="search" class="search" placeholder="filter files, prompts, tools..." autocomplete="off">
     <nav class="nav">
       <a href="#architecture">Architecture</a>
@@ -98,7 +98,7 @@ pre { max-height: 540px; overflow: auto; background: #050606; border: 1px solid 
     </nav>
     <div class="stats">
       <div class="stat"><b>67</b><span>tracked files</span></div>
-      <div class="stat"><b>26,351</b><span>tracked lines mapped</span></div>
+      <div class="stat"><b>26,354</b><span>tracked lines mapped</span></div>
       <div class="stat"><b>1085</b><span>python symbols</span></div>
       <div class="stat"><b>27</b><span>runtime tools</span></div>
     </div>
@@ -720,7 +720,7 @@ fixed tool surface. none">
 <details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> __future__, shlex, typing, nipux_cli.config, nipux_cli.daemon, nipux_cli.db, nipux_cli.tui_events, nipux_cli.tui_status, nipux_cli.tui_style</p><p><strong>Symbols:</strong> render_updates_report, _metadata_list</p></details>
 </article>
 <article class="file-card searchable" data-search="nipux_cli/usage.py Formatting helpers for model token and cost usage. format_usage_report, _safe_int">
-<header><h3>nipux_cli/usage.py</h3><span>54 lines</span></header>
+<header><h3>nipux_cli/usage.py</h3><span>57 lines</span></header>
 <p>Formatting helpers for model token and cost usage.</p>
 <div class="meta"><span>2 symbols</span><span>0 TODOs</span></div>
 <details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> __future__, typing, nipux_cli.tui_layout</p><p><strong>Symbols:</strong> format_usage_report, _safe_int</p></details>
@@ -4445,7 +4445,7 @@ fixed tool surface. none">
 </article>
 <article class="symbol searchable" data-search="nipux_cli/usage.py _safe_int No docstring. float, int">
 <h3>_safe_int</h3>
-<p><span class="pill">function</span> <span class="pill">nipux_cli/usage.py:50</span></p>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/usage.py:53</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> float, int</p>
 </article>
@@ -10924,7 +10924,7 @@ SHELL_COMMAND_NAMES = {
 <span class='src-line'><b> 857</b><code>def _first_run_chat_reply(message: str) -&gt; str:</code></span>
 <span class='src-line'><b> 858</b><code>    lowered = message.strip().lower()</code></span>
 <span class='src-line'><b> 859</b><code>    if lowered in {&quot;hi&quot;, &quot;hello&quot;, &quot;hey&quot;, &quot;yo&quot;}:</code></span>
-<span class='src-line'><b> 860</b><code>        return &quot;Hi. Tell me what long-running work you want, or use the controls on the right to create a job.&quot;</code></span>
+<span class='src-line'><b> 860</b><code>        return &quot;Hi. Tell me what long-running work you want, or type /new followed by an objective.&quot;</code></span>
 <span class='src-line'><b> 861</b><code>    if &quot;what can&quot; in lowered or &quot;help&quot; in lowered:</code></span>
 <span class='src-line'><b> 862</b><code>        return &quot;I can spin up long-running jobs, keep their output on the left, and let you monitor work from the right.&quot;</code></span>
 <span class='src-line'><b> 863</b><code>    return &quot;I can chat here, but I only create a job when you give me a concrete goal like &#x27;create a job to monitor nightly benchmarks&#x27;.&quot;</code></span>
@@ -26202,7 +26202,10 @@ def format_usage_report(
     elif estimated:
         lines.append(&quot;some usage is estimated because the provider did not return complete token/cost metadata&quot;)
     elif not bool(usage.get(&quot;has_cost&quot;)):
-        lines.append(&quot;cost is pending unless the provider returns cost metadata or the model is configured as local/free&quot;)
+        lines.append(
+            &quot;cost is pending unless the provider returns cost metadata, configured token rates are set, &quot;
+            &quot;or the model is local/free&quot;
+        )
     return lines
 
 
@@ -26211,7 +26214,7 @@ def _safe_int(value: Any) -&gt; int:
         return int(float(value))
     except (TypeError, ValueError):
         return 0">
-<summary>nipux_cli/usage.py <span>54 lines</span></summary>
+<summary>nipux_cli/usage.py <span>57 lines</span></summary>
 <pre class="source-code"><span class='src-line'><b>   1</b><code>&quot;&quot;&quot;Formatting helpers for model token and cost usage.&quot;&quot;&quot;</code></span>
 <span class='src-line'><b>   2</b><code></code></span>
 <span class='src-line'><b>   3</b><code>from __future__ import annotations</code></span>
@@ -26257,15 +26260,18 @@ def _safe_int(value: Any) -&gt; int:
 <span class='src-line'><b>  43</b><code>    elif estimated:</code></span>
 <span class='src-line'><b>  44</b><code>        lines.append(&quot;some usage is estimated because the provider did not return complete token/cost metadata&quot;)</code></span>
 <span class='src-line'><b>  45</b><code>    elif not bool(usage.get(&quot;has_cost&quot;)):</code></span>
-<span class='src-line'><b>  46</b><code>        lines.append(&quot;cost is pending unless the provider returns cost metadata or the model is configured as local/free&quot;)</code></span>
-<span class='src-line'><b>  47</b><code>    return lines</code></span>
-<span class='src-line'><b>  48</b><code></code></span>
-<span class='src-line'><b>  49</b><code></code></span>
-<span class='src-line'><b>  50</b><code>def _safe_int(value: Any) -&gt; int:</code></span>
-<span class='src-line'><b>  51</b><code>    try:</code></span>
-<span class='src-line'><b>  52</b><code>        return int(float(value))</code></span>
-<span class='src-line'><b>  53</b><code>    except (TypeError, ValueError):</code></span>
-<span class='src-line'><b>  54</b><code>        return 0</code></span></pre>
+<span class='src-line'><b>  46</b><code>        lines.append(</code></span>
+<span class='src-line'><b>  47</b><code>            &quot;cost is pending unless the provider returns cost metadata, configured token rates are set, &quot;</code></span>
+<span class='src-line'><b>  48</b><code>            &quot;or the model is local/free&quot;</code></span>
+<span class='src-line'><b>  49</b><code>        )</code></span>
+<span class='src-line'><b>  50</b><code>    return lines</code></span>
+<span class='src-line'><b>  51</b><code></code></span>
+<span class='src-line'><b>  52</b><code></code></span>
+<span class='src-line'><b>  53</b><code>def _safe_int(value: Any) -&gt; int:</code></span>
+<span class='src-line'><b>  54</b><code>    try:</code></span>
+<span class='src-line'><b>  55</b><code>        return int(float(value))</code></span>
+<span class='src-line'><b>  56</b><code>    except (TypeError, ValueError):</code></span>
+<span class='src-line'><b>  57</b><code>        return 0</code></span></pre>
 </details>
 <details class="source-file searchable" data-search="nipux_cli/web.py &quot;&quot;&quot;Small web search/extract helpers without external web tool dependencies.&quot;&quot;&quot;
 
