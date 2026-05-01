@@ -11,6 +11,7 @@ import yaml
 
 
 DEFAULT_MODEL = "local-model"
+DEFAULT_OPENROUTER_MODEL = "qwen/qwen3.6-27b"
 DEFAULT_BASE_URL = "http://localhost:8000/v1"
 DEFAULT_CONTEXT_LENGTH = 262_144
 

@@ -76,7 +76,7 @@ Initialize local state under `~/.nipux`. This writes `config.yaml` and a local
 in the git repo.
 
 ```bash
-nipux init --openrouter --model openai/gpt-4.1-mini
+nipux init --openrouter
 $EDITOR ~/.nipux/.env
 chmod 600 ~/.nipux/.env
 nipux doctor --check-model
@@ -132,7 +132,7 @@ of the environment variable to read:
 
 ```yaml
 model:
-  name: openai/gpt-4.1-mini
+  name: qwen/qwen3.6-27b
   base_url: https://openrouter.ai/api/v1
   api_key_env: OPENROUTER_API_KEY
 ```
