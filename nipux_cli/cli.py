@@ -1599,6 +1599,7 @@ def _load_frame_snapshot(job_id: str, *, history_limit: int = 12) -> dict[str, A
         }
         memory_entries = db.list_memory(job_id)[:8]
         events = db.list_events(job_id=job_id, limit=max(history_limit * 16, 240))
+        summary_events = db.list_events(job_id=job_id, limit=max(history_limit * 80, 1000))
         token_usage = db.job_token_usage(job_id)
         daemon = daemon_lock_status(config.runtime.home / "agentd.lock")
     finally:
@@ -1612,6 +1613,7 @@ def _load_frame_snapshot(job_id: str, *, history_limit: int = 12) -> dict[str, A
         "job_artifacts": job_artifacts,
         "memory_entries": memory_entries,
         "events": events,
+        "summary_events": summary_events,
         "daemon": daemon,
         "model": config.model.model,
         "base_url": config.model.base_url,
@@ -1667,6 +1669,7 @@ def _build_chat_frame(
         job_artifacts.setdefault(job_id, artifacts)
     memory_entries = snapshot["memory_entries"]
     events = snapshot["events"]
+    summary_events = snapshot.get("summary_events") if isinstance(snapshot.get("summary_events"), list) else events
     daemon = snapshot["daemon"]
     model = str(snapshot["model"])
     base_url = str(snapshot.get("base_url") or "")
@@ -1736,7 +1739,7 @@ def _build_chat_frame(
     if right_view == "updates":
         right_lines = _chat_updates_pane_lines(
             job=job,
-            events=events,
+            events=summary_events,
             width=right_width,
             rows=right_rows,
         )

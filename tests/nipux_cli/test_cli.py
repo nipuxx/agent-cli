@@ -937,6 +937,38 @@ def test_chat_frame_has_model_updates_page():
     assert "outline.md" in frame
 
 
+def test_chat_updates_page_uses_deeper_summary_events():
+    snapshot = {
+        "job_id": "job_demo",
+        "job": {
+            "id": "job_demo",
+            "title": "paper job",
+            "objective": "write a paper",
+            "status": "running",
+            "kind": "generic",
+            "metadata": {},
+        },
+        "jobs": [{"id": "job_demo", "title": "paper job", "status": "running", "kind": "generic", "metadata": {}}],
+        "steps": [],
+        "artifacts": [],
+        "memory_entries": [],
+        "events": [
+            {"event_type": "tool_call", "title": "web_search", "body": "", "metadata": {}},
+        ],
+        "summary_events": [
+            {"event_type": "artifact", "title": "Full Paper Draft", "body": "saved draft", "metadata": {}},
+            {"event_type": "finding", "title": "Distillation method map", "body": "", "metadata": {}},
+        ],
+        "daemon": {"running": True, "metadata": {"pid": 123}},
+        "model": "model/demo",
+    }
+
+    frame = _build_chat_frame(snapshot, "", [], width=132, height=26, right_view="updates")
+
+    assert "Full Paper Draft" in frame
+    assert "Distillation method map" in frame
+
+
 def test_chat_status_page_shows_job_outputs():
     snapshot = {
         "job_id": "job_demo",
