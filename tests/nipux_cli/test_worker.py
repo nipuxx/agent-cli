@@ -1294,6 +1294,66 @@ def test_research_experiment_next_action_allows_research(tmp_path):
         db.close()
 
 
+def test_delivery_experiment_next_action_blocks_read_only_shell(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Improve a generic deliverable", title="deliverable", kind="generic")
+        db.update_job_metadata(job_id, {
+            "experiment_ledger": [{
+                "title": "deliverable gap",
+                "status": "measured",
+                "metric_name": "coverage",
+                "metric_value": 0.25,
+                "metric_unit": "ratio",
+                "next_action": "merge the measured output into the deliverable file",
+            }],
+        })
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([LLMResponse(tool_calls=[ToolCall(name="shell_exec", arguments={"command": "ls -la outputs"})])]),
+            registry=SuccessRegistry(),
+        )
+
+        assert result.status == "blocked"
+        assert result.result["error"] == "experiment next action pending"
+    finally:
+        db.close()
+
+
+def test_delivery_experiment_next_action_allows_write_shell(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Improve a generic deliverable", title="deliverable", kind="generic")
+        db.update_job_metadata(job_id, {
+            "experiment_ledger": [{
+                "title": "deliverable gap",
+                "status": "measured",
+                "metric_name": "coverage",
+                "metric_value": 0.25,
+                "metric_unit": "ratio",
+                "next_action": "merge the measured output into the deliverable file",
+            }],
+        })
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([LLMResponse(tool_calls=[ToolCall(name="shell_exec", arguments={"command": "printf updated > output.txt"})])]),
+            registry=SuccessRegistry(),
+        )
+
+        assert result.status == "completed"
+        assert result.tool_name == "shell_exec"
+    finally:
+        db.close()
+
+
 def test_prompt_marks_recent_anti_bot_browser_source():
     job = {"title": "research", "kind": "generic", "objective": "find research"}
     steps = [{

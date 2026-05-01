@@ -294,6 +294,12 @@ EXPERIMENT_INFORMATION_ACTION_TERMS = {
     "survey",
 }
 EXPERIMENT_NEXT_ACTION_BLOCKED_TOOLS = INFORMATION_GATHERING_TOOLS | ARTIFACT_REVIEW_TOOLS | {"report_update"}
+READ_ONLY_SHELL_COMMAND_PATTERN = re.compile(
+    r"(?is)^\s*(?:"
+    r"awk\b|cat\b|df\b|du\b|echo\b|find\b|git\s+(?:diff|grep|log|ls-files|show|status)\b|"
+    r"grep\b|head\b|ls\b|pwd\b|rg\b|sed\s+-n\b|stat\b|tail\b|tree\b|wc\b"
+    r")"
+)
 
 BROWSER_REF_IGNORE_NAMES = {
     "about us",
@@ -981,6 +987,29 @@ def _experiment_next_action_requires_delivery(context: dict[str, Any] | None) ->
     if not tokens & EXPERIMENT_DELIVERY_ACTION_TERMS:
         return False
     return not bool(tokens & EXPERIMENT_INFORMATION_ACTION_TERMS)
+
+
+def _shell_command_looks_like_write(command: str) -> bool:
+    text = command.strip()
+    if not text:
+        return False
+    write_patterns = [
+        r">\s*[^&]",
+        r"\btee\b",
+        r"\bcat\s+>\b",
+        r"\bpython[0-9.]*\b.*\bwrite_text\b",
+        r"\bpython[0-9.]*\b.*\bopen\([^)]*,\s*['\"]w",
+        r"\bsed\s+-i\b",
+    ]
+    return any(re.search(pattern, text, flags=re.IGNORECASE | re.DOTALL) for pattern in write_patterns)
+
+
+def _shell_command_looks_read_only(command: str) -> bool:
+    if not command.strip():
+        return False
+    if _shell_command_looks_like_write(command):
+        return False
+    return bool(READ_ONLY_SHELL_COMMAND_PATTERN.search(command))
 
 
 def _roadmap_staleness_context(job: dict[str, Any], recent_steps: list[dict[str, Any]]) -> dict[str, Any] | None:
@@ -1965,7 +1994,13 @@ def _blocked_tool_call_result(
     experiment_next_action = _latest_experiment_next_action_context(job)
     if (
         _experiment_next_action_requires_delivery(experiment_next_action)
-        and name in EXPERIMENT_NEXT_ACTION_BLOCKED_TOOLS
+        and (
+            name in EXPERIMENT_NEXT_ACTION_BLOCKED_TOOLS
+            or (
+                name == "shell_exec"
+                and _shell_command_looks_read_only(str(args.get("command") or ""))
+            )
+        )
     ):
         result = {
             "success": False,
