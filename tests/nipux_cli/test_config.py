@@ -84,3 +84,12 @@ def test_default_config_yaml_allows_provider_template_without_secret():
     assert "api_key_env: OPENROUTER_API_KEY" in text
     assert "context_length: 8192" in text
     assert "sk-" not in text
+
+
+def test_config_example_matches_default_provider():
+    root = Path(__file__).resolve().parents[2]
+    text = (root / "config.example.yaml").read_text(encoding="utf-8")
+
+    assert "name: qwen/qwen3.6-27b" in text
+    assert "base_url: https://openrouter.ai/api/v1" in text
+    assert "api_key_env: OPENROUTER_API_KEY" in text

@@ -82,7 +82,7 @@ pre { max-height: 540px; overflow: auto; background: #050606; border: 1px solid 
 <div class="shell">
   <aside class="sidebar">
     <div class="logo">NIPUX ATLAS</div>
-    <div class="subtitle">Generated from tracked source on 47e5a57d.</div>
+    <div class="subtitle">Generated from tracked source on b3423185.</div>
     <input id="search" class="search" placeholder="filter files, prompts, tools..." autocomplete="off">
     <nav class="nav">
       <a href="#architecture">Architecture</a>
@@ -98,8 +98,8 @@ pre { max-height: 540px; overflow: auto; background: #050606; border: 1px solid 
     </nav>
     <div class="stats">
       <div class="stat"><b>51</b><span>tracked files</span></div>
-      <div class="stat"><b>24,083</b><span>tracked lines mapped</span></div>
-      <div class="stat"><b>1004</b><span>python symbols</span></div>
+      <div class="stat"><b>24,092</b><span>tracked lines mapped</span></div>
+      <div class="stat"><b>1005</b><span>python symbols</span></div>
       <div class="stat"><b>26</b><span>runtime tools</span></div>
     </div>
   </aside>
@@ -678,11 +678,11 @@ daemon, state store, model adapter, artifact store, and fixed tool surface. none
 <div class="meta"><span>1 symbols</span><span>0 TODOs</span></div>
 <details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> nipux_cli.compression, nipux_cli.db</p><p><strong>Symbols:</strong> test_refresh_memory_index_includes_durable_progress_ledgers</p></details>
 </article>
-<article class="file-card searchable" data-search="tests/nipux_cli/test_config.py No module docstring. test_load_config_defaults_to_qwen_openrouter, test_load_config_from_yaml, test_load_config_reads_local_env_file, test_default_config_yaml_allows_provider_template_without_secret">
-<header><h3>tests/nipux_cli/test_config.py</h3><span>86 lines</span></header>
+<article class="file-card searchable" data-search="tests/nipux_cli/test_config.py No module docstring. test_load_config_defaults_to_qwen_openrouter, test_load_config_from_yaml, test_load_config_reads_local_env_file, test_default_config_yaml_allows_provider_template_without_secret, test_config_example_matches_default_provider">
+<header><h3>tests/nipux_cli/test_config.py</h3><span>95 lines</span></header>
 <p>No module docstring.</p>
-<div class="meta"><span>4 symbols</span><span>0 TODOs</span></div>
-<details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> pathlib, nipux_cli.config</p><p><strong>Symbols:</strong> test_load_config_defaults_to_qwen_openrouter, test_load_config_from_yaml, test_load_config_reads_local_env_file, test_default_config_yaml_allows_provider_template_without_secret</p></details>
+<div class="meta"><span>5 symbols</span><span>0 TODOs</span></div>
+<details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> pathlib, nipux_cli.config</p><p><strong>Symbols:</strong> test_load_config_defaults_to_qwen_openrouter, test_load_config_from_yaml, test_load_config_reads_local_env_file, test_default_config_yaml_allows_provider_template_without_secret, test_config_example_matches_default_provider</p></details>
 </article>
 <article class="file-card searchable" data-search="tests/nipux_cli/test_daemon.py No module docstring. test_single_instance_lock_rejects_second_holder, test_daemon_lock_status_reports_free_lock, test_lock_metadata_can_be_updated_while_held, test_daemon_lock_status_detects_stale_runtime, test_runtime_fingerprint_tracks_progress_code, test_rate_limit_backoff_uses_retry_after_header, RateLimit, test_rate_limit_backoff_has_conservative_fallback, RateLimit, test_failed_step_provider_config_error_gets_long_backoff">
 <header><h3>tests/nipux_cli/test_daemon.py</h3><span>295 lines</span></header>
@@ -5566,6 +5566,12 @@ daemon, state store, model adapter, artifact store, and fixed tool surface. none
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> default_config_yaml</p>
 </article>
+<article class="symbol searchable" data-search="tests/nipux_cli/test_config.py test_config_example_matches_default_provider No docstring. Path, read_text, resolve">
+<h3>test_config_example_matches_default_provider</h3>
+<p><span class="pill">function</span> <span class="pill">tests/nipux_cli/test_config.py:89</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> Path, read_text, resolve</p>
+</article>
 <article class="symbol searchable" data-search="tests/nipux_cli/test_daemon.py test_single_instance_lock_rejects_second_holder No docstring. pytest.raises, single_instance_lock">
 <h3>test_single_instance_lock_rejects_second_holder</h3>
 <p><span class="pill">function</span> <span class="pill">tests/nipux_cli/test_daemon.py:27</span></p>
@@ -7401,7 +7407,7 @@ rg -n --hidden -S &quot;(sk-[A-Za-z0-9_-]{20,}|OPENROUTER_API_KEY[=].+|OPENAI_AP
 <span class='src-line'><b>  36</b><code>```</code></span></pre>
 </details>
 <details class="source-file searchable" data-search="config.example.yaml model:
-  name: openai/gpt-4.1-mini
+  name: qwen/qwen3.6-27b
   base_url: https://openrouter.ai/api/v1
   api_key_env: OPENROUTER_API_KEY
   context_length: 262144
@@ -7422,7 +7428,7 @@ email:
 ">
 <summary>config.example.yaml <span>19 lines</span></summary>
 <pre class="source-code"><span class='src-line'><b>   1</b><code>model:</code></span>
-<span class='src-line'><b>   2</b><code>  name: openai/gpt-4.1-mini</code></span>
+<span class='src-line'><b>   2</b><code>  name: qwen/qwen3.6-27b</code></span>
 <span class='src-line'><b>   3</b><code>  base_url: https://openrouter.ai/api/v1</code></span>
 <span class='src-line'><b>   4</b><code>  api_key_env: OPENROUTER_API_KEY</code></span>
 <span class='src-line'><b>   5</b><code>  context_length: 262144</code></span>
@@ -29897,8 +29903,17 @@ def test_default_config_yaml_allows_provider_template_without_secret():
     assert &quot;api_key_env: OPENROUTER_API_KEY&quot; in text
     assert &quot;context_length: 8192&quot; in text
     assert &quot;sk-&quot; not in text
+
+
+def test_config_example_matches_default_provider():
+    root = Path(__file__).resolve().parents[2]
+    text = (root / &quot;config.example.yaml&quot;).read_text(encoding=&quot;utf-8&quot;)
+
+    assert &quot;name: qwen/qwen3.6-27b&quot; in text
+    assert &quot;base_url: https://openrouter.ai/api/v1&quot; in text
+    assert &quot;api_key_env: OPENROUTER_API_KEY&quot; in text
 ">
-<summary>tests/nipux_cli/test_config.py <span>86 lines</span></summary>
+<summary>tests/nipux_cli/test_config.py <span>95 lines</span></summary>
 <pre class="source-code"><span class='src-line'><b>   1</b><code>from pathlib import Path</code></span>
 <span class='src-line'><b>   2</b><code></code></span>
 <span class='src-line'><b>   3</b><code>from nipux_cli.config import DEFAULT_CONTEXT_LENGTH, default_config_yaml, load_config</code></span>
@@ -29984,7 +29999,16 @@ def test_default_config_yaml_allows_provider_template_without_secret():
 <span class='src-line'><b>  83</b><code>    assert &quot;base_url: https://openrouter.ai/api/v1&quot; in text</code></span>
 <span class='src-line'><b>  84</b><code>    assert &quot;api_key_env: OPENROUTER_API_KEY&quot; in text</code></span>
 <span class='src-line'><b>  85</b><code>    assert &quot;context_length: 8192&quot; in text</code></span>
-<span class='src-line'><b>  86</b><code>    assert &quot;sk-&quot; not in text</code></span></pre>
+<span class='src-line'><b>  86</b><code>    assert &quot;sk-&quot; not in text</code></span>
+<span class='src-line'><b>  87</b><code></code></span>
+<span class='src-line'><b>  88</b><code></code></span>
+<span class='src-line'><b>  89</b><code>def test_config_example_matches_default_provider():</code></span>
+<span class='src-line'><b>  90</b><code>    root = Path(__file__).resolve().parents[2]</code></span>
+<span class='src-line'><b>  91</b><code>    text = (root / &quot;config.example.yaml&quot;).read_text(encoding=&quot;utf-8&quot;)</code></span>
+<span class='src-line'><b>  92</b><code></code></span>
+<span class='src-line'><b>  93</b><code>    assert &quot;name: qwen/qwen3.6-27b&quot; in text</code></span>
+<span class='src-line'><b>  94</b><code>    assert &quot;base_url: https://openrouter.ai/api/v1&quot; in text</code></span>
+<span class='src-line'><b>  95</b><code>    assert &quot;api_key_env: OPENROUTER_API_KEY&quot; in text</code></span></pre>
 </details>
 <details class="source-file searchable" data-search="tests/nipux_cli/test_daemon.py from datetime import datetime
 import json
@@ -35452,9 +35476,9 @@ class AntiBotBrowserRegistry:
 <article class="test-card searchable" data-search="tests/nipux_cli/test_compression.py test_refresh_memory_index_includes_durable_progress_ledgers">
 <h3>tests/nipux_cli/test_compression.py</h3><p><strong>1</strong> tests · 52 lines</p>
 <p class="muted">test_refresh_memory_index_includes_durable_progress_ledgers</p></article>
-<article class="test-card searchable" data-search="tests/nipux_cli/test_config.py test_load_config_defaults_to_qwen_openrouter test_load_config_from_yaml test_load_config_reads_local_env_file test_default_config_yaml_allows_provider_template_without_secret">
-<h3>tests/nipux_cli/test_config.py</h3><p><strong>4</strong> tests · 86 lines</p>
-<p class="muted">test_load_config_defaults_to_qwen_openrouter, test_load_config_from_yaml, test_load_config_reads_local_env_file, test_default_config_yaml_allows_provider_template_without_secret</p></article>
+<article class="test-card searchable" data-search="tests/nipux_cli/test_config.py test_load_config_defaults_to_qwen_openrouter test_load_config_from_yaml test_load_config_reads_local_env_file test_default_config_yaml_allows_provider_template_without_secret test_config_example_matches_default_provider">
+<h3>tests/nipux_cli/test_config.py</h3><p><strong>5</strong> tests · 95 lines</p>
+<p class="muted">test_load_config_defaults_to_qwen_openrouter, test_load_config_from_yaml, test_load_config_reads_local_env_file, test_default_config_yaml_allows_provider_template_without_secret, test_config_example_matches_default_provider</p></article>
 <article class="test-card searchable" data-search="tests/nipux_cli/test_daemon.py test_single_instance_lock_rejects_second_holder test_daemon_lock_status_reports_free_lock test_lock_metadata_can_be_updated_while_held test_daemon_lock_status_detects_stale_runtime test_runtime_fingerprint_tracks_progress_code test_rate_limit_backoff_uses_retry_after_header test_rate_limit_backoff_has_conservative_fallback test_failed_step_provider_config_error_gets_long_backoff test_failed_step_rate_limit_gets_throttled_backoff test_retry_after_parses_epoch_milliseconds test_daemon_run_once_claims_next_job_with_fake_step test_daemon_ignores_ui_focus_for_worker_scheduling test_daemon_advances_multiple_runnable_jobs_without_focus_starvation test_daemon_writes_due_daily_digest_once test_daemon_event_log_round_trips_jsonl test_daemon_recovers_stale_running_steps_on_start test_daemon_survives_unexpected_step_exception test_daemon_treats_blocked_steps_as_recoverable test_fake_daemon_can_run_100_iterations_without_auto_stop">
 <h3>tests/nipux_cli/test_daemon.py</h3><p><strong>19</strong> tests · 295 lines</p>
 <p class="muted">test_single_instance_lock_rejects_second_holder, test_daemon_lock_status_reports_free_lock, test_lock_metadata_can_be_updated_while_held, test_daemon_lock_status_detects_stale_runtime, test_runtime_fingerprint_tracks_progress_code, test_rate_limit_backoff_uses_retry_after_header, test_rate_limit_backoff_has_conserva...</p></article>
@@ -35504,7 +35528,7 @@ class AntiBotBrowserRegistry:
       <div class="grid"><article class='card warning searchable' data-search='Large modules nipux_cli/cli.py (6090 lines), nipux_cli/worker.py (3146 lines), tests/nipux_cli/test_worker.py (2510 lines), nipux_cli/db.py (2396 lines), tests/nipux_cli/test_cli.py (1632 lines)'><h3>Large modules</h3><p>nipux_cli/cli.py (6090 lines), nipux_cli/worker.py (3146 lines), tests/nipux_cli/test_worker.py (2510 lines), nipux_cli/db.py (2396 lines), tests/nipux_cli/test_cli.py (1632 lines)</p></article>
 <article class='card warning searchable' data-search='Prompt surfaces 12 prompt/instruction-like strings were extracted. Inspect this section after any agent-behavior change.'><h3>Prompt surfaces</h3><p>12 prompt/instruction-like strings were extracted. Inspect this section after any agent-behavior change.</p></article>
 <article class='card warning searchable' data-search='Tool surface 26 tools are exposed to the worker. Review descriptions whenever generic behavior changes.'><h3>Tool surface</h3><p>26 tools are exposed to the worker. Review descriptions whenever generic behavior changes.</p></article>
-<article class='card warning searchable' data-search='Symbol map 1004 symbols were parsed. Large modules are candidates for refactoring once behavior stabilizes.'><h3>Symbol map</h3><p>1004 symbols were parsed. Large modules are candidates for refactoring once behavior stabilizes.</p></article></div>
+<article class='card warning searchable' data-search='Symbol map 1005 symbols were parsed. Large modules are candidates for refactoring once behavior stabilizes.'><h3>Symbol map</h3><p>1005 symbols were parsed. Large modules are candidates for refactoring once behavior stabilizes.</p></article></div>
     </section>
   </main>
 </div>
