@@ -217,7 +217,7 @@ job, and latest daemon events.
 
 Use these views when a job has been running unattended:
 
-- `nipux outcomes JOB` or the **Progress** pane: durable work grouped by time,
+- `nipux outcomes JOB` or the **Outcomes** pane: durable work grouped by time,
   including saved outputs, findings, measurements, decisions, lessons, and file
   changes.
 - `nipux activity JOB --follow` or the **Work** pane: the raw live tool stream

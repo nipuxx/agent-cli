@@ -82,7 +82,7 @@ pre { max-height: 540px; overflow: auto; background: #050606; border: 1px solid 
 <div class="shell">
   <aside class="sidebar">
     <div class="logo">NIPUX ATLAS</div>
-    <div class="subtitle">Generated from tracked source on 56ac1c49.</div>
+    <div class="subtitle">Generated from tracked source on c881fae2.</div>
     <input id="search" class="search" placeholder="filter files, prompts, tools..." autocomplete="off">
     <nav class="nav">
       <a href="#architecture">Architecture</a>
@@ -97,9 +97,9 @@ pre { max-height: 540px; overflow: auto; background: #050606; border: 1px solid 
       <a href="#risks">Review Points</a>
     </nav>
     <div class="stats">
-      <div class="stat"><b>59</b><span>tracked files</span></div>
-      <div class="stat"><b>25,208</b><span>tracked lines mapped</span></div>
-      <div class="stat"><b>1040</b><span>python symbols</span></div>
+      <div class="stat"><b>60</b><span>tracked files</span></div>
+      <div class="stat"><b>25,288</b><span>tracked lines mapped</span></div>
+      <div class="stat"><b>1045</b><span>python symbols</span></div>
       <div class="stat"><b>27</b><span>runtime tools</span></div>
     </div>
   </aside>
@@ -475,7 +475,7 @@ have incorporated or intentionally superseded a steer/follow_up message.
     </section>
 
     <section id="files" class="section">
-      <header><div><div class="kicker">Source index</div><h2>Important Files</h2></div><span class="muted">52 Python modules plus docs/config files.</span></header>
+      <header><div><div class="kicker">Source index</div><h2>Important Files</h2></div><span class="muted">53 Python modules plus docs/config files.</span></header>
       <div class="grid"><article class="file-card searchable" data-search="AGENTS.md This repo is a focused long-running worker, not a broad assistant distribution. none">
 <header><h3>AGENTS.md</h3><span>32 lines</span></header>
 <p>This repo is a focused long-running worker, not a broad assistant distribution.</p>
@@ -652,6 +652,12 @@ fixed tool surface. none">
 <p>Compact event rendering helpers for the Nipux terminal UI.</p>
 <div class="meta"><span>30 symbols</span><span>0 TODOs</span></div>
 <details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> __future__, os, re, shlex, textwrap, pathlib, typing, nipux_cli.tui_style</p><p><strong>Symbols:</strong> chat_event_parts, append_chat_output, chat_pane_lines, chat_empty_state_lines, worker_activity_lines, model_update_event_parts, latest_durable_outcome_line, recent_model_update_lines, chat_updates_pane_lines, hourly_update_lines</p></details>
+</article>
+<article class="file-card searchable" data-search="nipux_cli/tui_input.py Terminal input helpers for full-screen Nipux frames. read_terminal_char, read_escape_sequence, terminal_escape_complete, decode_terminal_escape, drain_pending_input">
+<header><h3>nipux_cli/tui_input.py</h3><span>80 lines</span></header>
+<p>Terminal input helpers for full-screen Nipux frames.</p>
+<div class="meta"><span>5 symbols</span><span>0 TODOs</span></div>
+<details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> __future__, os, re, select, sys, time</p><p><strong>Symbols:</strong> read_terminal_char, read_escape_sequence, terminal_escape_complete, decode_terminal_escape, drain_pending_input</p></details>
 </article>
 <article class="file-card searchable" data-search="nipux_cli/tui_layout.py Reusable terminal layout primitives for Nipux frames. _top_bar, _two_col_title, _two_col_line, _edge_line, _compose_bar, _metric_strip, _pill, _token_usage_topline, _model_cost_is_zero, _format_usage_cost">
 <header><h3>nipux_cli/tui_layout.py</h3><span>195 lines</span></header>
@@ -3998,6 +4004,36 @@ fixed tool surface. none">
 <p><span class="pill">function</span> <span class="pill">nipux_cli/tui_events.py:632</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> _one_line, len, value.replace</p>
+</article>
+<article class="symbol searchable" data-search="nipux_cli/tui_input.py read_terminal_char No docstring. data.decode, os.read">
+<h3>read_terminal_char</h3>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/tui_input.py:12</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> data.decode, os.read</p>
+</article>
+<article class="symbol searchable" data-search="nipux_cli/tui_input.py read_escape_sequence No docstring. len, max, min, read_terminal_char, select.select, sys.stdin.fileno, terminal_escape_complete, time.monotonic">
+<h3>read_escape_sequence</h3>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/tui_input.py:17</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> len, max, min, read_terminal_char, select.select, sys.stdin.fileno, terminal_escape_complete, time.monotonic</p>
+</article>
+<article class="symbol searchable" data-search="nipux_cli/tui_input.py terminal_escape_complete No docstring. len, re.match, sequence.startswith">
+<h3>terminal_escape_complete</h3>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/tui_input.py:34</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> len, re.match, sequence.startswith</p>
+</article>
+<article class="symbol searchable" data-search="nipux_cli/tui_input.py decode_terminal_escape No docstring. csi_arrow.group, int, len, match.group, ord, re.match, sequence.startswith">
+<h3>decode_terminal_escape</h3>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/tui_input.py:46</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> csi_arrow.group, int, len, match.group, ord, re.match, sequence.startswith</p>
+</article>
+<article class="symbol searchable" data-search="nipux_cli/tui_input.py drain_pending_input No docstring. os.read, select.select, sys.stdin.fileno">
+<h3>drain_pending_input</h3>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/tui_input.py:74</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> os.read, select.select, sys.stdin.fileno</p>
 </article>
 <article class="symbol searchable" data-search="nipux_cli/tui_layout.py _top_bar No docstring. _accent, _bold, _edge_line, _fancy_ui, _muted, _one_line, _pill, _status_dot, _style, _token_usage_topline, daemon.startswith, max">
 <h3>_top_bar</h3>
@@ -7517,7 +7553,7 @@ Do not commit real `.env`, state data">
 <span class='src-line'><b> 217</b><code></code></span>
 <span class='src-line'><b> 218</b><code>Use these views when a job has been running unattended:</code></span>
 <span class='src-line'><b> 219</b><code></code></span>
-<span class='src-line'><b> 220</b><code>- `nipux outcomes JOB` or the **Progress** pane: durable work grouped by time,</code></span>
+<span class='src-line'><b> 220</b><code>- `nipux outcomes JOB` or the **Outcomes** pane: durable work grouped by time,</code></span>
 <span class='src-line'><b> 221</b><code>  including saved outputs, findings, measurements, decisions, lessons, and file</code></span>
 <span class='src-line'><b> 222</b><code>  changes.</code></span>
 <span class='src-line'><b> 223</b><code>- `nipux activity JOB --follow` or the **Work** pane: the raw live tool stream</code></span>
@@ -23447,6 +23483,168 @@ def worker_activity_lines(event">
 <span class='src-line'><b> 635</b><code>        return text[:16]</code></span>
 <span class='src-line'><b> 636</b><code>    return _one_line(text, 16)</code></span></pre>
 </details>
+<details class="source-file searchable" data-search="nipux_cli/tui_input.py &quot;&quot;&quot;Terminal input helpers for full-screen Nipux frames.&quot;&quot;&quot;
+
+from __future__ import annotations
+
+import os
+import re
+import select
+import sys
+import time
+
+
+def read_terminal_char(fd: int) -&gt; str:
+    data = os.read(fd, 1)
+    return data.decode(&quot;latin1&quot;, errors=&quot;ignore&quot;)
+
+
+def read_escape_sequence(first: str, *, fd: int | None = None) -&gt; str:
+    fd = sys.stdin.fileno() if fd is None else fd
+    sequence = first
+    deadline = time.monotonic() + 0.12
+    while len(sequence) &lt; 96:
+        timeout = max(0.0, min(0.04, deadline - time.monotonic()))
+        if timeout &lt;= 0:
+            break
+        readable, _, _ = select.select([fd], [], [], timeout)
+        if not readable:
+            break
+        sequence += read_terminal_char(fd)
+        if terminal_escape_complete(sequence):
+            break
+    return sequence
+
+
+def terminal_escape_complete(sequence: str) -&gt; bool:
+    if sequence in {&quot;\x1b[A&quot;, &quot;\x1b[B&quot;, &quot;\x1b[C&quot;, &quot;\x1b[D&quot;, &quot;\x1bOA&quot;, &quot;\x1bOB&quot;, &quot;\x1bOC&quot;, &quot;\x1bOD&quot;}:
+        return True
+    if re.match(r&quot;^\x1b\[[0-9;?]*[ABCD]$&quot;, sequence):
+        return True
+    if re.match(r&quot;^\x1b\[&lt;\d+;\d+;\d+[mM]$&quot;, sequence):
+        return True
+    if sequence.startswith(&quot;\x1b[M&quot;) and len(sequence) &gt;= 6:
+        return True
+    return False
+
+
+def decode_terminal_escape(sequence: str) -&gt; tuple[str, tuple[int, int] | None]:
+    arrows = {
+        &quot;\x1b[A&quot;: &quot;up&quot;,
+        &quot;\x1b[B&quot;: &quot;down&quot;,
+        &quot;\x1b[C&quot;: &quot;right&quot;,
+        &quot;\x1b[D&quot;: &quot;left&quot;,
+        &quot;\x1bOA&quot;: &quot;up&quot;,
+        &quot;\x1bOB&quot;: &quot;down&quot;,
+        &quot;\x1bOC&quot;: &quot;right&quot;,
+        &quot;\x1bOD&quot;: &quot;left&quot;,
+    }
+    if sequence in arrows:
+        return arrows[sequence], None
+    csi_arrow = re.match(r&quot;^\x1b\[[0-9;?]*([ABCD])$&quot;, sequence)
+    if csi_arrow:
+        return {&quot;A&quot;: &quot;up&quot;, &quot;B&quot;: &quot;down&quot;, &quot;C&quot;: &quot;right&quot;, &quot;D&quot;: &quot;left&quot;}[csi_arrow.group(1)], None
+    match = re.match(r&quot;^\x1b\[&lt;(\d+);(\d+);(\d+)([mM])$&quot;, sequence)
+    if match and match.group(4) == &quot;M&quot;:
+        button = int(match.group(1))
+        if button == 0:
+            return &quot;click&quot;, (int(match.group(2)), int(match.group(3)))
+    if sequence.startswith(&quot;\x1b[M&quot;) and len(sequence) &gt;= 6:
+        button = ord(sequence[3]) - 32
+        if button == 0:
+            return &quot;click&quot;, (ord(sequence[4]) - 32, ord(sequence[5]) - 32)
+    return &quot;unknown&quot;, None
+
+
+def drain_pending_input(fd: int | None = None) -&gt; None:
+    fd = sys.stdin.fileno() if fd is None else fd
+    while True:
+        readable, _, _ = select.select([fd], [], [], 0)
+        if not readable:
+            return
+        os.read(fd, 1)">
+<summary>nipux_cli/tui_input.py <span>80 lines</span></summary>
+<pre class="source-code"><span class='src-line'><b>   1</b><code>&quot;&quot;&quot;Terminal input helpers for full-screen Nipux frames.&quot;&quot;&quot;</code></span>
+<span class='src-line'><b>   2</b><code></code></span>
+<span class='src-line'><b>   3</b><code>from __future__ import annotations</code></span>
+<span class='src-line'><b>   4</b><code></code></span>
+<span class='src-line'><b>   5</b><code>import os</code></span>
+<span class='src-line'><b>   6</b><code>import re</code></span>
+<span class='src-line'><b>   7</b><code>import select</code></span>
+<span class='src-line'><b>   8</b><code>import sys</code></span>
+<span class='src-line'><b>   9</b><code>import time</code></span>
+<span class='src-line'><b>  10</b><code></code></span>
+<span class='src-line'><b>  11</b><code></code></span>
+<span class='src-line'><b>  12</b><code>def read_terminal_char(fd: int) -&gt; str:</code></span>
+<span class='src-line'><b>  13</b><code>    data = os.read(fd, 1)</code></span>
+<span class='src-line'><b>  14</b><code>    return data.decode(&quot;latin1&quot;, errors=&quot;ignore&quot;)</code></span>
+<span class='src-line'><b>  15</b><code></code></span>
+<span class='src-line'><b>  16</b><code></code></span>
+<span class='src-line'><b>  17</b><code>def read_escape_sequence(first: str, *, fd: int | None = None) -&gt; str:</code></span>
+<span class='src-line'><b>  18</b><code>    fd = sys.stdin.fileno() if fd is None else fd</code></span>
+<span class='src-line'><b>  19</b><code>    sequence = first</code></span>
+<span class='src-line'><b>  20</b><code>    deadline = time.monotonic() + 0.12</code></span>
+<span class='src-line'><b>  21</b><code>    while len(sequence) &lt; 96:</code></span>
+<span class='src-line'><b>  22</b><code>        timeout = max(0.0, min(0.04, deadline - time.monotonic()))</code></span>
+<span class='src-line'><b>  23</b><code>        if timeout &lt;= 0:</code></span>
+<span class='src-line'><b>  24</b><code>            break</code></span>
+<span class='src-line'><b>  25</b><code>        readable, _, _ = select.select([fd], [], [], timeout)</code></span>
+<span class='src-line'><b>  26</b><code>        if not readable:</code></span>
+<span class='src-line'><b>  27</b><code>            break</code></span>
+<span class='src-line'><b>  28</b><code>        sequence += read_terminal_char(fd)</code></span>
+<span class='src-line'><b>  29</b><code>        if terminal_escape_complete(sequence):</code></span>
+<span class='src-line'><b>  30</b><code>            break</code></span>
+<span class='src-line'><b>  31</b><code>    return sequence</code></span>
+<span class='src-line'><b>  32</b><code></code></span>
+<span class='src-line'><b>  33</b><code></code></span>
+<span class='src-line'><b>  34</b><code>def terminal_escape_complete(sequence: str) -&gt; bool:</code></span>
+<span class='src-line'><b>  35</b><code>    if sequence in {&quot;\x1b[A&quot;, &quot;\x1b[B&quot;, &quot;\x1b[C&quot;, &quot;\x1b[D&quot;, &quot;\x1bOA&quot;, &quot;\x1bOB&quot;, &quot;\x1bOC&quot;, &quot;\x1bOD&quot;}:</code></span>
+<span class='src-line'><b>  36</b><code>        return True</code></span>
+<span class='src-line'><b>  37</b><code>    if re.match(r&quot;^\x1b\[[0-9;?]*[ABCD]$&quot;, sequence):</code></span>
+<span class='src-line'><b>  38</b><code>        return True</code></span>
+<span class='src-line'><b>  39</b><code>    if re.match(r&quot;^\x1b\[&lt;\d+;\d+;\d+[mM]$&quot;, sequence):</code></span>
+<span class='src-line'><b>  40</b><code>        return True</code></span>
+<span class='src-line'><b>  41</b><code>    if sequence.startswith(&quot;\x1b[M&quot;) and len(sequence) &gt;= 6:</code></span>
+<span class='src-line'><b>  42</b><code>        return True</code></span>
+<span class='src-line'><b>  43</b><code>    return False</code></span>
+<span class='src-line'><b>  44</b><code></code></span>
+<span class='src-line'><b>  45</b><code></code></span>
+<span class='src-line'><b>  46</b><code>def decode_terminal_escape(sequence: str) -&gt; tuple[str, tuple[int, int] | None]:</code></span>
+<span class='src-line'><b>  47</b><code>    arrows = {</code></span>
+<span class='src-line'><b>  48</b><code>        &quot;\x1b[A&quot;: &quot;up&quot;,</code></span>
+<span class='src-line'><b>  49</b><code>        &quot;\x1b[B&quot;: &quot;down&quot;,</code></span>
+<span class='src-line'><b>  50</b><code>        &quot;\x1b[C&quot;: &quot;right&quot;,</code></span>
+<span class='src-line'><b>  51</b><code>        &quot;\x1b[D&quot;: &quot;left&quot;,</code></span>
+<span class='src-line'><b>  52</b><code>        &quot;\x1bOA&quot;: &quot;up&quot;,</code></span>
+<span class='src-line'><b>  53</b><code>        &quot;\x1bOB&quot;: &quot;down&quot;,</code></span>
+<span class='src-line'><b>  54</b><code>        &quot;\x1bOC&quot;: &quot;right&quot;,</code></span>
+<span class='src-line'><b>  55</b><code>        &quot;\x1bOD&quot;: &quot;left&quot;,</code></span>
+<span class='src-line'><b>  56</b><code>    }</code></span>
+<span class='src-line'><b>  57</b><code>    if sequence in arrows:</code></span>
+<span class='src-line'><b>  58</b><code>        return arrows[sequence], None</code></span>
+<span class='src-line'><b>  59</b><code>    csi_arrow = re.match(r&quot;^\x1b\[[0-9;?]*([ABCD])$&quot;, sequence)</code></span>
+<span class='src-line'><b>  60</b><code>    if csi_arrow:</code></span>
+<span class='src-line'><b>  61</b><code>        return {&quot;A&quot;: &quot;up&quot;, &quot;B&quot;: &quot;down&quot;, &quot;C&quot;: &quot;right&quot;, &quot;D&quot;: &quot;left&quot;}[csi_arrow.group(1)], None</code></span>
+<span class='src-line'><b>  62</b><code>    match = re.match(r&quot;^\x1b\[&lt;(\d+);(\d+);(\d+)([mM])$&quot;, sequence)</code></span>
+<span class='src-line'><b>  63</b><code>    if match and match.group(4) == &quot;M&quot;:</code></span>
+<span class='src-line'><b>  64</b><code>        button = int(match.group(1))</code></span>
+<span class='src-line'><b>  65</b><code>        if button == 0:</code></span>
+<span class='src-line'><b>  66</b><code>            return &quot;click&quot;, (int(match.group(2)), int(match.group(3)))</code></span>
+<span class='src-line'><b>  67</b><code>    if sequence.startswith(&quot;\x1b[M&quot;) and len(sequence) &gt;= 6:</code></span>
+<span class='src-line'><b>  68</b><code>        button = ord(sequence[3]) - 32</code></span>
+<span class='src-line'><b>  69</b><code>        if button == 0:</code></span>
+<span class='src-line'><b>  70</b><code>            return &quot;click&quot;, (ord(sequence[4]) - 32, ord(sequence[5]) - 32)</code></span>
+<span class='src-line'><b>  71</b><code>    return &quot;unknown&quot;, None</code></span>
+<span class='src-line'><b>  72</b><code></code></span>
+<span class='src-line'><b>  73</b><code></code></span>
+<span class='src-line'><b>  74</b><code>def drain_pending_input(fd: int | None = None) -&gt; None:</code></span>
+<span class='src-line'><b>  75</b><code>    fd = sys.stdin.fileno() if fd is None else fd</code></span>
+<span class='src-line'><b>  76</b><code>    while True:</code></span>
+<span class='src-line'><b>  77</b><code>        readable, _, _ = select.select([fd], [], [], 0)</code></span>
+<span class='src-line'><b>  78</b><code>        if not readable:</code></span>
+<span class='src-line'><b>  79</b><code>            return</code></span>
+<span class='src-line'><b>  80</b><code>        os.read(fd, 1)</code></span></pre>
+</details>
 <details class="source-file searchable" data-search="nipux_cli/tui_layout.py &quot;&quot;&quot;Reusable terminal layout primitives for Nipux frames.&quot;&quot;&quot;
 
 from __future__ import annotations
@@ -37728,7 +37926,7 @@ class AntiBotBrowserRegistry:
       <div class="grid"><article class='card warning searchable' data-search='Large modules nipux_cli/cli.py (4723 lines), nipux_cli/worker.py (3266 lines), tests/nipux_cli/test_worker.py (2611 lines), nipux_cli/db.py (2396 lines), tests/nipux_cli/test_cli.py (1890 lines)'><h3>Large modules</h3><p>nipux_cli/cli.py (4723 lines), nipux_cli/worker.py (3266 lines), tests/nipux_cli/test_worker.py (2611 lines), nipux_cli/db.py (2396 lines), tests/nipux_cli/test_cli.py (1890 lines)</p></article>
 <article class='card warning searchable' data-search='Prompt surfaces 12 prompt/instruction-like strings were extracted. Inspect this section after any agent-behavior change.'><h3>Prompt surfaces</h3><p>12 prompt/instruction-like strings were extracted. Inspect this section after any agent-behavior change.</p></article>
 <article class='card warning searchable' data-search='Tool surface 27 tools are exposed to the worker. Review descriptions whenever generic behavior changes.'><h3>Tool surface</h3><p>27 tools are exposed to the worker. Review descriptions whenever generic behavior changes.</p></article>
-<article class='card warning searchable' data-search='Symbol map 1040 symbols were parsed. Large modules are candidates for refactoring once behavior stabilizes.'><h3>Symbol map</h3><p>1040 symbols were parsed. Large modules are candidates for refactoring once behavior stabilizes.</p></article></div>
+<article class='card warning searchable' data-search='Symbol map 1045 symbols were parsed. Large modules are candidates for refactoring once behavior stabilizes.'><h3>Symbol map</h3><p>1045 symbols were parsed. Large modules are candidates for refactoring once behavior stabilizes.</p></article></div>
     </section>
   </main>
 </div>
