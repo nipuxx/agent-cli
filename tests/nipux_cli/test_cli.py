@@ -1046,6 +1046,41 @@ def test_chat_status_page_shows_job_outputs():
     assert "Other Job Deliverable" in frame
 
 
+def test_chat_status_page_marks_deferred_jobs_waiting():
+    snapshot = {
+        "job_id": "job_demo",
+        "job": {
+            "id": "job_demo",
+            "title": "deferred job",
+            "objective": "check a long-running process later",
+            "status": "running",
+            "kind": "generic",
+            "metadata": {"defer_until": "2999-01-01T00:00:00+00:00"},
+        },
+        "jobs": [
+            {
+                "id": "job_demo",
+                "title": "deferred job",
+                "status": "running",
+                "kind": "generic",
+                "metadata": {"defer_until": "2999-01-01T00:00:00+00:00"},
+            }
+        ],
+        "steps": [],
+        "artifacts": [],
+        "job_artifacts": {},
+        "memory_entries": [],
+        "events": [],
+        "daemon": {"running": True, "metadata": {"pid": 123}},
+        "model": "model/demo",
+    }
+
+    frame = _build_chat_frame(snapshot, "", [], width=132, height=28)
+
+    assert "waiting" in frame
+    assert "active" not in frame
+
+
 def test_chat_frame_collapses_repeated_failures_and_hides_memory_noise():
     repeated_error = {
         "event_type": "error",
