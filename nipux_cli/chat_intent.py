@@ -102,7 +102,9 @@ def chat_control_command(line: str) -> str:
 
 def message_requests_immediate_run(message: str) -> bool:
     lowered = " ".join(message.strip().lower().split())
-    return bool(re.match(r"^(?:please\s+)?(?:start|launch|run|spin\s+off)\b", lowered))
+    if re.match(r"^(?:please\s+)?(?:start|launch|run|spin\s+off)\b", lowered):
+        return True
+    return bool(re.search(r"\b(?:and|then)\s+(?:start|launch|run|resume)\s+(?:it|the\s+job|work)?\b", lowered))
 
 
 def extract_job_objective_from_message(message: str) -> str:

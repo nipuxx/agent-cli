@@ -1752,6 +1752,35 @@ def test_chat_start_job_message_starts_daemon(monkeypatch, tmp_path, capsys):
     assert "Started worker" in out
 
 
+def test_chat_create_job_and_run_it_starts_daemon(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        original_id = db.create_job("Research topic", title="nightly research")
+    finally:
+        db.close()
+    started = {}
+
+    def fake_start(**kwargs):
+        started.update(kwargs)
+
+    monkeypatch.setattr("nipux_cli.cli._start_daemon_if_needed", fake_start)
+
+    assert (
+        _chat_handle_line(
+            original_id,
+            "create a job to monitor nightly benchmarks and then run it",
+            reply_fn=lambda _job_id, _message: "should not call model",
+        )
+        is True
+    )
+
+    out = capsys.readouterr().out
+    assert started["poll_seconds"] == 0.0
+    assert started["quiet"] is True
+    assert "Started worker" in out
+
+
 def test_chat_jobs_command_lists_jobs_instead_of_steering(monkeypatch, tmp_path, capsys):
     monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
     db = AgentDB(tmp_path / "state.db")
