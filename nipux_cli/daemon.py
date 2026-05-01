@@ -12,6 +12,7 @@ import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
@@ -44,6 +45,7 @@ RUNTIME_CODE_FILES = (
 )
 
 
+@lru_cache(maxsize=1)
 def current_runtime_fingerprint() -> dict[str, Any]:
     """Return a stable fingerprint for code that affects daemon behavior."""
 
@@ -68,6 +70,7 @@ def current_runtime_fingerprint() -> dict[str, Any]:
     return payload
 
 
+@lru_cache(maxsize=1)
 def _runtime_code_fingerprint() -> dict[str, Any]:
     package_dir = Path(__file__).resolve().parent
     digest = hashlib.sha256()
