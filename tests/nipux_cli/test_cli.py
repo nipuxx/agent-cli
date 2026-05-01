@@ -665,6 +665,7 @@ def test_chat_frame_is_bounded_and_has_composer():
             "calls": 2,
             "latest_prompt_tokens": 4096,
             "completion_tokens": 1234,
+            "total_tokens": 5330,
             "cost": 0.0123,
             "has_cost": True,
         },
@@ -683,6 +684,8 @@ def test_chat_frame_is_bounded_and_has_composer():
     assert "4.1K/8.2K" in frame
     assert "out" in frame
     assert "1.2K" in frame
+    assert "tok" in frame
+    assert "5.3K" in frame
     assert "$0.0123" in frame
     assert "Compose" in frame
     assert "❯ hello" in frame

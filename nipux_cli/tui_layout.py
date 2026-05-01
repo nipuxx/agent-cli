@@ -118,9 +118,15 @@ def _token_usage_topline(
 ) -> str:
     calls = _safe_int(usage.get("calls"))
     if calls <= 0:
-        return f"{_muted('ctx')} {_style('0', '36')}  {_muted('out')} {_style('0', '36')}  {_muted('cost')} {_style('$0.00', '36')}"
+        return (
+            f"{_muted('ctx')} {_style('0', '36')}  "
+            f"{_muted('out')} {_style('0', '36')}  "
+            f"{_muted('tok')} {_style('0', '36')}  "
+            f"{_muted('cost')} {_style('$0.00', '36')}"
+        )
     latest_prompt = _safe_int(usage.get("latest_prompt_tokens"))
     completion = _safe_int(usage.get("completion_tokens"))
+    total = _safe_int(usage.get("total_tokens")) or latest_prompt + completion
     ctx_text = _format_compact_count(latest_prompt)
     if context_length > 0:
         ctx_text = f"{ctx_text}/{_format_compact_count(context_length)}"
@@ -128,6 +134,7 @@ def _token_usage_topline(
     return (
         f"{_muted('ctx')} {_style(ctx_text, '36')}  "
         f"{_muted('out')} {_style(_format_compact_count(completion), '36')}  "
+        f"{_muted('tok')} {_style(_format_compact_count(total), '36')}  "
         f"{_muted('cost')} {_style(cost_text, '36')}"
     )
 
