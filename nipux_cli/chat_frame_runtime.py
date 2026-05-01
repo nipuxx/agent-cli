@@ -43,5 +43,22 @@ def next_chat_right_view(current: str, direction: int) -> str:
 
 def emit_frame_if_changed(frame: str, previous_frame: str = "") -> str:
     if frame != previous_frame:
-        print("\033[H" + frame, end="", flush=True)
+        if not previous_frame:
+            print("\033[H" + frame, end="", flush=True)
+        else:
+            print(_diff_frame_update(frame, previous_frame), end="", flush=True)
     return frame
+
+
+def _diff_frame_update(frame: str, previous_frame: str) -> str:
+    current_lines = frame.splitlines()
+    previous_lines = previous_frame.splitlines()
+    output: list[str] = []
+    max_lines = max(len(current_lines), len(previous_lines))
+    for index in range(max_lines):
+        current = current_lines[index] if index < len(current_lines) else ""
+        previous = previous_lines[index] if index < len(previous_lines) else ""
+        if current == previous:
+            continue
+        output.append(f"\033[{index + 1};1H\033[2K{current}")
+    return "".join(output)

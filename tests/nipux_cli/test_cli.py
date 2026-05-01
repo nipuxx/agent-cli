@@ -870,15 +870,17 @@ def test_chat_frame_empty_state_uses_sleek_hero():
 
 
 def test_frame_emit_skips_unchanged_render(capsys):
-    first = _emit_frame_if_changed("frame")
+    first = _emit_frame_if_changed("line one\nline two")
     second = _emit_frame_if_changed("frame", first)
-    third = _emit_frame_if_changed("next", second)
+    third = _emit_frame_if_changed("frame\nline three", second)
 
     out = capsys.readouterr().out
-    assert first == "frame"
+    assert first == "line one\nline two"
     assert second == "frame"
-    assert third == "next"
-    assert out.count("\033[H") == 2
+    assert third == "frame\nline three"
+    assert out.count("\033[H") == 1
+    assert "\033[1;1H\033[2Kframe" in out
+    assert "\033[2;1H\033[2K" in out
     assert "\033[J" not in out
 
 
