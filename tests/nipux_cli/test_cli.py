@@ -775,6 +775,7 @@ def test_chat_frame_is_bounded_and_has_composer():
     }
 
     frame = _build_chat_frame(snapshot, "hello", [], width=100, height=22)
+    wide_frame = _build_chat_frame(snapshot, "", [], width=140, height=22)
 
     assert len(frame.splitlines()) <= 22
     assert "Nipux CLI" in frame
@@ -790,6 +791,8 @@ def test_chat_frame_is_bounded_and_has_composer():
     assert "tok" in frame
     assert "5.3K" in frame
     assert "$0.0123" in frame
+    assert "daemon running  model model/demo  ctx 4.1K/8.2K" in wide_frame
+    assert wide_frame.splitlines()[1].startswith("─")
     assert "Enter send" in frame
     assert "❯ hello" in frame
     task_frame = _build_chat_frame(snapshot, "", [], width=100, height=26)

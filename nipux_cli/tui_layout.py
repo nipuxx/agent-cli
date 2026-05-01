@@ -32,6 +32,12 @@ def _top_bar(
     runtime = _pill("daemon", daemon_compact)
     usage_text = _token_usage_topline(token_usage or {}, context_length=context_length, model=model, base_url=base_url)
     model_line = f"{_muted('model')} {_style(_one_line(model, max(16, width // 3)), '36')}"
+    if width >= 118:
+        compact_model = f"{_muted('model')} {_style(_one_line(model, max(14, width // 5)), '36')}"
+        return [
+            _edge_line(title, f"{runtime}  {compact_model}  {usage_text}", width=width),
+            _muted("─" * width),
+        ]
     first = _edge_line(title, runtime, width=width)
     second = _edge_line(model_line, usage_text, width=width)
     return [
