@@ -82,7 +82,7 @@ pre { max-height: 540px; overflow: auto; background: #050606; border: 1px solid 
 <div class="shell">
   <aside class="sidebar">
     <div class="logo">NIPUX ATLAS</div>
-    <div class="subtitle">Generated from tracked source on d9cde4ca.</div>
+    <div class="subtitle">Generated from tracked source on 84cadbf1.</div>
     <input id="search" class="search" placeholder="filter files, prompts, tools..." autocomplete="off">
     <nav class="nav">
       <a href="#architecture">Architecture</a>
@@ -98,8 +98,8 @@ pre { max-height: 540px; overflow: auto; background: #050606; border: 1px solid 
     </nav>
     <div class="stats">
       <div class="stat"><b>88</b><span>tracked files</span></div>
-      <div class="stat"><b>28,328</b><span>tracked lines mapped</span></div>
-      <div class="stat"><b>1197</b><span>python symbols</span></div>
+      <div class="stat"><b>28,349</b><span>tracked lines mapped</span></div>
+      <div class="stat"><b>1198</b><span>python symbols</span></div>
       <div class="stat"><b>27</b><span>runtime tools</span></div>
     </div>
   </aside>
@@ -123,7 +123,7 @@ pre { max-height: 540px; overflow: auto; background: #050606; border: 1px solid 
     <section id="prompts" class="section">
       <header><div><div class="kicker">Exact text</div><h2>Prompt Surfaces</h2></div><span class="muted">System/program prompts and instruction-like strings extracted from source.</span></header>
       <div class="grid"><article class="prompt searchable" data-search="nipux_cli/chat_context.py inline string You are Nipux, the chat model that controls a generic long-running agent workspace. You know the visible CLI state, focused job, job list, task queue, artifacts, memory, metrics, and recent activity. Answer directly from the visible job state. Do not claim hidden chain-of-thought. If the operator asks for work to be done, explain the concrete job/control action Nipux will take or how to run it from the Jobs/Status panel. If the operator asks where saved work is, explain that artifacts and history are visible from the Jobs/Status panel or direct CLI commands. Do not start replies with an introduction. Keep replies concise and useful.">
-<header><h3>inline string</h3><span>nipux_cli/chat_context.py:93</span></header>
+<header><h3>inline string</h3><span>nipux_cli/chat_context.py:95</span></header>
 <p class="muted">Context: <code>inline</code> · 640 chars</p>
 <pre><code>You are Nipux, the chat model that controls a generic long-running agent workspace. You know the visible CLI state, focused job, job list, task queue, artifacts, memory, metrics, and recent activity. Answer directly from the visible job state. Do not claim hidden chain-of-thought. If the operator asks for work to be done, explain the concrete job/control action Nipux will take or how to run it from the Jobs/Status panel. If the operator asks where saved work is, explain that artifacts and history are visible from the Jobs/Status panel or direct CLI commands. Do not start replies with an introduction. Keep replies concise and useful.</code></pre>
 </article>
@@ -533,11 +533,11 @@ fixed tool surface. none">
 <div class="meta"><span>3 symbols</span><span>0 TODOs</span></div>
 <details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> __future__, argparse, dataclasses, typing, nipux_cli.tui_style</p><p><strong>Symbols:</strong> ChatCommandDeps, handle_chat_slash_command, _optional_int</p></details>
 </article>
-<article class="file-card searchable" data-search="nipux_cli/chat_context.py Prompt context builder for the Nipux chat-side controller model. build_chat_messages, _roadmap_lines, _experiment_line, _empty_section_text, _clip_chat_context">
-<header><h3>nipux_cli/chat_context.py</h3><span>158 lines</span></header>
+<article class="file-card searchable" data-search="nipux_cli/chat_context.py Prompt context builder for the Nipux chat-side controller model. build_chat_messages, _job_list_lines, _roadmap_lines, _experiment_line, _empty_section_text, _clip_chat_context">
+<header><h3>nipux_cli/chat_context.py</h3><span>175 lines</span></header>
 <p>Prompt context builder for the Nipux chat-side controller model.</p>
-<div class="meta"><span>5 symbols</span><span>0 TODOs</span></div>
-<details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> __future__, typing, nipux_cli.db, nipux_cli.event_render, nipux_cli.metric_format, nipux_cli.operator_context, nipux_cli.tui_event_format</p><p><strong>Symbols:</strong> build_chat_messages, _roadmap_lines, _experiment_line, _empty_section_text, _clip_chat_context</p></details>
+<div class="meta"><span>6 symbols</span><span>0 TODOs</span></div>
+<details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> __future__, typing, nipux_cli.db, nipux_cli.event_render, nipux_cli.metric_format, nipux_cli.operator_context, nipux_cli.tui_event_format</p><p><strong>Symbols:</strong> build_chat_messages, _job_list_lines, _roadmap_lines, _experiment_line, _empty_section_text, _clip_chat_context</p></details>
 </article>
 <article class="file-card searchable" data-search="nipux_cli/chat_controller.py Chat-controller behavior shared by the interactive CLI. ChatControllerDeps, handle_chat_message, chat_reply_text_and_metadata, handle_chat_control_intent, maybe_spawn_job_from_chat, queue_chat_note">
 <header><h3>nipux_cli/chat_controller.py</h3><span>169 lines</span></header>
@@ -888,7 +888,7 @@ fixed tool surface. none">
 <details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> json, nipux_cli.browser, nipux_cli.tools, nipux_cli.web, nipux_cli.artifacts, nipux_cli.config, nipux_cli.db</p><p><strong>Symbols:</strong> test_session_name_is_stable_and_safe, test_long_session_name_is_short_and_hashed, test_strip_html_removes_scripts_and_keeps_text, test_browser_marks_anti_bot_interstitial_as_warning, test_browser_marks_captcha_block_as_warning, test_web_extract_marks_anti_bot_pages_as_warning, fake_request, test_browser_tool_uses_native_wrapper, fake_navigate, test_browser_click_adds_recovery_snapshot_for_stale_ref</p></details>
 </article>
 <article class="file-card searchable" data-search="tests/nipux_cli/test_cli.py No module docstring. test_cli_has_operator_commands, test_cli_version_flag, test_init_openrouter_writes_secret_free_config_and_env_template, test_init_defaults_to_qwen_openrouter, test_init_openrouter_defaults_to_qwen36, test_shell_freeform_text_adds_operator_message, test_main_no_args_enters_chat_first_home, eof_input, test_main_no_args_with_no_jobs_shows_first_run_menu, eof_input">
-<header><h3>tests/nipux_cli/test_cli.py</h3><span>2472 lines</span></header>
+<header><h3>tests/nipux_cli/test_cli.py</h3><span>2476 lines</span></header>
 <p>No module docstring.</p>
 <div class="meta"><span>104 symbols</span><span>0 TODOs</span></div>
 <details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> json, nipux_cli.artifacts, nipux_cli, nipux_cli.chat_frame_runtime, nipux_cli.cli, nipux_cli.config, nipux_cli.daemon, nipux_cli.db, nipux_cli.llm, nipux_cli.settings, nipux_cli.tui_commands, nipux_cli.tui_events</p><p><strong>Symbols:</strong> test_cli_has_operator_commands, test_cli_version_flag, test_init_openrouter_writes_secret_free_config_and_env_template, test_init_defaults_to_qwen_openrouter, test_init_openrouter_defaults_to_qwen36, test_shell_freeform_text_adds_operator_message, test_main_no_args_enters_chat_first_home, eof_input, test_main_no_args_with_no_jobs_shows_first_run_menu, eof_input</p></details>
@@ -1179,33 +1179,39 @@ fixed tool surface. none">
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> int, isdigit</p>
 </article>
-<article class="symbol searchable" data-search="nipux_cli/chat_context.py build_chat_messages Build bounded visible-state context for conversational job control. _clip_chat_context, _empty_section_text, _experiment_line, _roadmap_lines, active_prompt_operator_entries, artifact.get, clean_step_summary, db.list_artifacts, db.list_steps, db.list_timeline_events, entry.get, enumerate, event_line, isinstance, job.get, join">
+<article class="symbol searchable" data-search="nipux_cli/chat_context.py build_chat_messages Build bounded visible-state context for conversational job control. _clip_chat_context, _empty_section_text, _experiment_line, _job_list_lines, _roadmap_lines, active_prompt_operator_entries, artifact.get, clean_step_summary, db.list_artifacts, db.list_jobs, db.list_steps, db.list_timeline_events, entry.get, enumerate, event_line, isinstance">
 <h3>build_chat_messages</h3>
 <p><span class="pill">function</span> <span class="pill">nipux_cli/chat_context.py:14</span></p>
 <p>Build bounded visible-state context for conversational job control.</p>
-<p class="calls"><strong>Calls:</strong> _clip_chat_context, _empty_section_text, _experiment_line, _roadmap_lines, active_prompt_operator_entries, artifact.get, clean_step_summary, db.list_artifacts, db.list_steps, db.list_timeline_events, entry.get, enumerate, event_line, isinstance, job.get, join</p>
+<p class="calls"><strong>Calls:</strong> _clip_chat_context, _empty_section_text, _experiment_line, _job_list_lines, _roadmap_lines, active_prompt_operator_entries, artifact.get, clean_step_summary, db.list_artifacts, db.list_jobs, db.list_steps, db.list_timeline_events, entry.get, enumerate, event_line, isinstance</p>
+</article>
+<article class="symbol searchable" data-search="nipux_cli/chat_context.py _job_list_lines No docstring. entry.get, enumerate, join, len, lines.append, rstrip, split, str">
+<h3>_job_list_lines</h3>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/chat_context.py:117</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> entry.get, enumerate, join, len, lines.append, rstrip, split, str</p>
 </article>
 <article class="symbol searchable" data-search="nipux_cli/chat_context.py _roadmap_lines No docstring. entry.get, isinstance, join, roadmap.get, strip">
 <h3>_roadmap_lines</h3>
-<p><span class="pill">function</span> <span class="pill">nipux_cli/chat_context.py:115</span></p>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/chat_context.py:132</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> entry.get, isinstance, join, roadmap.get, strip</p>
 </article>
 <article class="symbol searchable" data-search="nipux_cli/chat_context.py _experiment_line No docstring. entry.get, format_metric_value">
 <h3>_experiment_line</h3>
-<p><span class="pill">function</span> <span class="pill">nipux_cli/chat_context.py:134</span></p>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/chat_context.py:151</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> entry.get, format_metric_value</p>
 </article>
 <article class="symbol searchable" data-search="nipux_cli/chat_context.py _empty_section_text No docstring. title.startswith">
 <h3>_empty_section_text</h3>
-<p><span class="pill">function</span> <span class="pill">nipux_cli/chat_context.py:149</span></p>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/chat_context.py:166</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> title.startswith</p>
 </article>
 <article class="symbol searchable" data-search="nipux_cli/chat_context.py _clip_chat_context No docstring. len, max, rstrip, str">
 <h3>_clip_chat_context</h3>
-<p><span class="pill">function</span> <span class="pill">nipux_cli/chat_context.py:153</span></p>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/chat_context.py:170</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> len, max, rstrip, str</p>
 </article>
@@ -6551,109 +6557,109 @@ fixed tool surface. none">
 </article>
 <article class="symbol searchable" data-search="tests/nipux_cli/test_cli.py test_build_chat_messages_does_not_include_local_machine_context No docstring. AgentDB, _build_chat_messages, db.close, db.create_job, db.get_job, monkeypatch.setenv, ssh_dir.mkdir, str, write_text">
 <h3>test_build_chat_messages_does_not_include_local_machine_context</h3>
-<p><span class="pill">function</span> <span class="pill">tests/nipux_cli/test_cli.py:2102</span></p>
+<p><span class="pill">function</span> <span class="pill">tests/nipux_cli/test_cli.py:2106</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> AgentDB, _build_chat_messages, db.close, db.create_job, db.get_job, monkeypatch.setenv, ssh_dir.mkdir, str, write_text</p>
 </article>
 <article class="symbol searchable" data-search="tests/nipux_cli/test_cli.py test_build_chat_messages_points_to_artifact_and_lessons No docstring. AgentDB, ArtifactStore, _build_chat_messages, db.add_step, db.append_lesson, db.close, db.create_job, db.get_job, db.start_run, write_text">
 <h3>test_build_chat_messages_points_to_artifact_and_lessons</h3>
-<p><span class="pill">function</span> <span class="pill">tests/nipux_cli/test_cli.py:2122</span></p>
+<p><span class="pill">function</span> <span class="pill">tests/nipux_cli/test_cli.py:2126</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> AgentDB, ArtifactStore, _build_chat_messages, db.add_step, db.append_lesson, db.close, db.create_job, db.get_job, db.start_run, write_text</p>
 </article>
 <article class="symbol searchable" data-search="tests/nipux_cli/test_cli.py test_build_chat_messages_clip_large_visible_state No docstring. AgentDB, _build_chat_messages, db.append_event, db.close, db.create_job, db.get_job, len, range">
 <h3>test_build_chat_messages_clip_large_visible_state</h3>
-<p><span class="pill">function</span> <span class="pill">tests/nipux_cli/test_cli.py:2148</span></p>
+<p><span class="pill">function</span> <span class="pill">tests/nipux_cli/test_cli.py:2152</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> AgentDB, _build_chat_messages, db.append_event, db.close, db.create_job, db.get_job, len, range</p>
 </article>
 <article class="symbol searchable" data-search="tests/nipux_cli/test_cli.py test_artifact_command_resolves_title_query No docstring. AgentDB, ArtifactStore, args.func, build_parser, capsys.readouterr, db.add_step, db.close, db.create_job, db.start_run, monkeypatch.setenv, parser.parse_args, str, write_text">
 <h3>test_artifact_command_resolves_title_query</h3>
-<p><span class="pill">function</span> <span class="pill">tests/nipux_cli/test_cli.py:2172</span></p>
+<p><span class="pill">function</span> <span class="pill">tests/nipux_cli/test_cli.py:2176</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> AgentDB, ArtifactStore, args.func, build_parser, capsys.readouterr, db.add_step, db.close, db.create_job, db.start_run, monkeypatch.setenv, parser.parse_args, str, write_text</p>
 </article>
 <article class="symbol searchable" data-search="tests/nipux_cli/test_cli.py test_artifacts_command_prints_compact_view_command No docstring. AgentDB, ArtifactStore, args.func, build_parser, capsys.readouterr, db.add_step, db.close, db.create_job, db.start_run, monkeypatch.setenv, parser.parse_args, str, write_text">
 <h3>test_artifacts_command_prints_compact_view_command</h3>
-<p><span class="pill">function</span> <span class="pill">tests/nipux_cli/test_cli.py:2199</span></p>
+<p><span class="pill">function</span> <span class="pill">tests/nipux_cli/test_cli.py:2203</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> AgentDB, ArtifactStore, args.func, build_parser, capsys.readouterr, db.add_step, db.close, db.create_job, db.start_run, monkeypatch.setenv, parser.parse_args, str, write_text</p>
 </article>
 <article class="symbol searchable" data-search="tests/nipux_cli/test_cli.py test_artifact_command_opens_recent_output_by_number No docstring. AgentDB, ArtifactStore, args.func, build_parser, capsys.readouterr, db.add_step, db.close, db.create_job, db.start_run, monkeypatch.setenv, parser.parse_args, str, write_text">
 <h3>test_artifact_command_opens_recent_output_by_number</h3>
-<p><span class="pill">function</span> <span class="pill">tests/nipux_cli/test_cli.py:2227</span></p>
+<p><span class="pill">function</span> <span class="pill">tests/nipux_cli/test_cli.py:2231</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> AgentDB, ArtifactStore, args.func, build_parser, capsys.readouterr, db.add_step, db.close, db.create_job, db.start_run, monkeypatch.setenv, parser.parse_args, str, write_text</p>
 </article>
 <article class="symbol searchable" data-search="tests/nipux_cli/test_cli.py test_chat_work_defaults_to_compact_output No docstring. AgentDB, _chat_handle_line, db.close, db.create_job, monkeypatch.setattr, monkeypatch.setenv, str">
 <h3>test_chat_work_defaults_to_compact_output</h3>
-<p><span class="pill">function</span> <span class="pill">tests/nipux_cli/test_cli.py:2254</span></p>
+<p><span class="pill">function</span> <span class="pill">tests/nipux_cli/test_cli.py:2258</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> AgentDB, _chat_handle_line, db.close, db.create_job, monkeypatch.setattr, monkeypatch.setenv, str</p>
 </article>
 <article class="symbol searchable" data-search="tests/nipux_cli/test_cli.py fake_work No docstring. none">
 <h3>fake_work</h3>
-<p><span class="pill">function</span> <span class="pill">tests/nipux_cli/test_cli.py:2263</span></p>
+<p><span class="pill">function</span> <span class="pill">tests/nipux_cli/test_cli.py:2267</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> none</p>
 </article>
 <article class="symbol searchable" data-search="tests/nipux_cli/test_cli.py test_chat_learn_adds_lesson No docstring. AgentDB, _chat_handle_line, capsys.readouterr, db.close, db.create_job, db.get_job, monkeypatch.setenv, str">
 <h3>test_chat_learn_adds_lesson</h3>
-<p><span class="pill">function</span> <span class="pill">tests/nipux_cli/test_cli.py:2274</span></p>
+<p><span class="pill">function</span> <span class="pill">tests/nipux_cli/test_cli.py:2278</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> AgentDB, _chat_handle_line, capsys.readouterr, db.close, db.create_job, db.get_job, monkeypatch.setenv, str</p>
 </article>
 <article class="symbol searchable" data-search="tests/nipux_cli/test_cli.py test_chat_follow_queues_follow_up_message No docstring. AgentDB, _chat_handle_line, capsys.readouterr, db.close, db.create_job, db.get_job, monkeypatch.setenv, str">
 <h3>test_chat_follow_queues_follow_up_message</h3>
-<p><span class="pill">function</span> <span class="pill">tests/nipux_cli/test_cli.py:2294</span></p>
+<p><span class="pill">function</span> <span class="pill">tests/nipux_cli/test_cli.py:2298</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> AgentDB, _chat_handle_line, capsys.readouterr, db.close, db.create_job, db.get_job, monkeypatch.setenv, str</p>
 </article>
 <article class="symbol searchable" data-search="tests/nipux_cli/test_cli.py test_findings_sources_memory_metrics_commands No docstring. AgentDB, args.func, build_parser, capsys.readouterr, db.append_experiment_record, db.append_finding_record, db.append_lesson, db.append_reflection, db.append_source_record, db.append_task_record, db.close, db.create_job, monkeypatch.setenv, parser.parse_args, str">
 <h3>test_findings_sources_memory_metrics_commands</h3>
-<p><span class="pill">function</span> <span class="pill">tests/nipux_cli/test_cli.py:2316</span></p>
+<p><span class="pill">function</span> <span class="pill">tests/nipux_cli/test_cli.py:2320</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> AgentDB, args.func, build_parser, capsys.readouterr, db.append_experiment_record, db.append_finding_record, db.append_lesson, db.append_reflection, db.append_source_record, db.append_task_record, db.close, db.create_job, monkeypatch.setenv, parser.parse_args, str</p>
 </article>
 <article class="symbol searchable" data-search="tests/nipux_cli/test_cli.py test_shell_natural_update_phrase_shows_updates No docstring. AgentDB, _run_shell_line, capsys.readouterr, db.close, db.create_job, monkeypatch.setenv, str">
 <h3>test_shell_natural_update_phrase_shows_updates</h3>
-<p><span class="pill">function</span> <span class="pill">tests/nipux_cli/test_cli.py:2346</span></p>
+<p><span class="pill">function</span> <span class="pill">tests/nipux_cli/test_cli.py:2350</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> AgentDB, _run_shell_line, capsys.readouterr, db.close, db.create_job, monkeypatch.setenv, str</p>
 </article>
 <article class="symbol searchable" data-search="tests/nipux_cli/test_cli.py test_updates_command_summarizes_durable_outcomes No docstring. AgentDB, args.func, artifact_path.write_text, build_parser, capsys.readouterr, db.add_artifact, db.append_event, db.append_finding_record, db.close, db.create_job, monkeypatch.setenv, parse_args, str">
 <h3>test_updates_command_summarizes_durable_outcomes</h3>
-<p><span class="pill">function</span> <span class="pill">tests/nipux_cli/test_cli.py:2362</span></p>
+<p><span class="pill">function</span> <span class="pill">tests/nipux_cli/test_cli.py:2366</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> AgentDB, args.func, artifact_path.write_text, build_parser, capsys.readouterr, db.add_artifact, db.append_event, db.append_finding_record, db.close, db.create_job, monkeypatch.setenv, parse_args, str</p>
 </article>
 <article class="symbol searchable" data-search="tests/nipux_cli/test_cli.py test_history_and_events_commands_render_visible_timeline No docstring. AgentDB, build_parser, capsys.readouterr, db.append_agent_update, db.append_operator_message, db.close, db.create_job, func, monkeypatch.setenv, parser.parse_args, str">
 <h3>test_history_and_events_commands_render_visible_timeline</h3>
-<p><span class="pill">function</span> <span class="pill">tests/nipux_cli/test_cli.py:2399</span></p>
+<p><span class="pill">function</span> <span class="pill">tests/nipux_cli/test_cli.py:2403</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> AgentDB, build_parser, capsys.readouterr, db.append_agent_update, db.append_operator_message, db.close, db.create_job, func, monkeypatch.setenv, parser.parse_args, str</p>
 </article>
 <article class="symbol searchable" data-search="tests/nipux_cli/test_cli.py test_shell_natural_health_phrase_shows_health No docstring. AgentDB, _run_shell_line, capsys.readouterr, db.close, db.create_job, monkeypatch.setenv, str">
 <h3>test_shell_natural_health_phrase_shows_health</h3>
-<p><span class="pill">function</span> <span class="pill">tests/nipux_cli/test_cli.py:2420</span></p>
+<p><span class="pill">function</span> <span class="pill">tests/nipux_cli/test_cli.py:2424</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> AgentDB, _run_shell_line, capsys.readouterr, db.close, db.create_job, monkeypatch.setenv, str</p>
 </article>
 <article class="symbol searchable" data-search="tests/nipux_cli/test_cli.py test_health_prints_recent_daemon_events No docstring. append_daemon_event, args.func, build_parser, capsys.readouterr, load_config, monkeypatch.setenv, parser.parse_args, str">
 <h3>test_health_prints_recent_daemon_events</h3>
-<p><span class="pill">function</span> <span class="pill">tests/nipux_cli/test_cli.py:2435</span></p>
+<p><span class="pill">function</span> <span class="pill">tests/nipux_cli/test_cli.py:2439</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> append_daemon_event, args.func, build_parser, capsys.readouterr, load_config, monkeypatch.setenv, parser.parse_args, str</p>
 </article>
 <article class="symbol searchable" data-search="tests/nipux_cli/test_cli.py test_launch_agent_plist_contains_daemon_command No docstring. _launch_agent_plist, monkeypatch.setenv, str">
 <h3>test_launch_agent_plist_contains_daemon_command</h3>
-<p><span class="pill">function</span> <span class="pill">tests/nipux_cli/test_cli.py:2451</span></p>
+<p><span class="pill">function</span> <span class="pill">tests/nipux_cli/test_cli.py:2455</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> _launch_agent_plist, monkeypatch.setenv, str</p>
 </article>
 <article class="symbol searchable" data-search="tests/nipux_cli/test_cli.py test_systemd_service_text_contains_daemon_command No docstring. _systemd_service_text, monkeypatch.setenv, str">
 <h3>test_systemd_service_text_contains_daemon_command</h3>
-<p><span class="pill">function</span> <span class="pill">tests/nipux_cli/test_cli.py:2463</span></p>
+<p><span class="pill">function</span> <span class="pill">tests/nipux_cli/test_cli.py:2467</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> _systemd_service_text, monkeypatch.setenv, str</p>
 </article>
@@ -10198,6 +10204,7 @@ def build_chat_messages(db: AgentDB, job: dict[str, Any], message: str) -&gt; li
     &quot;&quot;&quot;Build bounded visible-state context for conversational job control.&quot;&quot;&quot;
 
     steps = db.list_steps(job_id=job[&quot;id&quot;])[-10:]
+    jobs = db.list_jobs()[:12]
     artifacts = db.list_artifacts(job[&quot;id&quot;], limit=5)
     timeline_events = db.list_timeline_events(job[&quot;id&quot;], limit=18)
     metadata = job.get(&quot;metadata&quot;) if isinstance(job.get(&quot;metadata&quot;), dict) else {}
@@ -10256,12 +10263,11 @@ def build_chat_messages(db: AgentDB, job: dict[str, Any], message: str) -&gt; li
     timeline_lines = &quot;\n&quot;.join(event_line(event, chars=700) for event in timeline_events[-12:])
 
     sections = {
+        &quot;Jobs&quot;: _clip_chat_context(_job_list_lines(jobs, focused_job_id=job[&quot;id&quot;]), 1_300),
         &quot;Recent tool calls&quot;: _clip_chat_context(step_lines, 1_800),
         &quot;Latest artifacts&quot;: _clip_chat_context(artifact_lines, 1_200),
-        &quot;Finding ledger&quot;: _clip_chat_context(finding_lines, 1_200),
-        &quot;Task queue&quot;: _clip_chat_context(task_lines, 1_300),
-     ">
-<summary>nipux_cli/chat_context.py <span>158 lines</span></summary>
+        &quot;Fi">
+<summary>nipux_cli/chat_context.py <span>175 lines</span></summary>
 <pre class="source-code"><span class='src-line'><b>   1</b><code>&quot;&quot;&quot;Prompt context builder for the Nipux chat-side controller model.&quot;&quot;&quot;</code></span>
 <span class='src-line'><b>   2</b><code></code></span>
 <span class='src-line'><b>   3</b><code>from __future__ import annotations</code></span>
@@ -10279,147 +10285,164 @@ def build_chat_messages(db: AgentDB, job: dict[str, Any], message: str) -&gt; li
 <span class='src-line'><b>  15</b><code>    &quot;&quot;&quot;Build bounded visible-state context for conversational job control.&quot;&quot;&quot;</code></span>
 <span class='src-line'><b>  16</b><code></code></span>
 <span class='src-line'><b>  17</b><code>    steps = db.list_steps(job_id=job[&quot;id&quot;])[-10:]</code></span>
-<span class='src-line'><b>  18</b><code>    artifacts = db.list_artifacts(job[&quot;id&quot;], limit=5)</code></span>
-<span class='src-line'><b>  19</b><code>    timeline_events = db.list_timeline_events(job[&quot;id&quot;], limit=18)</code></span>
-<span class='src-line'><b>  20</b><code>    metadata = job.get(&quot;metadata&quot;) if isinstance(job.get(&quot;metadata&quot;), dict) else {}</code></span>
-<span class='src-line'><b>  21</b><code>    operator_messages = metadata.get(&quot;operator_messages&quot;) if isinstance(metadata.get(&quot;operator_messages&quot;), list) else []</code></span>
-<span class='src-line'><b>  22</b><code>    agent_updates = metadata.get(&quot;agent_updates&quot;) if isinstance(metadata.get(&quot;agent_updates&quot;), list) else []</code></span>
-<span class='src-line'><b>  23</b><code>    lessons = metadata.get(&quot;lessons&quot;) if isinstance(metadata.get(&quot;lessons&quot;), list) else []</code></span>
-<span class='src-line'><b>  24</b><code>    findings = metadata.get(&quot;finding_ledger&quot;) if isinstance(metadata.get(&quot;finding_ledger&quot;), list) else []</code></span>
-<span class='src-line'><b>  25</b><code>    sources = metadata.get(&quot;source_ledger&quot;) if isinstance(metadata.get(&quot;source_ledger&quot;), list) else []</code></span>
-<span class='src-line'><b>  26</b><code>    tasks = metadata.get(&quot;task_queue&quot;) if isinstance(metadata.get(&quot;task_queue&quot;), list) else []</code></span>
-<span class='src-line'><b>  27</b><code>    experiments = metadata.get(&quot;experiment_ledger&quot;) if isinstance(metadata.get(&quot;experiment_ledger&quot;), list) else []</code></span>
-<span class='src-line'><b>  28</b><code>    roadmap = metadata.get(&quot;roadmap&quot;) if isinstance(metadata.get(&quot;roadmap&quot;), dict) else {}</code></span>
-<span class='src-line'><b>  29</b><code></code></span>
-<span class='src-line'><b>  30</b><code>    step_lines = &quot;\n&quot;.join(</code></span>
-<span class='src-line'><b>  31</b><code>        f&quot;- #{step[&#x27;step_no&#x27;]} {step[&#x27;status&#x27;]} {step.get(&#x27;tool_name&#x27;) or step[&#x27;kind&#x27;]}: &quot;</code></span>
-<span class='src-line'><b>  32</b><code>        f&quot;{clean_step_summary(step.get(&#x27;summary&#x27;) or step.get(&#x27;error&#x27;) or &#x27;&#x27;)}&quot;</code></span>
-<span class='src-line'><b>  33</b><code>        for step in steps</code></span>
-<span class='src-line'><b>  34</b><code>    )</code></span>
-<span class='src-line'><b>  35</b><code>    artifact_lines = &quot;\n&quot;.join(</code></span>
-<span class='src-line'><b>  36</b><code>        f&quot;- #{index} {artifact.get(&#x27;title&#x27;) or artifact[&#x27;id&#x27;]}: {artifact.get(&#x27;summary&#x27;) or &#x27;&#x27;} &quot;</code></span>
-<span class='src-line'><b>  37</b><code>        f&quot;(view with /artifact {index})&quot;</code></span>
-<span class='src-line'><b>  38</b><code>        for index, artifact in enumerate(artifacts, start=1)</code></span>
-<span class='src-line'><b>  39</b><code>    )</code></span>
-<span class='src-line'><b>  40</b><code>    steering_lines = &quot;\n&quot;.join(</code></span>
-<span class='src-line'><b>  41</b><code>        f&quot;- {entry.get(&#x27;source&#x27;, &#x27;operator&#x27;)} {entry.get(&#x27;mode&#x27;, &#x27;steer&#x27;)}: {entry.get(&#x27;message&#x27;, &#x27;&#x27;)}&quot;</code></span>
-<span class='src-line'><b>  42</b><code>        for entry in active_prompt_operator_entries(operator_messages)[-6:]</code></span>
-<span class='src-line'><b>  43</b><code>        if isinstance(entry, dict)</code></span>
-<span class='src-line'><b>  44</b><code>    )</code></span>
-<span class='src-line'><b>  45</b><code>    update_lines = &quot;\n&quot;.join(</code></span>
-<span class='src-line'><b>  46</b><code>        f&quot;- {entry.get(&#x27;category&#x27;, &#x27;progress&#x27;)}: {entry.get(&#x27;message&#x27;, &#x27;&#x27;)}&quot;</code></span>
-<span class='src-line'><b>  47</b><code>        for entry in agent_updates[-5:]</code></span>
-<span class='src-line'><b>  48</b><code>        if isinstance(entry, dict)</code></span>
-<span class='src-line'><b>  49</b><code>    )</code></span>
-<span class='src-line'><b>  50</b><code>    lesson_lines = &quot;\n&quot;.join(</code></span>
-<span class='src-line'><b>  51</b><code>        f&quot;- {entry.get(&#x27;category&#x27;, &#x27;memory&#x27;)}: {entry.get(&#x27;lesson&#x27;, &#x27;&#x27;)}&quot;</code></span>
-<span class='src-line'><b>  52</b><code>        for entry in lessons[-8:]</code></span>
-<span class='src-line'><b>  53</b><code>        if isinstance(entry, dict)</code></span>
-<span class='src-line'><b>  54</b><code>    )</code></span>
-<span class='src-line'><b>  55</b><code>    finding_lines = &quot;\n&quot;.join(</code></span>
-<span class='src-line'><b>  56</b><code>        f&quot;- {entry.get(&#x27;name&#x27;)}: {entry.get(&#x27;category&#x27;) or &#x27;&#x27;} {entry.get(&#x27;location&#x27;) or &#x27;&#x27;} score={entry.get(&#x27;score&#x27;)}&quot;</code></span>
-<span class='src-line'><b>  57</b><code>        for entry in findings[-8:]</code></span>
-<span class='src-line'><b>  58</b><code>        if isinstance(entry, dict)</code></span>
-<span class='src-line'><b>  59</b><code>    )</code></span>
-<span class='src-line'><b>  60</b><code>    task_lines = &quot;\n&quot;.join(</code></span>
-<span class='src-line'><b>  61</b><code>        f&quot;- {entry.get(&#x27;status&#x27;) or &#x27;open&#x27;} p={entry.get(&#x27;priority&#x27;) or 0}: {entry.get(&#x27;title&#x27;)}&quot;</code></span>
-<span class='src-line'><b>  62</b><code>        for entry in tasks[-10:]</code></span>
-<span class='src-line'><b>  63</b><code>        if isinstance(entry, dict)</code></span>
-<span class='src-line'><b>  64</b><code>    )</code></span>
-<span class='src-line'><b>  65</b><code>    milestone_lines = _roadmap_lines(roadmap)</code></span>
-<span class='src-line'><b>  66</b><code>    experiment_lines = &quot;\n&quot;.join(_experiment_line(entry) for entry in experiments[-10:] if isinstance(entry, dict))</code></span>
-<span class='src-line'><b>  67</b><code>    source_lines = &quot;\n&quot;.join(</code></span>
-<span class='src-line'><b>  68</b><code>        f&quot;- {entry.get(&#x27;source&#x27;)}: score={entry.get(&#x27;usefulness_score&#x27;)} &quot;</code></span>
-<span class='src-line'><b>  69</b><code>        f&quot;findings={entry.get(&#x27;yield_count&#x27;) or 0} outcome={entry.get(&#x27;last_outcome&#x27;) or &#x27;&#x27;}&quot;</code></span>
-<span class='src-line'><b>  70</b><code>        for entry in sources[-8:]</code></span>
-<span class='src-line'><b>  71</b><code>        if isinstance(entry, dict)</code></span>
-<span class='src-line'><b>  72</b><code>    )</code></span>
-<span class='src-line'><b>  73</b><code>    timeline_lines = &quot;\n&quot;.join(event_line(event, chars=700) for event in timeline_events[-12:])</code></span>
-<span class='src-line'><b>  74</b><code></code></span>
-<span class='src-line'><b>  75</b><code>    sections = {</code></span>
-<span class='src-line'><b>  76</b><code>        &quot;Recent tool calls&quot;: _clip_chat_context(step_lines, 1_800),</code></span>
-<span class='src-line'><b>  77</b><code>        &quot;Latest artifacts&quot;: _clip_chat_context(artifact_lines, 1_200),</code></span>
-<span class='src-line'><b>  78</b><code>        &quot;Finding ledger&quot;: _clip_chat_context(finding_lines, 1_200),</code></span>
-<span class='src-line'><b>  79</b><code>        &quot;Task queue&quot;: _clip_chat_context(task_lines, 1_300),</code></span>
-<span class='src-line'><b>  80</b><code>        &quot;Roadmap&quot;: _clip_chat_context(milestone_lines, 1_200),</code></span>
-<span class='src-line'><b>  81</b><code>        &quot;Experiment ledger&quot;: _clip_chat_context(experiment_lines, 1_300),</code></span>
-<span class='src-line'><b>  82</b><code>        &quot;Source ledger&quot;: _clip_chat_context(source_lines, 1_100),</code></span>
-<span class='src-line'><b>  83</b><code>        &quot;Lessons learned&quot;: _clip_chat_context(lesson_lines, 1_000),</code></span>
-<span class='src-line'><b>  84</b><code>        &quot;Recent operator steering&quot;: _clip_chat_context(steering_lines, 1_200),</code></span>
-<span class='src-line'><b>  85</b><code>        &quot;Recent agent notes&quot;: _clip_chat_context(update_lines, 1_200),</code></span>
-<span class='src-line'><b>  86</b><code>        &quot;Recent visible timeline&quot;: _clip_chat_context(timeline_lines, 1_800),</code></span>
-<span class='src-line'><b>  87</b><code>    }</code></span>
-<span class='src-line'><b>  88</b><code>    section_text = &quot;\n\n&quot;.join(f&quot;{title}:\n{body or _empty_section_text(title)}&quot; for title, body in sections.items())</code></span>
-<span class='src-line'><b>  89</b><code>    return [</code></span>
-<span class='src-line'><b>  90</b><code>        {</code></span>
-<span class='src-line'><b>  91</b><code>            &quot;role&quot;: &quot;system&quot;,</code></span>
-<span class='src-line'><b>  92</b><code>            &quot;content&quot;: (</code></span>
-<span class='src-line'><b>  93</b><code>                &quot;You are Nipux, the chat model that controls a generic long-running agent workspace. &quot;</code></span>
-<span class='src-line'><b>  94</b><code>                &quot;You know the visible CLI state, focused job, job list, task queue, artifacts, memory, metrics, and recent activity. &quot;</code></span>
-<span class='src-line'><b>  95</b><code>                &quot;Answer directly from the visible job state. Do not claim hidden chain-of-thought. &quot;</code></span>
-<span class='src-line'><b>  96</b><code>                &quot;If the operator asks for work to be done, explain the concrete job/control action Nipux will take or how to run it from the Jobs/Status panel. &quot;</code></span>
-<span class='src-line'><b>  97</b><code>                &quot;If the operator asks where saved work is, explain that artifacts and history are visible from the Jobs/Status panel or direct CLI commands. &quot;</code></span>
-<span class='src-line'><b>  98</b><code>                &quot;Do not start replies with an introduction. Keep replies concise and useful.&quot;</code></span>
-<span class='src-line'><b>  99</b><code>            ),</code></span>
-<span class='src-line'><b> 100</b><code>        },</code></span>
-<span class='src-line'><b> 101</b><code>        {</code></span>
-<span class='src-line'><b> 102</b><code>            &quot;role&quot;: &quot;user&quot;,</code></span>
-<span class='src-line'><b> 103</b><code>            &quot;content&quot;: (</code></span>
-<span class='src-line'><b> 104</b><code>                f&quot;Job title: {job[&#x27;title&#x27;]}\n&quot;</code></span>
-<span class='src-line'><b> 105</b><code>                f&quot;Job status: {job[&#x27;status&#x27;]}\n&quot;</code></span>
-<span class='src-line'><b> 106</b><code>                f&quot;Kind: {job[&#x27;kind&#x27;]}\n&quot;</code></span>
-<span class='src-line'><b> 107</b><code>                f&quot;Objective: {job[&#x27;objective&#x27;]}\n\n&quot;</code></span>
-<span class='src-line'><b> 108</b><code>                f&quot;{section_text}\n\n&quot;</code></span>
-<span class='src-line'><b> 109</b><code>                f&quot;Operator message:\n{message}&quot;</code></span>
-<span class='src-line'><b> 110</b><code>            ),</code></span>
-<span class='src-line'><b> 111</b><code>        },</code></span>
-<span class='src-line'><b> 112</b><code>    ]</code></span>
-<span class='src-line'><b> 113</b><code></code></span>
-<span class='src-line'><b> 114</b><code></code></span>
-<span class='src-line'><b> 115</b><code>def _roadmap_lines(roadmap: dict[str, Any]) -&gt; str:</code></span>
-<span class='src-line'><b> 116</b><code>    if not roadmap:</code></span>
-<span class='src-line'><b> 117</b><code>        return &quot;&quot;</code></span>
-<span class='src-line'><b> 118</b><code>    milestones = roadmap.get(&quot;milestones&quot;) if isinstance(roadmap.get(&quot;milestones&quot;), list) else []</code></span>
-<span class='src-line'><b> 119</b><code>    body = &quot;\n&quot;.join(</code></span>
-<span class='src-line'><b> 120</b><code>        (</code></span>
-<span class='src-line'><b> 121</b><code>            f&quot;- {entry.get(&#x27;status&#x27;) or &#x27;planned&#x27;} validation={entry.get(&#x27;validation_status&#x27;) or &#x27;not_started&#x27;} &quot;</code></span>
-<span class='src-line'><b> 122</b><code>            f&quot;p={entry.get(&#x27;priority&#x27;) or 0}: {entry.get(&#x27;title&#x27;)}&quot;</code></span>
-<span class='src-line'><b> 123</b><code>        )</code></span>
-<span class='src-line'><b> 124</b><code>        for entry in milestones[-8:]</code></span>
-<span class='src-line'><b> 125</b><code>        if isinstance(entry, dict)</code></span>
-<span class='src-line'><b> 126</b><code>    )</code></span>
-<span class='src-line'><b> 127</b><code>    header = (</code></span>
-<span class='src-line'><b> 128</b><code>        f&quot;{roadmap.get(&#x27;status&#x27;) or &#x27;planned&#x27;}: {roadmap.get(&#x27;title&#x27;) or &#x27;Roadmap&#x27;}&quot;</code></span>
-<span class='src-line'><b> 129</b><code>        + (f&quot; current={roadmap.get(&#x27;current_milestone&#x27;)}&quot; if roadmap.get(&quot;current_milestone&quot;) else &quot;&quot;)</code></span>
-<span class='src-line'><b> 130</b><code>    )</code></span>
-<span class='src-line'><b> 131</b><code>    return f&quot;{header}\n{body}&quot;.strip()</code></span>
-<span class='src-line'><b> 132</b><code></code></span>
-<span class='src-line'><b> 133</b><code></code></span>
-<span class='src-line'><b> 134</b><code>def _experiment_line(entry: dict[str, Any]) -&gt; str:</code></span>
-<span class='src-line'><b> 135</b><code>    if entry.get(&quot;metric_value&quot;) is None:</code></span>
-<span class='src-line'><b> 136</b><code>        return f&quot;- {entry.get(&#x27;status&#x27;) or &#x27;planned&#x27;}: {entry.get(&#x27;title&#x27;)}&quot;</code></span>
-<span class='src-line'><b> 137</b><code>    metric = format_metric_value(</code></span>
-<span class='src-line'><b> 138</b><code>        entry.get(&quot;metric_name&quot;) or &quot;metric&quot;,</code></span>
-<span class='src-line'><b> 139</b><code>        entry.get(&quot;metric_value&quot;),</code></span>
-<span class='src-line'><b> 140</b><code>        entry.get(&quot;metric_unit&quot;) or &quot;&quot;,</code></span>
-<span class='src-line'><b> 141</b><code>    )</code></span>
-<span class='src-line'><b> 142</b><code>    return (</code></span>
-<span class='src-line'><b> 143</b><code>        f&quot;- {entry.get(&#x27;status&#x27;) or &#x27;planned&#x27;}: {entry.get(&#x27;title&#x27;)}&quot;</code></span>
-<span class='src-line'><b> 144</b><code>        f&quot; {metric}&quot;</code></span>
-<span class='src-line'><b> 145</b><code>        f&quot;{&#x27; best&#x27; if entry.get(&#x27;best_observed&#x27;) else &#x27;&#x27;}&quot;</code></span>
-<span class='src-line'><b> 146</b><code>    )</code></span>
-<span class='src-line'><b> 147</b><code></code></span>
-<span class='src-line'><b> 148</b><code></code></span>
-<span class='src-line'><b> 149</b><code>def _empty_section_text(title: str) -&gt; str:</code></span>
-<span class='src-line'><b> 150</b><code>    return &quot;None.&quot; if title.startswith(&quot;Recent operator&quot;) else &quot;None yet.&quot;</code></span>
-<span class='src-line'><b> 151</b><code></code></span>
-<span class='src-line'><b> 152</b><code></code></span>
-<span class='src-line'><b> 153</b><code>def _clip_chat_context(value: str, limit: int) -&gt; str:</code></span>
-<span class='src-line'><b> 154</b><code>    text = str(value or &quot;&quot;)</code></span>
-<span class='src-line'><b> 155</b><code>    if len(text) &lt;= limit:</code></span>
-<span class='src-line'><b> 156</b><code>        return text</code></span>
-<span class='src-line'><b> 157</b><code>    marker = f&quot;\n... clipped {len(text) - limit} chars from this visible state section ...&quot;</code></span>
-<span class='src-line'><b> 158</b><code>    return text[: max(0, limit - len(marker))].rstrip() + marker</code></span></pre>
+<span class='src-line'><b>  18</b><code>    jobs = db.list_jobs()[:12]</code></span>
+<span class='src-line'><b>  19</b><code>    artifacts = db.list_artifacts(job[&quot;id&quot;], limit=5)</code></span>
+<span class='src-line'><b>  20</b><code>    timeline_events = db.list_timeline_events(job[&quot;id&quot;], limit=18)</code></span>
+<span class='src-line'><b>  21</b><code>    metadata = job.get(&quot;metadata&quot;) if isinstance(job.get(&quot;metadata&quot;), dict) else {}</code></span>
+<span class='src-line'><b>  22</b><code>    operator_messages = metadata.get(&quot;operator_messages&quot;) if isinstance(metadata.get(&quot;operator_messages&quot;), list) else []</code></span>
+<span class='src-line'><b>  23</b><code>    agent_updates = metadata.get(&quot;agent_updates&quot;) if isinstance(metadata.get(&quot;agent_updates&quot;), list) else []</code></span>
+<span class='src-line'><b>  24</b><code>    lessons = metadata.get(&quot;lessons&quot;) if isinstance(metadata.get(&quot;lessons&quot;), list) else []</code></span>
+<span class='src-line'><b>  25</b><code>    findings = metadata.get(&quot;finding_ledger&quot;) if isinstance(metadata.get(&quot;finding_ledger&quot;), list) else []</code></span>
+<span class='src-line'><b>  26</b><code>    sources = metadata.get(&quot;source_ledger&quot;) if isinstance(metadata.get(&quot;source_ledger&quot;), list) else []</code></span>
+<span class='src-line'><b>  27</b><code>    tasks = metadata.get(&quot;task_queue&quot;) if isinstance(metadata.get(&quot;task_queue&quot;), list) else []</code></span>
+<span class='src-line'><b>  28</b><code>    experiments = metadata.get(&quot;experiment_ledger&quot;) if isinstance(metadata.get(&quot;experiment_ledger&quot;), list) else []</code></span>
+<span class='src-line'><b>  29</b><code>    roadmap = metadata.get(&quot;roadmap&quot;) if isinstance(metadata.get(&quot;roadmap&quot;), dict) else {}</code></span>
+<span class='src-line'><b>  30</b><code></code></span>
+<span class='src-line'><b>  31</b><code>    step_lines = &quot;\n&quot;.join(</code></span>
+<span class='src-line'><b>  32</b><code>        f&quot;- #{step[&#x27;step_no&#x27;]} {step[&#x27;status&#x27;]} {step.get(&#x27;tool_name&#x27;) or step[&#x27;kind&#x27;]}: &quot;</code></span>
+<span class='src-line'><b>  33</b><code>        f&quot;{clean_step_summary(step.get(&#x27;summary&#x27;) or step.get(&#x27;error&#x27;) or &#x27;&#x27;)}&quot;</code></span>
+<span class='src-line'><b>  34</b><code>        for step in steps</code></span>
+<span class='src-line'><b>  35</b><code>    )</code></span>
+<span class='src-line'><b>  36</b><code>    artifact_lines = &quot;\n&quot;.join(</code></span>
+<span class='src-line'><b>  37</b><code>        f&quot;- #{index} {artifact.get(&#x27;title&#x27;) or artifact[&#x27;id&#x27;]}: {artifact.get(&#x27;summary&#x27;) or &#x27;&#x27;} &quot;</code></span>
+<span class='src-line'><b>  38</b><code>        f&quot;(view with /artifact {index})&quot;</code></span>
+<span class='src-line'><b>  39</b><code>        for index, artifact in enumerate(artifacts, start=1)</code></span>
+<span class='src-line'><b>  40</b><code>    )</code></span>
+<span class='src-line'><b>  41</b><code>    steering_lines = &quot;\n&quot;.join(</code></span>
+<span class='src-line'><b>  42</b><code>        f&quot;- {entry.get(&#x27;source&#x27;, &#x27;operator&#x27;)} {entry.get(&#x27;mode&#x27;, &#x27;steer&#x27;)}: {entry.get(&#x27;message&#x27;, &#x27;&#x27;)}&quot;</code></span>
+<span class='src-line'><b>  43</b><code>        for entry in active_prompt_operator_entries(operator_messages)[-6:]</code></span>
+<span class='src-line'><b>  44</b><code>        if isinstance(entry, dict)</code></span>
+<span class='src-line'><b>  45</b><code>    )</code></span>
+<span class='src-line'><b>  46</b><code>    update_lines = &quot;\n&quot;.join(</code></span>
+<span class='src-line'><b>  47</b><code>        f&quot;- {entry.get(&#x27;category&#x27;, &#x27;progress&#x27;)}: {entry.get(&#x27;message&#x27;, &#x27;&#x27;)}&quot;</code></span>
+<span class='src-line'><b>  48</b><code>        for entry in agent_updates[-5:]</code></span>
+<span class='src-line'><b>  49</b><code>        if isinstance(entry, dict)</code></span>
+<span class='src-line'><b>  50</b><code>    )</code></span>
+<span class='src-line'><b>  51</b><code>    lesson_lines = &quot;\n&quot;.join(</code></span>
+<span class='src-line'><b>  52</b><code>        f&quot;- {entry.get(&#x27;category&#x27;, &#x27;memory&#x27;)}: {entry.get(&#x27;lesson&#x27;, &#x27;&#x27;)}&quot;</code></span>
+<span class='src-line'><b>  53</b><code>        for entry in lessons[-8:]</code></span>
+<span class='src-line'><b>  54</b><code>        if isinstance(entry, dict)</code></span>
+<span class='src-line'><b>  55</b><code>    )</code></span>
+<span class='src-line'><b>  56</b><code>    finding_lines = &quot;\n&quot;.join(</code></span>
+<span class='src-line'><b>  57</b><code>        f&quot;- {entry.get(&#x27;name&#x27;)}: {entry.get(&#x27;category&#x27;) or &#x27;&#x27;} {entry.get(&#x27;location&#x27;) or &#x27;&#x27;} score={entry.get(&#x27;score&#x27;)}&quot;</code></span>
+<span class='src-line'><b>  58</b><code>        for entry in findings[-8:]</code></span>
+<span class='src-line'><b>  59</b><code>        if isinstance(entry, dict)</code></span>
+<span class='src-line'><b>  60</b><code>    )</code></span>
+<span class='src-line'><b>  61</b><code>    task_lines = &quot;\n&quot;.join(</code></span>
+<span class='src-line'><b>  62</b><code>        f&quot;- {entry.get(&#x27;status&#x27;) or &#x27;open&#x27;} p={entry.get(&#x27;priority&#x27;) or 0}: {entry.get(&#x27;title&#x27;)}&quot;</code></span>
+<span class='src-line'><b>  63</b><code>        for entry in tasks[-10:]</code></span>
+<span class='src-line'><b>  64</b><code>        if isinstance(entry, dict)</code></span>
+<span class='src-line'><b>  65</b><code>    )</code></span>
+<span class='src-line'><b>  66</b><code>    milestone_lines = _roadmap_lines(roadmap)</code></span>
+<span class='src-line'><b>  67</b><code>    experiment_lines = &quot;\n&quot;.join(_experiment_line(entry) for entry in experiments[-10:] if isinstance(entry, dict))</code></span>
+<span class='src-line'><b>  68</b><code>    source_lines = &quot;\n&quot;.join(</code></span>
+<span class='src-line'><b>  69</b><code>        f&quot;- {entry.get(&#x27;source&#x27;)}: score={entry.get(&#x27;usefulness_score&#x27;)} &quot;</code></span>
+<span class='src-line'><b>  70</b><code>        f&quot;findings={entry.get(&#x27;yield_count&#x27;) or 0} outcome={entry.get(&#x27;last_outcome&#x27;) or &#x27;&#x27;}&quot;</code></span>
+<span class='src-line'><b>  71</b><code>        for entry in sources[-8:]</code></span>
+<span class='src-line'><b>  72</b><code>        if isinstance(entry, dict)</code></span>
+<span class='src-line'><b>  73</b><code>    )</code></span>
+<span class='src-line'><b>  74</b><code>    timeline_lines = &quot;\n&quot;.join(event_line(event, chars=700) for event in timeline_events[-12:])</code></span>
+<span class='src-line'><b>  75</b><code></code></span>
+<span class='src-line'><b>  76</b><code>    sections = {</code></span>
+<span class='src-line'><b>  77</b><code>        &quot;Jobs&quot;: _clip_chat_context(_job_list_lines(jobs, focused_job_id=job[&quot;id&quot;]), 1_300),</code></span>
+<span class='src-line'><b>  78</b><code>        &quot;Recent tool calls&quot;: _clip_chat_context(step_lines, 1_800),</code></span>
+<span class='src-line'><b>  79</b><code>        &quot;Latest artifacts&quot;: _clip_chat_context(artifact_lines, 1_200),</code></span>
+<span class='src-line'><b>  80</b><code>        &quot;Finding ledger&quot;: _clip_chat_context(finding_lines, 1_200),</code></span>
+<span class='src-line'><b>  81</b><code>        &quot;Task queue&quot;: _clip_chat_context(task_lines, 1_300),</code></span>
+<span class='src-line'><b>  82</b><code>        &quot;Roadmap&quot;: _clip_chat_context(milestone_lines, 1_200),</code></span>
+<span class='src-line'><b>  83</b><code>        &quot;Experiment ledger&quot;: _clip_chat_context(experiment_lines, 1_300),</code></span>
+<span class='src-line'><b>  84</b><code>        &quot;Source ledger&quot;: _clip_chat_context(source_lines, 1_100),</code></span>
+<span class='src-line'><b>  85</b><code>        &quot;Lessons learned&quot;: _clip_chat_context(lesson_lines, 1_000),</code></span>
+<span class='src-line'><b>  86</b><code>        &quot;Recent operator steering&quot;: _clip_chat_context(steering_lines, 1_200),</code></span>
+<span class='src-line'><b>  87</b><code>        &quot;Recent agent notes&quot;: _clip_chat_context(update_lines, 1_200),</code></span>
+<span class='src-line'><b>  88</b><code>        &quot;Recent visible timeline&quot;: _clip_chat_context(timeline_lines, 1_800),</code></span>
+<span class='src-line'><b>  89</b><code>    }</code></span>
+<span class='src-line'><b>  90</b><code>    section_text = &quot;\n\n&quot;.join(f&quot;{title}:\n{body or _empty_section_text(title)}&quot; for title, body in sections.items())</code></span>
+<span class='src-line'><b>  91</b><code>    return [</code></span>
+<span class='src-line'><b>  92</b><code>        {</code></span>
+<span class='src-line'><b>  93</b><code>            &quot;role&quot;: &quot;system&quot;,</code></span>
+<span class='src-line'><b>  94</b><code>            &quot;content&quot;: (</code></span>
+<span class='src-line'><b>  95</b><code>                &quot;You are Nipux, the chat model that controls a generic long-running agent workspace. &quot;</code></span>
+<span class='src-line'><b>  96</b><code>                &quot;You know the visible CLI state, focused job, job list, task queue, artifacts, memory, metrics, and recent activity. &quot;</code></span>
+<span class='src-line'><b>  97</b><code>                &quot;Answer directly from the visible job state. Do not claim hidden chain-of-thought. &quot;</code></span>
+<span class='src-line'><b>  98</b><code>                &quot;If the operator asks for work to be done, explain the concrete job/control action Nipux will take or how to run it from the Jobs/Status panel. &quot;</code></span>
+<span class='src-line'><b>  99</b><code>                &quot;If the operator asks where saved work is, explain that artifacts and history are visible from the Jobs/Status panel or direct CLI commands. &quot;</code></span>
+<span class='src-line'><b> 100</b><code>                &quot;Do not start replies with an introduction. Keep replies concise and useful.&quot;</code></span>
+<span class='src-line'><b> 101</b><code>            ),</code></span>
+<span class='src-line'><b> 102</b><code>        },</code></span>
+<span class='src-line'><b> 103</b><code>        {</code></span>
+<span class='src-line'><b> 104</b><code>            &quot;role&quot;: &quot;user&quot;,</code></span>
+<span class='src-line'><b> 105</b><code>            &quot;content&quot;: (</code></span>
+<span class='src-line'><b> 106</b><code>                f&quot;Job title: {job[&#x27;title&#x27;]}\n&quot;</code></span>
+<span class='src-line'><b> 107</b><code>                f&quot;Job status: {job[&#x27;status&#x27;]}\n&quot;</code></span>
+<span class='src-line'><b> 108</b><code>                f&quot;Kind: {job[&#x27;kind&#x27;]}\n&quot;</code></span>
+<span class='src-line'><b> 109</b><code>                f&quot;Objective: {job[&#x27;objective&#x27;]}\n\n&quot;</code></span>
+<span class='src-line'><b> 110</b><code>                f&quot;{section_text}\n\n&quot;</code></span>
+<span class='src-line'><b> 111</b><code>                f&quot;Operator message:\n{message}&quot;</code></span>
+<span class='src-line'><b> 112</b><code>            ),</code></span>
+<span class='src-line'><b> 113</b><code>        },</code></span>
+<span class='src-line'><b> 114</b><code>    ]</code></span>
+<span class='src-line'><b> 115</b><code></code></span>
+<span class='src-line'><b> 116</b><code></code></span>
+<span class='src-line'><b> 117</b><code>def _job_list_lines(jobs: list[dict[str, Any]], *, focused_job_id: str) -&gt; str:</code></span>
+<span class='src-line'><b> 118</b><code>    lines: list[str] = []</code></span>
+<span class='src-line'><b> 119</b><code>    for index, entry in enumerate(jobs, start=1):</code></span>
+<span class='src-line'><b> 120</b><code>        marker = &quot;*&quot; if str(entry.get(&quot;id&quot;) or &quot;&quot;) == focused_job_id else &quot;-&quot;</code></span>
+<span class='src-line'><b> 121</b><code>        title = entry.get(&quot;title&quot;) or entry.get(&quot;id&quot;) or &quot;untitled&quot;</code></span>
+<span class='src-line'><b> 122</b><code>        objective = &quot; &quot;.join(str(entry.get(&quot;objective&quot;) or &quot;&quot;).split())</code></span>
+<span class='src-line'><b> 123</b><code>        if len(objective) &gt; 120:</code></span>
+<span class='src-line'><b> 124</b><code>            objective = objective[:119].rstrip() + &quot;...&quot;</code></span>
+<span class='src-line'><b> 125</b><code>        lines.append(</code></span>
+<span class='src-line'><b> 126</b><code>            f&quot;{marker} {index}. {title} status={entry.get(&#x27;status&#x27;) or &#x27;unknown&#x27;} &quot;</code></span>
+<span class='src-line'><b> 127</b><code>            f&quot;kind={entry.get(&#x27;kind&#x27;) or &#x27;generic&#x27;} objective={objective}&quot;</code></span>
+<span class='src-line'><b> 128</b><code>        )</code></span>
+<span class='src-line'><b> 129</b><code>    return &quot;\n&quot;.join(lines)</code></span>
+<span class='src-line'><b> 130</b><code></code></span>
+<span class='src-line'><b> 131</b><code></code></span>
+<span class='src-line'><b> 132</b><code>def _roadmap_lines(roadmap: dict[str, Any]) -&gt; str:</code></span>
+<span class='src-line'><b> 133</b><code>    if not roadmap:</code></span>
+<span class='src-line'><b> 134</b><code>        return &quot;&quot;</code></span>
+<span class='src-line'><b> 135</b><code>    milestones = roadmap.get(&quot;milestones&quot;) if isinstance(roadmap.get(&quot;milestones&quot;), list) else []</code></span>
+<span class='src-line'><b> 136</b><code>    body = &quot;\n&quot;.join(</code></span>
+<span class='src-line'><b> 137</b><code>        (</code></span>
+<span class='src-line'><b> 138</b><code>            f&quot;- {entry.get(&#x27;status&#x27;) or &#x27;planned&#x27;} validation={entry.get(&#x27;validation_status&#x27;) or &#x27;not_started&#x27;} &quot;</code></span>
+<span class='src-line'><b> 139</b><code>            f&quot;p={entry.get(&#x27;priority&#x27;) or 0}: {entry.get(&#x27;title&#x27;)}&quot;</code></span>
+<span class='src-line'><b> 140</b><code>        )</code></span>
+<span class='src-line'><b> 141</b><code>        for entry in milestones[-8:]</code></span>
+<span class='src-line'><b> 142</b><code>        if isinstance(entry, dict)</code></span>
+<span class='src-line'><b> 143</b><code>    )</code></span>
+<span class='src-line'><b> 144</b><code>    header = (</code></span>
+<span class='src-line'><b> 145</b><code>        f&quot;{roadmap.get(&#x27;status&#x27;) or &#x27;planned&#x27;}: {roadmap.get(&#x27;title&#x27;) or &#x27;Roadmap&#x27;}&quot;</code></span>
+<span class='src-line'><b> 146</b><code>        + (f&quot; current={roadmap.get(&#x27;current_milestone&#x27;)}&quot; if roadmap.get(&quot;current_milestone&quot;) else &quot;&quot;)</code></span>
+<span class='src-line'><b> 147</b><code>    )</code></span>
+<span class='src-line'><b> 148</b><code>    return f&quot;{header}\n{body}&quot;.strip()</code></span>
+<span class='src-line'><b> 149</b><code></code></span>
+<span class='src-line'><b> 150</b><code></code></span>
+<span class='src-line'><b> 151</b><code>def _experiment_line(entry: dict[str, Any]) -&gt; str:</code></span>
+<span class='src-line'><b> 152</b><code>    if entry.get(&quot;metric_value&quot;) is None:</code></span>
+<span class='src-line'><b> 153</b><code>        return f&quot;- {entry.get(&#x27;status&#x27;) or &#x27;planned&#x27;}: {entry.get(&#x27;title&#x27;)}&quot;</code></span>
+<span class='src-line'><b> 154</b><code>    metric = format_metric_value(</code></span>
+<span class='src-line'><b> 155</b><code>        entry.get(&quot;metric_name&quot;) or &quot;metric&quot;,</code></span>
+<span class='src-line'><b> 156</b><code>        entry.get(&quot;metric_value&quot;),</code></span>
+<span class='src-line'><b> 157</b><code>        entry.get(&quot;metric_unit&quot;) or &quot;&quot;,</code></span>
+<span class='src-line'><b> 158</b><code>    )</code></span>
+<span class='src-line'><b> 159</b><code>    return (</code></span>
+<span class='src-line'><b> 160</b><code>        f&quot;- {entry.get(&#x27;status&#x27;) or &#x27;planned&#x27;}: {entry.get(&#x27;title&#x27;)}&quot;</code></span>
+<span class='src-line'><b> 161</b><code>        f&quot; {metric}&quot;</code></span>
+<span class='src-line'><b> 162</b><code>        f&quot;{&#x27; best&#x27; if entry.get(&#x27;best_observed&#x27;) else &#x27;&#x27;}&quot;</code></span>
+<span class='src-line'><b> 163</b><code>    )</code></span>
+<span class='src-line'><b> 164</b><code></code></span>
+<span class='src-line'><b> 165</b><code></code></span>
+<span class='src-line'><b> 166</b><code>def _empty_section_text(title: str) -&gt; str:</code></span>
+<span class='src-line'><b> 167</b><code>    return &quot;None.&quot; if title.startswith(&quot;Recent operator&quot;) else &quot;None yet.&quot;</code></span>
+<span class='src-line'><b> 168</b><code></code></span>
+<span class='src-line'><b> 169</b><code></code></span>
+<span class='src-line'><b> 170</b><code>def _clip_chat_context(value: str, limit: int) -&gt; str:</code></span>
+<span class='src-line'><b> 171</b><code>    text = str(value or &quot;&quot;)</code></span>
+<span class='src-line'><b> 172</b><code>    if len(text) &lt;= limit:</code></span>
+<span class='src-line'><b> 173</b><code>        return text</code></span>
+<span class='src-line'><b> 174</b><code>    marker = f&quot;\n... clipped {len(text) - limit} chars from this visible state section ...&quot;</code></span>
+<span class='src-line'><b> 175</b><code>    return text[: max(0, limit - len(marker))].rstrip() + marker</code></span></pre>
 </details>
 <details class="source-file searchable" data-search="nipux_cli/chat_controller.py &quot;&quot;&quot;Chat-controller behavior shared by the interactive CLI.&quot;&quot;&quot;
 
@@ -35497,7 +35520,7 @@ def test_cli_has_operator_commands():
     assert parser.parse_args([&quot;autostart&quot;, &quot;status&quot;]).func.__name__ == &quot;cmd_autostart&quot;
     assert parser.parse_args([&quot;browser-dashboard&quot;, &quot;--port&quot;, &quot;4848&quot;]).func.__name__ == &quot;cmd_browser_dashboard&quot;
     assert parser.parse_args([&quot;artifacts&quot;]).func.__name__ == &quot;cmd_a">
-<summary>tests/nipux_cli/test_cli.py <span>2472 lines</span></summary>
+<summary>tests/nipux_cli/test_cli.py <span>2476 lines</span></summary>
 <pre class="source-code"><span class='src-line'><b>   1</b><code>import json</code></span>
 <span class='src-line'><b>   2</b><code></code></span>
 <span class='src-line'><b>   3</b><code>from nipux_cli.artifacts import ArtifactStore</code></span>
@@ -37584,392 +37607,396 @@ def test_cli_has_operator_commands():
 <span class='src-line'><b>2084</b><code>    db = AgentDB(tmp_path / &quot;state.db&quot;)</code></span>
 <span class='src-line'><b>2085</b><code>    try:</code></span>
 <span class='src-line'><b>2086</b><code>        job_id = db.create_job(&quot;Research topic&quot;, title=&quot;nightly research&quot;, kind=&quot;generic&quot;)</code></span>
-<span class='src-line'><b>2087</b><code>        run_id = db.start_run(job_id, model=&quot;fake&quot;)</code></span>
-<span class='src-line'><b>2088</b><code>        step_id = db.add_step(job_id=job_id, run_id=run_id, kind=&quot;tool&quot;, tool_name=&quot;web_search&quot;)</code></span>
-<span class='src-line'><b>2089</b><code>        db.finish_step(step_id, status=&quot;completed&quot;, summary=&quot;web_search returned useful sources&quot;)</code></span>
-<span class='src-line'><b>2090</b><code>        job = db.get_job(job_id)</code></span>
-<span class='src-line'><b>2091</b><code></code></span>
-<span class='src-line'><b>2092</b><code>        messages = _build_chat_messages(db, job, &quot;what is going on?&quot;)</code></span>
-<span class='src-line'><b>2093</b><code></code></span>
-<span class='src-line'><b>2094</b><code>        content = messages[-1][&quot;content&quot;]</code></span>
-<span class='src-line'><b>2095</b><code>        assert &quot;Job title: nightly research&quot; in content</code></span>
-<span class='src-line'><b>2096</b><code>        assert &quot;web_search returned useful sources&quot; in content</code></span>
-<span class='src-line'><b>2097</b><code>        assert &quot;what is going on?&quot; in content</code></span>
-<span class='src-line'><b>2098</b><code>    finally:</code></span>
-<span class='src-line'><b>2099</b><code>        db.close()</code></span>
-<span class='src-line'><b>2100</b><code></code></span>
-<span class='src-line'><b>2101</b><code></code></span>
-<span class='src-line'><b>2102</b><code>def test_build_chat_messages_does_not_include_local_machine_context(monkeypatch, tmp_path):</code></span>
-<span class='src-line'><b>2103</b><code>    monkeypatch.setenv(&quot;HOME&quot;, str(tmp_path))</code></span>
-<span class='src-line'><b>2104</b><code>    ssh_dir = tmp_path / &quot;.ssh&quot;</code></span>
-<span class='src-line'><b>2105</b><code>    ssh_dir.mkdir()</code></span>
-<span class='src-line'><b>2106</b><code>    (ssh_dir / &quot;config&quot;).write_text(&quot;Host private-box\n  HostName 10.9.8.7\n  User private\n&quot;, encoding=&quot;utf-8&quot;)</code></span>
-<span class='src-line'><b>2107</b><code>    db = AgentDB(tmp_path / &quot;state.db&quot;)</code></span>
-<span class='src-line'><b>2108</b><code>    try:</code></span>
-<span class='src-line'><b>2109</b><code>        job_id = db.create_job(&quot;Research topic&quot;, title=&quot;nightly research&quot;, kind=&quot;generic&quot;)</code></span>
-<span class='src-line'><b>2110</b><code>        job = db.get_job(job_id)</code></span>
-<span class='src-line'><b>2111</b><code></code></span>
-<span class='src-line'><b>2112</b><code>        messages = _build_chat_messages(db, job, &quot;what is going on?&quot;)</code></span>
-<span class='src-line'><b>2113</b><code></code></span>
-<span class='src-line'><b>2114</b><code>        content = messages[-1][&quot;content&quot;]</code></span>
-<span class='src-line'><b>2115</b><code>        assert &quot;Local CLI context&quot; not in content</code></span>
-<span class='src-line'><b>2116</b><code>        assert &quot;private-box&quot; not in content</code></span>
-<span class='src-line'><b>2117</b><code>        assert &quot;10.9.8.7&quot; not in content</code></span>
-<span class='src-line'><b>2118</b><code>    finally:</code></span>
-<span class='src-line'><b>2119</b><code>        db.close()</code></span>
-<span class='src-line'><b>2120</b><code></code></span>
-<span class='src-line'><b>2121</b><code></code></span>
-<span class='src-line'><b>2122</b><code>def test_build_chat_messages_points_to_artifact_and_lessons(tmp_path):</code></span>
-<span class='src-line'><b>2123</b><code>    db = AgentDB(tmp_path / &quot;state.db&quot;)</code></span>
-<span class='src-line'><b>2124</b><code>    try:</code></span>
-<span class='src-line'><b>2125</b><code>        job_id = db.create_job(&quot;Research topic&quot;, title=&quot;nightly research&quot;, kind=&quot;generic&quot;)</code></span>
-<span class='src-line'><b>2126</b><code>        run_id = db.start_run(job_id, model=&quot;fake&quot;)</code></span>
-<span class='src-line'><b>2127</b><code>        step_id = db.add_step(job_id=job_id, run_id=run_id, kind=&quot;tool&quot;, tool_name=&quot;write_artifact&quot;)</code></span>
-<span class='src-line'><b>2128</b><code>        ArtifactStore(tmp_path, db=db).write_text(</code></span>
-<span class='src-line'><b>2129</b><code>            job_id=job_id,</code></span>
-<span class='src-line'><b>2130</b><code>            run_id=run_id,</code></span>
-<span class='src-line'><b>2131</b><code>            step_id=step_id,</code></span>
-<span class='src-line'><b>2132</b><code>            title=&quot;Findings Batch&quot;,</code></span>
-<span class='src-line'><b>2133</b><code>            summary=&quot;15 reusable findings&quot;,</code></span>
-<span class='src-line'><b>2134</b><code>            content=&quot;Acme&quot;,</code></span>
-<span class='src-line'><b>2135</b><code>        )</code></span>
-<span class='src-line'><b>2136</b><code>        db.append_lesson(job_id, &quot;Prefer actual evidence sources over low-evidence pages.&quot;, category=&quot;strategy&quot;)</code></span>
-<span class='src-line'><b>2137</b><code>        job = db.get_job(job_id)</code></span>
-<span class='src-line'><b>2138</b><code></code></span>
-<span class='src-line'><b>2139</b><code>        messages = _build_chat_messages(db, job, &quot;where are the findings?&quot;)</code></span>
-<span class='src-line'><b>2140</b><code></code></span>
-<span class='src-line'><b>2141</b><code>        content = messages[-1][&quot;content&quot;]</code></span>
-<span class='src-line'><b>2142</b><code>        assert &quot;/artifact 1&quot; in content</code></span>
-<span class='src-line'><b>2143</b><code>        assert &quot;Prefer actual evidence sources over low-evidence pages&quot; in content</code></span>
-<span class='src-line'><b>2144</b><code>    finally:</code></span>
-<span class='src-line'><b>2145</b><code>        db.close()</code></span>
-<span class='src-line'><b>2146</b><code></code></span>
-<span class='src-line'><b>2147</b><code></code></span>
-<span class='src-line'><b>2148</b><code>def test_build_chat_messages_clip_large_visible_state(tmp_path):</code></span>
-<span class='src-line'><b>2149</b><code>    db = AgentDB(tmp_path / &quot;state.db&quot;)</code></span>
-<span class='src-line'><b>2150</b><code>    try:</code></span>
-<span class='src-line'><b>2151</b><code>        job_id = db.create_job(&quot;Research topic&quot;, title=&quot;nightly research&quot;, kind=&quot;generic&quot;)</code></span>
-<span class='src-line'><b>2152</b><code>        for index in range(30):</code></span>
-<span class='src-line'><b>2153</b><code>            db.append_event(</code></span>
-<span class='src-line'><b>2154</b><code>                job_id=job_id,</code></span>
-<span class='src-line'><b>2155</b><code>                event_type=&quot;finding&quot;,</code></span>
-<span class='src-line'><b>2156</b><code>                title=f&quot;large finding {index}&quot;,</code></span>
-<span class='src-line'><b>2157</b><code>                body=&quot;evidence &quot; * 400,</code></span>
-<span class='src-line'><b>2158</b><code>                metadata={},</code></span>
-<span class='src-line'><b>2159</b><code>            )</code></span>
-<span class='src-line'><b>2160</b><code>        job = db.get_job(job_id)</code></span>
-<span class='src-line'><b>2161</b><code></code></span>
-<span class='src-line'><b>2162</b><code>        messages = _build_chat_messages(db, job, &quot;keep this exact operator question visible&quot;)</code></span>
-<span class='src-line'><b>2163</b><code></code></span>
-<span class='src-line'><b>2164</b><code>        content = messages[-1][&quot;content&quot;]</code></span>
-<span class='src-line'><b>2165</b><code>        assert len(content) &lt; 14_000</code></span>
-<span class='src-line'><b>2166</b><code>        assert &quot;clipped&quot; in content</code></span>
-<span class='src-line'><b>2167</b><code>        assert &quot;keep this exact operator question visible&quot; in content</code></span>
-<span class='src-line'><b>2168</b><code>    finally:</code></span>
-<span class='src-line'><b>2169</b><code>        db.close()</code></span>
-<span class='src-line'><b>2170</b><code></code></span>
-<span class='src-line'><b>2171</b><code></code></span>
-<span class='src-line'><b>2172</b><code>def test_artifact_command_resolves_title_query(monkeypatch, tmp_path, capsys):</code></span>
-<span class='src-line'><b>2173</b><code>    monkeypatch.setenv(&quot;NIPUX_HOME&quot;, str(tmp_path))</code></span>
-<span class='src-line'><b>2174</b><code>    db = AgentDB(tmp_path / &quot;state.db&quot;)</code></span>
-<span class='src-line'><b>2175</b><code>    try:</code></span>
-<span class='src-line'><b>2176</b><code>        job_id = db.create_job(&quot;Research topic&quot;, title=&quot;nightly research&quot;)</code></span>
-<span class='src-line'><b>2177</b><code>        run_id = db.start_run(job_id, model=&quot;fake&quot;)</code></span>
-<span class='src-line'><b>2178</b><code>        step_id = db.add_step(job_id=job_id, run_id=run_id, kind=&quot;tool&quot;, tool_name=&quot;write_artifact&quot;)</code></span>
-<span class='src-line'><b>2179</b><code>        ArtifactStore(tmp_path, db=db).write_text(</code></span>
-<span class='src-line'><b>2180</b><code>            job_id=job_id,</code></span>
-<span class='src-line'><b>2181</b><code>            run_id=run_id,</code></span>
-<span class='src-line'><b>2182</b><code>            step_id=step_id,</code></span>
-<span class='src-line'><b>2183</b><code>            title=&quot;Findings Batch&quot;,</code></span>
-<span class='src-line'><b>2184</b><code>            summary=&quot;saved findings&quot;,</code></span>
-<span class='src-line'><b>2185</b><code>            content=&quot;Acme Corp\n&quot;,</code></span>
-<span class='src-line'><b>2186</b><code>        )</code></span>
-<span class='src-line'><b>2187</b><code>    finally:</code></span>
-<span class='src-line'><b>2188</b><code>        db.close()</code></span>
-<span class='src-line'><b>2189</b><code></code></span>
-<span class='src-line'><b>2190</b><code>    parser = build_parser()</code></span>
-<span class='src-line'><b>2191</b><code>    args = parser.parse_args([&quot;artifact&quot;, &quot;Findings&quot;, &quot;Batch&quot;])</code></span>
-<span class='src-line'><b>2192</b><code>    args.func(args)</code></span>
+<span class='src-line'><b>2087</b><code>        db.create_job(&quot;Monitor another branch&quot;, title=&quot;other branch&quot;, kind=&quot;generic&quot;)</code></span>
+<span class='src-line'><b>2088</b><code>        run_id = db.start_run(job_id, model=&quot;fake&quot;)</code></span>
+<span class='src-line'><b>2089</b><code>        step_id = db.add_step(job_id=job_id, run_id=run_id, kind=&quot;tool&quot;, tool_name=&quot;web_search&quot;)</code></span>
+<span class='src-line'><b>2090</b><code>        db.finish_step(step_id, status=&quot;completed&quot;, summary=&quot;web_search returned useful sources&quot;)</code></span>
+<span class='src-line'><b>2091</b><code>        job = db.get_job(job_id)</code></span>
+<span class='src-line'><b>2092</b><code></code></span>
+<span class='src-line'><b>2093</b><code>        messages = _build_chat_messages(db, job, &quot;what is going on?&quot;)</code></span>
+<span class='src-line'><b>2094</b><code></code></span>
+<span class='src-line'><b>2095</b><code>        content = messages[-1][&quot;content&quot;]</code></span>
+<span class='src-line'><b>2096</b><code>        assert &quot;Job title: nightly research&quot; in content</code></span>
+<span class='src-line'><b>2097</b><code>        assert &quot;Jobs:&quot; in content</code></span>
+<span class='src-line'><b>2098</b><code>        assert &quot;* 1. nightly research&quot; in content</code></span>
+<span class='src-line'><b>2099</b><code>        assert &quot;- 2. other branch&quot; in content</code></span>
+<span class='src-line'><b>2100</b><code>        assert &quot;web_search returned useful sources&quot; in content</code></span>
+<span class='src-line'><b>2101</b><code>        assert &quot;what is going on?&quot; in content</code></span>
+<span class='src-line'><b>2102</b><code>    finally:</code></span>
+<span class='src-line'><b>2103</b><code>        db.close()</code></span>
+<span class='src-line'><b>2104</b><code></code></span>
+<span class='src-line'><b>2105</b><code></code></span>
+<span class='src-line'><b>2106</b><code>def test_build_chat_messages_does_not_include_local_machine_context(monkeypatch, tmp_path):</code></span>
+<span class='src-line'><b>2107</b><code>    monkeypatch.setenv(&quot;HOME&quot;, str(tmp_path))</code></span>
+<span class='src-line'><b>2108</b><code>    ssh_dir = tmp_path / &quot;.ssh&quot;</code></span>
+<span class='src-line'><b>2109</b><code>    ssh_dir.mkdir()</code></span>
+<span class='src-line'><b>2110</b><code>    (ssh_dir / &quot;config&quot;).write_text(&quot;Host private-box\n  HostName 10.9.8.7\n  User private\n&quot;, encoding=&quot;utf-8&quot;)</code></span>
+<span class='src-line'><b>2111</b><code>    db = AgentDB(tmp_path / &quot;state.db&quot;)</code></span>
+<span class='src-line'><b>2112</b><code>    try:</code></span>
+<span class='src-line'><b>2113</b><code>        job_id = db.create_job(&quot;Research topic&quot;, title=&quot;nightly research&quot;, kind=&quot;generic&quot;)</code></span>
+<span class='src-line'><b>2114</b><code>        job = db.get_job(job_id)</code></span>
+<span class='src-line'><b>2115</b><code></code></span>
+<span class='src-line'><b>2116</b><code>        messages = _build_chat_messages(db, job, &quot;what is going on?&quot;)</code></span>
+<span class='src-line'><b>2117</b><code></code></span>
+<span class='src-line'><b>2118</b><code>        content = messages[-1][&quot;content&quot;]</code></span>
+<span class='src-line'><b>2119</b><code>        assert &quot;Local CLI context&quot; not in content</code></span>
+<span class='src-line'><b>2120</b><code>        assert &quot;private-box&quot; not in content</code></span>
+<span class='src-line'><b>2121</b><code>        assert &quot;10.9.8.7&quot; not in content</code></span>
+<span class='src-line'><b>2122</b><code>    finally:</code></span>
+<span class='src-line'><b>2123</b><code>        db.close()</code></span>
+<span class='src-line'><b>2124</b><code></code></span>
+<span class='src-line'><b>2125</b><code></code></span>
+<span class='src-line'><b>2126</b><code>def test_build_chat_messages_points_to_artifact_and_lessons(tmp_path):</code></span>
+<span class='src-line'><b>2127</b><code>    db = AgentDB(tmp_path / &quot;state.db&quot;)</code></span>
+<span class='src-line'><b>2128</b><code>    try:</code></span>
+<span class='src-line'><b>2129</b><code>        job_id = db.create_job(&quot;Research topic&quot;, title=&quot;nightly research&quot;, kind=&quot;generic&quot;)</code></span>
+<span class='src-line'><b>2130</b><code>        run_id = db.start_run(job_id, model=&quot;fake&quot;)</code></span>
+<span class='src-line'><b>2131</b><code>        step_id = db.add_step(job_id=job_id, run_id=run_id, kind=&quot;tool&quot;, tool_name=&quot;write_artifact&quot;)</code></span>
+<span class='src-line'><b>2132</b><code>        ArtifactStore(tmp_path, db=db).write_text(</code></span>
+<span class='src-line'><b>2133</b><code>            job_id=job_id,</code></span>
+<span class='src-line'><b>2134</b><code>            run_id=run_id,</code></span>
+<span class='src-line'><b>2135</b><code>            step_id=step_id,</code></span>
+<span class='src-line'><b>2136</b><code>            title=&quot;Findings Batch&quot;,</code></span>
+<span class='src-line'><b>2137</b><code>            summary=&quot;15 reusable findings&quot;,</code></span>
+<span class='src-line'><b>2138</b><code>            content=&quot;Acme&quot;,</code></span>
+<span class='src-line'><b>2139</b><code>        )</code></span>
+<span class='src-line'><b>2140</b><code>        db.append_lesson(job_id, &quot;Prefer actual evidence sources over low-evidence pages.&quot;, category=&quot;strategy&quot;)</code></span>
+<span class='src-line'><b>2141</b><code>        job = db.get_job(job_id)</code></span>
+<span class='src-line'><b>2142</b><code></code></span>
+<span class='src-line'><b>2143</b><code>        messages = _build_chat_messages(db, job, &quot;where are the findings?&quot;)</code></span>
+<span class='src-line'><b>2144</b><code></code></span>
+<span class='src-line'><b>2145</b><code>        content = messages[-1][&quot;content&quot;]</code></span>
+<span class='src-line'><b>2146</b><code>        assert &quot;/artifact 1&quot; in content</code></span>
+<span class='src-line'><b>2147</b><code>        assert &quot;Prefer actual evidence sources over low-evidence pages&quot; in content</code></span>
+<span class='src-line'><b>2148</b><code>    finally:</code></span>
+<span class='src-line'><b>2149</b><code>        db.close()</code></span>
+<span class='src-line'><b>2150</b><code></code></span>
+<span class='src-line'><b>2151</b><code></code></span>
+<span class='src-line'><b>2152</b><code>def test_build_chat_messages_clip_large_visible_state(tmp_path):</code></span>
+<span class='src-line'><b>2153</b><code>    db = AgentDB(tmp_path / &quot;state.db&quot;)</code></span>
+<span class='src-line'><b>2154</b><code>    try:</code></span>
+<span class='src-line'><b>2155</b><code>        job_id = db.create_job(&quot;Research topic&quot;, title=&quot;nightly research&quot;, kind=&quot;generic&quot;)</code></span>
+<span class='src-line'><b>2156</b><code>        for index in range(30):</code></span>
+<span class='src-line'><b>2157</b><code>            db.append_event(</code></span>
+<span class='src-line'><b>2158</b><code>                job_id=job_id,</code></span>
+<span class='src-line'><b>2159</b><code>                event_type=&quot;finding&quot;,</code></span>
+<span class='src-line'><b>2160</b><code>                title=f&quot;large finding {index}&quot;,</code></span>
+<span class='src-line'><b>2161</b><code>                body=&quot;evidence &quot; * 400,</code></span>
+<span class='src-line'><b>2162</b><code>                metadata={},</code></span>
+<span class='src-line'><b>2163</b><code>            )</code></span>
+<span class='src-line'><b>2164</b><code>        job = db.get_job(job_id)</code></span>
+<span class='src-line'><b>2165</b><code></code></span>
+<span class='src-line'><b>2166</b><code>        messages = _build_chat_messages(db, job, &quot;keep this exact operator question visible&quot;)</code></span>
+<span class='src-line'><b>2167</b><code></code></span>
+<span class='src-line'><b>2168</b><code>        content = messages[-1][&quot;content&quot;]</code></span>
+<span class='src-line'><b>2169</b><code>        assert len(content) &lt; 14_000</code></span>
+<span class='src-line'><b>2170</b><code>        assert &quot;clipped&quot; in content</code></span>
+<span class='src-line'><b>2171</b><code>        assert &quot;keep this exact operator question visible&quot; in content</code></span>
+<span class='src-line'><b>2172</b><code>    finally:</code></span>
+<span class='src-line'><b>2173</b><code>        db.close()</code></span>
+<span class='src-line'><b>2174</b><code></code></span>
+<span class='src-line'><b>2175</b><code></code></span>
+<span class='src-line'><b>2176</b><code>def test_artifact_command_resolves_title_query(monkeypatch, tmp_path, capsys):</code></span>
+<span class='src-line'><b>2177</b><code>    monkeypatch.setenv(&quot;NIPUX_HOME&quot;, str(tmp_path))</code></span>
+<span class='src-line'><b>2178</b><code>    db = AgentDB(tmp_path / &quot;state.db&quot;)</code></span>
+<span class='src-line'><b>2179</b><code>    try:</code></span>
+<span class='src-line'><b>2180</b><code>        job_id = db.create_job(&quot;Research topic&quot;, title=&quot;nightly research&quot;)</code></span>
+<span class='src-line'><b>2181</b><code>        run_id = db.start_run(job_id, model=&quot;fake&quot;)</code></span>
+<span class='src-line'><b>2182</b><code>        step_id = db.add_step(job_id=job_id, run_id=run_id, kind=&quot;tool&quot;, tool_name=&quot;write_artifact&quot;)</code></span>
+<span class='src-line'><b>2183</b><code>        ArtifactStore(tmp_path, db=db).write_text(</code></span>
+<span class='src-line'><b>2184</b><code>            job_id=job_id,</code></span>
+<span class='src-line'><b>2185</b><code>            run_id=run_id,</code></span>
+<span class='src-line'><b>2186</b><code>            step_id=step_id,</code></span>
+<span class='src-line'><b>2187</b><code>            title=&quot;Findings Batch&quot;,</code></span>
+<span class='src-line'><b>2188</b><code>            summary=&quot;saved findings&quot;,</code></span>
+<span class='src-line'><b>2189</b><code>            content=&quot;Acme Corp\n&quot;,</code></span>
+<span class='src-line'><b>2190</b><code>        )</code></span>
+<span class='src-line'><b>2191</b><code>    finally:</code></span>
+<span class='src-line'><b>2192</b><code>        db.close()</code></span>
 <span class='src-line'><b>2193</b><code></code></span>
-<span class='src-line'><b>2194</b><code>    out = capsys.readouterr().out</code></span>
-<span class='src-line'><b>2195</b><code>    assert &quot;artifact: Findings Batch&quot; in out</code></span>
-<span class='src-line'><b>2196</b><code>    assert &quot;Acme Corp&quot; in out</code></span>
+<span class='src-line'><b>2194</b><code>    parser = build_parser()</code></span>
+<span class='src-line'><b>2195</b><code>    args = parser.parse_args([&quot;artifact&quot;, &quot;Findings&quot;, &quot;Batch&quot;])</code></span>
+<span class='src-line'><b>2196</b><code>    args.func(args)</code></span>
 <span class='src-line'><b>2197</b><code></code></span>
-<span class='src-line'><b>2198</b><code></code></span>
-<span class='src-line'><b>2199</b><code>def test_artifacts_command_prints_compact_view_command(monkeypatch, tmp_path, capsys):</code></span>
-<span class='src-line'><b>2200</b><code>    monkeypatch.setenv(&quot;NIPUX_HOME&quot;, str(tmp_path))</code></span>
-<span class='src-line'><b>2201</b><code>    db = AgentDB(tmp_path / &quot;state.db&quot;)</code></span>
-<span class='src-line'><b>2202</b><code>    try:</code></span>
-<span class='src-line'><b>2203</b><code>        job_id = db.create_job(&quot;Research topic&quot;, title=&quot;nightly research&quot;)</code></span>
-<span class='src-line'><b>2204</b><code>        run_id = db.start_run(job_id, model=&quot;fake&quot;)</code></span>
-<span class='src-line'><b>2205</b><code>        step_id = db.add_step(job_id=job_id, run_id=run_id, kind=&quot;tool&quot;, tool_name=&quot;write_artifact&quot;)</code></span>
-<span class='src-line'><b>2206</b><code>        ArtifactStore(tmp_path, db=db).write_text(</code></span>
-<span class='src-line'><b>2207</b><code>            job_id=job_id,</code></span>
-<span class='src-line'><b>2208</b><code>            run_id=run_id,</code></span>
-<span class='src-line'><b>2209</b><code>            step_id=step_id,</code></span>
-<span class='src-line'><b>2210</b><code>            title=&quot;Findings Batch&quot;,</code></span>
-<span class='src-line'><b>2211</b><code>            summary=&quot;saved findings&quot;,</code></span>
-<span class='src-line'><b>2212</b><code>            content=&quot;Acme Corp\n&quot;,</code></span>
-<span class='src-line'><b>2213</b><code>        )</code></span>
-<span class='src-line'><b>2214</b><code>    finally:</code></span>
-<span class='src-line'><b>2215</b><code>        db.close()</code></span>
-<span class='src-line'><b>2216</b><code></code></span>
-<span class='src-line'><b>2217</b><code>    parser = build_parser()</code></span>
-<span class='src-line'><b>2218</b><code>    args = parser.parse_args([&quot;artifacts&quot;])</code></span>
-<span class='src-line'><b>2219</b><code>    args.func(args)</code></span>
+<span class='src-line'><b>2198</b><code>    out = capsys.readouterr().out</code></span>
+<span class='src-line'><b>2199</b><code>    assert &quot;artifact: Findings Batch&quot; in out</code></span>
+<span class='src-line'><b>2200</b><code>    assert &quot;Acme Corp&quot; in out</code></span>
+<span class='src-line'><b>2201</b><code></code></span>
+<span class='src-line'><b>2202</b><code></code></span>
+<span class='src-line'><b>2203</b><code>def test_artifacts_command_prints_compact_view_command(monkeypatch, tmp_path, capsys):</code></span>
+<span class='src-line'><b>2204</b><code>    monkeypatch.setenv(&quot;NIPUX_HOME&quot;, str(tmp_path))</code></span>
+<span class='src-line'><b>2205</b><code>    db = AgentDB(tmp_path / &quot;state.db&quot;)</code></span>
+<span class='src-line'><b>2206</b><code>    try:</code></span>
+<span class='src-line'><b>2207</b><code>        job_id = db.create_job(&quot;Research topic&quot;, title=&quot;nightly research&quot;)</code></span>
+<span class='src-line'><b>2208</b><code>        run_id = db.start_run(job_id, model=&quot;fake&quot;)</code></span>
+<span class='src-line'><b>2209</b><code>        step_id = db.add_step(job_id=job_id, run_id=run_id, kind=&quot;tool&quot;, tool_name=&quot;write_artifact&quot;)</code></span>
+<span class='src-line'><b>2210</b><code>        ArtifactStore(tmp_path, db=db).write_text(</code></span>
+<span class='src-line'><b>2211</b><code>            job_id=job_id,</code></span>
+<span class='src-line'><b>2212</b><code>            run_id=run_id,</code></span>
+<span class='src-line'><b>2213</b><code>            step_id=step_id,</code></span>
+<span class='src-line'><b>2214</b><code>            title=&quot;Findings Batch&quot;,</code></span>
+<span class='src-line'><b>2215</b><code>            summary=&quot;saved findings&quot;,</code></span>
+<span class='src-line'><b>2216</b><code>            content=&quot;Acme Corp\n&quot;,</code></span>
+<span class='src-line'><b>2217</b><code>        )</code></span>
+<span class='src-line'><b>2218</b><code>    finally:</code></span>
+<span class='src-line'><b>2219</b><code>        db.close()</code></span>
 <span class='src-line'><b>2220</b><code></code></span>
-<span class='src-line'><b>2221</b><code>    out = capsys.readouterr().out</code></span>
-<span class='src-line'><b>2222</b><code>    assert &quot;saved outputs nightly research&quot; in out</code></span>
-<span class='src-line'><b>2223</b><code>    assert &quot;view: artifact 1&quot; in out</code></span>
-<span class='src-line'><b>2224</b><code>    assert &quot;/jobs/&quot; not in out</code></span>
-<span class='src-line'><b>2225</b><code></code></span>
-<span class='src-line'><b>2226</b><code></code></span>
-<span class='src-line'><b>2227</b><code>def test_artifact_command_opens_recent_output_by_number(monkeypatch, tmp_path, capsys):</code></span>
-<span class='src-line'><b>2228</b><code>    monkeypatch.setenv(&quot;NIPUX_HOME&quot;, str(tmp_path))</code></span>
-<span class='src-line'><b>2229</b><code>    db = AgentDB(tmp_path / &quot;state.db&quot;)</code></span>
-<span class='src-line'><b>2230</b><code>    try:</code></span>
-<span class='src-line'><b>2231</b><code>        job_id = db.create_job(&quot;Research topic&quot;, title=&quot;nightly research&quot;)</code></span>
-<span class='src-line'><b>2232</b><code>        run_id = db.start_run(job_id, model=&quot;fake&quot;)</code></span>
-<span class='src-line'><b>2233</b><code>        step_id = db.add_step(job_id=job_id, run_id=run_id, kind=&quot;tool&quot;, tool_name=&quot;write_artifact&quot;)</code></span>
-<span class='src-line'><b>2234</b><code>        ArtifactStore(tmp_path, db=db).write_text(</code></span>
-<span class='src-line'><b>2235</b><code>            job_id=job_id,</code></span>
-<span class='src-line'><b>2236</b><code>            run_id=run_id,</code></span>
-<span class='src-line'><b>2237</b><code>            step_id=step_id,</code></span>
-<span class='src-line'><b>2238</b><code>            title=&quot;Findings Batch&quot;,</code></span>
-<span class='src-line'><b>2239</b><code>            summary=&quot;saved findings&quot;,</code></span>
-<span class='src-line'><b>2240</b><code>            content=&quot;Acme Corp\n&quot;,</code></span>
-<span class='src-line'><b>2241</b><code>        )</code></span>
-<span class='src-line'><b>2242</b><code>    finally:</code></span>
-<span class='src-line'><b>2243</b><code>        db.close()</code></span>
-<span class='src-line'><b>2244</b><code></code></span>
-<span class='src-line'><b>2245</b><code>    parser = build_parser()</code></span>
-<span class='src-line'><b>2246</b><code>    args = parser.parse_args([&quot;artifact&quot;, &quot;1&quot;])</code></span>
-<span class='src-line'><b>2247</b><code>    args.func(args)</code></span>
+<span class='src-line'><b>2221</b><code>    parser = build_parser()</code></span>
+<span class='src-line'><b>2222</b><code>    args = parser.parse_args([&quot;artifacts&quot;])</code></span>
+<span class='src-line'><b>2223</b><code>    args.func(args)</code></span>
+<span class='src-line'><b>2224</b><code></code></span>
+<span class='src-line'><b>2225</b><code>    out = capsys.readouterr().out</code></span>
+<span class='src-line'><b>2226</b><code>    assert &quot;saved outputs nightly research&quot; in out</code></span>
+<span class='src-line'><b>2227</b><code>    assert &quot;view: artifact 1&quot; in out</code></span>
+<span class='src-line'><b>2228</b><code>    assert &quot;/jobs/&quot; not in out</code></span>
+<span class='src-line'><b>2229</b><code></code></span>
+<span class='src-line'><b>2230</b><code></code></span>
+<span class='src-line'><b>2231</b><code>def test_artifact_command_opens_recent_output_by_number(monkeypatch, tmp_path, capsys):</code></span>
+<span class='src-line'><b>2232</b><code>    monkeypatch.setenv(&quot;NIPUX_HOME&quot;, str(tmp_path))</code></span>
+<span class='src-line'><b>2233</b><code>    db = AgentDB(tmp_path / &quot;state.db&quot;)</code></span>
+<span class='src-line'><b>2234</b><code>    try:</code></span>
+<span class='src-line'><b>2235</b><code>        job_id = db.create_job(&quot;Research topic&quot;, title=&quot;nightly research&quot;)</code></span>
+<span class='src-line'><b>2236</b><code>        run_id = db.start_run(job_id, model=&quot;fake&quot;)</code></span>
+<span class='src-line'><b>2237</b><code>        step_id = db.add_step(job_id=job_id, run_id=run_id, kind=&quot;tool&quot;, tool_name=&quot;write_artifact&quot;)</code></span>
+<span class='src-line'><b>2238</b><code>        ArtifactStore(tmp_path, db=db).write_text(</code></span>
+<span class='src-line'><b>2239</b><code>            job_id=job_id,</code></span>
+<span class='src-line'><b>2240</b><code>            run_id=run_id,</code></span>
+<span class='src-line'><b>2241</b><code>            step_id=step_id,</code></span>
+<span class='src-line'><b>2242</b><code>            title=&quot;Findings Batch&quot;,</code></span>
+<span class='src-line'><b>2243</b><code>            summary=&quot;saved findings&quot;,</code></span>
+<span class='src-line'><b>2244</b><code>            content=&quot;Acme Corp\n&quot;,</code></span>
+<span class='src-line'><b>2245</b><code>        )</code></span>
+<span class='src-line'><b>2246</b><code>    finally:</code></span>
+<span class='src-line'><b>2247</b><code>        db.close()</code></span>
 <span class='src-line'><b>2248</b><code></code></span>
-<span class='src-line'><b>2249</b><code>    out = capsys.readouterr().out</code></span>
-<span class='src-line'><b>2250</b><code>    assert &quot;artifact: Findings Batch&quot; in out</code></span>
-<span class='src-line'><b>2251</b><code>    assert &quot;Acme Corp&quot; in out</code></span>
+<span class='src-line'><b>2249</b><code>    parser = build_parser()</code></span>
+<span class='src-line'><b>2250</b><code>    args = parser.parse_args([&quot;artifact&quot;, &quot;1&quot;])</code></span>
+<span class='src-line'><b>2251</b><code>    args.func(args)</code></span>
 <span class='src-line'><b>2252</b><code></code></span>
-<span class='src-line'><b>2253</b><code></code></span>
-<span class='src-line'><b>2254</b><code>def test_chat_work_defaults_to_compact_output(monkeypatch, tmp_path):</code></span>
-<span class='src-line'><b>2255</b><code>    monkeypatch.setenv(&quot;NIPUX_HOME&quot;, str(tmp_path))</code></span>
-<span class='src-line'><b>2256</b><code>    db = AgentDB(tmp_path / &quot;state.db&quot;)</code></span>
-<span class='src-line'><b>2257</b><code>    try:</code></span>
-<span class='src-line'><b>2258</b><code>        job_id = db.create_job(&quot;Research topic&quot;, title=&quot;nightly research&quot;)</code></span>
-<span class='src-line'><b>2259</b><code>    finally:</code></span>
-<span class='src-line'><b>2260</b><code>        db.close()</code></span>
-<span class='src-line'><b>2261</b><code>    captured = {}</code></span>
-<span class='src-line'><b>2262</b><code></code></span>
-<span class='src-line'><b>2263</b><code>    def fake_work(args):</code></span>
-<span class='src-line'><b>2264</b><code>        captured[&quot;verbose&quot;] = args.verbose</code></span>
-<span class='src-line'><b>2265</b><code>        captured[&quot;chars&quot;] = args.chars</code></span>
+<span class='src-line'><b>2253</b><code>    out = capsys.readouterr().out</code></span>
+<span class='src-line'><b>2254</b><code>    assert &quot;artifact: Findings Batch&quot; in out</code></span>
+<span class='src-line'><b>2255</b><code>    assert &quot;Acme Corp&quot; in out</code></span>
+<span class='src-line'><b>2256</b><code></code></span>
+<span class='src-line'><b>2257</b><code></code></span>
+<span class='src-line'><b>2258</b><code>def test_chat_work_defaults_to_compact_output(monkeypatch, tmp_path):</code></span>
+<span class='src-line'><b>2259</b><code>    monkeypatch.setenv(&quot;NIPUX_HOME&quot;, str(tmp_path))</code></span>
+<span class='src-line'><b>2260</b><code>    db = AgentDB(tmp_path / &quot;state.db&quot;)</code></span>
+<span class='src-line'><b>2261</b><code>    try:</code></span>
+<span class='src-line'><b>2262</b><code>        job_id = db.create_job(&quot;Research topic&quot;, title=&quot;nightly research&quot;)</code></span>
+<span class='src-line'><b>2263</b><code>    finally:</code></span>
+<span class='src-line'><b>2264</b><code>        db.close()</code></span>
+<span class='src-line'><b>2265</b><code>    captured = {}</code></span>
 <span class='src-line'><b>2266</b><code></code></span>
-<span class='src-line'><b>2267</b><code>    monkeypatch.setattr(&quot;nipux_cli.cli.cmd_work&quot;, fake_work)</code></span>
-<span class='src-line'><b>2268</b><code></code></span>
-<span class='src-line'><b>2269</b><code>    assert _chat_handle_line(job_id, &quot;/work&quot;) is True</code></span>
+<span class='src-line'><b>2267</b><code>    def fake_work(args):</code></span>
+<span class='src-line'><b>2268</b><code>        captured[&quot;verbose&quot;] = args.verbose</code></span>
+<span class='src-line'><b>2269</b><code>        captured[&quot;chars&quot;] = args.chars</code></span>
 <span class='src-line'><b>2270</b><code></code></span>
-<span class='src-line'><b>2271</b><code>    assert captured == {&quot;verbose&quot;: False, &quot;chars&quot;: 260}</code></span>
+<span class='src-line'><b>2271</b><code>    monkeypatch.setattr(&quot;nipux_cli.cli.cmd_work&quot;, fake_work)</code></span>
 <span class='src-line'><b>2272</b><code></code></span>
-<span class='src-line'><b>2273</b><code></code></span>
-<span class='src-line'><b>2274</b><code>def test_chat_learn_adds_lesson(monkeypatch, tmp_path, capsys):</code></span>
-<span class='src-line'><b>2275</b><code>    monkeypatch.setenv(&quot;NIPUX_HOME&quot;, str(tmp_path))</code></span>
-<span class='src-line'><b>2276</b><code>    db = AgentDB(tmp_path / &quot;state.db&quot;)</code></span>
-<span class='src-line'><b>2277</b><code>    try:</code></span>
-<span class='src-line'><b>2278</b><code>        job_id = db.create_job(&quot;Research topic&quot;, title=&quot;nightly research&quot;)</code></span>
-<span class='src-line'><b>2279</b><code>    finally:</code></span>
-<span class='src-line'><b>2280</b><code>        db.close()</code></span>
-<span class='src-line'><b>2281</b><code></code></span>
-<span class='src-line'><b>2282</b><code>    assert _chat_handle_line(job_id, &quot;/learn low-evidence pages are not research findings&quot;) is True</code></span>
-<span class='src-line'><b>2283</b><code></code></span>
-<span class='src-line'><b>2284</b><code>    out = capsys.readouterr().out</code></span>
-<span class='src-line'><b>2285</b><code>    db = AgentDB(tmp_path / &quot;state.db&quot;)</code></span>
-<span class='src-line'><b>2286</b><code>    try:</code></span>
-<span class='src-line'><b>2287</b><code>        job = db.get_job(job_id)</code></span>
-<span class='src-line'><b>2288</b><code>        assert &quot;learned for nightly research&quot; in out</code></span>
-<span class='src-line'><b>2289</b><code>        assert job[&quot;metadata&quot;][&quot;last_lesson&quot;][&quot;lesson&quot;] == &quot;low-evidence pages are not research findings&quot;</code></span>
-<span class='src-line'><b>2290</b><code>    finally:</code></span>
-<span class='src-line'><b>2291</b><code>        db.close()</code></span>
-<span class='src-line'><b>2292</b><code></code></span>
-<span class='src-line'><b>2293</b><code></code></span>
-<span class='src-line'><b>2294</b><code>def test_chat_follow_queues_follow_up_message(monkeypatch, tmp_path, capsys):</code></span>
-<span class='src-line'><b>2295</b><code>    monkeypatch.setenv(&quot;NIPUX_HOME&quot;, str(tmp_path))</code></span>
-<span class='src-line'><b>2296</b><code>    db = AgentDB(tmp_path / &quot;state.db&quot;)</code></span>
-<span class='src-line'><b>2297</b><code>    try:</code></span>
-<span class='src-line'><b>2298</b><code>        job_id = db.create_job(&quot;Research topic&quot;, title=&quot;nightly research&quot;)</code></span>
-<span class='src-line'><b>2299</b><code>    finally:</code></span>
-<span class='src-line'><b>2300</b><code>        db.close()</code></span>
-<span class='src-line'><b>2301</b><code></code></span>
-<span class='src-line'><b>2302</b><code>    assert _chat_handle_line(job_id, &quot;/follow after this branch, check another source&quot;) is True</code></span>
-<span class='src-line'><b>2303</b><code></code></span>
-<span class='src-line'><b>2304</b><code>    out = capsys.readouterr().out</code></span>
-<span class='src-line'><b>2305</b><code>    db = AgentDB(tmp_path / &quot;state.db&quot;)</code></span>
-<span class='src-line'><b>2306</b><code>    try:</code></span>
-<span class='src-line'><b>2307</b><code>        job = db.get_job(job_id)</code></span>
-<span class='src-line'><b>2308</b><code>        message = job[&quot;metadata&quot;][&quot;operator_messages&quot;][-1]</code></span>
-<span class='src-line'><b>2309</b><code>        assert &quot;waiting after current branch&quot; in out</code></span>
-<span class='src-line'><b>2310</b><code>        assert message[&quot;mode&quot;] == &quot;follow_up&quot;</code></span>
-<span class='src-line'><b>2311</b><code>        assert message[&quot;message&quot;] == &quot;after this branch, check another source&quot;</code></span>
-<span class='src-line'><b>2312</b><code>    finally:</code></span>
-<span class='src-line'><b>2313</b><code>        db.close()</code></span>
-<span class='src-line'><b>2314</b><code></code></span>
-<span class='src-line'><b>2315</b><code></code></span>
-<span class='src-line'><b>2316</b><code>def test_findings_sources_memory_metrics_commands(monkeypatch, tmp_path, capsys):</code></span>
-<span class='src-line'><b>2317</b><code>    monkeypatch.setenv(&quot;NIPUX_HOME&quot;, str(tmp_path))</code></span>
-<span class='src-line'><b>2318</b><code>    db = AgentDB(tmp_path / &quot;state.db&quot;)</code></span>
-<span class='src-line'><b>2319</b><code>    try:</code></span>
-<span class='src-line'><b>2320</b><code>        job_id = db.create_job(&quot;Research topic&quot;, title=&quot;nightly research&quot;)</code></span>
-<span class='src-line'><b>2321</b><code>        db.append_finding_record(job_id, name=&quot;Acme Finding&quot;, category=&quot;example category&quot;, score=0.8)</code></span>
-<span class='src-line'><b>2322</b><code>        db.append_task_record(job_id, title=&quot;Explore primary sources&quot;, status=&quot;open&quot;, priority=5)</code></span>
-<span class='src-line'><b>2323</b><code>        db.append_experiment_record(job_id, title=&quot;Variant A&quot;, status=&quot;measured&quot;, metric_name=&quot;score&quot;, metric_value=1.5)</code></span>
-<span class='src-line'><b>2324</b><code>        db.append_source_record(job_id, &quot;https://example.com&quot;, usefulness_score=0.9, yield_count=1)</code></span>
-<span class='src-line'><b>2325</b><code>        db.append_lesson(job_id, &quot;Source indexes work.&quot;, category=&quot;strategy&quot;)</code></span>
-<span class='src-line'><b>2326</b><code>        db.append_reflection(job_id, &quot;Keep using source indexes.&quot;, strategy=&quot;Try primary records.&quot;)</code></span>
-<span class='src-line'><b>2327</b><code>    finally:</code></span>
-<span class='src-line'><b>2328</b><code>        db.close()</code></span>
-<span class='src-line'><b>2329</b><code></code></span>
-<span class='src-line'><b>2330</b><code>    parser = build_parser()</code></span>
-<span class='src-line'><b>2331</b><code>    for command in ([&quot;findings&quot;], [&quot;tasks&quot;], [&quot;experiments&quot;], [&quot;sources&quot;], [&quot;memory&quot;], [&quot;metrics&quot;]):</code></span>
-<span class='src-line'><b>2332</b><code>        args = parser.parse_args(command)</code></span>
-<span class='src-line'><b>2333</b><code>        args.func(args)</code></span>
-<span class='src-line'><b>2334</b><code></code></span>
-<span class='src-line'><b>2335</b><code>    out = capsys.readouterr().out</code></span>
-<span class='src-line'><b>2336</b><code>    assert &quot;Acme Finding&quot; in out</code></span>
-<span class='src-line'><b>2337</b><code>    assert &quot;Explore primary sources&quot; in out</code></span>
-<span class='src-line'><b>2338</b><code>    assert &quot;Variant A&quot; in out</code></span>
-<span class='src-line'><b>2339</b><code>    assert &quot;https://example.com&quot; in out</code></span>
-<span class='src-line'><b>2340</b><code>    assert &quot;Keep using source indexes&quot; in out</code></span>
-<span class='src-line'><b>2341</b><code>    assert &quot;tasks: 1&quot; in out</code></span>
-<span class='src-line'><b>2342</b><code>    assert &quot;experiments: 1&quot; in out</code></span>
-<span class='src-line'><b>2343</b><code>    assert &quot;findings: 1&quot; in out</code></span>
-<span class='src-line'><b>2344</b><code></code></span>
-<span class='src-line'><b>2345</b><code></code></span>
-<span class='src-line'><b>2346</b><code>def test_shell_natural_update_phrase_shows_updates(monkeypatch, tmp_path, capsys):</code></span>
-<span class='src-line'><b>2347</b><code>    monkeypatch.setenv(&quot;NIPUX_HOME&quot;, str(tmp_path))</code></span>
-<span class='src-line'><b>2348</b><code>    db = AgentDB(tmp_path / &quot;state.db&quot;)</code></span>
-<span class='src-line'><b>2349</b><code>    try:</code></span>
-<span class='src-line'><b>2350</b><code>        db.create_job(&quot;Research topic&quot;, title=&quot;research&quot;)</code></span>
-<span class='src-line'><b>2351</b><code>    finally:</code></span>
-<span class='src-line'><b>2352</b><code>        db.close()</code></span>
-<span class='src-line'><b>2353</b><code></code></span>
-<span class='src-line'><b>2354</b><code>    assert _run_shell_line(&quot;tell me updates&quot;) is True</code></span>
-<span class='src-line'><b>2355</b><code>    assert _run_shell_line(&quot;show outcomes&quot;) is True</code></span>
-<span class='src-line'><b>2356</b><code></code></span>
-<span class='src-line'><b>2357</b><code>    out = capsys.readouterr().out</code></span>
-<span class='src-line'><b>2358</b><code>    assert &quot;updates&quot; in out</code></span>
-<span class='src-line'><b>2359</b><code>    assert &quot;queued for&quot; not in out</code></span>
+<span class='src-line'><b>2273</b><code>    assert _chat_handle_line(job_id, &quot;/work&quot;) is True</code></span>
+<span class='src-line'><b>2274</b><code></code></span>
+<span class='src-line'><b>2275</b><code>    assert captured == {&quot;verbose&quot;: False, &quot;chars&quot;: 260}</code></span>
+<span class='src-line'><b>2276</b><code></code></span>
+<span class='src-line'><b>2277</b><code></code></span>
+<span class='src-line'><b>2278</b><code>def test_chat_learn_adds_lesson(monkeypatch, tmp_path, capsys):</code></span>
+<span class='src-line'><b>2279</b><code>    monkeypatch.setenv(&quot;NIPUX_HOME&quot;, str(tmp_path))</code></span>
+<span class='src-line'><b>2280</b><code>    db = AgentDB(tmp_path / &quot;state.db&quot;)</code></span>
+<span class='src-line'><b>2281</b><code>    try:</code></span>
+<span class='src-line'><b>2282</b><code>        job_id = db.create_job(&quot;Research topic&quot;, title=&quot;nightly research&quot;)</code></span>
+<span class='src-line'><b>2283</b><code>    finally:</code></span>
+<span class='src-line'><b>2284</b><code>        db.close()</code></span>
+<span class='src-line'><b>2285</b><code></code></span>
+<span class='src-line'><b>2286</b><code>    assert _chat_handle_line(job_id, &quot;/learn low-evidence pages are not research findings&quot;) is True</code></span>
+<span class='src-line'><b>2287</b><code></code></span>
+<span class='src-line'><b>2288</b><code>    out = capsys.readouterr().out</code></span>
+<span class='src-line'><b>2289</b><code>    db = AgentDB(tmp_path / &quot;state.db&quot;)</code></span>
+<span class='src-line'><b>2290</b><code>    try:</code></span>
+<span class='src-line'><b>2291</b><code>        job = db.get_job(job_id)</code></span>
+<span class='src-line'><b>2292</b><code>        assert &quot;learned for nightly research&quot; in out</code></span>
+<span class='src-line'><b>2293</b><code>        assert job[&quot;metadata&quot;][&quot;last_lesson&quot;][&quot;lesson&quot;] == &quot;low-evidence pages are not research findings&quot;</code></span>
+<span class='src-line'><b>2294</b><code>    finally:</code></span>
+<span class='src-line'><b>2295</b><code>        db.close()</code></span>
+<span class='src-line'><b>2296</b><code></code></span>
+<span class='src-line'><b>2297</b><code></code></span>
+<span class='src-line'><b>2298</b><code>def test_chat_follow_queues_follow_up_message(monkeypatch, tmp_path, capsys):</code></span>
+<span class='src-line'><b>2299</b><code>    monkeypatch.setenv(&quot;NIPUX_HOME&quot;, str(tmp_path))</code></span>
+<span class='src-line'><b>2300</b><code>    db = AgentDB(tmp_path / &quot;state.db&quot;)</code></span>
+<span class='src-line'><b>2301</b><code>    try:</code></span>
+<span class='src-line'><b>2302</b><code>        job_id = db.create_job(&quot;Research topic&quot;, title=&quot;nightly research&quot;)</code></span>
+<span class='src-line'><b>2303</b><code>    finally:</code></span>
+<span class='src-line'><b>2304</b><code>        db.close()</code></span>
+<span class='src-line'><b>2305</b><code></code></span>
+<span class='src-line'><b>2306</b><code>    assert _chat_handle_line(job_id, &quot;/follow after this branch, check another source&quot;) is True</code></span>
+<span class='src-line'><b>2307</b><code></code></span>
+<span class='src-line'><b>2308</b><code>    out = capsys.readouterr().out</code></span>
+<span class='src-line'><b>2309</b><code>    db = AgentDB(tmp_path / &quot;state.db&quot;)</code></span>
+<span class='src-line'><b>2310</b><code>    try:</code></span>
+<span class='src-line'><b>2311</b><code>        job = db.get_job(job_id)</code></span>
+<span class='src-line'><b>2312</b><code>        message = job[&quot;metadata&quot;][&quot;operator_messages&quot;][-1]</code></span>
+<span class='src-line'><b>2313</b><code>        assert &quot;waiting after current branch&quot; in out</code></span>
+<span class='src-line'><b>2314</b><code>        assert message[&quot;mode&quot;] == &quot;follow_up&quot;</code></span>
+<span class='src-line'><b>2315</b><code>        assert message[&quot;message&quot;] == &quot;after this branch, check another source&quot;</code></span>
+<span class='src-line'><b>2316</b><code>    finally:</code></span>
+<span class='src-line'><b>2317</b><code>        db.close()</code></span>
+<span class='src-line'><b>2318</b><code></code></span>
+<span class='src-line'><b>2319</b><code></code></span>
+<span class='src-line'><b>2320</b><code>def test_findings_sources_memory_metrics_commands(monkeypatch, tmp_path, capsys):</code></span>
+<span class='src-line'><b>2321</b><code>    monkeypatch.setenv(&quot;NIPUX_HOME&quot;, str(tmp_path))</code></span>
+<span class='src-line'><b>2322</b><code>    db = AgentDB(tmp_path / &quot;state.db&quot;)</code></span>
+<span class='src-line'><b>2323</b><code>    try:</code></span>
+<span class='src-line'><b>2324</b><code>        job_id = db.create_job(&quot;Research topic&quot;, title=&quot;nightly research&quot;)</code></span>
+<span class='src-line'><b>2325</b><code>        db.append_finding_record(job_id, name=&quot;Acme Finding&quot;, category=&quot;example category&quot;, score=0.8)</code></span>
+<span class='src-line'><b>2326</b><code>        db.append_task_record(job_id, title=&quot;Explore primary sources&quot;, status=&quot;open&quot;, priority=5)</code></span>
+<span class='src-line'><b>2327</b><code>        db.append_experiment_record(job_id, title=&quot;Variant A&quot;, status=&quot;measured&quot;, metric_name=&quot;score&quot;, metric_value=1.5)</code></span>
+<span class='src-line'><b>2328</b><code>        db.append_source_record(job_id, &quot;https://example.com&quot;, usefulness_score=0.9, yield_count=1)</code></span>
+<span class='src-line'><b>2329</b><code>        db.append_lesson(job_id, &quot;Source indexes work.&quot;, category=&quot;strategy&quot;)</code></span>
+<span class='src-line'><b>2330</b><code>        db.append_reflection(job_id, &quot;Keep using source indexes.&quot;, strategy=&quot;Try primary records.&quot;)</code></span>
+<span class='src-line'><b>2331</b><code>    finally:</code></span>
+<span class='src-line'><b>2332</b><code>        db.close()</code></span>
+<span class='src-line'><b>2333</b><code></code></span>
+<span class='src-line'><b>2334</b><code>    parser = build_parser()</code></span>
+<span class='src-line'><b>2335</b><code>    for command in ([&quot;findings&quot;], [&quot;tasks&quot;], [&quot;experiments&quot;], [&quot;sources&quot;], [&quot;memory&quot;], [&quot;metrics&quot;]):</code></span>
+<span class='src-line'><b>2336</b><code>        args = parser.parse_args(command)</code></span>
+<span class='src-line'><b>2337</b><code>        args.func(args)</code></span>
+<span class='src-line'><b>2338</b><code></code></span>
+<span class='src-line'><b>2339</b><code>    out = capsys.readouterr().out</code></span>
+<span class='src-line'><b>2340</b><code>    assert &quot;Acme Finding&quot; in out</code></span>
+<span class='src-line'><b>2341</b><code>    assert &quot;Explore primary sources&quot; in out</code></span>
+<span class='src-line'><b>2342</b><code>    assert &quot;Variant A&quot; in out</code></span>
+<span class='src-line'><b>2343</b><code>    assert &quot;https://example.com&quot; in out</code></span>
+<span class='src-line'><b>2344</b><code>    assert &quot;Keep using source indexes&quot; in out</code></span>
+<span class='src-line'><b>2345</b><code>    assert &quot;tasks: 1&quot; in out</code></span>
+<span class='src-line'><b>2346</b><code>    assert &quot;experiments: 1&quot; in out</code></span>
+<span class='src-line'><b>2347</b><code>    assert &quot;findings: 1&quot; in out</code></span>
+<span class='src-line'><b>2348</b><code></code></span>
+<span class='src-line'><b>2349</b><code></code></span>
+<span class='src-line'><b>2350</b><code>def test_shell_natural_update_phrase_shows_updates(monkeypatch, tmp_path, capsys):</code></span>
+<span class='src-line'><b>2351</b><code>    monkeypatch.setenv(&quot;NIPUX_HOME&quot;, str(tmp_path))</code></span>
+<span class='src-line'><b>2352</b><code>    db = AgentDB(tmp_path / &quot;state.db&quot;)</code></span>
+<span class='src-line'><b>2353</b><code>    try:</code></span>
+<span class='src-line'><b>2354</b><code>        db.create_job(&quot;Research topic&quot;, title=&quot;research&quot;)</code></span>
+<span class='src-line'><b>2355</b><code>    finally:</code></span>
+<span class='src-line'><b>2356</b><code>        db.close()</code></span>
+<span class='src-line'><b>2357</b><code></code></span>
+<span class='src-line'><b>2358</b><code>    assert _run_shell_line(&quot;tell me updates&quot;) is True</code></span>
+<span class='src-line'><b>2359</b><code>    assert _run_shell_line(&quot;show outcomes&quot;) is True</code></span>
 <span class='src-line'><b>2360</b><code></code></span>
-<span class='src-line'><b>2361</b><code></code></span>
-<span class='src-line'><b>2362</b><code>def test_updates_command_summarizes_durable_outcomes(monkeypatch, tmp_path, capsys):</code></span>
-<span class='src-line'><b>2363</b><code>    monkeypatch.setenv(&quot;NIPUX_HOME&quot;, str(tmp_path))</code></span>
-<span class='src-line'><b>2364</b><code>    db = AgentDB(tmp_path / &quot;state.db&quot;)</code></span>
-<span class='src-line'><b>2365</b><code>    try:</code></span>
-<span class='src-line'><b>2366</b><code>        job_id = db.create_job(&quot;Research topic&quot;, title=&quot;research&quot;)</code></span>
-<span class='src-line'><b>2367</b><code>        artifact_path = tmp_path / &quot;artifact.md&quot;</code></span>
-<span class='src-line'><b>2368</b><code>        artifact_path.write_text(&quot;saved&quot;, encoding=&quot;utf-8&quot;)</code></span>
-<span class='src-line'><b>2369</b><code>        db.append_event(</code></span>
-<span class='src-line'><b>2370</b><code>            job_id,</code></span>
-<span class='src-line'><b>2371</b><code>            event_type=&quot;tool_call&quot;,</code></span>
-<span class='src-line'><b>2372</b><code>            title=&quot;web_search&quot;,</code></span>
-<span class='src-line'><b>2373</b><code>            metadata={&quot;input&quot;: {&quot;arguments&quot;: {&quot;query&quot;: &quot;raw search&quot;}}},</code></span>
-<span class='src-line'><b>2374</b><code>        )</code></span>
-<span class='src-line'><b>2375</b><code>        db.append_finding_record(job_id, name=&quot;Durable Result&quot;, category=&quot;evidence&quot;, reason=&quot;real outcome&quot;, score=0.7)</code></span>
-<span class='src-line'><b>2376</b><code>        db.add_artifact(</code></span>
-<span class='src-line'><b>2377</b><code>            job_id=job_id,</code></span>
-<span class='src-line'><b>2378</b><code>            path=artifact_path,</code></span>
-<span class='src-line'><b>2379</b><code>            sha256=&quot;abc&quot;,</code></span>
-<span class='src-line'><b>2380</b><code>            artifact_type=&quot;text&quot;,</code></span>
-<span class='src-line'><b>2381</b><code>            title=&quot;Saved Report&quot;,</code></span>
-<span class='src-line'><b>2382</b><code>            summary=&quot;durable output&quot;,</code></span>
-<span class='src-line'><b>2383</b><code>        )</code></span>
-<span class='src-line'><b>2384</b><code>    finally:</code></span>
-<span class='src-line'><b>2385</b><code>        db.close()</code></span>
-<span class='src-line'><b>2386</b><code></code></span>
-<span class='src-line'><b>2387</b><code>    args = build_parser().parse_args([&quot;updates&quot;, &quot;research&quot;, &quot;--limit&quot;, &quot;3&quot;, &quot;--chars&quot;, &quot;120&quot;])</code></span>
-<span class='src-line'><b>2388</b><code>    args.func(args)</code></span>
-<span class='src-line'><b>2389</b><code></code></span>
-<span class='src-line'><b>2390</b><code>    out = capsys.readouterr().out</code></span>
-<span class='src-line'><b>2391</b><code>    assert &quot;outcomes by hour:&quot; in out</code></span>
-<span class='src-line'><b>2392</b><code>    assert &quot;Durable Result&quot; in out</code></span>
-<span class='src-line'><b>2393</b><code>    assert &quot;Saved Report&quot; in out</code></span>
-<span class='src-line'><b>2394</b><code>    assert &quot;latest saved outputs:&quot; in out</code></span>
-<span class='src-line'><b>2395</b><code>    assert &quot;raw tool stream: activity&quot; in out</code></span>
-<span class='src-line'><b>2396</b><code>    assert &quot;recent tool calls:&quot; not in out</code></span>
-<span class='src-line'><b>2397</b><code></code></span>
-<span class='src-line'><b>2398</b><code></code></span>
-<span class='src-line'><b>2399</b><code>def test_history_and_events_commands_render_visible_timeline(monkeypatch, tmp_path, capsys):</code></span>
-<span class='src-line'><b>2400</b><code>    monkeypatch.setenv(&quot;NIPUX_HOME&quot;, str(tmp_path))</code></span>
-<span class='src-line'><b>2401</b><code>    db = AgentDB(tmp_path / &quot;state.db&quot;)</code></span>
-<span class='src-line'><b>2402</b><code>    try:</code></span>
-<span class='src-line'><b>2403</b><code>        job_id = db.create_job(&quot;Research topic&quot;, title=&quot;research&quot;)</code></span>
-<span class='src-line'><b>2404</b><code>        db.append_operator_message(job_id, &quot;operator timeline note&quot;, source=&quot;test&quot;)</code></span>
-<span class='src-line'><b>2405</b><code>        db.append_agent_update(job_id, &quot;agent timeline note&quot;, category=&quot;chat&quot;)</code></span>
-<span class='src-line'><b>2406</b><code>    finally:</code></span>
-<span class='src-line'><b>2407</b><code>        db.close()</code></span>
-<span class='src-line'><b>2408</b><code></code></span>
-<span class='src-line'><b>2409</b><code>    parser = build_parser()</code></span>
-<span class='src-line'><b>2410</b><code>    parser.parse_args([&quot;history&quot;, &quot;research&quot;]).func(parser.parse_args([&quot;history&quot;, &quot;research&quot;]))</code></span>
-<span class='src-line'><b>2411</b><code>    parser.parse_args([&quot;events&quot;, &quot;research&quot;]).func(parser.parse_args([&quot;events&quot;, &quot;research&quot;]))</code></span>
+<span class='src-line'><b>2361</b><code>    out = capsys.readouterr().out</code></span>
+<span class='src-line'><b>2362</b><code>    assert &quot;updates&quot; in out</code></span>
+<span class='src-line'><b>2363</b><code>    assert &quot;queued for&quot; not in out</code></span>
+<span class='src-line'><b>2364</b><code></code></span>
+<span class='src-line'><b>2365</b><code></code></span>
+<span class='src-line'><b>2366</b><code>def test_updates_command_summarizes_durable_outcomes(monkeypatch, tmp_path, capsys):</code></span>
+<span class='src-line'><b>2367</b><code>    monkeypatch.setenv(&quot;NIPUX_HOME&quot;, str(tmp_path))</code></span>
+<span class='src-line'><b>2368</b><code>    db = AgentDB(tmp_path / &quot;state.db&quot;)</code></span>
+<span class='src-line'><b>2369</b><code>    try:</code></span>
+<span class='src-line'><b>2370</b><code>        job_id = db.create_job(&quot;Research topic&quot;, title=&quot;research&quot;)</code></span>
+<span class='src-line'><b>2371</b><code>        artifact_path = tmp_path / &quot;artifact.md&quot;</code></span>
+<span class='src-line'><b>2372</b><code>        artifact_path.write_text(&quot;saved&quot;, encoding=&quot;utf-8&quot;)</code></span>
+<span class='src-line'><b>2373</b><code>        db.append_event(</code></span>
+<span class='src-line'><b>2374</b><code>            job_id,</code></span>
+<span class='src-line'><b>2375</b><code>            event_type=&quot;tool_call&quot;,</code></span>
+<span class='src-line'><b>2376</b><code>            title=&quot;web_search&quot;,</code></span>
+<span class='src-line'><b>2377</b><code>            metadata={&quot;input&quot;: {&quot;arguments&quot;: {&quot;query&quot;: &quot;raw search&quot;}}},</code></span>
+<span class='src-line'><b>2378</b><code>        )</code></span>
+<span class='src-line'><b>2379</b><code>        db.append_finding_record(job_id, name=&quot;Durable Result&quot;, category=&quot;evidence&quot;, reason=&quot;real outcome&quot;, score=0.7)</code></span>
+<span class='src-line'><b>2380</b><code>        db.add_artifact(</code></span>
+<span class='src-line'><b>2381</b><code>            job_id=job_id,</code></span>
+<span class='src-line'><b>2382</b><code>            path=artifact_path,</code></span>
+<span class='src-line'><b>2383</b><code>            sha256=&quot;abc&quot;,</code></span>
+<span class='src-line'><b>2384</b><code>            artifact_type=&quot;text&quot;,</code></span>
+<span class='src-line'><b>2385</b><code>            title=&quot;Saved Report&quot;,</code></span>
+<span class='src-line'><b>2386</b><code>            summary=&quot;durable output&quot;,</code></span>
+<span class='src-line'><b>2387</b><code>        )</code></span>
+<span class='src-line'><b>2388</b><code>    finally:</code></span>
+<span class='src-line'><b>2389</b><code>        db.close()</code></span>
+<span class='src-line'><b>2390</b><code></code></span>
+<span class='src-line'><b>2391</b><code>    args = build_parser().parse_args([&quot;updates&quot;, &quot;research&quot;, &quot;--limit&quot;, &quot;3&quot;, &quot;--chars&quot;, &quot;120&quot;])</code></span>
+<span class='src-line'><b>2392</b><code>    args.func(args)</code></span>
+<span class='src-line'><b>2393</b><code></code></span>
+<span class='src-line'><b>2394</b><code>    out = capsys.readouterr().out</code></span>
+<span class='src-line'><b>2395</b><code>    assert &quot;outcomes by hour:&quot; in out</code></span>
+<span class='src-line'><b>2396</b><code>    assert &quot;Durable Result&quot; in out</code></span>
+<span class='src-line'><b>2397</b><code>    assert &quot;Saved Report&quot; in out</code></span>
+<span class='src-line'><b>2398</b><code>    assert &quot;latest saved outputs:&quot; in out</code></span>
+<span class='src-line'><b>2399</b><code>    assert &quot;raw tool stream: activity&quot; in out</code></span>
+<span class='src-line'><b>2400</b><code>    assert &quot;recent tool calls:&quot; not in out</code></span>
+<span class='src-line'><b>2401</b><code></code></span>
+<span class='src-line'><b>2402</b><code></code></span>
+<span class='src-line'><b>2403</b><code>def test_history_and_events_commands_render_visible_timeline(monkeypatch, tmp_path, capsys):</code></span>
+<span class='src-line'><b>2404</b><code>    monkeypatch.setenv(&quot;NIPUX_HOME&quot;, str(tmp_path))</code></span>
+<span class='src-line'><b>2405</b><code>    db = AgentDB(tmp_path / &quot;state.db&quot;)</code></span>
+<span class='src-line'><b>2406</b><code>    try:</code></span>
+<span class='src-line'><b>2407</b><code>        job_id = db.create_job(&quot;Research topic&quot;, title=&quot;research&quot;)</code></span>
+<span class='src-line'><b>2408</b><code>        db.append_operator_message(job_id, &quot;operator timeline note&quot;, source=&quot;test&quot;)</code></span>
+<span class='src-line'><b>2409</b><code>        db.append_agent_update(job_id, &quot;agent timeline note&quot;, category=&quot;chat&quot;)</code></span>
+<span class='src-line'><b>2410</b><code>    finally:</code></span>
+<span class='src-line'><b>2411</b><code>        db.close()</code></span>
 <span class='src-line'><b>2412</b><code></code></span>
-<span class='src-line'><b>2413</b><code>    out = capsys.readouterr().out</code></span>
-<span class='src-line'><b>2414</b><code>    assert &quot;history research&quot; in out</code></span>
-<span class='src-line'><b>2415</b><code>    assert &quot;events research&quot; in out</code></span>
-<span class='src-line'><b>2416</b><code>    assert &quot;operator timeline note&quot; in out</code></span>
-<span class='src-line'><b>2417</b><code>    assert &quot;agent timeline note&quot; in out</code></span>
-<span class='src-line'><b>2418</b><code></code></span>
-<span class='src-line'><b>2419</b><code></code></span>
-<span class='src-line'><b>2420</b><code>def test_shell_natural_health_phrase_shows_health(monkeypatch, tmp_path, capsys):</code></span>
-<span class='src-line'><b>2421</b><code>    monkeypatch.setenv(&quot;NIPUX_HOME&quot;, str(tmp_path))</code></span>
-<span class='src-line'><b>2422</b><code>    db = AgentDB(tmp_path / &quot;state.db&quot;)</code></span>
-<span class='src-line'><b>2423</b><code>    try:</code></span>
-<span class='src-line'><b>2424</b><code>        db.create_job(&quot;Research topic&quot;, title=&quot;research&quot;)</code></span>
-<span class='src-line'><b>2425</b><code>    finally:</code></span>
-<span class='src-line'><b>2426</b><code>        db.close()</code></span>
-<span class='src-line'><b>2427</b><code></code></span>
-<span class='src-line'><b>2428</b><code>    assert _run_shell_line(&quot;is it running&quot;) is True</code></span>
-<span class='src-line'><b>2429</b><code></code></span>
-<span class='src-line'><b>2430</b><code>    out = capsys.readouterr().out</code></span>
-<span class='src-line'><b>2431</b><code>    assert &quot;Nipux Health&quot; in out</code></span>
-<span class='src-line'><b>2432</b><code>    assert &quot;queued for&quot; not in out</code></span>
+<span class='src-line'><b>2413</b><code>    parser = build_parser()</code></span>
+<span class='src-line'><b>2414</b><code>    parser.parse_args([&quot;history&quot;, &quot;research&quot;]).func(parser.parse_args([&quot;history&quot;, &quot;research&quot;]))</code></span>
+<span class='src-line'><b>2415</b><code>    parser.parse_args([&quot;events&quot;, &quot;research&quot;]).func(parser.parse_args([&quot;events&quot;, &quot;research&quot;]))</code></span>
+<span class='src-line'><b>2416</b><code></code></span>
+<span class='src-line'><b>2417</b><code>    out = capsys.readouterr().out</code></span>
+<span class='src-line'><b>2418</b><code>    assert &quot;history research&quot; in out</code></span>
+<span class='src-line'><b>2419</b><code>    assert &quot;events research&quot; in out</code></span>
+<span class='src-line'><b>2420</b><code>    assert &quot;operator timeline note&quot; in out</code></span>
+<span class='src-line'><b>2421</b><code>    assert &quot;agent timeline note&quot; in out</code></span>
+<span class='src-line'><b>2422</b><code></code></span>
+<span class='src-line'><b>2423</b><code></code></span>
+<span class='src-line'><b>2424</b><code>def test_shell_natural_health_phrase_shows_health(monkeypatch, tmp_path, capsys):</code></span>
+<span class='src-line'><b>2425</b><code>    monkeypatch.setenv(&quot;NIPUX_HOME&quot;, str(tmp_path))</code></span>
+<span class='src-line'><b>2426</b><code>    db = AgentDB(tmp_path / &quot;state.db&quot;)</code></span>
+<span class='src-line'><b>2427</b><code>    try:</code></span>
+<span class='src-line'><b>2428</b><code>        db.create_job(&quot;Research topic&quot;, title=&quot;research&quot;)</code></span>
+<span class='src-line'><b>2429</b><code>    finally:</code></span>
+<span class='src-line'><b>2430</b><code>        db.close()</code></span>
+<span class='src-line'><b>2431</b><code></code></span>
+<span class='src-line'><b>2432</b><code>    assert _run_shell_line(&quot;is it running&quot;) is True</code></span>
 <span class='src-line'><b>2433</b><code></code></span>
-<span class='src-line'><b>2434</b><code></code></span>
-<span class='src-line'><b>2435</b><code>def test_health_prints_recent_daemon_events(monkeypatch, tmp_path, capsys):</code></span>
-<span class='src-line'><b>2436</b><code>    monkeypatch.setenv(&quot;NIPUX_HOME&quot;, str(tmp_path))</code></span>
+<span class='src-line'><b>2434</b><code>    out = capsys.readouterr().out</code></span>
+<span class='src-line'><b>2435</b><code>    assert &quot;Nipux Health&quot; in out</code></span>
+<span class='src-line'><b>2436</b><code>    assert &quot;queued for&quot; not in out</code></span>
 <span class='src-line'><b>2437</b><code></code></span>
-<span class='src-line'><b>2438</b><code>    config = load_config()</code></span>
-<span class='src-line'><b>2439</b><code>    append_daemon_event(config, &quot;daemon_error&quot;, error_type=&quot;RuntimeError&quot;, error=&quot;provider fell over&quot;)</code></span>
-<span class='src-line'><b>2440</b><code></code></span>
-<span class='src-line'><b>2441</b><code>    parser = build_parser()</code></span>
-<span class='src-line'><b>2442</b><code>    args = parser.parse_args([&quot;health&quot;, &quot;--limit&quot;, &quot;3&quot;])</code></span>
-<span class='src-line'><b>2443</b><code>    args.func(args)</code></span>
+<span class='src-line'><b>2438</b><code></code></span>
+<span class='src-line'><b>2439</b><code>def test_health_prints_recent_daemon_events(monkeypatch, tmp_path, capsys):</code></span>
+<span class='src-line'><b>2440</b><code>    monkeypatch.setenv(&quot;NIPUX_HOME&quot;, str(tmp_path))</code></span>
+<span class='src-line'><b>2441</b><code></code></span>
+<span class='src-line'><b>2442</b><code>    config = load_config()</code></span>
+<span class='src-line'><b>2443</b><code>    append_daemon_event(config, &quot;daemon_error&quot;, error_type=&quot;RuntimeError&quot;, error=&quot;provider fell over&quot;)</code></span>
 <span class='src-line'><b>2444</b><code></code></span>
-<span class='src-line'><b>2445</b><code>    out = capsys.readouterr().out</code></span>
-<span class='src-line'><b>2446</b><code>    assert &quot;Nipux Health&quot; in out</code></span>
-<span class='src-line'><b>2447</b><code>    assert &quot;daemon_error&quot; in out</code></span>
-<span class='src-line'><b>2448</b><code>    assert &quot;RuntimeError&quot; in out</code></span>
-<span class='src-line'><b>2449</b><code></code></span>
-<span class='src-line'><b>2450</b><code></code></span>
-<span class='src-line'><b>2451</b><code>def test_launch_agent_plist_contains_daemon_command(monkeypatch, tmp_path):</code></span>
-<span class='src-line'><b>2452</b><code>    monkeypatch.setenv(&quot;NIPUX_HOME&quot;, str(tmp_path))</code></span>
+<span class='src-line'><b>2445</b><code>    parser = build_parser()</code></span>
+<span class='src-line'><b>2446</b><code>    args = parser.parse_args([&quot;health&quot;, &quot;--limit&quot;, &quot;3&quot;])</code></span>
+<span class='src-line'><b>2447</b><code>    args.func(args)</code></span>
+<span class='src-line'><b>2448</b><code></code></span>
+<span class='src-line'><b>2449</b><code>    out = capsys.readouterr().out</code></span>
+<span class='src-line'><b>2450</b><code>    assert &quot;Nipux Health&quot; in out</code></span>
+<span class='src-line'><b>2451</b><code>    assert &quot;daemon_error&quot; in out</code></span>
+<span class='src-line'><b>2452</b><code>    assert &quot;RuntimeError&quot; in out</code></span>
 <span class='src-line'><b>2453</b><code></code></span>
-<span class='src-line'><b>2454</b><code>    plist = _launch_agent_plist(poll_seconds=7, quiet=True)</code></span>
-<span class='src-line'><b>2455</b><code></code></span>
-<span class='src-line'><b>2456</b><code>    assert &quot;com.nipux.agent&quot; in plist</code></span>
-<span class='src-line'><b>2457</b><code>    assert &quot;&lt;string&gt;daemon&lt;/string&gt;&quot; in plist</code></span>
-<span class='src-line'><b>2458</b><code>    assert &quot;&lt;string&gt;--poll-seconds&lt;/string&gt;&quot; in plist</code></span>
-<span class='src-line'><b>2459</b><code>    assert &quot;&lt;string&gt;7&lt;/string&gt;&quot; in plist</code></span>
-<span class='src-line'><b>2460</b><code>    assert str(tmp_path) in plist</code></span>
-<span class='src-line'><b>2461</b><code></code></span>
-<span class='src-line'><b>2462</b><code></code></span>
-<span class='src-line'><b>2463</b><code>def test_systemd_service_text_contains_daemon_command(monkeypatch, tmp_path):</code></span>
-<span class='src-line'><b>2464</b><code>    monkeypatch.setenv(&quot;NIPUX_HOME&quot;, str(tmp_path))</code></span>
+<span class='src-line'><b>2454</b><code></code></span>
+<span class='src-line'><b>2455</b><code>def test_launch_agent_plist_contains_daemon_command(monkeypatch, tmp_path):</code></span>
+<span class='src-line'><b>2456</b><code>    monkeypatch.setenv(&quot;NIPUX_HOME&quot;, str(tmp_path))</code></span>
+<span class='src-line'><b>2457</b><code></code></span>
+<span class='src-line'><b>2458</b><code>    plist = _launch_agent_plist(poll_seconds=7, quiet=True)</code></span>
+<span class='src-line'><b>2459</b><code></code></span>
+<span class='src-line'><b>2460</b><code>    assert &quot;com.nipux.agent&quot; in plist</code></span>
+<span class='src-line'><b>2461</b><code>    assert &quot;&lt;string&gt;daemon&lt;/string&gt;&quot; in plist</code></span>
+<span class='src-line'><b>2462</b><code>    assert &quot;&lt;string&gt;--poll-seconds&lt;/string&gt;&quot; in plist</code></span>
+<span class='src-line'><b>2463</b><code>    assert &quot;&lt;string&gt;7&lt;/string&gt;&quot; in plist</code></span>
+<span class='src-line'><b>2464</b><code>    assert str(tmp_path) in plist</code></span>
 <span class='src-line'><b>2465</b><code></code></span>
-<span class='src-line'><b>2466</b><code>    service = _systemd_service_text(poll_seconds=0, quiet=True)</code></span>
-<span class='src-line'><b>2467</b><code></code></span>
-<span class='src-line'><b>2468</b><code>    assert &quot;[Service]&quot; in service</code></span>
-<span class='src-line'><b>2469</b><code>    assert &quot;ExecStart=&quot; in service</code></span>
-<span class='src-line'><b>2470</b><code>    assert &quot;daemon --poll-seconds 0&quot; in service</code></span>
-<span class='src-line'><b>2471</b><code>    assert f&quot;Environment=NIPUX_HOME={tmp_path}&quot; in service</code></span>
-<span class='src-line'><b>2472</b><code>    assert &quot;Restart=always&quot; in service</code></span></pre>
+<span class='src-line'><b>2466</b><code></code></span>
+<span class='src-line'><b>2467</b><code>def test_systemd_service_text_contains_daemon_command(monkeypatch, tmp_path):</code></span>
+<span class='src-line'><b>2468</b><code>    monkeypatch.setenv(&quot;NIPUX_HOME&quot;, str(tmp_path))</code></span>
+<span class='src-line'><b>2469</b><code></code></span>
+<span class='src-line'><b>2470</b><code>    service = _systemd_service_text(poll_seconds=0, quiet=True)</code></span>
+<span class='src-line'><b>2471</b><code></code></span>
+<span class='src-line'><b>2472</b><code>    assert &quot;[Service]&quot; in service</code></span>
+<span class='src-line'><b>2473</b><code>    assert &quot;ExecStart=&quot; in service</code></span>
+<span class='src-line'><b>2474</b><code>    assert &quot;daemon --poll-seconds 0&quot; in service</code></span>
+<span class='src-line'><b>2475</b><code>    assert f&quot;Environment=NIPUX_HOME={tmp_path}&quot; in service</code></span>
+<span class='src-line'><b>2476</b><code>    assert &quot;Restart=always&quot; in service</code></span></pre>
 </details>
 <details class="source-file searchable" data-search="tests/nipux_cli/test_cli_model_preflight.py from types import SimpleNamespace
 
@@ -44613,7 +44640,7 @@ class AntiBotBrowserRegistry:
 <h3>tests/nipux_cli/test_browser_web.py</h3><p><strong>8</strong> tests · 118 lines</p>
 <p class="muted">test_session_name_is_stable_and_safe, test_long_session_name_is_short_and_hashed, test_strip_html_removes_scripts_and_keeps_text, test_browser_marks_anti_bot_interstitial_as_warning, test_browser_marks_captcha_block_as_warning, test_web_extract_marks_anti_bot_pages_as_warning, test_browser_tool_uses_native_wrapper, ...</p></article>
 <article class="test-card searchable" data-search="tests/nipux_cli/test_cli.py test_cli_has_operator_commands test_cli_version_flag test_init_openrouter_writes_secret_free_config_and_env_template test_init_defaults_to_qwen_openrouter test_init_openrouter_defaults_to_qwen36 test_shell_freeform_text_adds_operator_message test_main_no_args_enters_chat_first_home test_main_no_args_with_no_jobs_shows_first_run_menu test_first_run_menu_can_create_job_and_open_workspace test_first_run_plain_greeting_does_not_create_job test_first_run_frame_uses_full_screen_ui_not_banner test_first_run_frame_has_slash_command_popup test_first_run_frame_has_no_settings_page test_first_run_frame_uses_command_palette_for_config test_settings_editor_persists_model_config test_slash_autocomplete_filters_commands test_terminal_escape_decodes_arrows_and_mouse_click test_first_run_click_maps_right_pane_actions test_frame_next_job_cycles_jobs test_chat_help_has_config_slash_commands_without_settings_page test_chat_settings_slash_commands_persist_config test_chat_usage_slash_command_reports_tokens test_chat_usage_estimates_cost_from_configured_rates test_first_run_settings_slash_commands_persist_config test_shell_ls_alias_lists_jobs_instead_of_steering test_roadmap_command_renders_roadmap test_shell_focus_controls_default_steering_job test_shell_rename_updates_job_title_and_program test_shell_delete_removes_job_and_artifact_dir test_shell_help_has_no_examples_or_control_run_sections test_chat_clear_does_not_queue_operator_message test_minimal_live_event_line_summarizes_tool_steps test_chat_frame_is_bounded_and_has_composer test_chat_frame_separates_chat_from_worker_activity test_chat_frame_empty_state_uses_sleek_hero test_frame_emit_skips_unchanged_render test_chat_frame_does_not_cap_long_agent_messages test_plain_chat_control_intents_map_to_commands test_plain_chat_control_intent_does_not_queue_operator_context test_plain_chat_reply_usage_is_recorded test_chat_frame_surfaces_actual_work_events test_chat_frame_has_model_updates_page test_recent_outcome_lines_wrap_long_updates test_chat_pane_marks_hidden_overflow test_chat_updates_page_uses_deeper_summary_events test_hourly_outcomes_prioritize_durable_work_over_research_noise test_status_recent_outcomes_hide_research_noise test_status_recent_outcomes_hide_plan_update_noise test_hourly_outcomes_hide_plan_update_noise test_hourly_outcome_summary_uses_progress_order test_hourly_outcomes_wrap_long_durable_updates_without_pre_truncation test_hourly_outcomes_limit_visible_hours_without_losing_headers test_chat_updates_page_includes_agent_error_updates test_chat_status_marks_provider_blocked_jobs_before_daemon_retry test_chat_status_page_surfaces_context_pressure test_chat_status_page_shows_job_outputs test_frame_snapshot_keeps_summary_events_durable test_frame_snapshot_respects_explicit_job_over_saved_focus test_chat_status_page_marks_deferred_jobs_waiting test_chat_frame_collapses_repeated_failures_and_hides_memory_noise test_work_pane_uses_badges_without_duplicate_action_verbs test_run_reopens_completed_focused_job test_create_sets_new_job_as_shell_focus test_commands_accept_unquoted_job_titles_in_shell test_shell_stop_job_title_pauses_job_instead_of_stopping_daemon test_resume_clears_provider_block_before_retry test_shell_cancel_prefers_multiword_job_title_over_note test_shell_pause_splits_note_after_longest_matching_job_title test_chat_handle_line_adds_operator_message test_chat_can_spawn_new_job_from_plain_message test_chat_can_spawn_generic_deliverable_job_from_plain_message test_chat_start_job_message_starts_daemon test_chat_create_job_and_run_it_starts_daemon test_chat_jobs_command_lists_jobs_instead_of_steering test_chat_command_inside_chat_is_not_queued test_chat_run_accepts_initial_plan_before_starting test_build_chat_messages_includes_recent_job_state test_build_chat_messages_does_not_include_local_machine_context test_build_chat_messages_points_to_artifact_and_lessons test_build_chat_messages_clip_large_visible_state test_artifact_command_resolves_title_query test_artifacts_command_prints_compact_view_command test_artifact_command_opens_recent_output_by_number test_chat_work_defaults_to_compact_output test_chat_learn_adds_lesson test_chat_follow_queues_follow_up_message test_findings_sources_memory_metrics_commands test_shell_natural_update_phrase_shows_updates test_updates_command_summarizes_durable_outcomes test_history_and_events_commands_render_visible_timeline test_shell_natural_health_phrase_shows_health test_health_prints_recent_daemon_events test_launch_agent_plist_contains_daemon_command test_systemd_service_text_contains_daemon_command">
-<h3>tests/nipux_cli/test_cli.py</h3><p><strong>94</strong> tests · 2472 lines</p>
+<h3>tests/nipux_cli/test_cli.py</h3><p><strong>94</strong> tests · 2476 lines</p>
 <p class="muted">test_cli_has_operator_commands, test_cli_version_flag, test_init_openrouter_writes_secret_free_config_and_env_template, test_init_defaults_to_qwen_openrouter, test_init_openrouter_defaults_to_qwen36, test_shell_freeform_text_adds_operator_message, test_main_no_args_enters_chat_first_home, test_main_no_args_with_no_j...</p></article>
 <article class="test-card searchable" data-search="tests/nipux_cli/test_cli_model_preflight.py test_remote_model_preflight_blocks_rejected_auth test_remote_model_preflight_skips_fake_runs test_remote_model_preflight_does_not_block_local_endpoints test_start_does_not_spawn_daemon_when_model_preflight_fails">
 <h3>tests/nipux_cli/test_cli_model_preflight.py</h3><p><strong>4</strong> tests · 61 lines</p>
@@ -44676,10 +44703,10 @@ class AntiBotBrowserRegistry:
 
     <section id="risks" class="section">
       <header><div><div class="kicker">Audit cues</div><h2>Review Points</h2></div><span class="muted">Generated signals for where to inspect next.</span></header>
-      <div class="grid"><article class='card warning searchable' data-search='Large modules tests/nipux_cli/test_worker.py (2786 lines), nipux_cli/worker.py (2742 lines), nipux_cli/cli.py (2517 lines), tests/nipux_cli/test_cli.py (2472 lines), nipux_cli/db.py (2407 lines)'><h3>Large modules</h3><p>tests/nipux_cli/test_worker.py (2786 lines), nipux_cli/worker.py (2742 lines), nipux_cli/cli.py (2517 lines), tests/nipux_cli/test_cli.py (2472 lines), nipux_cli/db.py (2407 lines)</p></article>
+      <div class="grid"><article class='card warning searchable' data-search='Large modules tests/nipux_cli/test_worker.py (2786 lines), nipux_cli/worker.py (2742 lines), nipux_cli/cli.py (2517 lines), tests/nipux_cli/test_cli.py (2476 lines), nipux_cli/db.py (2407 lines)'><h3>Large modules</h3><p>tests/nipux_cli/test_worker.py (2786 lines), nipux_cli/worker.py (2742 lines), nipux_cli/cli.py (2517 lines), tests/nipux_cli/test_cli.py (2476 lines), nipux_cli/db.py (2407 lines)</p></article>
 <article class='card warning searchable' data-search='Prompt surfaces 12 prompt/instruction-like strings were extracted. Inspect this section after any agent-behavior change.'><h3>Prompt surfaces</h3><p>12 prompt/instruction-like strings were extracted. Inspect this section after any agent-behavior change.</p></article>
 <article class='card warning searchable' data-search='Tool surface 27 tools are exposed to the worker. Review descriptions whenever generic behavior changes.'><h3>Tool surface</h3><p>27 tools are exposed to the worker. Review descriptions whenever generic behavior changes.</p></article>
-<article class='card warning searchable' data-search='Symbol map 1197 symbols were parsed. Large modules are candidates for refactoring once behavior stabilizes.'><h3>Symbol map</h3><p>1197 symbols were parsed. Large modules are candidates for refactoring once behavior stabilizes.</p></article></div>
+<article class='card warning searchable' data-search='Symbol map 1198 symbols were parsed. Large modules are candidates for refactoring once behavior stabilizes.'><h3>Symbol map</h3><p>1198 symbols were parsed. Large modules are candidates for refactoring once behavior stabilizes.</p></article></div>
     </section>
   </main>
 </div>

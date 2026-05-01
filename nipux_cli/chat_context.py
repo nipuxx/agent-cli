@@ -15,6 +15,7 @@ def build_chat_messages(db: AgentDB, job: dict[str, Any], message: str) -> list[
     """Build bounded visible-state context for conversational job control."""
 
     steps = db.list_steps(job_id=job["id"])[-10:]
+    jobs = db.list_jobs()[:12]
     artifacts = db.list_artifacts(job["id"], limit=5)
     timeline_events = db.list_timeline_events(job["id"], limit=18)
     metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
@@ -73,6 +74,7 @@ def build_chat_messages(db: AgentDB, job: dict[str, Any], message: str) -> list[
     timeline_lines = "\n".join(event_line(event, chars=700) for event in timeline_events[-12:])
 
     sections = {
+        "Jobs": _clip_chat_context(_job_list_lines(jobs, focused_job_id=job["id"]), 1_300),
         "Recent tool calls": _clip_chat_context(step_lines, 1_800),
         "Latest artifacts": _clip_chat_context(artifact_lines, 1_200),
         "Finding ledger": _clip_chat_context(finding_lines, 1_200),
@@ -110,6 +112,21 @@ def build_chat_messages(db: AgentDB, job: dict[str, Any], message: str) -> list[
             ),
         },
     ]
+
+
+def _job_list_lines(jobs: list[dict[str, Any]], *, focused_job_id: str) -> str:
+    lines: list[str] = []
+    for index, entry in enumerate(jobs, start=1):
+        marker = "*" if str(entry.get("id") or "") == focused_job_id else "-"
+        title = entry.get("title") or entry.get("id") or "untitled"
+        objective = " ".join(str(entry.get("objective") or "").split())
+        if len(objective) > 120:
+            objective = objective[:119].rstrip() + "..."
+        lines.append(
+            f"{marker} {index}. {title} status={entry.get('status') or 'unknown'} "
+            f"kind={entry.get('kind') or 'generic'} objective={objective}"
+        )
+    return "\n".join(lines)
 
 
 def _roadmap_lines(roadmap: dict[str, Any]) -> str:

@@ -2084,6 +2084,7 @@ def test_build_chat_messages_includes_recent_job_state(tmp_path):
     db = AgentDB(tmp_path / "state.db")
     try:
         job_id = db.create_job("Research topic", title="nightly research", kind="generic")
+        db.create_job("Monitor another branch", title="other branch", kind="generic")
         run_id = db.start_run(job_id, model="fake")
         step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="web_search")
         db.finish_step(step_id, status="completed", summary="web_search returned useful sources")
@@ -2093,6 +2094,9 @@ def test_build_chat_messages_includes_recent_job_state(tmp_path):
 
         content = messages[-1]["content"]
         assert "Job title: nightly research" in content
+        assert "Jobs:" in content
+        assert "* 1. nightly research" in content
+        assert "- 2. other branch" in content
         assert "web_search returned useful sources" in content
         assert "what is going on?" in content
     finally:
