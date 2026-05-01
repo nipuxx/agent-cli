@@ -139,6 +139,35 @@ def _search_artifacts(args: dict[str, Any], ctx: ToolContext) -> str:
     return _json({"success": True, "results": ctx.artifacts.search_text(job_id=ctx.job_id, query=query, limit=limit)})
 
 
+def _write_file(args: dict[str, Any], ctx: ToolContext) -> str:
+    raw_path = str(args.get("path") or "").strip()
+    if not raw_path:
+        return _json({"success": False, "error": "path is required"})
+    if "content" not in args:
+        return _json({"success": False, "error": "content is required"})
+    mode = str(args.get("mode") or "overwrite").strip().lower()
+    if mode not in {"overwrite", "append"}:
+        return _json({"success": False, "error": f"invalid mode: {mode}"})
+    path = Path(raw_path).expanduser()
+    if not path.is_absolute():
+        path = Path.cwd() / path
+    if path.exists() and path.is_dir():
+        return _json({"success": False, "error": f"path is a directory: {path}"})
+    create_parents = bool(args.get("create_parents", True))
+    if create_parents:
+        path.parent.mkdir(parents=True, exist_ok=True)
+    content = str(args.get("content") or "")
+    write_mode = "a" if mode == "append" else "w"
+    with path.open(write_mode, encoding="utf-8") as fh:
+        fh.write(content)
+    return _json({
+        "success": True,
+        "path": str(path),
+        "mode": mode,
+        "bytes": path.stat().st_size,
+    })
+
+
 def _update_job_state(args: dict[str, Any], ctx: ToolContext) -> str:
     status = str(args.get("status") or "").strip().lower()
     if status in {"paused", "cancelled", "completed", "failed"}:
@@ -424,6 +453,8 @@ def _recent_deliverable_evidence(ctx: ToolContext, *, limit: int = 12) -> bool:
         input_data = step.get("input") if isinstance(step.get("input"), dict) else {}
         args = input_data.get("arguments") if isinstance(input_data.get("arguments"), dict) else {}
         if tool_name == "write_artifact" and _artifact_args_look_like_deliverable(args):
+            return True
+        if tool_name == "write_file":
             return True
         if tool_name == "shell_exec" and _shell_command_looks_like_write(str(args.get("command") or "")):
             return True
@@ -872,6 +903,16 @@ SUPPORT_SCHEMAS: list[ToolSpec] = [
         },
         "required": ["command"],
     }, _shell_exec),
+    ToolSpec("write_file", "Create, overwrite, or append a concrete workspace/local file for deliverables, code, documents, configs, or other file outputs.", {
+        "type": "object",
+        "properties": {
+            "path": {"type": "string"},
+            "content": {"type": "string"},
+            "mode": {"type": "string", "enum": ["overwrite", "append"], "default": "overwrite"},
+            "create_parents": {"type": "boolean", "default": True},
+        },
+        "required": ["path", "content"],
+    }, _write_file),
     ToolSpec("write_artifact", "Persist important findings, evidence, reports, or checkpoints to the job artifact store.", {
         "type": "object",
         "properties": {

@@ -1354,6 +1354,34 @@ def test_delivery_experiment_next_action_allows_write_shell(tmp_path):
         db.close()
 
 
+def test_write_file_can_consume_recent_shell_evidence(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Create a concrete output", title="output", kind="generic")
+
+        first = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([LLMResponse(tool_calls=[ToolCall(name="shell_exec", arguments={"command": "find . -type f"})])]),
+            registry=LargeShellEvidenceRegistry(),
+        )
+        second = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([LLMResponse(tool_calls=[ToolCall(name="write_file", arguments={"path": "out.txt", "content": "done"})])]),
+            registry=SuccessRegistry(),
+        )
+
+        assert first.tool_name == "shell_exec"
+        assert second.status == "completed"
+        assert second.tool_name == "write_file"
+    finally:
+        db.close()
+
+
 def test_delivery_experiment_next_action_allows_internal_artifact_review(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

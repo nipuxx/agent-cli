@@ -60,6 +60,11 @@ actually visible. Record the source outcome or pivot to another public source.
 Use report_update for short operator-readable progress notes when you need to
 say what you found or why you are blocked. Do not use report_update instead of
 write_artifact when you have durable evidence, findings, or report content to save.
+Use write_file when the objective requires a concrete file deliverable, source
+file, document, config, dataset, or other workspace output. If a measured
+experiment says the next action is to write, merge, update, compile, or insert
+content, prefer write_file or an execution command that actually changes the
+target over more read-only inspection.
 Use record_lesson when you learn something that should change future behavior:
 bad source patterns, task-specific success criteria, repeated mistakes, operator
 preferences, or a better strategy. Keep lessons short and reusable.
@@ -94,6 +99,8 @@ explicit timeouts, and save important command output with write_artifact before
 continuing. Do not run destructive or high-risk cyber commands.
 read_artifact only reads saved Nipux artifacts. Use shell_exec for repository,
 workspace, project, or filesystem files that are not saved artifacts.
+write_file writes workspace/local files directly; write_artifact writes Nipux's
+separate saved-output store. Use the right one for the operator-facing result.
 Operator messages are durable context from the human operator. Messages marked
 steer are active constraints until acknowledged or superseded. Messages marked
 follow_up are lower-priority queued work; keep them in the task queue and act on
@@ -131,6 +138,7 @@ MEASUREMENT_RESOLUTION_TOOLS = {"record_experiment", "record_lesson", "record_ta
 ARTIFACT_ACCOUNTING_RESOLUTION_TOOLS = LEDGER_PROGRESS_TOOLS | {"acknowledge_operator_context"}
 ARTIFACT_ACCOUNTING_BLOCKED_TOOLS = INFORMATION_GATHERING_TOOLS | {
     "shell_exec",
+    "write_file",
     "write_artifact",
     "read_artifact",
     "search_artifacts",
@@ -138,6 +146,7 @@ ARTIFACT_ACCOUNTING_BLOCKED_TOOLS = INFORMATION_GATHERING_TOOLS | {
 }
 MEASUREMENT_BLOCKED_TOOLS = INFORMATION_GATHERING_TOOLS | {
     "shell_exec",
+    "write_file",
     "write_artifact",
     "record_findings",
     "record_source",
@@ -145,6 +154,7 @@ MEASUREMENT_BLOCKED_TOOLS = INFORMATION_GATHERING_TOOLS | {
 }
 MILESTONE_VALIDATION_BLOCKED_TOOLS = INFORMATION_GATHERING_TOOLS | {
     "shell_exec",
+    "write_file",
     "write_artifact",
     "record_findings",
     "record_source",
@@ -153,6 +163,7 @@ MILESTONE_VALIDATION_BLOCKED_TOOLS = INFORMATION_GATHERING_TOOLS | {
 }
 ROADMAP_STALENESS_BLOCKED_TOOLS = INFORMATION_GATHERING_TOOLS | {
     "shell_exec",
+    "write_file",
     "write_artifact",
     "record_findings",
     "record_source",
@@ -2141,6 +2152,8 @@ def _summarize_tool_result(name: str, args: dict[str, Any], result: dict[str, An
         )
     if name == "write_artifact":
         return f"write_artifact saved {result.get('artifact_id')} at {result.get('path')}"
+    if name == "write_file":
+        return f"write_file {result.get('mode') or 'overwrite'} {result.get('path')} bytes={result.get('bytes')}"
     if name == "report_update":
         update = result.get("update") if isinstance(result.get("update"), dict) else {}
         return f"report_update saved: {str(update.get('message') or '')[:160]}"

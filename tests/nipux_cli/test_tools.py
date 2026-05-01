@@ -13,6 +13,7 @@ def test_static_tool_surface_is_barebones():
     assert "skill_manage" not in DEFAULT_REGISTRY.names()
     assert "browser_navigate" in DEFAULT_REGISTRY.names()
     assert "shell_exec" in DEFAULT_REGISTRY.names()
+    assert "write_file" in DEFAULT_REGISTRY.names()
     assert "write_artifact" in DEFAULT_REGISTRY.names()
     assert "report_update" in DEFAULT_REGISTRY.names()
     assert "record_lesson" in DEFAULT_REGISTRY.names()
@@ -71,6 +72,32 @@ def test_shell_exec_tool_runs_bounded_command(tmp_path):
         assert result["success"] is True
         assert result["returncode"] == 0
         assert result["stdout"] == "hello"
+    finally:
+        db.close()
+
+
+def test_write_file_tool_writes_and_appends_workspace_file(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Write deliverable")
+        run_id = db.start_run(job_id, model="fake")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="write_file")
+        ctx = ToolContext(config=config, db=db, artifacts=ArtifactStore(tmp_path, db), job_id=job_id, run_id=run_id, step_id=step_id)
+
+        raw = DEFAULT_REGISTRY.handle("write_file", {"path": "out/report.md", "content": "one\n"}, ctx)
+        result = json.loads(raw)
+        append_raw = DEFAULT_REGISTRY.handle(
+            "write_file",
+            {"path": "out/report.md", "content": "two\n", "mode": "append"},
+            ctx,
+        )
+        append_result = json.loads(append_raw)
+
+        assert result["success"] is True
+        assert append_result["success"] is True
+        assert (tmp_path / "out" / "report.md").read_text() == "one\ntwo\n"
     finally:
         db.close()
 
