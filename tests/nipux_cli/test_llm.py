@@ -41,6 +41,30 @@ def test_chat_llm_omits_redundant_tool_choice(monkeypatch):
     assert "tool_choice" not in fake_completions.kwargs
 
 
+def test_chat_llm_complete_response_returns_usage(monkeypatch):
+    fake_completions = _FakeCompletions()
+    monkeypatch.setenv("TEST_API_KEY", "test")
+
+    class FakeOpenAI:
+        def __init__(self, **kwargs):
+            pass
+
+        chat = SimpleNamespace(completions=fake_completions)
+
+    monkeypatch.setattr("nipux_cli.llm.OpenAI", FakeOpenAI)
+
+    llm = OpenAIChatLLM(ModelConfig(model="test/model", base_url="https://example.test/v1", api_key_env="TEST_API_KEY"))
+    response = llm.complete_response(messages=[{"role": "user", "content": "hi"}])
+
+    assert response.content == "ok"
+    assert response.usage["prompt_tokens"] == 11
+    assert response.usage["completion_tokens"] == 7
+    assert response.usage["cost"] == 0.00042
+    assert response.model == "provider/model"
+    assert response.response_id == "gen_test"
+    assert fake_completions.kwargs["model"] == "test/model"
+
+
 def test_openrouter_generation_usage_enriches_cost_and_tokens(monkeypatch):
     class FakeHTTPResponse:
         def __enter__(self):

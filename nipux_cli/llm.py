@@ -100,6 +100,9 @@ class OpenAIChatLLM:
         )
 
     def complete(self, *, messages: list[dict[str, Any]]) -> str:
+        return self.complete_response(messages=messages).content
+
+    def complete_response(self, *, messages: list[dict[str, Any]]) -> LLMResponse:
         response = self._openai.chat.completions.create(
             model=self.config.model,
             messages=messages,
@@ -110,7 +113,21 @@ class OpenAIChatLLM:
             error = payload.get("error") if isinstance(payload.get("error"), dict) else {}
             detail = error.get("message") or payload.get("message") or "provider returned no choices"
             raise LLMResponseError(str(detail), payload=payload)
-        return choices[0].message.content or ""
+        content = choices[0].message.content or ""
+        response_id = _response_id(response)
+        usage = _response_usage(response, messages=messages, content=content, tool_calls=[])
+        usage = _enrich_openrouter_generation_usage(
+            usage,
+            response_id=response_id,
+            base_url=self.config.base_url,
+            api_key=self.config.api_key,
+        )
+        return LLMResponse(
+            content=content,
+            usage=usage,
+            model=_response_model(response),
+            response_id=response_id,
+        )
 
 
 class ScriptedLLM:

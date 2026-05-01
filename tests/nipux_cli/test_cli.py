@@ -32,6 +32,7 @@ from nipux_cli.cli import (
 from nipux_cli.config import load_config
 from nipux_cli.daemon import append_daemon_event
 from nipux_cli.db import AgentDB
+from nipux_cli.llm import LLMResponse
 from nipux_cli.tui_events import chat_pane_lines, hourly_update_lines, recent_model_update_lines
 
 
@@ -908,6 +909,42 @@ def test_plain_chat_control_intent_does_not_queue_operator_context(monkeypatch, 
         assert job["metadata"].get("operator_messages") is None
     finally:
         db.close()
+
+
+def test_plain_chat_reply_usage_is_recorded(monkeypatch, tmp_path):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Research topic", title="research")
+    finally:
+        db.close()
+
+    keep_running, message = _handle_chat_message(
+        job_id,
+        "hello",
+        quiet=True,
+        reply_fn=lambda _job_id, _line: LLMResponse(
+            content="reply",
+            usage={"prompt_tokens": 120, "completion_tokens": 20, "total_tokens": 140, "cost": 0.001},
+            model="provider/model",
+            response_id="gen_chat",
+        ),
+    )
+
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        usage = db.job_token_usage(job_id)
+        events = db.list_events(job_id=job_id, event_types=["loop"], limit=5)
+    finally:
+        db.close()
+    assert keep_running is True
+    assert message == ""
+    assert usage["calls"] == 1
+    assert usage["prompt_tokens"] == 120
+    assert usage["completion_tokens"] == 20
+    assert usage["cost"] == 0.001
+    assert events[-1]["metadata"]["source"] == "chat"
+    assert events[-1]["metadata"]["response_id"] == "gen_chat"
 
 
 def test_chat_frame_surfaces_actual_work_events():

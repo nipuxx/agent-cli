@@ -3692,15 +3692,24 @@ def _handle_chat_message(job_id: str, line: str, *, reply_fn=None, quiet: bool =
             print(detail)
             print("Your message is still saved for the next worker step.")
         return True, message
-    if reply.strip():
+    reply_text, reply_metadata = _chat_reply_text_and_metadata(reply)
+    if reply_text.strip():
         db, _ = _db()
         try:
-            db.append_agent_update(job_id, reply.strip(), category="chat")
+            if reply_metadata:
+                db.append_event(
+                    job_id,
+                    event_type="loop",
+                    title="message_end",
+                    body=reply_text[:1000],
+                    metadata={"source": "chat", "tool_calls": [], **reply_metadata},
+                )
+            db.append_agent_update(job_id, reply_text.strip(), category="chat")
         finally:
             db.close()
         if not quiet:
             print()
-            print(reply.strip())
+            print(reply_text.strip())
             print()
         return True, ""
     else:
@@ -3708,6 +3717,23 @@ def _handle_chat_message(job_id: str, line: str, *, reply_fn=None, quiet: bool =
         if not quiet:
             print("model returned an empty reply; your message is still queued.")
         return True, message
+
+
+def _chat_reply_text_and_metadata(reply: Any) -> tuple[str, dict[str, Any]]:
+    content = getattr(reply, "content", None)
+    if content is None:
+        return str(reply), {}
+    metadata: dict[str, Any] = {}
+    usage = getattr(reply, "usage", None)
+    if isinstance(usage, dict) and usage:
+        metadata["usage"] = usage
+    model = getattr(reply, "model", "")
+    if model:
+        metadata["model"] = model
+    response_id = getattr(reply, "response_id", "")
+    if response_id:
+        metadata["response_id"] = response_id
+    return str(content), metadata
 
 
 def _handle_chat_control_intent(job_id: str, line: str, *, quiet: bool = False) -> tuple[bool, str] | None:
@@ -3768,7 +3794,7 @@ def _queue_chat_note(job_id: str, message: str, *, mode: str = "steer", quiet: b
         db.close()
 
 
-def _reply_to_chat(job_id: str, message: str) -> str:
+def _reply_to_chat(job_id: str, message: str) -> Any:
     from nipux_cli.llm import OpenAIChatLLM
 
     db, config = _db()
@@ -3777,7 +3803,7 @@ def _reply_to_chat(job_id: str, message: str) -> str:
         messages = _build_chat_messages(db, job, message)
     finally:
         db.close()
-    return OpenAIChatLLM(config.model).complete(messages=messages)
+    return OpenAIChatLLM(config.model).complete_response(messages=messages)
 
 
 def cmd_shell(args: argparse.Namespace) -> None:
