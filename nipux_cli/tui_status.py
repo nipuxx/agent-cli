@@ -6,7 +6,7 @@ import textwrap
 from typing import Any
 
 from nipux_cli.operator_context import active_prompt_operator_entries
-from nipux_cli.scheduling import job_deferred_until
+from nipux_cli.scheduling import job_deferred_until, job_provider_blocked
 from nipux_cli.tui_event_format import experiment_metric_text
 from nipux_cli.tui_events import (
     worker_activity_lines,
@@ -27,6 +27,8 @@ from nipux_cli.tui_style import (
 
 def worker_label(job: dict[str, Any], daemon_running: bool) -> str:
     status = str(job.get("status") or "")
+    if job_provider_blocked(job):
+        return "blocked"
     if status == "planning":
         return "waiting"
     if status in {"paused", "completed", "cancelled", "failed"}:
@@ -38,6 +40,8 @@ def worker_label(job: dict[str, Any], daemon_running: bool) -> str:
 
 def job_display_state(job: dict[str, Any], daemon_running: bool) -> str:
     status = str(job.get("status") or "")
+    if job_provider_blocked(job):
+        return "blocked"
     if status in {"running", "queued"}:
         if job_deferred_until(job):
             return "waiting"
@@ -100,6 +104,8 @@ def right_pane_lines(
         info_lines.append(f"{_muted('Context')} {_one_line(active_operator[-1].get('message') or '', width - 8)}")
     if pending_measurement:
         info_lines.append(f"{_muted('Measure')} pending step #{pending_measurement.get('source_step_no') or '?'}")
+    if job_provider_blocked(job):
+        info_lines.append(_fit_ansi(f"{_muted('Provider')} action needed before retrying model calls", width))
     defer_line = _defer_status_line(job, width=width)
     if defer_line:
         info_lines.append(defer_line)

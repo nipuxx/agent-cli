@@ -1318,6 +1318,36 @@ def test_chat_updates_page_includes_agent_error_updates():
     assert "Model provider re" in status
 
 
+def test_chat_status_marks_provider_blocked_jobs_before_daemon_retry():
+    job = {
+        "id": "job_demo",
+        "title": "provider job",
+        "objective": "keep provider state visible",
+        "status": "running",
+        "kind": "generic",
+        "metadata": {"provider_blocked_at": "2026-05-01T00:00:00+00:00"},
+    }
+    snapshot = {
+        "job_id": "job_demo",
+        "job": job,
+        "jobs": [job],
+        "steps": [],
+        "artifacts": [],
+        "memory_entries": [],
+        "events": [],
+        "summary_events": [],
+        "daemon": {"running": True, "metadata": {"pid": 123}},
+        "model": "model/demo",
+    }
+
+    frame = _build_chat_frame(snapshot, "", [], width=132, height=30)
+
+    assert "blocked" in frame
+    assert "Provider" in frame
+    assert "action needed" in frame
+    assert "advancing" not in frame
+
+
 def test_chat_status_page_shows_job_outputs():
     snapshot = {
         "job_id": "job_demo",
