@@ -734,8 +734,8 @@ def test_chat_frame_is_bounded_and_has_composer():
     assert "search demo" in work
 
     updates = _build_chat_frame(snapshot, "", [], width=100, height=24, right_view="updates")
-    assert "Progress" in updates
-    assert "Progress by hour" in updates
+    assert "Outcomes" in updates
+    assert "Outcomes by hour" in updates
 
     secret = _build_chat_frame(
         snapshot,
@@ -983,8 +983,8 @@ def test_chat_frame_has_model_updates_page():
 
     frame = _build_chat_frame(snapshot, "", [], width=132, height=28, right_view="updates")
 
-    assert "Progress" in frame
-    assert "Progress by hour" in frame
+    assert "Outcomes" in frame
+    assert "Outcomes by hour" in frame
     assert "distillation agents" in frame
     assert "Literature Review Draft" in frame
     assert "Trajectory distillation" in frame

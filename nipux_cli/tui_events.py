@@ -23,7 +23,7 @@ from nipux_cli.tui_style import (
 )
 
 
-CHAT_RIGHT_PAGES = [("status", "Status"), ("updates", "Updates"), ("work", "Work")]
+CHAT_RIGHT_PAGES = [("status", "Status"), ("updates", "Outcomes"), ("work", "Work")]
 
 NIPUX_HERO = [
     " _   _ ___ ____  _   ___  __",
@@ -266,7 +266,7 @@ def chat_updates_pane_lines(
         f"{_muted('Page')}   {_page_indicator('updates', CHAT_RIGHT_PAGES)}",
         f"{_muted('Focus')}  {_bold(_one_line(job.get('title') or 'untitled', width - 8))}",
         "",
-        _bold("Progress by hour"),
+        _bold("Outcomes by hour"),
         _muted("Summaries of durable output, findings, measurements, decisions, and files."),
         "",
     ]

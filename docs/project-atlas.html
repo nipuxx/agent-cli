@@ -82,7 +82,7 @@ pre { max-height: 540px; overflow: auto; background: #050606; border: 1px solid 
 <div class="shell">
   <aside class="sidebar">
     <div class="logo">NIPUX ATLAS</div>
-    <div class="subtitle">Generated from tracked source on 4fcc8c29.</div>
+    <div class="subtitle">Generated from tracked source on faf62aee.</div>
     <input id="search" class="search" placeholder="filter files, prompts, tools..." autocomplete="off">
     <nav class="nav">
       <a href="#architecture">Architecture</a>
@@ -8942,7 +8942,7 @@ def build_chat_frame(
 <span class='src-line'><b> 118</b><code>            width=right_width,</code></span>
 <span class='src-line'><b> 119</b><code>            rows=body_rows,</code></span>
 <span class='src-line'><b> 120</b><code>        )</code></span>
-<span class='src-line'><b> 121</b><code>        right_title = &quot;Progress&quot;</code></span>
+<span class='src-line'><b> 121</b><code>        right_title = &quot;Outcomes&quot;</code></span>
 <span class='src-line'><b> 122</b><code>    elif right_view == &quot;work&quot;:</code></span>
 <span class='src-line'><b> 123</b><code>        right_lines = chat_work_pane_lines(</code></span>
 <span class='src-line'><b> 124</b><code>            job=job,</code></span>
@@ -22802,7 +22802,7 @@ from nipux_cli.tui_style import (
 )
 
 
-CHAT_RIGHT_PAGES = [(&quot;status&quot;, &quot;Status&quot;), (&quot;updates&quot;, &quot;Updates&quot;), (&quot;work&quot;, &quot;Work&quot;)]
+CHAT_RIGHT_PAGES = [(&quot;status&quot;, &quot;Status&quot;), (&quot;updates&quot;, &quot;Outcomes&quot;), (&quot;work&quot;, &quot;Work&quot;)]
 
 NIPUX_HERO = [
     &quot; _   _ ___ ____  _   ___  __&quot;,
@@ -22906,7 +22906,7 @@ def chat_empty_state_lines(*, width: int, rows: int) -&gt; list[str]:
     return ([&quot;&quot;] * top_pad + content)[:rows]
 
 
-def worker_activity_lines(events">
+def worker_activity_lines(event">
 <summary>nipux_cli/tui_events.py <span>636 lines</span></summary>
 <pre class="source-code"><span class='src-line'><b>   1</b><code>&quot;&quot;&quot;Compact event rendering helpers for the Nipux terminal UI.&quot;&quot;&quot;</code></span>
 <span class='src-line'><b>   2</b><code></code></span>
@@ -22933,7 +22933,7 @@ def worker_activity_lines(events">
 <span class='src-line'><b>  23</b><code>)</code></span>
 <span class='src-line'><b>  24</b><code></code></span>
 <span class='src-line'><b>  25</b><code></code></span>
-<span class='src-line'><b>  26</b><code>CHAT_RIGHT_PAGES = [(&quot;status&quot;, &quot;Status&quot;), (&quot;updates&quot;, &quot;Updates&quot;), (&quot;work&quot;, &quot;Work&quot;)]</code></span>
+<span class='src-line'><b>  26</b><code>CHAT_RIGHT_PAGES = [(&quot;status&quot;, &quot;Status&quot;), (&quot;updates&quot;, &quot;Outcomes&quot;), (&quot;work&quot;, &quot;Work&quot;)]</code></span>
 <span class='src-line'><b>  27</b><code></code></span>
 <span class='src-line'><b>  28</b><code>NIPUX_HERO = [</code></span>
 <span class='src-line'><b>  29</b><code>    &quot; _   _ ___ ____  _   ___  __&quot;,</code></span>
@@ -23176,7 +23176,7 @@ def worker_activity_lines(events">
 <span class='src-line'><b> 266</b><code>        f&quot;{_muted(&#x27;Page&#x27;)}   {_page_indicator(&#x27;updates&#x27;, CHAT_RIGHT_PAGES)}&quot;,</code></span>
 <span class='src-line'><b> 267</b><code>        f&quot;{_muted(&#x27;Focus&#x27;)}  {_bold(_one_line(job.get(&#x27;title&#x27;) or &#x27;untitled&#x27;, width - 8))}&quot;,</code></span>
 <span class='src-line'><b> 268</b><code>        &quot;&quot;,</code></span>
-<span class='src-line'><b> 269</b><code>        _bold(&quot;Progress by hour&quot;),</code></span>
+<span class='src-line'><b> 269</b><code>        _bold(&quot;Outcomes by hour&quot;),</code></span>
 <span class='src-line'><b> 270</b><code>        _muted(&quot;Summaries of durable output, findings, measurements, decisions, and files.&quot;),</code></span>
 <span class='src-line'><b> 271</b><code>        &quot;&quot;,</code></span>
 <span class='src-line'><b> 272</b><code>    ]</code></span>
@@ -30470,8 +30470,8 @@ def test_cli_has_operator_commands():
 <span class='src-line'><b> 734</b><code>    assert &quot;search demo&quot; in work</code></span>
 <span class='src-line'><b> 735</b><code></code></span>
 <span class='src-line'><b> 736</b><code>    updates = _build_chat_frame(snapshot, &quot;&quot;, [], width=100, height=24, right_view=&quot;updates&quot;)</code></span>
-<span class='src-line'><b> 737</b><code>    assert &quot;Progress&quot; in updates</code></span>
-<span class='src-line'><b> 738</b><code>    assert &quot;Progress by hour&quot; in updates</code></span>
+<span class='src-line'><b> 737</b><code>    assert &quot;Outcomes&quot; in updates</code></span>
+<span class='src-line'><b> 738</b><code>    assert &quot;Outcomes by hour&quot; in updates</code></span>
 <span class='src-line'><b> 739</b><code></code></span>
 <span class='src-line'><b> 740</b><code>    secret = _build_chat_frame(</code></span>
 <span class='src-line'><b> 741</b><code>        snapshot,</code></span>
@@ -30719,8 +30719,8 @@ def test_cli_has_operator_commands():
 <span class='src-line'><b> 983</b><code></code></span>
 <span class='src-line'><b> 984</b><code>    frame = _build_chat_frame(snapshot, &quot;&quot;, [], width=132, height=28, right_view=&quot;updates&quot;)</code></span>
 <span class='src-line'><b> 985</b><code></code></span>
-<span class='src-line'><b> 986</b><code>    assert &quot;Progress&quot; in frame</code></span>
-<span class='src-line'><b> 987</b><code>    assert &quot;Progress by hour&quot; in frame</code></span>
+<span class='src-line'><b> 986</b><code>    assert &quot;Outcomes&quot; in frame</code></span>
+<span class='src-line'><b> 987</b><code>    assert &quot;Outcomes by hour&quot; in frame</code></span>
 <span class='src-line'><b> 988</b><code>    assert &quot;distillation agents&quot; in frame</code></span>
 <span class='src-line'><b> 989</b><code>    assert &quot;Literature Review Draft&quot; in frame</code></span>
 <span class='src-line'><b> 990</b><code>    assert &quot;Trajectory distillation&quot; in frame</code></span>

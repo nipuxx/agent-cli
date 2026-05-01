@@ -118,7 +118,7 @@ def build_chat_frame(
             width=right_width,
             rows=body_rows,
         )
-        right_title = "Progress"
+        right_title = "Outcomes"
     elif right_view == "work":
         right_lines = chat_work_pane_lines(
             job=job,
