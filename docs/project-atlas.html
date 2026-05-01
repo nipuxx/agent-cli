@@ -82,7 +82,7 @@ pre { max-height: 540px; overflow: auto; background: #050606; border: 1px solid 
 <div class="shell">
   <aside class="sidebar">
     <div class="logo">NIPUX ATLAS</div>
-    <div class="subtitle">Generated from tracked source on 5ace82ee.</div>
+    <div class="subtitle">Generated from tracked source on fa392482.</div>
     <input id="search" class="search" placeholder="filter files, prompts, tools..." autocomplete="off">
     <nav class="nav">
       <a href="#architecture">Architecture</a>
@@ -98,7 +98,7 @@ pre { max-height: 540px; overflow: auto; background: #050606; border: 1px solid 
     </nav>
     <div class="stats">
       <div class="stat"><b>56</b><span>tracked files</span></div>
-      <div class="stat"><b>24,910</b><span>tracked lines mapped</span></div>
+      <div class="stat"><b>24,914</b><span>tracked lines mapped</span></div>
       <div class="stat"><b>1033</b><span>python symbols</span></div>
       <div class="stat"><b>27</b><span>runtime tools</span></div>
     </div>
@@ -752,7 +752,7 @@ fixed tool surface. none">
 <details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> io, json, urllib.error, nipux_cli.config, nipux_cli.doctor</p><p><strong>Symbols:</strong> FakeHTTPResponse, __init__, __enter__, __exit__, read, test_doctor_checks_local_runtime_without_model_call, test_doctor_warns_when_remote_model_key_is_missing, test_doctor_reports_openrouter_auth_failure, fake_urlopen, test_doctor_reports_generation_limit_after_model_listing</p></details>
 </article>
 <article class="file-card searchable" data-search="tests/nipux_cli/test_generic_runtime_audit.py No module docstring. test_runtime_code_has_no_task_specific_literals">
-<header><h3>tests/nipux_cli/test_generic_runtime_audit.py</h3><span>23 lines</span></header>
+<header><h3>tests/nipux_cli/test_generic_runtime_audit.py</h3><span>27 lines</span></header>
 <p>No module docstring.</p>
 <div class="meta"><span>1 symbols</span><span>0 TODOs</span></div>
 <details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> pathlib</p><p><strong>Symbols:</strong> test_runtime_code_has_no_task_specific_literals</p></details>
@@ -6061,7 +6061,7 @@ fixed tool surface. none">
 </article>
 <article class="symbol searchable" data-search="tests/nipux_cli/test_generic_runtime_audit.py test_runtime_code_has_no_task_specific_literals No docstring. Path, join, lower, path.read_text, resolve, root.glob, sorted">
 <h3>test_runtime_code_has_no_task_specific_literals</h3>
-<p><span class="pill">function</span> <span class="pill">tests/nipux_cli/test_generic_runtime_audit.py:14</span></p>
+<p><span class="pill">function</span> <span class="pill">tests/nipux_cli/test_generic_runtime_audit.py:18</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> Path, join, lower, path.read_text, resolve, root.glob, sorted</p>
 </article>
@@ -32775,11 +32775,15 @@ def test_doctor_reports_generation_limit_after_model_listing(tmp_path, monkeypat
 
 FORBIDDEN_RUNTIME_LITERALS = {
     &quot;home-ssh.local&quot;,
+    &quot;home ssh&quot;,
     &quot;treefrog&quot;,
     &quot;client finder&quot;,
     &quot;livebusiness&quot;,
     &quot;yelp&quot;,
     &quot;9060 xt&quot;,
+    &quot;lead batch&quot;,
+    &quot;qwen_qwen&quot;,
+    &quot;llama.cpp&quot;,
 }
 
 
@@ -32793,30 +32797,34 @@ def test_runtime_code_has_no_task_specific_literals():
 
     for literal in FORBIDDEN_RUNTIME_LITERALS:
         assert literal not in haystack">
-<summary>tests/nipux_cli/test_generic_runtime_audit.py <span>23 lines</span></summary>
+<summary>tests/nipux_cli/test_generic_runtime_audit.py <span>27 lines</span></summary>
 <pre class="source-code"><span class='src-line'><b>   1</b><code>from pathlib import Path</code></span>
 <span class='src-line'><b>   2</b><code></code></span>
 <span class='src-line'><b>   3</b><code></code></span>
 <span class='src-line'><b>   4</b><code>FORBIDDEN_RUNTIME_LITERALS = {</code></span>
 <span class='src-line'><b>   5</b><code>    &quot;home-ssh.local&quot;,</code></span>
-<span class='src-line'><b>   6</b><code>    &quot;treefrog&quot;,</code></span>
-<span class='src-line'><b>   7</b><code>    &quot;client finder&quot;,</code></span>
-<span class='src-line'><b>   8</b><code>    &quot;livebusiness&quot;,</code></span>
-<span class='src-line'><b>   9</b><code>    &quot;yelp&quot;,</code></span>
-<span class='src-line'><b>  10</b><code>    &quot;9060 xt&quot;,</code></span>
-<span class='src-line'><b>  11</b><code>}</code></span>
-<span class='src-line'><b>  12</b><code></code></span>
-<span class='src-line'><b>  13</b><code></code></span>
-<span class='src-line'><b>  14</b><code>def test_runtime_code_has_no_task_specific_literals():</code></span>
-<span class='src-line'><b>  15</b><code>    root = Path(__file__).resolve().parents[2] / &quot;nipux_cli&quot;</code></span>
-<span class='src-line'><b>  16</b><code>    haystack = &quot;\n&quot;.join(</code></span>
-<span class='src-line'><b>  17</b><code>        path.read_text(encoding=&quot;utf-8&quot;, errors=&quot;replace&quot;).lower()</code></span>
-<span class='src-line'><b>  18</b><code>        for path in sorted(root.glob(&quot;*.py&quot;))</code></span>
-<span class='src-line'><b>  19</b><code>        if path.name != &quot;__init__.py&quot;</code></span>
-<span class='src-line'><b>  20</b><code>    )</code></span>
-<span class='src-line'><b>  21</b><code></code></span>
-<span class='src-line'><b>  22</b><code>    for literal in FORBIDDEN_RUNTIME_LITERALS:</code></span>
-<span class='src-line'><b>  23</b><code>        assert literal not in haystack</code></span></pre>
+<span class='src-line'><b>   6</b><code>    &quot;home ssh&quot;,</code></span>
+<span class='src-line'><b>   7</b><code>    &quot;treefrog&quot;,</code></span>
+<span class='src-line'><b>   8</b><code>    &quot;client finder&quot;,</code></span>
+<span class='src-line'><b>   9</b><code>    &quot;livebusiness&quot;,</code></span>
+<span class='src-line'><b>  10</b><code>    &quot;yelp&quot;,</code></span>
+<span class='src-line'><b>  11</b><code>    &quot;9060 xt&quot;,</code></span>
+<span class='src-line'><b>  12</b><code>    &quot;lead batch&quot;,</code></span>
+<span class='src-line'><b>  13</b><code>    &quot;qwen_qwen&quot;,</code></span>
+<span class='src-line'><b>  14</b><code>    &quot;llama.cpp&quot;,</code></span>
+<span class='src-line'><b>  15</b><code>}</code></span>
+<span class='src-line'><b>  16</b><code></code></span>
+<span class='src-line'><b>  17</b><code></code></span>
+<span class='src-line'><b>  18</b><code>def test_runtime_code_has_no_task_specific_literals():</code></span>
+<span class='src-line'><b>  19</b><code>    root = Path(__file__).resolve().parents[2] / &quot;nipux_cli&quot;</code></span>
+<span class='src-line'><b>  20</b><code>    haystack = &quot;\n&quot;.join(</code></span>
+<span class='src-line'><b>  21</b><code>        path.read_text(encoding=&quot;utf-8&quot;, errors=&quot;replace&quot;).lower()</code></span>
+<span class='src-line'><b>  22</b><code>        for path in sorted(root.glob(&quot;*.py&quot;))</code></span>
+<span class='src-line'><b>  23</b><code>        if path.name != &quot;__init__.py&quot;</code></span>
+<span class='src-line'><b>  24</b><code>    )</code></span>
+<span class='src-line'><b>  25</b><code></code></span>
+<span class='src-line'><b>  26</b><code>    for literal in FORBIDDEN_RUNTIME_LITERALS:</code></span>
+<span class='src-line'><b>  27</b><code>        assert literal not in haystack</code></span></pre>
 </details>
 <details class="source-file searchable" data-search="tests/nipux_cli/test_llm.py from types import SimpleNamespace
 
@@ -36989,7 +36997,7 @@ class AntiBotBrowserRegistry:
 <h3>tests/nipux_cli/test_doctor.py</h3><p><strong>4</strong> tests · 110 lines</p>
 <p class="muted">test_doctor_checks_local_runtime_without_model_call, test_doctor_warns_when_remote_model_key_is_missing, test_doctor_reports_openrouter_auth_failure, test_doctor_reports_generation_limit_after_model_listing</p></article>
 <article class="test-card searchable" data-search="tests/nipux_cli/test_generic_runtime_audit.py test_runtime_code_has_no_task_specific_literals">
-<h3>tests/nipux_cli/test_generic_runtime_audit.py</h3><p><strong>1</strong> tests · 23 lines</p>
+<h3>tests/nipux_cli/test_generic_runtime_audit.py</h3><p><strong>1</strong> tests · 27 lines</p>
 <p class="muted">test_runtime_code_has_no_task_specific_literals</p></article>
 <article class="test-card searchable" data-search="tests/nipux_cli/test_llm.py test_chat_llm_omits_redundant_tool_choice test_openrouter_generation_usage_enriches_cost_and_tokens">
 <h3>tests/nipux_cli/test_llm.py</h3><p><strong>2</strong> tests · 79 lines</p>
