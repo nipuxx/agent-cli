@@ -173,6 +173,7 @@ ROADMAP_STALENESS_BLOCKED_TOOLS = INFORMATION_GATHERING_TOOLS | {
     "report_update",
 }
 CHURN_TOOLS = INFORMATION_GATHERING_TOOLS | ARTIFACT_REVIEW_TOOLS | {"shell_exec"}
+ACTIVITY_STAGNATION_BLOCKED_TOOLS = CHURN_TOOLS | {"write_artifact", "write_file", "report_update"}
 MEASURABLE_RESEARCH_BLOCKED_TOOLS = INFORMATION_GATHERING_TOOLS | {
     "write_artifact",
     "record_findings",
@@ -188,6 +189,7 @@ MEASURABLE_PROGRESS_PATTERN = re.compile(
 )
 RECOVERABLE_GUARD_ERRORS = {
     "artifact search loop blocked",
+    "durable progress required",
     "duplicate tool call blocked",
     "experiment next action pending",
     "known bad source blocked",
@@ -202,6 +204,7 @@ RECOVERABLE_GUARD_ERRORS = {
 }
 MEASURABLE_RESEARCH_BUDGET_STEPS = 18
 MEASURABLE_ACTION_BUDGET_STEPS = 4
+ACTIVITY_STAGNATION_CHECKPOINTS = 3
 TASK_QUEUE_SATURATION_OPEN_TASKS = 40
 PROGRAM_PROMPT_CHARS = 2000
 MEMORY_ENTRY_PROMPT_CHARS = 700
@@ -217,6 +220,7 @@ PROMPT_SECTION_BUDGETS = {
     "Pending measurement obligation": 1_100,
     "Measured progress guard": 1_000,
     "Progress accounting guard": 900,
+    "Activity stagnation": 900,
     "Program": 1_400,
     "Lessons learned": 1_100,
     "Roadmap": 2_000,
@@ -404,6 +408,7 @@ def build_messages(
     measurement_obligation = _measurement_obligation_for_prompt(job)
     measured_progress_guard = _measured_progress_guard_for_prompt(job, recent_steps)
     progress_accounting_guard = _progress_accounting_for_prompt(recent_steps)
+    activity_stagnation = _activity_stagnation_for_prompt(job)
     lessons = _lessons_for_prompt(job)
     roadmap = _roadmap_for_prompt(job)
     tasks = _tasks_for_prompt(job)
@@ -427,6 +432,7 @@ def build_messages(
             ("Pending measurement obligation", measurement_obligation),
             ("Measured progress guard", measured_progress_guard),
             ("Progress accounting guard", progress_accounting_guard),
+            ("Activity stagnation", activity_stagnation),
             ("Program", program),
             ("Lessons learned", lessons),
             ("Roadmap", roadmap),
@@ -912,6 +918,20 @@ def _progress_accounting_for_prompt(recent_steps: list[dict[str, Any]]) -> str:
     )
 
 
+def _activity_stagnation_for_prompt(job: dict[str, Any]) -> str:
+    context = _activity_stagnation_context(job)
+    if not context:
+        return "None."
+    return (
+        "Recent checkpoints have reported activity without durable progress. "
+        f"activity_checkpoint_streak={context.get('streak')} threshold={context.get('threshold')} "
+        f"last_counts={context.get('counts')}. "
+        "Next classify the branch with record_findings, record_source, record_experiment, record_tasks, "
+        "record_roadmap, record_milestone_validation, or record_lesson. If the branch is low-yield, mark it "
+        "blocked/skipped and pivot before doing more read-only work or saving more outputs."
+    )
+
+
 def _reflections_for_prompt(job: dict[str, Any]) -> str:
     reflections = _metadata_list(job, "reflections")
     if not reflections:
@@ -945,6 +965,13 @@ def _next_action_constraint(job: dict[str, Any], recent_steps: list[dict[str, An
             "This job needs measured progress, not more research-only activity. "
             "Do one of: run a small measuring command/action, call record_experiment for a known measurement, "
             "record_tasks with an experiment/action/monitor contract, or record_lesson if measurement is blocked."
+        )
+    activity_stagnation = _activity_stagnation_context(job)
+    if activity_stagnation:
+        return (
+            "Recent checkpoints show activity without durable progress. "
+            "Use a ledger or planning tool to classify what changed, reject the low-yield branch, or open a better branch "
+            "before more read-only work or output churn."
         )
     experiment_next_action = _latest_experiment_next_action_context(job)
     if experiment_next_action:
@@ -1541,6 +1568,19 @@ def _progress_churn_context(recent_steps: list[dict[str, Any]], *, window: int =
     }
 
 
+def _activity_stagnation_context(job: dict[str, Any]) -> dict[str, Any] | None:
+    metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
+    streak = _as_int(metadata.get("activity_checkpoint_streak"))
+    if streak < ACTIVITY_STAGNATION_CHECKPOINTS:
+        return None
+    counts = metadata.get("last_checkpoint_counts") if isinstance(metadata.get("last_checkpoint_counts"), dict) else {}
+    return {
+        "streak": streak,
+        "threshold": ACTIVITY_STAGNATION_CHECKPOINTS,
+        "counts": {key: _as_int(counts.get(key)) for key in ("findings", "sources", "tasks", "experiments", "lessons", "milestones")},
+    }
+
+
 def _artifact_accounting_context(
     recent_steps: list[dict[str, Any]],
     *,
@@ -1925,6 +1965,7 @@ def _blocked_tool_call_result(
     measured_progress_guard = _measured_progress_guard_context(job, recent_steps)
     progress_churn = _progress_churn_context(recent_steps)
     artifact_accounting = _artifact_accounting_context(recent_steps)
+    activity_stagnation = _activity_stagnation_context(job)
     if (
         artifact_accounting
         and name in ARTIFACT_ACCOUNTING_BLOCKED_TOOLS
@@ -1959,6 +2000,22 @@ def _blocked_tool_call_result(
             ),
         }
         return result, f"blocked {name}; progress ledger update required"
+
+    if activity_stagnation and name in ACTIVITY_STAGNATION_BLOCKED_TOOLS:
+        result = {
+            "success": False,
+            "error": "durable progress required",
+            "blocked_tool": name,
+            "blocked_arguments": args,
+            "activity_stagnation": activity_stagnation,
+            "guidance": (
+                "Several checkpoints have produced no durable ledger delta. "
+                "Use record_findings, record_source, record_experiment, record_tasks, record_roadmap, "
+                "record_milestone_validation, or record_lesson to classify the branch, mark it blocked/skipped, "
+                "or open a better branch before more research, shell, file, report, or artifact work."
+            ),
+        }
+        return result, f"blocked {name}; durable progress required after activity-only checkpoints"
 
     roadmap_staleness = _roadmap_staleness_context(job, recent_steps)
     if roadmap_staleness and name in ROADMAP_STALENESS_BLOCKED_TOOLS:
@@ -2820,7 +2877,15 @@ def _auto_checkpoint_update(
         category=checkpoint.category,
         metadata={"step_no": step_no, "tool": tool_name, "deltas": checkpoint.deltas},
     )
-    db.update_job_metadata(job_id, {"last_checkpoint_counts": checkpoint.counts})
+    streak = _as_int(metadata.get("activity_checkpoint_streak"))
+    streak = streak + 1 if checkpoint.category == "activity" else 0
+    db.update_job_metadata(
+        job_id,
+        {
+            "last_checkpoint_counts": checkpoint.counts,
+            "activity_checkpoint_streak": streak,
+        },
+    )
 
 
 def _execute_tool_call(

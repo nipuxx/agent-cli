@@ -456,6 +456,51 @@ def test_run_one_step_blocks_artifact_churn_until_progress_accounting(tmp_path):
         db.close()
 
 
+def test_activity_checkpoint_streak_blocks_more_churn_until_ledger_update(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Keep working until durable progress appears", title="stagnation", kind="generic")
+        db.update_job_metadata(
+            job_id,
+            {
+                "activity_checkpoint_streak": 3,
+                "last_checkpoint_counts": {
+                    "findings": 0,
+                    "sources": 0,
+                    "tasks": 1,
+                    "experiments": 0,
+                    "lessons": 0,
+                    "milestones": 0,
+                },
+            },
+        )
+
+        blocked = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([LLMResponse(tool_calls=[ToolCall(name="web_search", arguments={"query": "more background"})])]),
+        )
+
+        assert blocked.status == "blocked"
+        assert blocked.result["error"] == "durable progress required"
+
+        allowed = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[ToolCall(name="record_tasks", arguments={"tasks": [{"title": "Pivot branch", "status": "open"}]})])
+            ]),
+        )
+
+        assert allowed.status == "completed"
+        assert allowed.tool_name == "record_tasks"
+    finally:
+        db.close()
+
+
 def test_run_one_step_blocks_similar_artifact_search(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")
@@ -1165,6 +1210,31 @@ def test_prompt_includes_durable_lessons():
     content = messages[-1]["content"]
     assert "Lessons learned:" in content
     assert "Low-evidence pages are background noise" in content
+
+
+def test_prompt_includes_activity_stagnation_context():
+    job = {
+        "title": "research",
+        "kind": "generic",
+        "objective": "keep making durable progress",
+        "metadata": {
+            "activity_checkpoint_streak": 3,
+            "last_checkpoint_counts": {
+                "findings": 1,
+                "sources": 2,
+                "tasks": 4,
+                "experiments": 0,
+                "lessons": 1,
+                "milestones": 0,
+            },
+        },
+    }
+
+    content = build_messages(job, [])[-1]["content"]
+
+    assert "Activity stagnation" in content
+    assert "activity_checkpoint_streak=3" in content
+    assert "Recent checkpoints show activity without durable progress" in content
 
 
 def test_prompt_includes_finding_source_ledgers_and_reflections():
