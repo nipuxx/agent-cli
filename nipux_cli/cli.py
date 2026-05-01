@@ -71,6 +71,7 @@ from nipux_cli.tui_events import (
     clean_step_summary as _clean_step_summary,
     friendly_error_text as _friendly_error_text,
     generic_display_text as _generic_display_text,
+    hourly_update_lines as _hourly_update_lines,
     live_badge as _live_badge,
     minimal_live_event_line as _minimal_live_event_line,
 )
@@ -3709,8 +3710,8 @@ def cmd_updates(args: argparse.Namespace) -> None:
             print("No jobs found.")
             return
         job = db.get_job(job_id)
-        steps = db.list_steps(job_id=job_id)
         artifacts = db.list_artifacts(job_id, limit=args.limit)
+        events = db.list_timeline_events(job_id, limit=max(250, args.limit * 80))
         metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
         operator_messages = (
             metadata.get("operator_messages") if isinstance(metadata.get("operator_messages"), list) else []
@@ -3723,23 +3724,29 @@ def cmd_updates(args: argparse.Namespace) -> None:
         if operator_messages:
             latest = operator_messages[-1]
             print(f"last steering: {_one_line(latest.get('message') or '', args.chars)}")
+        print("outcomes by hour:")
+        outcome_lines = _hourly_update_lines(events, width=max(72, args.chars), limit=max(8, args.limit * 4))
+        if outcome_lines:
+            for line in outcome_lines:
+                print(f"  {line}")
+        else:
+            print("  none yet")
         if agent_updates:
+            print()
             print("latest agent notes:")
             for update in agent_updates[-min(args.limit, 5) :]:
                 category = update.get("category") or "progress"
                 print(f"  {category}: {_one_line(update.get('message') or '', args.chars)}")
         if lessons:
+            print()
             print("latest lessons:")
             for lesson in lessons[-min(args.limit, 5) :]:
                 if not isinstance(lesson, dict):
                     continue
                 category = lesson.get("category") or "memory"
                 print(f"  {category}: {_one_line(lesson.get('lesson') or '', args.chars)}")
-        print("recent tool calls:")
-        for step in steps[-min(args.limit, 8) :]:
-            print(f"  {_step_line(step, chars=args.chars)}")
         print()
-        print("latest findings/artifacts:")
+        print("latest saved outputs:")
         if not artifacts:
             print("  none yet")
         for artifact in artifacts:
@@ -3749,6 +3756,8 @@ def cmd_updates(args: argparse.Namespace) -> None:
             print(f"    view: artifact {shlex.quote(title)}")
             if args.paths:
                 print(f"    {artifact['path']}")
+        print()
+        print("raw tool stream: activity")
     finally:
         db.close()
 

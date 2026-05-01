@@ -1760,6 +1760,43 @@ def test_shell_natural_update_phrase_shows_updates(monkeypatch, tmp_path, capsys
     assert "queued for" not in out
 
 
+def test_updates_command_summarizes_durable_outcomes(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Research topic", title="research")
+        artifact_path = tmp_path / "artifact.md"
+        artifact_path.write_text("saved", encoding="utf-8")
+        db.append_event(
+            job_id,
+            event_type="tool_call",
+            title="web_search",
+            metadata={"input": {"arguments": {"query": "raw search"}}},
+        )
+        db.append_finding_record(job_id, name="Durable Result", category="evidence", reason="real outcome", score=0.7)
+        db.add_artifact(
+            job_id=job_id,
+            path=artifact_path,
+            sha256="abc",
+            artifact_type="text",
+            title="Saved Report",
+            summary="durable output",
+        )
+    finally:
+        db.close()
+
+    args = build_parser().parse_args(["updates", "research", "--limit", "3", "--chars", "120"])
+    args.func(args)
+
+    out = capsys.readouterr().out
+    assert "outcomes by hour:" in out
+    assert "Durable Result" in out
+    assert "Saved Report" in out
+    assert "latest saved outputs:" in out
+    assert "raw tool stream: activity" in out
+    assert "recent tool calls:" not in out
+
+
 def test_history_and_events_commands_render_visible_timeline(monkeypatch, tmp_path, capsys):
     monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
     db = AgentDB(tmp_path / "state.db")
