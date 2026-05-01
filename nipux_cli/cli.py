@@ -179,6 +179,10 @@ NIPUX_BANNER = r"""
 NATURAL_COMMANDS = {
     "tell me updates": "updates",
     "show updates": "updates",
+    "show outcomes": "outcomes",
+    "show accomplishments": "outcomes",
+    "what did it accomplish": "outcomes",
+    "what has it done": "outcomes",
     "show history": "history",
     "what happened": "history",
     "show events": "events",
@@ -4017,7 +4021,7 @@ def _chat_handle_line(job_id: str, line: str, *, reply_fn=None) -> bool:
     if line in {"/help", "help"}:
         print("Chat commands:")
         print("  /jobs /focus JOB_TITLE /switch JOB_TITLE /new OBJECTIVE /delete [JOB_TITLE]")
-        print("  /history /events /activity /outputs /updates /status /usage /health")
+        print("  /history /events /activity /outputs /updates /outcomes /status /usage /health")
         print("  /artifacts /artifact QUERY /findings /tasks /roadmap /experiments /sources /memory /metrics /lessons")
         print("  /model MODEL /base-url URL /api-key KEY /api-key-env ENV /context TOKENS")
         print("  /timeout SECONDS /home PATH /step-limit SECONDS /output-chars CHARS /daily-digest BOOL /digest-time HH:MM /doctor")
@@ -4075,7 +4079,7 @@ def _chat_handle_line(job_id: str, line: str, *, reply_fn=None) -> bool:
                 )
             )
             return True
-        if command == "updates":
+        if command in {"updates", "outcomes", "outcome"}:
             cmd_updates(argparse.Namespace(job_id=job_id, limit=5, chars=180, paths=False))
             return True
         if command == "artifacts":
@@ -4341,6 +4345,8 @@ def _chat_control_command(line: str) -> str:
         return "/resume"
     if lowered in {"history", "show history", "timeline", "show timeline"}:
         return "/history"
+    if lowered in {"outcomes", "show outcomes", "accomplishments", "show accomplishments", "what has it done"}:
+        return "/outcomes"
     if lowered in {"artifacts", "outputs", "saved outputs", "show artifacts", "show outputs"}:
         return "/artifacts"
     if lowered in {"memory", "show memory", "learning", "show learning"}:
@@ -5045,7 +5051,7 @@ def build_parser() -> argparse.ArgumentParser:
     activity.add_argument("--paths", action="store_true", help="Show full artifact paths")
     activity.set_defaults(func=cmd_activity)
 
-    updates = sub.add_parser("updates", aliases=["update"])
+    updates = sub.add_parser("updates", aliases=["update", "outcomes", "outcome"])
     updates.add_argument("job_id", nargs="*")
     updates.add_argument("--limit", type=int, default=5)
     updates.add_argument("--chars", type=int, default=180)

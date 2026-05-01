@@ -197,6 +197,7 @@ uv run nipux status "nightly research" --full
 uv run nipux history "nightly research"
 uv run nipux events "nightly research" --follow
 uv run nipux activity "nightly research" --follow
+uv run nipux outcomes "nightly research"
 uv run nipux findings "nightly research"
 uv run nipux tasks "nightly research"
 uv run nipux roadmap "nightly research"
@@ -282,6 +283,7 @@ nipux history [JOB_TITLE] [--full] [--json]
 nipux events [JOB_TITLE] [--follow] [--json]
 nipux activity [JOB_TITLE] [--follow] [--verbose]
 nipux updates [JOB_TITLE]
+nipux outcomes [JOB_TITLE]
 nipux dashboard [JOB_TITLE]
 nipux findings [JOB_TITLE] [--limit N] [--json]
 nipux tasks [JOB_TITLE] [--limit N] [--status STATUS] [--json]

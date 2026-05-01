@@ -33,6 +33,7 @@ CHAT_SLASH_COMMANDS = [
     ("/focus", "set focus"),
     ("/history", "timeline"),
     ("/activity", "live feed"),
+    ("/outcomes", "durable work"),
     ("/artifacts", "outputs"),
     ("/artifact", "open output"),
     ("/memory", "learning"),

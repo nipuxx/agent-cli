@@ -46,6 +46,7 @@ def test_cli_has_operator_commands():
     assert parser.parse_args(["feed"]).func.__name__ == "cmd_activity"
     assert parser.parse_args(["updates"]).func.__name__ == "cmd_updates"
     assert parser.parse_args(["update"]).func.__name__ == "cmd_updates"
+    assert parser.parse_args(["outcomes"]).func.__name__ == "cmd_updates"
     assert parser.parse_args(["steer", "focus", "sources"]).func.__name__ == "cmd_steer"
     assert parser.parse_args(["say", "focus", "sources"]).func.__name__ == "cmd_steer"
     assert parser.parse_args(["pause"]).func.__name__ == "cmd_pause"
@@ -382,6 +383,7 @@ def test_chat_help_has_config_slash_commands_without_settings_page(monkeypatch, 
     out = capsys.readouterr().out
     assert "/settings" not in out
     assert "/usage" in out
+    assert "/outcomes" in out
     assert "/model MODEL" in out
     assert "/api-key KEY" in out
     assert "/timeout SECONDS" in out
@@ -869,6 +871,7 @@ def test_plain_chat_control_intents_map_to_commands():
     assert _chat_control_command("show jobs") == "/jobs"
     assert _chat_control_command("change model") == "/model"
     assert _chat_control_command("how much did it cost") == "/usage"
+    assert _chat_control_command("what has it done") == "/outcomes"
 
 
 def test_plain_chat_control_intent_does_not_queue_operator_context(monkeypatch, tmp_path):
@@ -1750,6 +1753,7 @@ def test_shell_natural_update_phrase_shows_updates(monkeypatch, tmp_path, capsys
         db.close()
 
     assert _run_shell_line("tell me updates") is True
+    assert _run_shell_line("show outcomes") is True
 
     out = capsys.readouterr().out
     assert "updates" in out
