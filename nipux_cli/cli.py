@@ -39,6 +39,11 @@ from nipux_cli.dashboard import collect_dashboard_state, render_dashboard, rende
 from nipux_cli.db import AgentDB
 from nipux_cli.digest import render_job_digest, write_daily_digest
 from nipux_cli.doctor import run_doctor
+from nipux_cli.first_run_tui import (
+    build_first_run_frame as _build_first_run_tui_frame,
+    first_run_columns as _first_run_columns,
+    first_run_themed_lines as _first_run_themed_lines,
+)
 from nipux_cli.operator_context import active_prompt_operator_entries
 from nipux_cli.planning import (
     format_initial_plan,
@@ -65,7 +70,6 @@ from nipux_cli.settings import (
 )
 from nipux_cli.tui_events import (
     CHAT_RIGHT_PAGES,
-    NIPUX_HERO,
     chat_pane_lines as _chat_pane_lines,
     chat_updates_pane_lines as _chat_updates_pane_lines,
     clean_step_summary as _clean_step_summary,
@@ -83,7 +87,6 @@ from nipux_cli.tui_layout import (
 from nipux_cli.tui_status import (
     active_operator_messages as _active_operator_messages,
     chat_work_pane_lines as _chat_work_pane_lines,
-    frame_jobs_lines as _frame_jobs_lines,
     job_display_state as _job_display_state,
     right_pane_lines as _right_pane_lines,
     worker_label as _worker_label,
@@ -91,16 +94,12 @@ from nipux_cli.tui_status import (
 from nipux_cli.tui_style import (
     _accent,
     _bold,
-    _center_ansi,
     _event_badge,
     _fancy_ui,
-    _fit_ansi,
     _muted,
     _one_line,
     _status_badge,
     _strip_ansi,
-    _style,
-    _themed_lines,
 )
 from nipux_cli.updates import render_updates_report
 from nipux_cli.usage import format_usage_report
@@ -1036,176 +1035,21 @@ def _build_first_run_frame(
         jobs = db.list_jobs()
     finally:
         db.close()
-    daemon_text = _daemon_state_line(daemon)
-    header = _top_bar(width, state="setup", daemon=daemon_text, model=config.model.model)
-    if editing_field:
-        hint = _edit_target_hint(editing_field, config)
-        prompt_label = _edit_target_label(editing_field)
-    else:
-        hint = "Enter selects the highlighted control. ↑↓ moves. ←→ switches pages. Click selects."
-        prompt_label = "❯"
-    suggestions = [] if editing_field else _slash_suggestion_lines(input_buffer, FIRST_RUN_SLASH_COMMANDS, width=width)
-    compose_lines = _compose_bar(
+    right_width = _first_run_columns(width)[1]
+    return _build_first_run_tui_frame(
         input_buffer,
-        width=width,
-        hint=hint,
-        suggestions=suggestions,
-        prompt_label=prompt_label,
-        mask_input=_edit_target_masks_input(editing_field),
-    )
-    footer_rows = len(compose_lines)
-    body_rows = max(10, height - len(header) - 1 - footer_rows)
-    left_width, right_width = _first_run_columns(width)
-    left_lines = _first_run_left_lines(
         notices,
-        width=left_width,
-        rows=body_rows,
-        view=view,
+        width=width,
+        height=height,
         selected=selected,
-    )
-    right_lines = _first_run_right_lines(
+        view=view,
+        editing_field=editing_field,
+        config=config,
         jobs=jobs,
-        daemon_text=daemon_text,
-        model=config.model.model,
+        daemon_text=_daemon_state_line(daemon),
         home=_short_path(config.runtime.home, max_width=max(20, right_width - 8)),
         config_path=_short_path(config.runtime.home / "config.yaml", max_width=max(20, right_width - 8)),
-        selected=selected,
-        view=view,
-        width=right_width,
-        rows=body_rows,
     )
-    left_title = "Nipux Chat"
-    right_title = "Control"
-    lines = [*header, _two_col_title(left_width, right_width, left_title, right_title)]
-    for index in range(body_rows):
-        left = left_lines[index] if index < len(left_lines) else ""
-        right = right_lines[index] if index < len(right_lines) else ""
-        lines.append(_two_col_line(left, right, left_width=left_width, right_width=right_width))
-    lines.extend(compose_lines)
-    return "\n".join(_first_run_themed_lines(lines[:height], width=width))
-
-
-def _first_run_columns(width: int) -> tuple[int, int]:
-    left_width = max(56, int(width * 0.60))
-    right_width = max(34, width - left_width - 3)
-    if right_width < 34:
-        right_width = 34
-        left_width = max(56, width - right_width - 3)
-    return left_width, right_width
-
-
-def _first_run_themed_lines(lines: list[str], *, width: int) -> list[str]:
-    return _themed_lines(lines, width=width)
-
-
-def _first_run_left_lines(
-    notices: list[str],
-    *,
-    width: int,
-    rows: int,
-    view: str,
-    selected: int,
-) -> list[str]:
-    selected_label = _first_run_actions(view)[_clamp_first_run_selection(selected, view)][1]
-    if not notices:
-        content = [
-            *[_center_ansi(_style(line, "37;1"), width) for line in NIPUX_HERO],
-            "",
-            _center_ansi(_muted("A long-running agent harness."), width),
-            _center_ansi(_muted("Type an objective, or use the controls on the right."), width),
-            "",
-            _center_ansi(f"{_muted('Selected')} {_accent(selected_label)}", width),
-        ]
-        top_pad = max(0, (rows - len(content)) // 2 - 1)
-        return ([""] * top_pad + content)[:rows]
-    lines = [
-        _bold("No agent output yet."),
-        _muted("Create a job from the control pane or type a goal in the input line."),
-        "",
-        f"{_muted('Selected')} {_accent(selected_label)}",
-        "",
-        f"{_muted('Mode')} {_accent('Start')}",
-        "",
-        _muted("After a job exists, this side becomes the agent conversation and output stream."),
-        "",
-        _muted("Use arrows, Enter, click, or / commands. Controls stay on the right."),
-    ]
-    if notices:
-        lines.extend(["", _muted("Recent")])
-        for notice in notices[-6:]:
-            for wrapped in textwrap.wrap(" ".join(str(notice).split()), width=max(20, width - 4))[:3]:
-                lines.append(f"{_accent('›')} {wrapped}")
-    return [_fit_ansi(line, width) for line in lines[:rows]]
-
-
-def _first_run_right_lines(
-    *,
-    jobs: list[dict[str, Any]],
-    daemon_text: str,
-    model: str,
-    home: str,
-    config_path: str,
-    selected: int,
-    view: str,
-    width: int,
-    rows: int,
-) -> list[str]:
-    profile_lines = _first_run_profile_lines(
-        view=view,
-        model=model,
-        daemon_text=daemon_text,
-        home=home,
-        config_path=config_path,
-        width=width,
-    )
-    lines = [
-        *profile_lines,
-        _bold("Actions"),
-        *_first_run_action_lines(_first_run_actions(view), selected, width=width),
-        "",
-        _bold("Jobs"),
-    ]
-    if jobs:
-        lines.extend(_frame_jobs_lines(jobs, focused_job_id="", daemon_running=False, width=width)[:5])
-    else:
-        lines.append(_muted("No saved jobs in this profile."))
-    return [_fit_ansi(line, width) for line in lines[:rows]]
-
-
-def _first_run_profile_lines(
-    *,
-    view: str,
-    model: str,
-    daemon_text: str,
-    home: str,
-    config_path: str,
-    width: int,
-) -> list[str]:
-    return [
-        f"{_muted('Mode')}   {_accent('Start')}",
-        f"{_muted('Model')}  {_one_line(model, width - 8)}",
-        f"{_muted('Daemon')} {_one_line(daemon_text, width - 8)}",
-        f"{_muted('Home')}   {_one_line(home, width - 8)}",
-        f"{_muted('Config')} {_one_line(config_path, width - 8)}",
-        "",
-    ]
-
-
-def _first_run_action_lines(actions: list[tuple[str, str, str]], selected: int, *, width: int) -> list[str]:
-    lines: list[str] = []
-    selected = max(0, min(selected, len(actions) - 1)) if actions else 0
-    for index, (_key, label, detail) in enumerate(actions):
-        marker = _accent("›") if index == selected else _muted(" ")
-        name = _bold(label) if index == selected else label
-        if _key.startswith("edit:"):
-            field = _key.split(":", 1)[1]
-            detail = _one_line(str(_config_field_value(field)), max(10, width - 18))
-        elif _key == "secret:model.api_key":
-            config = load_config()
-            state = "set" if config.model.api_key else "missing"
-            detail = state
-        lines.append(_fit_ansi(f"{marker} {_fit_ansi(name, 14)} {_muted(detail)}", width))
-    return lines
 
 
 def _enter_chat(job_id: str, *, show_history: bool, history_limit: int = 12) -> None:
