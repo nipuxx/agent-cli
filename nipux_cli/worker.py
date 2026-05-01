@@ -12,6 +12,7 @@ from urllib.parse import urlparse
 from nipux_cli.artifacts import ArtifactStore
 from nipux_cli.config import AppConfig, load_config
 from nipux_cli.compression import refresh_memory_index
+from nipux_cli.context_pressure import context_pressure_for_prompt, emit_context_pressure_update
 from nipux_cli.db import AgentDB
 from nipux_cli.llm import LLMResponse, LLMResponseError, OpenAIChatLLM, StepLLM
 from nipux_cli.measurement import measurement_candidates, measurement_candidates_are_diagnostic_only
@@ -75,6 +76,7 @@ from nipux_cli.worker_prompt_format import (
 )
 from nipux_cli.worker_usage import turn_usage_metadata
 
+
 @dataclass(frozen=True)
 class StepExecution:
     job_id: str
@@ -83,13 +85,6 @@ class StepExecution:
     tool_name: str | None
     status: str
     result: dict[str, Any]
-
-
-CONTEXT_PRESSURE_BANDS = (
-    (0.95, "critical"),
-    (0.85, "high"),
-    (0.65, "watch"),
-)
 
 
 def build_messages(
@@ -123,7 +118,7 @@ def build_messages(
     measured_progress_guard = _measured_progress_guard_for_prompt(job, recent_steps)
     progress_accounting_guard = _progress_accounting_for_prompt(recent_steps)
     activity_stagnation = _activity_stagnation_for_prompt(job)
-    context_pressure = _context_pressure_for_prompt(job)
+    context_pressure = context_pressure_for_prompt(job)
     lessons = _lessons_for_prompt(job)
     roadmap = _roadmap_for_prompt(job)
     tasks = _tasks_for_prompt(job)
@@ -700,26 +695,6 @@ def _activity_stagnation_for_prompt(job: dict[str, Any]) -> str:
         "Next classify the branch with record_findings, record_source, record_experiment, record_tasks, "
         "record_roadmap, record_milestone_validation, or record_lesson. If the branch is low-yield, mark it "
         "blocked/skipped and pivot before doing more read-only work or saving more outputs."
-    )
-
-
-def _context_pressure_for_prompt(job: dict[str, Any]) -> str:
-    metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
-    pressure = metadata.get("context_pressure") if isinstance(metadata.get("context_pressure"), dict) else {}
-    band = str(pressure.get("band") or "")
-    if band not in {"watch", "high", "critical"}:
-        return "None."
-    prompt_tokens = _compact_token_count(pressure.get("prompt_tokens"))
-    context_length = _compact_token_count(pressure.get("context_length"))
-    context_text = prompt_tokens
-    if context_length != "0":
-        context_text = f"{context_text}/{context_length}"
-    fraction = _as_float(pressure.get("fraction"))
-    fraction_text = f" ({fraction:.0%})" if fraction else ""
-    return (
-        f"Context pressure is {band}: latest prompt used {context_text}{fraction_text}. "
-        "Keep the next turn compact; prefer durable memory, ledgers, artifact references, and explicit decisions "
-        "over copying raw history."
     )
 
 
@@ -2003,60 +1978,6 @@ def _emit_assistant_message_event(
     return metadata["usage"]
 
 
-def _emit_context_pressure_update(db: AgentDB, job_id: str, usage: dict[str, Any]) -> None:
-    fraction = _as_float(usage.get("context_fraction"))
-    band = _context_pressure_band(fraction)
-    if not band:
-        return
-    job = db.get_job(job_id)
-    metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
-    previous = metadata.get("context_pressure") if isinstance(metadata.get("context_pressure"), dict) else {}
-    previous_band = str(previous.get("band") or "")
-    previous_high = _as_float(previous.get("high_water_fraction"))
-    should_emit = previous_band != band or fraction >= previous_high + 0.10
-    prompt_tokens = _as_int(usage.get("prompt_tokens"))
-    context_length = _as_int(usage.get("context_length"))
-    pressure = {
-        "band": band,
-        "fraction": round(fraction, 6),
-        "high_water_fraction": round(max(fraction, previous_high), 6),
-        "prompt_tokens": prompt_tokens,
-        "context_length": context_length,
-        "updated_at": datetime.now(timezone.utc).isoformat(),
-    }
-    db.update_job_metadata(job_id, {"context_pressure": pressure})
-    if not should_emit:
-        return
-    denominator = f"/{_compact_token_count(context_length)}" if context_length else ""
-    estimated = ", estimated" if usage.get("estimated") else ""
-    db.append_agent_update(
-        job_id,
-        (
-            f"Context pressure {band}: latest prompt "
-            f"{_compact_token_count(prompt_tokens)}{denominator} ({fraction:.0%}{estimated}). "
-            "Prefer compact memory, ledgers, artifact references, and explicit decisions over raw history."
-        ),
-        category="update",
-        metadata={"kind": "context_pressure", "context_pressure": pressure},
-    )
-
-
-def _context_pressure_band(fraction: float) -> str:
-    for threshold, band in CONTEXT_PRESSURE_BANDS:
-        if fraction >= threshold:
-            return band
-    return ""
-
-
-def _compact_token_count(value: object) -> str:
-    number = _as_int(value)
-    if number >= 1_000_000:
-        return f"{number / 1_000_000:.1f}M"
-    if number >= 1_000:
-        return f"{number / 1_000:.1f}K"
-    return str(number)
-
-
 def _emit_loop_end(
     db: AgentDB,
     job_id: str,
@@ -2757,7 +2678,7 @@ def run_one_step(
             messages=messages,
             context_length=config.model.context_length,
         )
-        _emit_context_pressure_update(db, job_id, usage)
+        emit_context_pressure_update(db, job_id, usage)
 
         if response.tool_calls:
             executions: list[StepExecution] = []
