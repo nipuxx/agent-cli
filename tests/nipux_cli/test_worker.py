@@ -964,6 +964,34 @@ def test_worker_cannot_mark_job_completed_by_default(tmp_path):
         db.close()
 
 
+def test_report_update_completion_claim_is_rewritten_as_checkpoint(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Keep improving forever", title="perpetual", kind="generic")
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(
+                        name="report_update",
+                        arguments={"message": "Job completed. Best result saved.", "category": "progress"},
+                    )
+                ])
+            ]),
+        )
+
+        assert result.status == "completed"
+        update = db.get_job(job_id)["metadata"]["last_agent_update"]
+        assert update["message"] == "Checkpoint reported; continuing work. Best result saved."
+        assert update["metadata"]["rewritten_completion_claim"] is True
+        assert update["metadata"]["original_message"] == "Job completed. Best result saved."
+    finally:
+        db.close()
+
+
 def test_run_one_step_claims_one_message_but_keeps_all_steering_in_prompt(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

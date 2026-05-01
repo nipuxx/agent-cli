@@ -252,8 +252,35 @@ def _report_update(args: dict[str, Any], ctx: ToolContext) -> str:
         return _json({"success": False, "error": "message is required"})
     category = str(args.get("category") or "progress").strip().lower()
     metadata = args.get("metadata") if isinstance(args.get("metadata"), dict) else {}
+    normalized_message = _perpetual_checkpoint_message(message)
+    if normalized_message != message:
+        metadata = {**metadata, "original_message": message, "rewritten_completion_claim": True}
+        message = normalized_message
     entry = ctx.db.append_agent_update(ctx.job_id, message, category=category, metadata=metadata)
     return _json({"success": True, "job_id": ctx.job_id, "update": entry})
+
+
+def _perpetual_checkpoint_message(message: str) -> str:
+    """Keep worker reports checkpoint-oriented without hiding the underlying audit trail."""
+
+    text = " ".join(str(message or "").split())
+    if not text:
+        return ""
+    leading_claim = re.compile(
+        r"(?i)^\s*(?:the\s+)?(?:job|objective|run|work)\s+"
+        r"(?:is\s+|was\s+)?(?:complete|completed|done|finished)\b[.!:,\-\s]*"
+    )
+    if leading_claim.search(text):
+        rest = leading_claim.sub("", text, count=1).strip()
+        if rest:
+            return f"Checkpoint reported; continuing work. {rest}"
+        return "Checkpoint reported; continuing work."
+    whole_job_claim = re.compile(
+        r"(?i)\b(?:completed|finished|done\s+with)\s+(?:the\s+)?(?:job|objective|run|work)\b"
+    )
+    if whole_job_claim.search(text):
+        return "Checkpoint reported; continuing work. " + whole_job_claim.sub("reached a checkpoint for the work", text, count=1)
+    return text
 
 
 def _record_lesson(args: dict[str, Any], ctx: ToolContext) -> str:
