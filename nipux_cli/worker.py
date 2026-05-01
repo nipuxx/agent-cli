@@ -496,14 +496,14 @@ def _render_worker_prompt(job: dict[str, Any], *, sections: list[tuple[str, str]
         scale -= 0.12
     if len(content) <= MAX_WORKER_PROMPT_CHARS:
         return content
-    tail_title = "Next-action constraint"
-    tail = ""
+    suffix_sections: list[str] = []
     for title, body in sections:
-        if title == tail_title:
-            tail = f"\n\n{tail_title}:\n{_clip_text(body, 900)}"
-            break
-    suffix = f"{tail}\n\n{instruction}"
-    marker = "\n\n...[middle context clipped to preserve operator context and next action]...\n"
+        if title == "Operator context":
+            suffix_sections.append(f"Operator context:\n{_clip_text(body, 900)}")
+        elif title == "Next-action constraint":
+            suffix_sections.append(f"Next-action constraint:\n{_clip_text(body, 900)}")
+    suffix = "\n\n".join(suffix_sections + [instruction])
+    marker = "\n\n...[middle context clipped; operator context and next action repeated below]...\n"
     head_budget = max(0, MAX_WORKER_PROMPT_CHARS - len(suffix) - len(marker))
     return _clip_text(content, head_budget) + marker + suffix
 

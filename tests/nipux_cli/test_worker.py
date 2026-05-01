@@ -5,7 +5,7 @@ from nipux_cli.artifacts import ArtifactStore
 from nipux_cli.config import AppConfig, RuntimeConfig
 from nipux_cli.db import AgentDB
 from nipux_cli.llm import LLMResponse, LLMResponseError, ScriptedLLM, ToolCall
-from nipux_cli.worker import MAX_WORKER_PROMPT_CHARS, SYSTEM_PROMPT, build_messages, run_one_step
+from nipux_cli.worker import MAX_WORKER_PROMPT_CHARS, SYSTEM_PROMPT, build_messages, run_one_step, _render_worker_prompt
 
 
 class SnapshotRegistry:
@@ -1028,6 +1028,23 @@ def test_build_messages_keeps_generic_context_under_budget():
     assert "how is it going" not in content
     assert len(content) < MAX_WORKER_PROMPT_CHARS
     assert "Next-action constraint:" in content
+
+
+def test_emergency_prompt_clipping_repeats_operator_and_next_action():
+    job = {"title": "clip", "kind": "generic", "objective": "keep context safe"}
+    sections = [(f"Noise {index}", "noise " * 2000) for index in range(90)]
+    sections.insert(45, ("Operator context", "Still-active durable operator context: use the corrected target."))
+    sections.append(("Next-action constraint", "Next use the validated branch."))
+
+    content = _render_worker_prompt(job, sections=sections)
+
+    assert len(content) <= MAX_WORKER_PROMPT_CHARS
+    assert "middle context clipped" in content
+    suffix = content.split("middle context clipped", 1)[1]
+    assert "Operator context:" in suffix
+    assert "use the corrected target" in suffix
+    assert "Next-action constraint:" in suffix
+    assert "Next use the validated branch" in suffix
 
 
 def test_build_messages_keeps_rolling_memory_when_not_first():
