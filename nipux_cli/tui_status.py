@@ -12,7 +12,7 @@ from nipux_cli.tui_events import (
     worker_activity_lines,
 )
 from nipux_cli.tui_outcomes import CHAT_RIGHT_PAGES, latest_durable_outcome_line, recent_model_update_lines
-from nipux_cli.tui_layout import _metric_strip
+from nipux_cli.tui_layout import _format_compact_count, _metric_strip
 from nipux_cli.tui_style import (
     _accent,
     _bold,
@@ -76,6 +76,8 @@ def right_pane_lines(
     latest_text: str,
     metrics: list[tuple[str, Any]],
     events: list[dict[str, Any]],
+    token_usage: dict[str, Any],
+    context_length: int,
     width: int,
     rows: int,
     right_view: str = "status",
@@ -90,6 +92,8 @@ def right_pane_lines(
         goal_text=goal_text,
         latest_text=latest_text,
         metrics=metrics,
+        token_usage=token_usage,
+        context_length=context_length,
         width=width,
     )
     metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
@@ -256,6 +260,8 @@ def _chat_workspace_lines(
     goal_text: str,
     latest_text: str,
     metrics: list[tuple[str, Any]],
+    token_usage: dict[str, Any],
+    context_length: int,
     width: int,
 ) -> list[str]:
     goal_lines = textwrap.wrap(goal_text, width=max(20, width - 8))[:2] or [""]
@@ -273,6 +279,9 @@ def _chat_workspace_lines(
     task_line = _current_task_line(job, width=width)
     if task_line:
         lines.append(task_line)
+    context_line = _context_pressure_line(token_usage, context_length=context_length, width=width)
+    if context_line:
+        lines.append(context_line)
     lines.extend(_metrics_grid_lines(metrics, width=width))
     return lines
 
@@ -295,6 +304,22 @@ def _current_task_line(job: dict[str, Any], *, width: int) -> str:
     return _fit_ansi(f"{_muted('Task')}   {_status_badge(status)} {title}", width)
 
 
+def _context_pressure_line(usage: dict[str, Any], *, context_length: int, width: int) -> str:
+    latest_prompt = _safe_int(usage.get("latest_prompt_tokens"))
+    context_limit = _safe_int(usage.get("latest_context_length")) or context_length
+    if latest_prompt <= 0 or context_limit <= 0:
+        return ""
+    fraction = latest_prompt / max(1, context_limit)
+    if fraction < 0.65:
+        return ""
+    label = "high" if fraction >= 0.85 else "watch" if fraction >= 0.65 else "ok"
+    detail = (
+        f"{_format_compact_count(latest_prompt)}/{_format_compact_count(context_limit)} "
+        f"{fraction:.0%} {label}"
+    )
+    return _fit_ansi(f"{_muted('Context')} {_one_line(detail, max(12, width - 8))}", width)
+
+
 def _metrics_grid_lines(metrics: list[tuple[str, Any]], *, width: int) -> list[str]:
     wanted = ["actions", "outputs", "findings", "sources", "tasks", "experiments", "memory"]
     lookup = {label: value for label, value in metrics}
@@ -313,3 +338,10 @@ def _metrics_grid_lines(metrics: list[tuple[str, Any]], *, width: int) -> list[s
 def _metric_cell(item: tuple[str, Any], *, width: int) -> str:
     label, value = item
     return _fit_ansi(f"{_muted(label)} {_bold(value)}", width)
+
+
+def _safe_int(value: Any) -> int:
+    try:
+        return int(float(value))
+    except (TypeError, ValueError):
+        return 0

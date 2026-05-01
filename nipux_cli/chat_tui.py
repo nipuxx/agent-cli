@@ -144,6 +144,8 @@ def build_chat_frame(
             latest_text=latest_text,
             metrics=metrics,
             events=summary_events,
+            token_usage=token_usage,
+            context_length=context_length,
             width=right_width,
             rows=body_rows,
             right_view=right_view,

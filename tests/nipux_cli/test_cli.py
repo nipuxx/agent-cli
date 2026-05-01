@@ -1351,6 +1351,36 @@ def test_chat_status_marks_provider_blocked_jobs_before_daemon_retry():
     assert "advancing" not in frame
 
 
+def test_chat_status_page_surfaces_context_pressure():
+    snapshot = {
+        "job_id": "job_demo",
+        "job": {
+            "id": "job_demo",
+            "title": "context job",
+            "objective": "keep context pressure visible",
+            "status": "running",
+            "kind": "generic",
+            "metadata": {},
+        },
+        "jobs": [{"id": "job_demo", "title": "context job", "status": "running", "kind": "generic", "metadata": {}}],
+        "steps": [],
+        "artifacts": [],
+        "memory_entries": [],
+        "events": [],
+        "daemon": {"running": True, "metadata": {"pid": 123}},
+        "model": "model/demo",
+        "context_length": 8192,
+        "token_usage": {"calls": 3, "latest_prompt_tokens": 7000, "total_tokens": 9000, "completion_tokens": 2000},
+    }
+
+    frame = _build_chat_frame(snapshot, "", [], width=132, height=30)
+
+    assert "Context" in frame
+    assert "7.0K/8.2K" in frame
+    assert "85%" in frame
+    assert "high" in frame
+
+
 def test_chat_status_page_shows_job_outputs():
     snapshot = {
         "job_id": "job_demo",
