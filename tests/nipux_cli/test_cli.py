@@ -805,6 +805,42 @@ def test_chat_frame_surfaces_actual_work_events():
     assert "reflected #10" in frame
 
 
+def test_chat_frame_has_model_updates_page():
+    snapshot = {
+        "job_id": "job_demo",
+        "job": {
+            "id": "job_demo",
+            "title": "paper job",
+            "objective": "write a paper",
+            "status": "running",
+            "kind": "generic",
+            "metadata": {},
+        },
+        "jobs": [{"id": "job_demo", "title": "paper job", "status": "running", "kind": "generic", "metadata": {}}],
+        "steps": [],
+        "artifacts": [],
+        "memory_entries": [],
+        "events": [
+            {"event_type": "tool_result", "title": "web_search", "body": "web_search query='distillation agents' returned 5 results", "metadata": {"status": "completed", "input": {"arguments": {"query": "distillation agents"}}}},
+            {"event_type": "artifact", "title": "Literature Review Draft", "body": "saved draft", "metadata": {}},
+            {"event_type": "finding", "title": "Trajectory distillation", "body": "teacher traces improve tool use", "metadata": {}},
+            {"event_type": "experiment", "title": "Citation density check", "body": "", "metadata": {"metric_name": "citations", "metric_value": 12, "metric_unit": "count"}},
+            {"event_type": "tool_result", "title": "write_file", "body": "write_file overwrite /tmp/paper.md", "metadata": {"status": "completed", "input": {"arguments": {"path": "/tmp/paper.md"}}, "output": {"path": "/tmp/paper.md"}}},
+        ],
+        "daemon": {"running": True, "metadata": {"pid": 123}},
+        "model": "model/demo",
+    }
+
+    frame = _build_chat_frame(snapshot, "", [], width=132, height=28, right_view="updates")
+
+    assert "Model Updates" in frame
+    assert "distillation agents" in frame
+    assert "Literature Review Draft" in frame
+    assert "Trajectory distillation" in frame
+    assert "Citation density check" in frame
+    assert "paper.md" in frame
+
+
 def test_chat_frame_collapses_repeated_failures_and_hides_memory_noise():
     repeated_error = {
         "event_type": "error",

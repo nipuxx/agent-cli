@@ -1514,7 +1514,10 @@ def _enter_chat_frame(job_id: str, *, history_limit: int = 12) -> None:
                     notices.append(f"frame refresh failed: {type(exc).__name__}")
                     notices[:] = notices[-12:]
             if needs_render:
-                selected_control = _clamp_first_run_selection(selected_control, "settings")
+                if right_view == "settings":
+                    selected_control = _clamp_first_run_selection(selected_control, "settings")
+                else:
+                    selected_control = 0
                 _render_chat_frame(
                     snapshot,
                     buffer,
@@ -1631,10 +1634,10 @@ def _enter_chat_frame(job_id: str, *, history_limit: int = 12) -> None:
             if char == "\x1b":
                 key, payload = _decode_terminal_escape(_read_escape_sequence(char, fd=stdin_fd))
                 if key == "right" and not buffer:
-                    right_view = "settings"
+                    right_view = _next_chat_right_view(right_view, 1)
                     selected_control = 0
                 elif key == "left" and not buffer:
-                    right_view = "status"
+                    right_view = _next_chat_right_view(right_view, -1)
                     selected_control = 0
                 elif key in {"up", "down"} and not buffer and right_view == "settings":
                     delta = -1 if key == "up" else 1
@@ -1716,6 +1719,15 @@ def _frame_next_job_id(snapshot: dict[str, Any], current_job_id: str, *, directi
     except ValueError:
         index = 0
     return ids[(index + direction) % len(ids)]
+
+
+def _next_chat_right_view(current: str, direction: int) -> str:
+    keys = [key for key, _label in CHAT_RIGHT_PAGES]
+    try:
+        index = keys.index(current)
+    except ValueError:
+        index = 0
+    return keys[(index + direction) % len(keys)]
 
 
 def _is_plain_chat_line(line: str) -> bool:
@@ -1842,7 +1854,7 @@ def _build_chat_frame(
         hint = _edit_target_hint(editing_field)
         prompt_label = _edit_target_label(editing_field)
     else:
-        hint = "Talk to Nipux. Ask it to create or start jobs; worker activity stays on the right."
+        hint = "Talk to Nipux. ←→ switches status, updates, and settings. ↑↓ switches jobs."
         prompt_label = "❯"
     compose_lines = _compose_bar(
         input_buffer,
@@ -1871,6 +1883,14 @@ def _build_chat_frame(
             rows=right_rows,
         )
         right_title = "Settings"
+    elif right_view == "updates":
+        right_lines = _chat_updates_pane_lines(
+            job=job,
+            events=events,
+            width=right_width,
+            rows=right_rows,
+        )
+        right_title = "Model Updates"
     else:
         right_lines = _right_pane_lines(
             job=job,
@@ -2118,6 +2138,8 @@ _LOW_SIGNAL_FRAME_TOOLS = {
     "write_artifact",
 }
 
+CHAT_RIGHT_PAGES = [("status", "Status"), ("updates", "Updates"), ("settings", "Settings")]
+
 
 def _append_agent_output(lines: list[str], label: str, body: Any, *, clock: str, count: int, width: int) -> None:
     label_text = _fit_ansi(_event_badge(label), 8)
@@ -2298,6 +2320,105 @@ def _worker_activity_lines(events: list[dict[str, Any]], *, width: int, limit: i
     return rendered
 
 
+def _chat_updates_pane_lines(
+    *,
+    job: dict[str, Any],
+    events: list[dict[str, Any]],
+    width: int,
+    rows: int,
+) -> list[str]:
+    lines = [
+        f"{_muted('Page')}   {_page_indicator('updates', CHAT_RIGHT_PAGES)}",
+        f"{_muted('Focus')}  {_bold(_one_line(job.get('title') or 'untitled', width - 8))}",
+        "",
+        _bold("Model Updates"),
+        _muted("Durable progress, outputs, findings, measurements, and decisions."),
+        "",
+    ]
+    update_lines = _model_update_lines(events, width=width, limit=max(4, rows - len(lines)))
+    if update_lines:
+        lines.extend(update_lines)
+    else:
+        lines.append(_muted("No durable model updates yet. Worker steps remain on Status."))
+    return [_fit_ansi(line, width) for line in lines[:rows]]
+
+
+def _model_update_lines(events: list[dict[str, Any]], *, width: int, limit: int) -> list[str]:
+    items: list[tuple[str, str, str]] = []
+    seen: set[tuple[str, str]] = set()
+    for event in events:
+        parsed = _model_update_event_parts(event, width=width)
+        if not parsed:
+            continue
+        label, text, clock = parsed
+        key = (label, text)
+        if key in seen:
+            continue
+        seen.add(key)
+        items.append((label, text, clock))
+    rendered: list[str] = []
+    for label, text, clock in items[-limit:]:
+        clock_text = f"{_muted(clock)} " if clock else ""
+        rendered.append(_fit_ansi(f"{clock_text}{_event_badge(label)} {_one_line(text, max(16, width - 15))}", width))
+    return rendered
+
+
+def _model_update_event_parts(event: dict[str, Any], *, width: int) -> tuple[str, str, str] | None:
+    kind = str(event.get("event_type") or "")
+    title = _generic_display_text(event.get("title") or "")
+    body = _generic_display_text(event.get("body") or "")
+    metadata = event.get("metadata") if isinstance(event.get("metadata"), dict) else {}
+    status = str(metadata.get("status") or "")
+    clock = _event_clock(event)
+    chars = max(24, width - 16)
+    if kind == "artifact":
+        detail = _event_title_body(title, body or str(metadata.get("summary") or ""), fallback="saved output")
+        return "SAVE", _one_line(detail, chars), clock
+    if kind == "finding":
+        detail = _event_title_body(title, body, fallback="finding")
+        return "FIND", _one_line(detail, chars), clock
+    if kind == "source":
+        detail = _event_title_body(title, body, fallback="source")
+        return "SOURCE", _one_line(detail, chars), clock
+    if kind == "experiment":
+        metric = _experiment_metric_text(metadata)
+        detail = _event_title_body(title, body, fallback="measurement")
+        if metric and metric not in detail:
+            detail = f"{detail} - {metric}"
+        return "TEST", _one_line(detail, chars), clock
+    if kind == "task":
+        task_status = str(metadata.get("status") or "")
+        detail = _event_title_body(title, body, fallback="task")
+        prefix = f"{task_status} " if task_status else ""
+        return "TASK", _one_line(prefix + detail, chars), clock
+    if kind == "roadmap":
+        detail = _event_title_body(title, body, fallback="roadmap")
+        return "ROAD", _one_line(detail, chars), clock
+    if kind == "milestone_validation":
+        validation = str(metadata.get("validation_status") or metadata.get("status") or "")
+        detail = _event_title_body(title, body, fallback="milestone")
+        return "VALID", _one_line(f"{validation} {detail}".strip(), chars), clock
+    if kind == "lesson":
+        detail = _event_title_body(title, body, fallback="lesson")
+        return "LEARN", _one_line(detail, chars), clock
+    if kind == "reflection":
+        return "PLAN", _one_line(_brief_reflection_text(body or title), chars), clock
+    if kind == "agent_message" and title.lower() in {"progress", "update", "report", "plan", "planning"}:
+        detail = _chat_agent_message_text(title, body) or _event_title_body(title, body, fallback="update")
+        return "UPDATE", _one_line(detail, chars), clock
+    if kind == "tool_result" and status == "completed":
+        tool = title
+        if tool == "web_search":
+            return "DONE", _one_line(_tool_live_summary(tool, metadata, body), chars), clock
+        if tool == "web_extract":
+            return "DONE", _one_line(_tool_live_summary(tool, metadata, body), chars), clock
+        if tool == "write_file":
+            output = metadata.get("output") if isinstance(metadata.get("output"), dict) else {}
+            path = str(output.get("path") or _event_tool_args(metadata).get("path") or "")
+            return "FILE", _one_line(f"updated {_short_path(path, max_width=chars - 8)}", chars), clock
+    return None
+
+
 def _chat_settings_pane_lines(
     *,
     job: dict[str, Any],
@@ -2351,7 +2472,7 @@ def _chat_workspace_lines(
     while len(goal_lines) < 2:
         goal_lines.append("")
     return [
-        f"{_muted('Page')}   {_page_indicator(right_view, [('status', 'Status'), ('settings', 'Settings')])}",
+        f"{_muted('Page')}   {_page_indicator(right_view, CHAT_RIGHT_PAGES)}",
         f"{_muted('Focus')}  {_bold(_one_line(job.get('title') or 'untitled', width - 8))}",
         f"{_muted('State')}  {_status_badge(state)}  {_muted('worker')} {_status_badge(worker)}",
         f"{_muted('Daemon')} {_one_line(daemon_text, width - 8)}",
@@ -3968,6 +4089,11 @@ def _tool_live_summary(tool: str, metadata: dict[str, Any], body: str) -> str:
         return f"scroll {args.get('direction') or 'page'}"
     if tool == "write_artifact":
         return "save output"
+    if tool == "write_file":
+        args_path = str(args.get("path") or "")
+        output = metadata.get("output") if isinstance(metadata.get("output"), dict) else {}
+        path = str(output.get("path") or args_path)
+        return f"update {_short_path(path, max_width=36)}" if path else "update file"
     if tool == "record_lesson":
         return "learn memory"
     if tool == "record_source":
@@ -4113,6 +4239,7 @@ def _event_badge(label: str) -> str:
         "RUN": "34",
         "TOOL": "34",
         "DONE": "32",
+        "FILE": "32",
         "SAVE": "32",
         "OUTPUT": "32",
         "FIND": "32",
