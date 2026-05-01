@@ -30,6 +30,7 @@ from nipux_cli.chat_intent import (
     natural_command_for,
 )
 from nipux_cli.chat_context import build_chat_messages as _build_chat_messages
+from nipux_cli.chat_commands import ChatCommandDeps, handle_chat_slash_command as _handle_chat_slash_command
 from nipux_cli.chat_controller import (
     ChatControllerDeps,
     chat_reply_text_and_metadata as _controller_reply_text_and_metadata,
@@ -3402,219 +3403,7 @@ def _chat_handle_line(job_id: str, line: str, *, reply_fn=None) -> bool:
         parts = shlex.split(line[1:])
         if not parts:
             return True
-        command = parts[0]
-        rest = parts[1:]
-        if command in {"jobs", "ls"}:
-            cmd_jobs(argparse.Namespace())
-            return True
-        if command == "history":
-            cmd_history(
-                argparse.Namespace(
-                    job_id=job_id,
-                    limit=int(rest[0]) if rest and rest[0].isdigit() else 40,
-                    chars=220,
-                    full=False,
-                    json=False,
-                )
-            )
-            return True
-        if command == "events":
-            cmd_events(
-                argparse.Namespace(
-                    job_id=job_id,
-                    limit=int(rest[0]) if rest and rest[0].isdigit() else 40,
-                    chars=220,
-                    full=False,
-                    json=False,
-                    follow=False,
-                    interval=2.0,
-                )
-            )
-            return True
-        if command == "outputs":
-            cmd_logs(
-                argparse.Namespace(
-                    job_id=[job_id], limit=int(rest[0]) if rest and rest[0].isdigit() else 25, verbose=False, chars=260
-                )
-            )
-            return True
-        if command in {"updates", "outcomes", "outcome"}:
-            cmd_updates(argparse.Namespace(job_id=job_id, limit=5, chars=180, paths=False))
-            return True
-        if command == "artifacts":
-            cmd_artifacts(argparse.Namespace(job_id=job_id, limit=10, chars=220, paths=False))
-            return True
-        if command == "artifact":
-            query = " ".join(rest).strip()
-            if not query:
-                print("usage: /artifact QUERY_OR_ID")
-                return True
-            cmd_artifact(argparse.Namespace(artifact_id_or_path=[query], job_id=job_id, chars=12000))
-            return True
-        if command == "lessons":
-            cmd_lessons(argparse.Namespace(job_id=job_id, limit=10, chars=220))
-            return True
-        if command == "findings":
-            cmd_findings(argparse.Namespace(job_id=job_id, limit=20, chars=220, json=False))
-            return True
-        if command == "tasks":
-            cmd_tasks(argparse.Namespace(job_id=job_id, limit=20, chars=220, status=None, json=False))
-            return True
-        if command == "roadmap":
-            cmd_roadmap(argparse.Namespace(job_id=job_id, limit=20, features=3, chars=220, json=False))
-            return True
-        if command == "experiments":
-            cmd_experiments(argparse.Namespace(job_id=job_id, limit=20, chars=220, status=None, json=False))
-            return True
-        if command == "sources":
-            cmd_sources(argparse.Namespace(job_id=job_id, limit=20, chars=220, json=False))
-            return True
-        if command == "memory":
-            cmd_memory(argparse.Namespace(job_id=job_id, limit=10, chars=220))
-            return True
-        if command == "metrics":
-            cmd_metrics(argparse.Namespace(job_id=job_id, chars=220))
-            return True
-        if command == "learn":
-            lesson = " ".join(rest).strip()
-            if not lesson:
-                print("usage: /learn LESSON")
-                return True
-            db, _ = _db()
-            try:
-                entry = db.append_lesson(job_id, lesson, category="operator_preference", metadata={"source": "chat"})
-                job = db.get_job(job_id)
-                print(f"learned for {job['title']}: {_one_line(entry['lesson'], 220)}")
-            finally:
-                db.close()
-            return True
-        if command == "activity":
-            cmd_activity(
-                argparse.Namespace(
-                    job_id=job_id, limit=20, chars=180, follow=False, interval=2.0, verbose=False, paths=False
-                )
-            )
-            return True
-        if command == "digest":
-            cmd_digest(argparse.Namespace(job_id=[job_id]))
-            return True
-        if command == "status":
-            cmd_status(argparse.Namespace(job_id=job_id, limit=8, chars=180, full=False, json=False))
-            return True
-        if command == "usage":
-            cmd_usage(argparse.Namespace(job_id=job_id, json=False))
-            return True
-        if _handle_chat_setting_command(command, rest):
-            return True
-        if command == "doctor":
-            try:
-                cmd_doctor(argparse.Namespace(check_model=False))
-            except SystemExit:
-                pass
-            return True
-        if command == "init":
-            cmd_init(argparse.Namespace(path=None, force=False, model=None, base_url=None, api_key_env=None, openrouter=False))
-            return True
-        if command == "health":
-            cmd_health(argparse.Namespace(limit=8, chars=180))
-            return True
-        if command == "start":
-            cmd_start(argparse.Namespace(poll_seconds=0.0, fake=False, quiet=False, log_file=None))
-            return True
-        if command == "run":
-            db, _ = _db()
-            try:
-                _ensure_job_runnable(db, job_id)
-            finally:
-                db.close()
-            cmd_run(
-                argparse.Namespace(
-                    job_id=job_id,
-                    poll_seconds=0.0,
-                    interval=2.0,
-                    limit=20,
-                    chars=180,
-                    verbose=False,
-                    paths=False,
-                    fake=False,
-                    quiet=False,
-                    log_file=None,
-                    no_follow=True,
-                )
-            )
-            return True
-        if command == "restart":
-            cmd_restart(argparse.Namespace(
-                poll_seconds=0.0,
-                wait=5.0,
-                fake=False,
-                quiet=False,
-                log_file=None,
-            ))
-            return True
-        if command in {"work", "work-verbose"}:
-            steps = int(rest[0]) if rest and rest[0].isdigit() else 1
-            cmd_work(
-                argparse.Namespace(
-                    job_id=job_id,
-                    steps=steps,
-                    poll_seconds=0.5,
-                    fake=False,
-                    verbose=command == "work-verbose",
-                    dashboard=False,
-                    limit=12,
-                    chars=260 if command == "work" else 4000,
-                    continue_on_error=False,
-                )
-            )
-            return True
-        if command in {"pause", "stop"}:
-            cmd_pause(argparse.Namespace(job_id=job_id, note=rest))
-            return True
-        if command == "resume":
-            cmd_resume(argparse.Namespace(job_id=job_id))
-            return True
-        if command == "cancel":
-            cmd_cancel(argparse.Namespace(job_id=job_id, note=rest))
-            return True
-        if command == "note":
-            message = " ".join(rest).strip()
-            if not message:
-                print("usage: /note MESSAGE")
-                return True
-            _queue_chat_note(job_id, message, mode="note")
-            return True
-        if command == "follow":
-            message = " ".join(rest).strip()
-            if not message:
-                print("usage: /follow MESSAGE")
-                return True
-            _queue_chat_note(job_id, message, mode="follow_up")
-            return True
-        if command == "new":
-            objective = " ".join(rest).strip()
-            if not objective:
-                print("usage: /new OBJECTIVE")
-                return True
-            created_id, title = _create_job(objective=objective, title=None, kind="generic", cadence=None)
-            print(f"created {title}")
-            print(f"focus set to {title}; answer the plan questions, then use /run when ready.")
-            return True
-        if command in {"focus", "switch"}:
-            query = " ".join(rest).strip()
-            if not query:
-                cmd_focus(argparse.Namespace(query=[]))
-                return True
-            cmd_focus(argparse.Namespace(query=rest))
-            return True
-        if command == "delete":
-            target = rest if rest else [job_id]
-            cmd_delete(argparse.Namespace(job_id=target, keep_files=False))
-            if not rest:
-                return False
-            return True
-        print(f"unknown chat command: /{command}")
-        return True
+        return _handle_chat_slash_command(job_id, parts[0], parts[1:], deps=_chat_command_deps())
     if reply_fn is None:
         reply_fn = _reply_to_chat
     _handle_chat_message(job_id, line, reply_fn=reply_fn)
@@ -3657,6 +3446,47 @@ def _chat_controller_deps() -> ChatControllerDeps:
         capture_command=_capture_chat_command,
         compact_command_output=_compact_command_output,
         friendly_error_text=_friendly_error_text,
+    )
+
+
+def _chat_command_deps() -> ChatCommandDeps:
+    return ChatCommandDeps(
+        db_factory=_db,
+        jobs=cmd_jobs,
+        history=cmd_history,
+        events=cmd_events,
+        logs=cmd_logs,
+        updates=cmd_updates,
+        artifacts=cmd_artifacts,
+        artifact=cmd_artifact,
+        lessons=cmd_lessons,
+        findings=cmd_findings,
+        tasks=cmd_tasks,
+        roadmap=cmd_roadmap,
+        experiments=cmd_experiments,
+        sources=cmd_sources,
+        memory=cmd_memory,
+        metrics=cmd_metrics,
+        activity=cmd_activity,
+        digest=cmd_digest,
+        status=cmd_status,
+        usage=cmd_usage,
+        handle_setting=_handle_chat_setting_command,
+        doctor=cmd_doctor,
+        init=cmd_init,
+        health=cmd_health,
+        start=cmd_start,
+        ensure_job_runnable=_ensure_job_runnable,
+        run=cmd_run,
+        restart=cmd_restart,
+        work=cmd_work,
+        pause=cmd_pause,
+        resume=cmd_resume,
+        cancel=cmd_cancel,
+        queue_note=_queue_chat_note,
+        create_job=_create_job,
+        focus=cmd_focus,
+        delete=cmd_delete,
     )
 
 
