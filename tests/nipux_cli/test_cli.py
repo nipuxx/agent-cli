@@ -1228,6 +1228,38 @@ def test_status_recent_outcomes_hide_research_noise():
     assert "generic harness patterns" not in rendered
 
 
+def test_status_recent_outcomes_hide_plan_update_noise():
+    events = [
+        {
+            "event_type": "reflection",
+            "title": "reflection",
+            "body": "summarized current counts",
+            "metadata": {},
+            "created_at": "2026-05-01T12:05:00+00:00",
+        },
+        {
+            "event_type": "agent_message",
+            "title": "progress",
+            "body": "Checkpoint at step #100.",
+            "metadata": {},
+            "created_at": "2026-05-01T12:08:00+00:00",
+        },
+        {
+            "event_type": "finding",
+            "title": "Teacher trace distillation pattern",
+            "body": "",
+            "metadata": {},
+            "created_at": "2026-05-01T12:20:00+00:00",
+        },
+    ]
+
+    rendered = "\n".join(recent_model_update_lines(events, width=96, limit=5))
+
+    assert "Teacher trace distillation pattern" in rendered
+    assert "Checkpoint at step" not in rendered
+    assert "summarized current counts" not in rendered
+
+
 def test_hourly_outcomes_wrap_long_durable_updates_without_pre_truncation():
     events = [
         {

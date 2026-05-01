@@ -23,7 +23,7 @@ from nipux_cli.tui_style import _bold, _event_badge, _fit_ansi, _muted, _one_lin
 
 CHAT_RIGHT_PAGES = [("status", "Status"), ("updates", "Outcomes"), ("work", "Work")]
 
-PRIMARY_OUTCOME_LABELS = {
+DURABLE_OUTCOME_LABELS = {
     "SAVE",
     "FIND",
     "SOURCE",
@@ -32,11 +32,11 @@ PRIMARY_OUTCOME_LABELS = {
     "ROAD",
     "VALID",
     "LEARN",
-    "PLAN",
-    "UPDATE",
-    "FAIL",
     "FILE",
 }
+
+SUMMARY_COUNT_LABELS = DURABLE_OUTCOME_LABELS | {"DONE", "FAIL"}
+PRIMARY_OUTCOME_LABELS = DURABLE_OUTCOME_LABELS | {"FAIL"}
 
 OUTCOME_SUMMARY_NAMES = {
     "SAVE": "outputs",
@@ -157,6 +157,8 @@ def latest_durable_outcome_line(events: list[dict[str, Any]], *, width: int) -> 
         if label == "DONE":
             fallback = fallback or parsed
             continue
+        if label not in PRIMARY_OUTCOME_LABELS:
+            continue
         prefix = f"{_muted('Outcome')} {_event_badge(label)} "
         return _fit_ansi(prefix + _one_line(text, max(12, width - len(_strip_ansi(prefix)))), width)
     if fallback:
@@ -184,6 +186,8 @@ def recent_model_update_lines(
             continue
         label, text, clock = parsed
         if label == "DONE" and not include_research:
+            continue
+        if label not in PRIMARY_OUTCOME_LABELS and not (include_research and label == "DONE"):
             continue
         key = (label, text)
         if key in seen:
@@ -244,7 +248,8 @@ def hourly_update_lines(events: list[dict[str, Any]], *, width: int, limit: int)
             order.append(hour)
         bucket = buckets[hour]
         counts = bucket["counts"]
-        counts[label] = int(counts.get(label) or 0) + 1
+        if label in SUMMARY_COUNT_LABELS:
+            counts[label] = int(counts.get(label) or 0) + 1
         item = (label, text)
         if item not in bucket["items"]:
             bucket["items"].append(item)
