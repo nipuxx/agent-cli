@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 
 from nipux_cli.artifacts import ArtifactStore
-from nipux_cli.config import AppConfig, RuntimeConfig
+from nipux_cli.config import AppConfig, ModelConfig, RuntimeConfig
 from nipux_cli.db import AgentDB
 from nipux_cli.llm import LLMResponse, LLMResponseError, ScriptedLLM, ToolCall
 from nipux_cli.worker import MAX_WORKER_PROMPT_CHARS, SYSTEM_PROMPT, build_messages, run_one_step, _render_worker_prompt
@@ -206,6 +206,37 @@ def test_run_one_step_records_estimated_usage_for_scripted_model(tmp_path):
         assert event_usage["prompt_chars"] > 0
         assert event_usage["context_length"] == config.model.context_length
         assert event_usage["context_fraction"] > 0
+    finally:
+        db.close()
+
+
+def test_run_one_step_records_context_pressure_without_spam(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path), model=ModelConfig(context_length=10_000))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Keep a long-running task stable", title="context pressure", kind="generic")
+        llm = ScriptedLLM([
+            LLMResponse(content="first", usage={"prompt_tokens": 7_000, "completion_tokens": 10, "total_tokens": 7_010}),
+            LLMResponse(content="second", usage={"prompt_tokens": 7_200, "completion_tokens": 10, "total_tokens": 7_210}),
+            LLMResponse(content="third", usage={"prompt_tokens": 8_600, "completion_tokens": 10, "total_tokens": 8_610}),
+        ])
+
+        run_one_step(job_id, config=config, db=db, llm=llm)
+        run_one_step(job_id, config=config, db=db, llm=llm)
+        run_one_step(job_id, config=config, db=db, llm=llm)
+
+        pressure_events = [
+            event
+            for event in db.list_events(job_id=job_id, event_types=["agent_message"])
+            if event["metadata"].get("kind") == "context_pressure"
+        ]
+        assert len(pressure_events) == 2
+        assert "Context pressure watch" in pressure_events[0]["body"]
+        assert "Context pressure high" in pressure_events[1]["body"]
+        job = db.get_job(job_id)
+        pressure = job["metadata"]["context_pressure"]
+        assert pressure["band"] == "high"
+        assert pressure["prompt_tokens"] == 8_600
     finally:
         db.close()
 
