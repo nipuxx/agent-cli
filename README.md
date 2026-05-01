@@ -179,7 +179,9 @@ vllm serve "$MODEL_NAME" \
 
 The no-argument CLI opens the focused job directly. Plain text becomes operator
 steering for the next worker step. The terminal UI keeps conversation/output on
-the left and controls, jobs, status, and settings on the right.
+the left and status, jobs, saved outputs, updates, and worker activity on the
+right. Configuration is handled through slash commands such as `/model`,
+`/api-key`, `/base-url`, and `/context`, not a separate settings page.
 
 ```text
 nipux > what are you working on?
