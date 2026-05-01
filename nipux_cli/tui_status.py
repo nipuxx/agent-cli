@@ -249,16 +249,37 @@ def _chat_workspace_lines(
     while len(goal_lines) < 2:
         goal_lines.append("")
     title = _one_line(str(job.get("title") or "untitled"), max(10, width))
-    return [
+    lines = [
         f"{_muted('Page')}   {_page_indicator(right_view, CHAT_RIGHT_PAGES)}",
         _bold(title),
         f"{_status_badge(state)} {_muted('worker')} {_status_badge(worker)}  {_muted(_one_line(daemon_text, max(8, width - 28)))}",
         f"{_muted('Goal')}   {goal_lines[0]}",
         f"{_muted('       ')}{goal_lines[1]}",
         f"{_muted('Latest')} {_one_line(latest_text, width - 8)}",
-        *_metrics_grid_lines(metrics, width=width),
-        "",
     ]
+    task_line = _current_task_line(job, width=width)
+    if task_line:
+        lines.append(task_line)
+    lines.extend(_metrics_grid_lines(metrics, width=width))
+    return lines
+
+
+def _current_task_line(job: dict[str, Any], *, width: int) -> str:
+    metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
+    tasks = metadata.get("task_queue") if isinstance(metadata.get("task_queue"), list) else []
+    visible = [
+        task
+        for task in tasks
+        if isinstance(task, dict)
+        and str(task.get("status") or "open") in {"active", "open", "blocked"}
+    ]
+    if not visible:
+        return ""
+    ranked = _rank_visible_tasks(visible)
+    task = ranked[0]
+    status = str(task.get("status") or "open")
+    title = _one_line(str(task.get("title") or "task"), max(12, width - 16))
+    return _fit_ansi(f"{_muted('Task')}   {_status_badge(status)} {title}", width)
 
 
 def _metrics_grid_lines(metrics: list[tuple[str, Any]], *, width: int) -> list[str]:

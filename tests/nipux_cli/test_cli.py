@@ -664,7 +664,7 @@ def test_chat_frame_is_bounded_and_has_composer():
             "objective": "keep a generic long-running job visible",
             "status": "running",
             "kind": "generic",
-            "metadata": {"task_queue": [{"status": "open"}]},
+            "metadata": {"task_queue": [{"status": "active", "title": "Draft next deliverable", "priority": 7}]},
         },
         "jobs": [{"id": "job_demo", "title": "demo job", "status": "running", "kind": "generic", "metadata": {}}],
         "steps": [
@@ -730,6 +730,8 @@ def test_chat_frame_is_bounded_and_has_composer():
     assert "$0.0123" in frame
     assert "Compose" in frame
     assert "❯ hello" in frame
+    task_frame = _build_chat_frame(snapshot, "", [], width=100, height=26)
+    assert "Draft next deli" in task_frame
 
     work = _build_chat_frame(snapshot, "", [], width=100, height=24, right_view="work")
     assert "Work" in work
