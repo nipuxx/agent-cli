@@ -5,16 +5,13 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import select
 import shlex
 import shutil
 import signal
 import subprocess
 import sys
-import termios
 import threading
 import time
-import tty
 from contextlib import redirect_stdout
 from io import StringIO
 from pathlib import Path
@@ -102,6 +99,11 @@ from nipux_cli.first_run_controller import (
     handle_first_run_action as _controller_handle_first_run_action,
     handle_first_run_frame_line as _controller_handle_first_run_frame_line,
 )
+from nipux_cli.first_run_frame_runtime import (
+    FirstRunRuntimeDeps,
+    clamp_selection as _clamp_first_run_runtime_selection,
+    run_first_run_frame as _run_first_run_frame,
+)
 from nipux_cli.event_render import event_line as _event_line
 from nipux_cli.frame_snapshot import load_frame_snapshot
 from nipux_cli.parser_builder import build_arg_parser
@@ -115,13 +117,10 @@ from nipux_cli.scheduling import job_provider_blocked, provider_retry_metadata
 from nipux_cli.templates import program_for_job
 from nipux_cli.tui_commands import (
     FIRST_RUN_ACTIONS,
-    FIRST_RUN_SLASH_COMMANDS,
-    autocomplete_slash as _autocomplete_slash,
     slash_suggestion_lines,
 )
 from nipux_cli.settings import (
     config_field_value,
-    inline_setting_notice as _inline_setting_notice,
     save_config_field,
 )
 from nipux_cli.settings_commands import (
@@ -136,12 +135,6 @@ from nipux_cli.tui_event_format import (
 from nipux_cli.tui_events import (
     live_badge as _live_badge,
     minimal_live_event_line as _minimal_live_event_line,
-)
-from nipux_cli.tui_input import (
-    decode_terminal_escape as _decode_terminal_escape,
-    drain_pending_input as _drain_pending_input,
-    read_escape_sequence as _read_escape_sequence,
-    read_terminal_char as _read_terminal_char,
 )
 from nipux_cli.tui_status import (
     active_operator_messages as _active_operator_messages,
@@ -589,165 +582,26 @@ def _first_token(line: str) -> str:
 
 
 def _enter_first_run_frame(*, history_limit: int = 12) -> None:
-    buffer = ""
-    notices: list[str] = []
-    next_job_id: str | None = None
-    view = "start"
-    selected = 0
-    editing_field: str | None = None
-    old_attrs = termios.tcgetattr(sys.stdin)
-    print("\033[?1049h\033[H\033[?25l\033[?1000h\033[?1002h\033[?1006h", end="", flush=True)
-    try:
-        stdin_fd = sys.stdin.fileno()
-        tty.setcbreak(stdin_fd)
-        needs_render = True
-        last_render = 0.0
-        last_frame = ""
-        while next_job_id is None:
-            now = time.monotonic()
-            if needs_render or now - last_render >= 1.0:
-                selected = _clamp_first_run_selection(selected, view)
-                last_frame = _render_first_run_frame(
-                    buffer,
-                    notices,
-                    selected=selected,
-                    view=view,
-                    editing_field=editing_field,
-                    previous_frame=last_frame,
-                )
-                needs_render = False
-                last_render = now
-            readable, _, _ = select.select([stdin_fd], [], [], 0.05)
-            if not readable:
-                continue
-            char = _read_terminal_char(stdin_fd)
-            if editing_field is not None:
-                if char in {"\r", "\n"}:
-                    notices.append(_inline_setting_notice(editing_field, buffer))
-                    notices[:] = notices[-10:]
-                    editing_field = None
-                    buffer = ""
-                    needs_render = True
-                    continue
-                if char in {"\x04"}:
-                    return
-                if char == "\x03":
-                    notices.append("cancelled edit")
-                    notices[:] = notices[-10:]
-                    editing_field = None
-                    buffer = ""
-                    needs_render = True
-                    continue
-                if char in {"\x7f", "\b"}:
-                    buffer = buffer[:-1]
-                    needs_render = True
-                    continue
-                if char == "\x1b":
-                    key, _payload = _decode_terminal_escape(_read_escape_sequence(char, fd=stdin_fd))
-                    if key == "unknown":
-                        notices.append("cancelled edit")
-                        notices[:] = notices[-10:]
-                        editing_field = None
-                        buffer = ""
-                    needs_render = True
-                    continue
-                if char.isprintable():
-                    buffer += char
-                    needs_render = True
-                continue
-            if char in {"\r", "\n"}:
-                line = buffer.strip()
-                buffer = ""
-                if not line:
-                    action, payload = _handle_first_run_action(_first_run_actions(view)[selected][0])
-                else:
-                    action, payload = _handle_first_run_frame_line(line)
-                if action == "view":
-                    view = str(payload or "start")
-                    selected = 0
-                    notices.clear()
-                    needs_render = True
-                    continue
-                if action == "exit":
-                    return
-                if action == "clear":
-                    notices.clear()
-                    needs_render = True
-                    continue
-                if action == "open":
-                    next_job_id = str(payload)
-                    break
-                if action == "edit":
-                    editing_field = str(payload)
-                    notices.append(f"editing {editing_field}; enter saves, escape cancels")
-                    notices[:] = notices[-10:]
-                    needs_render = True
-                    continue
-                if isinstance(payload, list):
-                    notices.extend(str(item) for item in payload if str(item).strip())
-                elif payload:
-                    notices.append(str(payload))
-                notices[:] = notices[-10:]
-                needs_render = True
-                continue
-            if char in {"\x04"}:
-                return
-            if char == "\x03":
-                buffer = ""
-                notices.append("cancelled input")
-                notices[:] = notices[-10:]
-                needs_render = True
-                continue
-            if char in {"\x7f", "\b"}:
-                buffer = buffer[:-1]
-                needs_render = True
-                continue
-            if char == "\t":
-                buffer = _autocomplete_slash(buffer, FIRST_RUN_SLASH_COMMANDS)
-                needs_render = True
-                continue
-            if char == "\x1b":
-                key, payload = _decode_terminal_escape(_read_escape_sequence(char, fd=stdin_fd))
-                if key == "up":
-                    selected = (selected - 1) % len(_first_run_actions(view))
-                elif key == "down":
-                    selected = (selected + 1) % len(_first_run_actions(view))
-                elif key in {"left", "right"}:
-                    selected = 0
-                elif key == "click" and isinstance(payload, tuple):
-                    clicked = _first_run_click_action(payload[0], payload[1], view=view)
-                    if clicked is not None:
-                        selected = clicked
-                        action, action_payload = _handle_first_run_action(_first_run_actions(view)[selected][0])
-                        if action == "view":
-                            view = str(action_payload or "start")
-                            selected = 0
-                            notices.clear()
-                        elif action == "exit":
-                            return
-                        elif action == "open":
-                            next_job_id = str(action_payload)
-                            break
-                        elif action == "edit":
-                            editing_field = str(action_payload)
-                            notices.append(f"editing {editing_field}; enter saves, escape cancels")
-                        elif isinstance(action_payload, list):
-                            notices.extend(str(item) for item in action_payload if str(item).strip())
-                        elif action_payload:
-                            notices.append(str(action_payload))
-                        notices[:] = notices[-10:]
-                else:
-                    _drain_pending_input(stdin_fd)
-                needs_render = True
-                continue
-            if char.isprintable():
-                buffer += char
-                needs_render = True
-    finally:
-        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_attrs)
-        print("\033[?1002l\033[?1000l\033[?1006l\033[?25h\033[0m\033[?1049l", flush=True)
+    next_job_id = _run_first_run_frame(deps=_first_run_runtime_deps())
     if next_job_id:
         _enter_chat(next_job_id, show_history=True, history_limit=history_limit)
+
+
+def _first_run_runtime_deps() -> FirstRunRuntimeDeps:
+    return FirstRunRuntimeDeps(
+        render_frame=lambda buffer, notices, selected, view, editing_field, previous: _render_first_run_frame(
+            buffer,
+            notices,
+            selected=selected,
+            view=view,
+            editing_field=editing_field,
+            previous_frame=previous,
+        ),
+        actions=_first_run_actions,
+        handle_action=_handle_first_run_action,
+        handle_line=_handle_first_run_frame_line,
+        click_action=lambda x, y, view: _first_run_click_action(x, y, view=view),
+    )
 
 
 def _first_run_actions(view: str) -> list[tuple[str, str, str]]:
@@ -755,10 +609,7 @@ def _first_run_actions(view: str) -> list[tuple[str, str, str]]:
 
 
 def _clamp_first_run_selection(selected: int, view: str) -> int:
-    actions = _first_run_actions(view)
-    if not actions:
-        return 0
-    return max(0, min(selected, len(actions) - 1))
+    return _clamp_first_run_runtime_selection(selected, _first_run_actions(view))
 
 
 def _handle_first_run_action(action: str) -> tuple[str, str | list[str] | None]:
