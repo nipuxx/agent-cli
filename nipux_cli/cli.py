@@ -71,7 +71,6 @@ from nipux_cli.tui_events import (
     clean_step_summary as _clean_step_summary,
     friendly_error_text as _friendly_error_text,
     generic_display_text as _generic_display_text,
-    hourly_update_lines as _hourly_update_lines,
     live_badge as _live_badge,
     minimal_live_event_line as _minimal_live_event_line,
 )
@@ -103,6 +102,7 @@ from nipux_cli.tui_style import (
     _style,
     _themed_lines,
 )
+from nipux_cli.updates import render_updates_report
 from nipux_cli.usage import format_usage_report
 
 _save_config_field = save_config_field
@@ -3703,61 +3703,24 @@ def cmd_activity(args: argparse.Namespace) -> None:
 
 
 def cmd_updates(args: argparse.Namespace) -> None:
-    db, _ = _db()
+    db, config = _db()
     try:
         job_id = _resolve_job_id(db, args.job_id)
         if not job_id:
             print("No jobs found.")
             return
-        job = db.get_job(job_id)
-        artifacts = db.list_artifacts(job_id, limit=args.limit)
-        events = db.list_timeline_events(job_id, limit=max(250, args.limit * 80))
-        metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
-        operator_messages = (
-            metadata.get("operator_messages") if isinstance(metadata.get("operator_messages"), list) else []
+        print(
+            "\n".join(
+                render_updates_report(
+                    db,
+                    config,
+                    job_id,
+                    limit=args.limit,
+                    chars=args.chars,
+                    paths=args.paths,
+                )
+            )
         )
-        agent_updates = metadata.get("agent_updates") if isinstance(metadata.get("agent_updates"), list) else []
-        lessons = metadata.get("lessons") if isinstance(metadata.get("lessons"), list) else []
-        daemon = daemon_lock_status(load_config().runtime.home / "agentd.lock")
-        print(f"updates {job['title']} | state {_job_display_state(job, bool(daemon['running']))}")
-        print(_rule("="))
-        if operator_messages:
-            latest = operator_messages[-1]
-            print(f"last steering: {_one_line(latest.get('message') or '', args.chars)}")
-        print("outcomes by hour:")
-        outcome_lines = _hourly_update_lines(events, width=max(72, args.chars), limit=max(8, args.limit * 4))
-        if outcome_lines:
-            for line in outcome_lines:
-                print(f"  {line}")
-        else:
-            print("  none yet")
-        if agent_updates:
-            print()
-            print("latest agent notes:")
-            for update in agent_updates[-min(args.limit, 5) :]:
-                category = update.get("category") or "progress"
-                print(f"  {category}: {_one_line(update.get('message') or '', args.chars)}")
-        if lessons:
-            print()
-            print("latest lessons:")
-            for lesson in lessons[-min(args.limit, 5) :]:
-                if not isinstance(lesson, dict):
-                    continue
-                category = lesson.get("category") or "memory"
-                print(f"  {category}: {_one_line(lesson.get('lesson') or '', args.chars)}")
-        print()
-        print("latest saved outputs:")
-        if not artifacts:
-            print("  none yet")
-        for artifact in artifacts:
-            title = artifact.get("title") or artifact["id"]
-            summary = f" - {_one_line(artifact['summary'], args.chars)}" if artifact.get("summary") else ""
-            print(f"  {artifact['created_at']} {title}{summary}")
-            print(f"    view: artifact {shlex.quote(title)}")
-            if args.paths:
-                print(f"    {artifact['path']}")
-        print()
-        print("raw tool stream: activity")
     finally:
         db.close()
 
