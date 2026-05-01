@@ -615,11 +615,19 @@ def _enter_first_run_frame(*, history_limit: int = 12) -> None:
         tty.setcbreak(stdin_fd)
         needs_render = True
         last_render = 0.0
+        last_frame = ""
         while next_job_id is None:
             now = time.monotonic()
             if needs_render or now - last_render >= 1.0:
                 selected = _clamp_first_run_selection(selected, view)
-                _render_first_run_frame(buffer, notices, selected=selected, view=view, editing_field=editing_field)
+                last_frame = _render_first_run_frame(
+                    buffer,
+                    notices,
+                    selected=selected,
+                    view=view,
+                    editing_field=editing_field,
+                    previous_frame=last_frame,
+                )
                 needs_render = False
                 last_render = now
             readable, _, _ = select.select([stdin_fd], [], [], 0.05)
@@ -1094,7 +1102,8 @@ def _render_first_run_frame(
     selected: int = 0,
     view: str = "start",
     editing_field: str | None = None,
-) -> None:
+    previous_frame: str = "",
+) -> str:
     width, height = shutil.get_terminal_size((100, 30))
     frame = _build_first_run_frame(
         input_buffer,
@@ -1105,7 +1114,7 @@ def _render_first_run_frame(
         view=view,
         editing_field=editing_field,
     )
-    print("\033[H" + frame, end="", flush=True)
+    return _emit_frame_if_changed(frame, previous_frame)
 
 
 def _build_first_run_frame(
@@ -1375,6 +1384,7 @@ def _enter_chat_frame(job_id: str, *, history_limit: int = 12) -> None:
         tty.setcbreak(stdin_fd)
         last_snapshot = 0.0
         needs_render = True
+        last_frame = ""
         while True:
             now = time.monotonic()
             if now - last_snapshot >= 0.75:
@@ -1388,13 +1398,14 @@ def _enter_chat_frame(job_id: str, *, history_limit: int = 12) -> None:
                     notices[:] = notices[-12:]
             if needs_render:
                 selected_control = 0
-                _render_chat_frame(
+                last_frame = _render_chat_frame(
                     snapshot,
                     buffer,
                     notices,
                     right_view=right_view,
                     selected_control=selected_control,
                     editing_field=editing_field,
+                    previous_frame=last_frame,
                 )
                 needs_render = False
             readable, _, _ = select.select([stdin_fd], [], [], 0.05)
@@ -1447,13 +1458,14 @@ def _enter_chat_frame(job_id: str, *, history_limit: int = 12) -> None:
                     continue
                 notices.append(f"> {line}")
                 notices[:] = notices[-12:]
-                _render_chat_frame(
+                last_frame = _render_chat_frame(
                     snapshot,
                     buffer,
                     notices,
                     right_view=right_view,
                     selected_control=selected_control,
                     editing_field=editing_field,
+                    previous_frame=last_frame,
                 )
                 if _is_plain_chat_line(line):
                     keep_running, message = _handle_chat_message(job_id, line, quiet=True)
@@ -1633,7 +1645,8 @@ def _render_chat_frame(
     right_view: str = "status",
     selected_control: int = 0,
     editing_field: str | None = None,
-) -> None:
+    previous_frame: str = "",
+) -> str:
     width, height = shutil.get_terminal_size((100, 30))
     frame = _build_chat_frame(
         snapshot,
@@ -1645,7 +1658,13 @@ def _render_chat_frame(
         selected_control=selected_control,
         editing_field=editing_field,
     )
-    print("\033[H" + frame, end="", flush=True)
+    return _emit_frame_if_changed(frame, previous_frame)
+
+
+def _emit_frame_if_changed(frame: str, previous_frame: str = "") -> str:
+    if frame != previous_frame:
+        print("\033[H" + frame, end="", flush=True)
+    return frame
 
 
 def _build_chat_frame(

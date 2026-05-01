@@ -11,6 +11,7 @@ from nipux_cli.cli import (
     _chat_control_command,
     _config_field_value,
     _decode_terminal_escape,
+    _emit_frame_if_changed,
     _first_run_click_action,
     _frame_next_job_id,
     _handle_first_run_menu_line,
@@ -768,6 +769,18 @@ def test_chat_frame_empty_state_uses_sleek_hero():
     assert "_   _ ___" in frame
     assert "A persistent agent workspace." in frame
     assert "No chat yet." not in frame
+
+
+def test_frame_emit_skips_unchanged_render(capsys):
+    first = _emit_frame_if_changed("frame")
+    second = _emit_frame_if_changed("frame", first)
+    third = _emit_frame_if_changed("next", second)
+
+    out = capsys.readouterr().out
+    assert first == "frame"
+    assert second == "frame"
+    assert third == "next"
+    assert out.count("\033[H") == 2
 
 
 def test_chat_frame_does_not_cap_long_agent_messages():
