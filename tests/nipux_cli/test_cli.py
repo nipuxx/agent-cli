@@ -192,12 +192,16 @@ def test_main_no_args_with_no_jobs_shows_first_run_menu(monkeypatch, tmp_path, c
     main([])
 
     out = capsys.readouterr().out
-    assert "FIRST RUN" in out
-    assert "new       create a job" in out
+    assert "Start" in out
+    assert "FIRST RUN" not in out
+    assert "new       create a long-running job" in out
+    assert "Create or manage jobs" not in out
     assert "settings" not in out.lower()
     assert "shell     open the full command console" not in out
     assert "doctor    check local setup" in out
+    assert "init      write config/env template" in out
     assert "_   _" not in out
+    assert "nipux menu >" not in out
 
 
 def test_first_run_menu_can_create_job_and_open_workspace(monkeypatch, tmp_path, capsys):

@@ -444,7 +444,7 @@ def _enter_first_run_menu(*, history_limit: int = 12) -> None:
     print(_rule("="))
     while True:
         try:
-            line = input("nipux menu > ").strip()
+            line = input("nipux > ").strip()
         except EOFError:
             print()
             return
@@ -458,19 +458,19 @@ def _enter_first_run_menu(*, history_limit: int = 12) -> None:
 def _print_first_run_menu() -> None:
     config = load_config()
     daemon = daemon_lock_status(config.runtime.home / "agentd.lock")
-    print("FIRST RUN")
+    print("Start")
     print(f"  model   {config.model.model}")
     print(f"  daemon  {'running' if daemon['running'] else 'stopped'}")
     print(f"  home    {_short_path(config.runtime.home)}")
     print()
-    print("Create or manage jobs")
-    print("  1  new       create a job and open its workspace")
-    print("  2  jobs      list jobs")
+    print("Actions")
+    print("  1  new       create a long-running job")
+    print("  2  jobs      list saved jobs")
     print("  3  doctor    check local setup")
-    print("  4  init      write starter config/env files")
-    print("  5  exit")
+    print("  4  init      write config/env template")
+    print("  5  exit      leave")
     print()
-    print('Type `new OBJECTIVE`, `create "OBJECTIVE"`, any command, or paste an objective directly.')
+    print('Type an objective, `new OBJECTIVE`, or a command.')
 
 
 def _handle_first_run_menu_line(line: str, *, history_limit: int = 12) -> bool:
