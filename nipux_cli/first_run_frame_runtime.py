@@ -18,6 +18,7 @@ from nipux_cli.tui_input import (
     read_escape_sequence,
     read_terminal_char,
 )
+from nipux_cli.tui_style import _frame_enter_sequence, _frame_exit_sequence
 
 
 @dataclass(frozen=True)
@@ -37,7 +38,7 @@ def run_first_run_frame(*, deps: FirstRunRuntimeDeps) -> str | None:
     selected = 0
     editing_field: str | None = None
     old_attrs = termios.tcgetattr(sys.stdin)
-    print("\033[?1049h\033[H\033[?25l\033[?1000h\033[?1002h\033[?1006h", end="", flush=True)
+    print(_frame_enter_sequence(), end="", flush=True)
     try:
         stdin_fd = sys.stdin.fileno()
         tty.setcbreak(stdin_fd)
@@ -108,7 +109,7 @@ def run_first_run_frame(*, deps: FirstRunRuntimeDeps) -> str | None:
                 needs_render = True
     finally:
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_attrs)
-        print("\033[?1002l\033[?1000l\033[?1006l\033[?25h\033[0m\033[?1049l", flush=True)
+        print(_frame_exit_sequence(), flush=True)
     return next_job_id
 
 

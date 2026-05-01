@@ -82,7 +82,7 @@ pre { max-height: 540px; overflow: auto; background: #050606; border: 1px solid 
 <div class="shell">
   <aside class="sidebar">
     <div class="logo">NIPUX ATLAS</div>
-    <div class="subtitle">Generated from tracked source on b4d838b0.</div>
+    <div class="subtitle">Generated from tracked source on 67f15359.</div>
     <input id="search" class="search" placeholder="filter files, prompts, tools..." autocomplete="off">
     <nav class="nav">
       <a href="#architecture">Architecture</a>
@@ -97,9 +97,9 @@ pre { max-height: 540px; overflow: auto; background: #050606; border: 1px solid 
       <a href="#risks">Review Points</a>
     </nav>
     <div class="stats">
-      <div class="stat"><b>89</b><span>tracked files</span></div>
-      <div class="stat"><b>28,293</b><span>tracked lines mapped</span></div>
-      <div class="stat"><b>1197</b><span>python symbols</span></div>
+      <div class="stat"><b>90</b><span>tracked files</span></div>
+      <div class="stat"><b>28,394</b><span>tracked lines mapped</span></div>
+      <div class="stat"><b>1200</b><span>python symbols</span></div>
       <div class="stat"><b>27</b><span>runtime tools</span></div>
     </div>
   </aside>
@@ -475,7 +475,7 @@ have incorporated or intentionally superseded a steer/follow_up message.
     </section>
 
     <section id="files" class="section">
-      <header><div><div class="kicker">Source index</div><h2>Important Files</h2></div><span class="muted">82 Python modules plus docs/config files.</span></header>
+      <header><div><div class="kicker">Source index</div><h2>Important Files</h2></div><span class="muted">83 Python modules plus docs/config files.</span></header>
       <div class="grid"><article class="file-card searchable" data-search="AGENTS.md This repo is a focused long-running worker, not a broad assistant distribution. none">
 <header><h3>AGENTS.md</h3><span>32 lines</span></header>
 <p>This repo is a focused long-running worker, not a broad assistant distribution.</p>
@@ -648,10 +648,10 @@ fixed tool surface. none">
 <details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> __future__, shlex, contextlib, dataclasses, io, typing, nipux_cli.tui_commands</p><p><strong>Symbols:</strong> FirstRunFrameDeps, handle_first_run_action, handle_first_run_frame_line, first_run_chat_reply, create_first_run_job, capture_first_run_command, first_token</p></details>
 </article>
 <article class="file-card searchable" data-search="nipux_cli/first_run_frame_runtime.py Terminal runtime for the first-run Nipux workspace. FirstRunRuntimeDeps, run_first_run_frame, clamp_selection, _submit_first_run_line, _handle_first_run_escape, _apply_first_run_action, _handle_edit_input, _append_notice">
-<header><h3>nipux_cli/first_run_frame_runtime.py</h3><span>222 lines</span></header>
+<header><h3>nipux_cli/first_run_frame_runtime.py</h3><span>223 lines</span></header>
 <p>Terminal runtime for the first-run Nipux workspace.</p>
 <div class="meta"><span>8 symbols</span><span>0 TODOs</span></div>
-<details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> __future__, select, sys, termios, time, tty, dataclasses, typing, nipux_cli.settings, nipux_cli.tui_commands, nipux_cli.tui_input</p><p><strong>Symbols:</strong> FirstRunRuntimeDeps, run_first_run_frame, clamp_selection, _submit_first_run_line, _handle_first_run_escape, _apply_first_run_action, _handle_edit_input, _append_notice</p></details>
+<details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> __future__, select, sys, termios, time, tty, dataclasses, typing, nipux_cli.settings, nipux_cli.tui_commands, nipux_cli.tui_input, nipux_cli.tui_style</p><p><strong>Symbols:</strong> FirstRunRuntimeDeps, run_first_run_frame, clamp_selection, _submit_first_run_line, _handle_first_run_escape, _apply_first_run_action, _handle_edit_input, _append_notice</p></details>
 </article>
 <article class="file-card searchable" data-search="nipux_cli/first_run_tui.py First-run terminal UI rendering for Nipux. build_first_run_frame, first_run_columns, first_run_themed_lines, _first_run_left_lines, _first_run_right_lines, _first_run_profile_lines, _first_run_action_lines, _first_run_actions, _clamp_first_run_selection">
 <header><h3>nipux_cli/first_run_tui.py</h3><span>223 lines</span></header>
@@ -810,9 +810,9 @@ fixed tool surface. none">
 <details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> __future__, textwrap, typing, nipux_cli.operator_context, nipux_cli.scheduling, nipux_cli.tui_event_format, nipux_cli.tui_events, nipux_cli.tui_outcomes, nipux_cli.tui_layout, nipux_cli.tui_style</p><p><strong>Symbols:</strong> worker_label, job_display_state, active_operator_messages, right_pane_lines, chat_work_pane_lines, frame_jobs_lines, _defer_status_line, _rank_visible_tasks, _chat_workspace_lines, _current_task_line</p></details>
 </article>
 <article class="file-card searchable" data-search="nipux_cli/tui_style.py Small terminal styling helpers shared by the CLI frame renderers. _fancy_ui, _style, _accent, _muted, _bold, _one_line, _strip_ansi, _fit_ansi, _center_ansi, _themed_lines">
-<header><h3>nipux_cli/tui_style.py</h3><span>136 lines</span></header>
+<header><h3>nipux_cli/tui_style.py</h3><span>145 lines</span></header>
 <p>Small terminal styling helpers shared by the CLI frame renderers.</p>
-<div class="meta"><span>13 symbols</span><span>0 TODOs</span></div>
+<div class="meta"><span>15 symbols</span><span>0 TODOs</span></div>
 <details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> __future__, os, re, sys, typing</p><p><strong>Symbols:</strong> _fancy_ui, _style, _accent, _muted, _bold, _one_line, _strip_ansi, _fit_ansi, _center_ansi, _themed_lines</p></details>
 </article>
 <article class="file-card searchable" data-search="nipux_cli/updates.py Readable durable progress reports for jobs. render_updates_report, _metadata_list">
@@ -856,6 +856,12 @@ fixed tool surface. none">
 <p>Prompt-facing summaries for worker history and tool observations.</p>
 <div class="meta"><span>7 symbols</span><span>0 TODOs</span></div>
 <details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> __future__, json, re, typing, nipux_cli.metric_format, nipux_cli.source_quality, nipux_cli.worker_policy</p><p><strong>Symbols:</strong> compact, clip_text, format_step_for_prompt, observation_for_prompt, browser_candidates_for_prompt, _looks_like_metric_cell, _looks_like_service_description</p></details>
+</article>
+<article class="file-card searchable" data-search="nipux_cli/worker_tool_summary.py Compact result summaries for worker tool executions. summarize_tool_result">
+<header><h3>nipux_cli/worker_tool_summary.py</h3><span>91 lines</span></header>
+<p>Compact result summaries for worker tool executions.</p>
+<div class="meta"><span>1 symbols</span><span>0 TODOs</span></div>
+<details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> __future__, typing, nipux_cli.metric_format</p><p><strong>Symbols:</strong> summarize_tool_result</p></details>
 </article>
 <article class="file-card searchable" data-search="nipux_cli/worker_usage.py Usage accounting for worker model turns. turn_usage_metadata, estimate_token_count, _as_int">
 <header><h3>nipux_cli/worker_usage.py</h3><span>48 lines</span></header>
@@ -1281,11 +1287,11 @@ fixed tool surface. none">
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> keys.index, len</p>
 </article>
-<article class="symbol searchable" data-search="nipux_cli/chat_frame_runtime.py run_chat_frame No docstring. _append_notice, _handle_chat_escape, _handle_chat_submit, _handle_edit_input, autocomplete_slash, char.isprintable, deps.load_snapshot, deps.render_frame, deps.write_shell_state, print, read_terminal_char, select.select, str, sys.stdin.fileno, termios.tcgetattr, termios.tcsetattr">
+<article class="symbol searchable" data-search="nipux_cli/chat_frame_runtime.py run_chat_frame No docstring. _append_notice, _frame_enter_sequence, _frame_exit_sequence, _handle_chat_escape, _handle_chat_submit, _handle_edit_input, autocomplete_slash, char.isprintable, deps.load_snapshot, deps.render_frame, deps.write_shell_state, print, read_terminal_char, select.select, str, sys.stdin.fileno">
 <h3>run_chat_frame</h3>
 <p><span class="pill">function</span> <span class="pill">nipux_cli/chat_frame_runtime.py:70</span></p>
 <p>No docstring.</p>
-<p class="calls"><strong>Calls:</strong> _append_notice, _handle_chat_escape, _handle_chat_submit, _handle_edit_input, autocomplete_slash, char.isprintable, deps.load_snapshot, deps.render_frame, deps.write_shell_state, print, read_terminal_char, select.select, str, sys.stdin.fileno, termios.tcgetattr, termios.tcsetattr</p>
+<p class="calls"><strong>Calls:</strong> _append_notice, _frame_enter_sequence, _frame_exit_sequence, _handle_chat_escape, _handle_chat_submit, _handle_edit_input, autocomplete_slash, char.isprintable, deps.load_snapshot, deps.render_frame, deps.write_shell_state, print, read_terminal_char, select.select, str, sys.st...</p>
 </article>
 <article class="symbol searchable" data-search="nipux_cli/chat_frame_runtime.py emit_frame_if_changed No docstring. _diff_frame_update, print">
 <h3>emit_frame_if_changed</h3>
@@ -3623,49 +3629,49 @@ fixed tool surface. none">
 </article>
 <article class="symbol searchable" data-search="nipux_cli/first_run_frame_runtime.py FirstRunRuntimeDeps No docstring. dataclass">
 <h3>FirstRunRuntimeDeps</h3>
-<p><span class="pill">class</span> <span class="pill">nipux_cli/first_run_frame_runtime.py:24</span></p>
+<p><span class="pill">class</span> <span class="pill">nipux_cli/first_run_frame_runtime.py:25</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> dataclass</p>
 </article>
-<article class="symbol searchable" data-search="nipux_cli/first_run_frame_runtime.py run_first_run_frame No docstring. _append_notice, _apply_first_run_action, _handle_edit_input, _handle_first_run_escape, _submit_first_run_line, autocomplete_slash, char.isprintable, clamp_selection, deps.actions, deps.render_frame, print, read_terminal_char, select.select, sys.stdin.fileno, termios.tcgetattr, termios.tcsetattr">
+<article class="symbol searchable" data-search="nipux_cli/first_run_frame_runtime.py run_first_run_frame No docstring. _append_notice, _apply_first_run_action, _frame_enter_sequence, _frame_exit_sequence, _handle_edit_input, _handle_first_run_escape, _submit_first_run_line, autocomplete_slash, char.isprintable, clamp_selection, deps.actions, deps.render_frame, print, read_terminal_char, select.select, sys.stdin.fileno">
 <h3>run_first_run_frame</h3>
-<p><span class="pill">function</span> <span class="pill">nipux_cli/first_run_frame_runtime.py:32</span></p>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/first_run_frame_runtime.py:33</span></p>
 <p>No docstring.</p>
-<p class="calls"><strong>Calls:</strong> _append_notice, _apply_first_run_action, _handle_edit_input, _handle_first_run_escape, _submit_first_run_line, autocomplete_slash, char.isprintable, clamp_selection, deps.actions, deps.render_frame, print, read_terminal_char, select.select, sys.stdin.fileno, termios.tcgetattr,...</p>
+<p class="calls"><strong>Calls:</strong> _append_notice, _apply_first_run_action, _frame_enter_sequence, _frame_exit_sequence, _handle_edit_input, _handle_first_run_escape, _submit_first_run_line, autocomplete_slash, char.isprintable, clamp_selection, deps.actions, deps.render_frame, print, read_terminal_char, select...</p>
 </article>
 <article class="symbol searchable" data-search="nipux_cli/first_run_frame_runtime.py clamp_selection No docstring. len, max, min">
 <h3>clamp_selection</h3>
-<p><span class="pill">function</span> <span class="pill">nipux_cli/first_run_frame_runtime.py:115</span></p>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/first_run_frame_runtime.py:116</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> len, max, min</p>
 </article>
 <article class="symbol searchable" data-search="nipux_cli/first_run_frame_runtime.py _submit_first_run_line No docstring. buffer.strip, deps.actions, deps.handle_action, deps.handle_line">
 <h3>_submit_first_run_line</h3>
-<p><span class="pill">function</span> <span class="pill">nipux_cli/first_run_frame_runtime.py:121</span></p>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/first_run_frame_runtime.py:122</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> buffer.strip, deps.actions, deps.handle_action, deps.handle_line</p>
 </article>
 <article class="symbol searchable" data-search="nipux_cli/first_run_frame_runtime.py _handle_first_run_escape No docstring. _apply_first_run_action, decode_terminal_escape, deps.actions, deps.click_action, deps.handle_action, drain_pending_input, isinstance, len, read_escape_sequence">
 <h3>_handle_first_run_escape</h3>
-<p><span class="pill">function</span> <span class="pill">nipux_cli/first_run_frame_runtime.py:134</span></p>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/first_run_frame_runtime.py:135</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> _apply_first_run_action, decode_terminal_escape, deps.actions, deps.click_action, deps.handle_action, drain_pending_input, isinstance, len, read_escape_sequence</p>
 </article>
 <article class="symbol searchable" data-search="nipux_cli/first_run_frame_runtime.py _apply_first_run_action No docstring. _append_notice, isinstance, notices.clear, str, strip">
 <h3>_apply_first_run_action</h3>
-<p><span class="pill">function</span> <span class="pill">nipux_cli/first_run_frame_runtime.py:160</span></p>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/first_run_frame_runtime.py:161</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> _append_notice, isinstance, notices.clear, str, strip</p>
 </article>
 <article class="symbol searchable" data-search="nipux_cli/first_run_frame_runtime.py _handle_edit_input No docstring. _append_notice, char.isprintable, decode_terminal_escape, inline_setting_notice, read_escape_sequence">
 <h3>_handle_edit_input</h3>
-<p><span class="pill">function</span> <span class="pill">nipux_cli/first_run_frame_runtime.py:191</span></p>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/first_run_frame_runtime.py:192</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> _append_notice, char.isprintable, decode_terminal_escape, inline_setting_notice, read_escape_sequence</p>
 </article>
 <article class="symbol searchable" data-search="nipux_cli/first_run_frame_runtime.py _append_notice No docstring. notices.append">
 <h3>_append_notice</h3>
-<p><span class="pill">function</span> <span class="pill">nipux_cli/first_run_frame_runtime.py:220</span></p>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/first_run_frame_runtime.py:221</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> notices.append</p>
 </article>
@@ -5073,21 +5079,33 @@ fixed tool surface. none">
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> _fancy_ui, _fit_ansi, replace</p>
 </article>
+<article class="symbol searchable" data-search="nipux_cli/tui_style.py _frame_enter_sequence No docstring. _fancy_ui">
+<h3>_frame_enter_sequence</h3>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/tui_style.py:76</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> _fancy_ui</p>
+</article>
+<article class="symbol searchable" data-search="nipux_cli/tui_style.py _frame_exit_sequence No docstring. none">
+<h3>_frame_exit_sequence</h3>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/tui_style.py:81</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> none</p>
+</article>
 <article class="symbol searchable" data-search="nipux_cli/tui_style.py _page_indicator No docstring. _accent, _bold, _muted, join, parts.append">
 <h3>_page_indicator</h3>
-<p><span class="pill">function</span> <span class="pill">nipux_cli/tui_style.py:76</span></p>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/tui_style.py:85</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> _accent, _bold, _muted, join, parts.append</p>
 </article>
 <article class="symbol searchable" data-search="nipux_cli/tui_style.py _status_badge No docstring. _style, get, str">
 <h3>_status_badge</h3>
-<p><span class="pill">function</span> <span class="pill">nipux_cli/tui_style.py:86</span></p>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/tui_style.py:95</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> _style, get, str</p>
 </article>
 <article class="symbol searchable" data-search="nipux_cli/tui_style.py _event_badge No docstring. _style, get">
 <h3>_event_badge</h3>
-<p><span class="pill">function</span> <span class="pill">nipux_cli/tui_style.py:105</span></p>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/tui_style.py:114</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> _style, get</p>
 </article>
@@ -5750,6 +5768,12 @@ fixed tool surface. none">
 <p><span class="pill">function</span> <span class="pill">nipux_cli/worker_prompt_format.py:162</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> any, len, name.lower, text.split</p>
+</article>
+<article class="symbol searchable" data-search="nipux_cli/worker_tool_summary.py summarize_tool_result No docstring. args.get, data.get, experiment.get, format_metric_value, isinstance, item.get, join, len, lesson.get, page.get, result.get, roadmap.get, source.get, str, update.get, validation.get">
+<h3>summarize_tool_result</h3>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/worker_tool_summary.py:10</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> args.get, data.get, experiment.get, format_metric_value, isinstance, item.get, join, len, lesson.get, page.get, result.get, roadmap.get, source.get, str, update.get, validation.get</p>
 </article>
 <article class="symbol searchable" data-search="nipux_cli/worker_usage.py turn_usage_metadata No docstring. _as_int, bool, dict, estimate_token_count, isinstance, json.dumps, len, max, round, usage.get, usage.setdefault">
 <h3>turn_usage_metadata</h3>
@@ -10760,7 +10784,7 @@ from nipux_cli.tui_input import (
     read_terminal_char,
 )
 from nipux_cli.tui_outcomes import CHAT_RIGHT_PAGES
-from nipux_cli.tui_style import _one_line
+from nipux_cli.tui_style import _frame_enter_sequence, _frame_exit_sequence, _one_line
 
 
 @dataclass(frozen=True)
@@ -10817,7 +10841,7 @@ def run_chat_frame(job_id: str, *, history_limit: int, deps: ChatFrameDeps) -&gt
     snapshot = deps.load_snapshot(job_id, history_limit)
     job_id = str(snapshot[&quot;job_id&quot;])
     old_attrs = termios.tcgetattr(sys.stdin)
-    print(&quot;\033[?1049h\033[H\033[?25l\033[?1000h\033[?1002h\033[?1006h&quot;, end=&quot;&quot;, flush=True)
+    print(_frame_enter_sequence(), end=&quot;&quot;, flush=True)
     try:
         stdin_fd = sys.stdin.fileno()
         tty.setcbreak(stdin_fd)
@@ -10854,7 +10878,7 @@ def run_chat_frame(job_id: str, *, history_limit: int, deps: ChatFrameDeps) -&gt
                 buffer, editing_field, should_exit = _handle_edit_input(
                     char,
                     buffer=buffer,
-                    editing_field=editin">
+                    editing_field">
 <summary>nipux_cli/chat_frame_runtime.py <span>292 lines</span></summary>
 <pre class="source-code"><span class='src-line'><b>   1</b><code>&quot;&quot;&quot;Terminal chat-frame runtime helpers.&quot;&quot;&quot;</code></span>
 <span class='src-line'><b>   2</b><code></code></span>
@@ -10878,7 +10902,7 @@ def run_chat_frame(job_id: str, *, history_limit: int, deps: ChatFrameDeps) -&gt
 <span class='src-line'><b>  20</b><code>    read_terminal_char,</code></span>
 <span class='src-line'><b>  21</b><code>)</code></span>
 <span class='src-line'><b>  22</b><code>from nipux_cli.tui_outcomes import CHAT_RIGHT_PAGES</code></span>
-<span class='src-line'><b>  23</b><code>from nipux_cli.tui_style import _one_line</code></span>
+<span class='src-line'><b>  23</b><code>from nipux_cli.tui_style import _frame_enter_sequence, _frame_exit_sequence, _one_line</code></span>
 <span class='src-line'><b>  24</b><code></code></span>
 <span class='src-line'><b>  25</b><code></code></span>
 <span class='src-line'><b>  26</b><code>@dataclass(frozen=True)</code></span>
@@ -10935,7 +10959,7 @@ def run_chat_frame(job_id: str, *, history_limit: int, deps: ChatFrameDeps) -&gt
 <span class='src-line'><b>  77</b><code>    snapshot = deps.load_snapshot(job_id, history_limit)</code></span>
 <span class='src-line'><b>  78</b><code>    job_id = str(snapshot[&quot;job_id&quot;])</code></span>
 <span class='src-line'><b>  79</b><code>    old_attrs = termios.tcgetattr(sys.stdin)</code></span>
-<span class='src-line'><b>  80</b><code>    print(&quot;\033[?1049h\033[H\033[?25l\033[?1000h\033[?1002h\033[?1006h&quot;, end=&quot;&quot;, flush=True)</code></span>
+<span class='src-line'><b>  80</b><code>    print(_frame_enter_sequence(), end=&quot;&quot;, flush=True)</code></span>
 <span class='src-line'><b>  81</b><code>    try:</code></span>
 <span class='src-line'><b>  82</b><code>        stdin_fd = sys.stdin.fileno()</code></span>
 <span class='src-line'><b>  83</b><code>        tty.setcbreak(stdin_fd)</code></span>
@@ -11027,7 +11051,7 @@ def run_chat_frame(job_id: str, *, history_limit: int, deps: ChatFrameDeps) -&gt
 <span class='src-line'><b> 169</b><code>                needs_render = True</code></span>
 <span class='src-line'><b> 170</b><code>    finally:</code></span>
 <span class='src-line'><b> 171</b><code>        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_attrs)</code></span>
-<span class='src-line'><b> 172</b><code>        print(&quot;\033[?1006l\033[?1002l\033[?1000l\033[?25h\033[0m\033[?1049l&quot;, flush=True)</code></span>
+<span class='src-line'><b> 172</b><code>        print(_frame_exit_sequence(), flush=True)</code></span>
 <span class='src-line'><b> 173</b><code></code></span>
 <span class='src-line'><b> 174</b><code></code></span>
 <span class='src-line'><b> 175</b><code>def emit_frame_if_changed(frame: str, previous_frame: str = &quot;&quot;) -&gt; str:</code></span>
@@ -21237,6 +21261,7 @@ from nipux_cli.tui_input import (
     read_escape_sequence,
     read_terminal_char,
 )
+from nipux_cli.tui_style import _frame_enter_sequence, _frame_exit_sequence
 
 
 @dataclass(frozen=True)
@@ -21256,7 +21281,7 @@ def run_first_run_frame(*, deps: FirstRunRuntimeDeps) -&gt; str | None:
     selected = 0
     editing_field: str | None = None
     old_attrs = termios.tcgetattr(sys.stdin)
-    print(&quot;\033[?1049h\033[H\033[?25l\033[?1000h\033[?1002h\033[?1006h&quot;, end=&quot;&quot;, flush=True)
+    print(_frame_enter_sequence(), end=&quot;&quot;, flush=True)
     try:
         stdin_fd = sys.stdin.fileno()
         tty.setcbreak(stdin_fd)
@@ -21324,10 +21349,8 @@ def run_first_run_frame(*, deps: FirstRunRuntimeDeps) -&gt; str | None:
                 continue
             if char.isprintable():
                 buffer += char
-                needs_render = True
-    finally:
-        termios.tcsetat">
-<summary>nipux_cli/first_run_frame_runtime.py <span>222 lines</span></summary>
+                needs_render = Tru">
+<summary>nipux_cli/first_run_frame_runtime.py <span>223 lines</span></summary>
 <pre class="source-code"><span class='src-line'><b>   1</b><code>&quot;&quot;&quot;Terminal runtime for the first-run Nipux workspace.&quot;&quot;&quot;</code></span>
 <span class='src-line'><b>   2</b><code></code></span>
 <span class='src-line'><b>   3</b><code>from __future__ import annotations</code></span>
@@ -21348,208 +21371,209 @@ def run_first_run_frame(*, deps: FirstRunRuntimeDeps) -&gt; str | None:
 <span class='src-line'><b>  18</b><code>    read_escape_sequence,</code></span>
 <span class='src-line'><b>  19</b><code>    read_terminal_char,</code></span>
 <span class='src-line'><b>  20</b><code>)</code></span>
-<span class='src-line'><b>  21</b><code></code></span>
+<span class='src-line'><b>  21</b><code>from nipux_cli.tui_style import _frame_enter_sequence, _frame_exit_sequence</code></span>
 <span class='src-line'><b>  22</b><code></code></span>
-<span class='src-line'><b>  23</b><code>@dataclass(frozen=True)</code></span>
-<span class='src-line'><b>  24</b><code>class FirstRunRuntimeDeps:</code></span>
-<span class='src-line'><b>  25</b><code>    render_frame: Callable[[str, list[str], int, str, str | None, str], str]</code></span>
-<span class='src-line'><b>  26</b><code>    actions: Callable[[str], list[tuple[str, str, str]]]</code></span>
-<span class='src-line'><b>  27</b><code>    handle_action: Callable[[str], tuple[str, str | list[str] | None]]</code></span>
-<span class='src-line'><b>  28</b><code>    handle_line: Callable[[str], tuple[str, str | list[str] | None]]</code></span>
-<span class='src-line'><b>  29</b><code>    click_action: Callable[[int, int, str], int | None]</code></span>
-<span class='src-line'><b>  30</b><code></code></span>
+<span class='src-line'><b>  23</b><code></code></span>
+<span class='src-line'><b>  24</b><code>@dataclass(frozen=True)</code></span>
+<span class='src-line'><b>  25</b><code>class FirstRunRuntimeDeps:</code></span>
+<span class='src-line'><b>  26</b><code>    render_frame: Callable[[str, list[str], int, str, str | None, str], str]</code></span>
+<span class='src-line'><b>  27</b><code>    actions: Callable[[str], list[tuple[str, str, str]]]</code></span>
+<span class='src-line'><b>  28</b><code>    handle_action: Callable[[str], tuple[str, str | list[str] | None]]</code></span>
+<span class='src-line'><b>  29</b><code>    handle_line: Callable[[str], tuple[str, str | list[str] | None]]</code></span>
+<span class='src-line'><b>  30</b><code>    click_action: Callable[[int, int, str], int | None]</code></span>
 <span class='src-line'><b>  31</b><code></code></span>
-<span class='src-line'><b>  32</b><code>def run_first_run_frame(*, deps: FirstRunRuntimeDeps) -&gt; str | None:</code></span>
-<span class='src-line'><b>  33</b><code>    buffer = &quot;&quot;</code></span>
-<span class='src-line'><b>  34</b><code>    notices: list[str] = []</code></span>
-<span class='src-line'><b>  35</b><code>    next_job_id: str | None = None</code></span>
-<span class='src-line'><b>  36</b><code>    view = &quot;start&quot;</code></span>
-<span class='src-line'><b>  37</b><code>    selected = 0</code></span>
-<span class='src-line'><b>  38</b><code>    editing_field: str | None = None</code></span>
-<span class='src-line'><b>  39</b><code>    old_attrs = termios.tcgetattr(sys.stdin)</code></span>
-<span class='src-line'><b>  40</b><code>    print(&quot;\033[?1049h\033[H\033[?25l\033[?1000h\033[?1002h\033[?1006h&quot;, end=&quot;&quot;, flush=True)</code></span>
-<span class='src-line'><b>  41</b><code>    try:</code></span>
-<span class='src-line'><b>  42</b><code>        stdin_fd = sys.stdin.fileno()</code></span>
-<span class='src-line'><b>  43</b><code>        tty.setcbreak(stdin_fd)</code></span>
-<span class='src-line'><b>  44</b><code>        needs_render = True</code></span>
-<span class='src-line'><b>  45</b><code>        last_render = 0.0</code></span>
-<span class='src-line'><b>  46</b><code>        last_frame = &quot;&quot;</code></span>
-<span class='src-line'><b>  47</b><code>        while next_job_id is None:</code></span>
-<span class='src-line'><b>  48</b><code>            now = time.monotonic()</code></span>
-<span class='src-line'><b>  49</b><code>            if needs_render or now - last_render &gt;= 1.0:</code></span>
-<span class='src-line'><b>  50</b><code>                selected = clamp_selection(selected, deps.actions(view))</code></span>
-<span class='src-line'><b>  51</b><code>                last_frame = deps.render_frame(buffer, notices, selected, view, editing_field, last_frame)</code></span>
-<span class='src-line'><b>  52</b><code>                needs_render = False</code></span>
-<span class='src-line'><b>  53</b><code>                last_render = now</code></span>
-<span class='src-line'><b>  54</b><code>            readable, _, _ = select.select([stdin_fd], [], [], 0.05)</code></span>
-<span class='src-line'><b>  55</b><code>            if not readable:</code></span>
-<span class='src-line'><b>  56</b><code>                continue</code></span>
-<span class='src-line'><b>  57</b><code>            char = read_terminal_char(stdin_fd)</code></span>
-<span class='src-line'><b>  58</b><code>            if editing_field is not None:</code></span>
-<span class='src-line'><b>  59</b><code>                buffer, editing_field, should_exit = _handle_edit_input(</code></span>
-<span class='src-line'><b>  60</b><code>                    char,</code></span>
-<span class='src-line'><b>  61</b><code>                    buffer=buffer,</code></span>
-<span class='src-line'><b>  62</b><code>                    editing_field=editing_field,</code></span>
-<span class='src-line'><b>  63</b><code>                    notices=notices,</code></span>
-<span class='src-line'><b>  64</b><code>                    stdin_fd=stdin_fd,</code></span>
-<span class='src-line'><b>  65</b><code>                )</code></span>
-<span class='src-line'><b>  66</b><code>                if should_exit:</code></span>
-<span class='src-line'><b>  67</b><code>                    return None</code></span>
-<span class='src-line'><b>  68</b><code>                needs_render = True</code></span>
-<span class='src-line'><b>  69</b><code>                continue</code></span>
-<span class='src-line'><b>  70</b><code>            if char in {&quot;\r&quot;, &quot;\n&quot;}:</code></span>
-<span class='src-line'><b>  71</b><code>                action, payload = _submit_first_run_line(buffer, selected=selected, view=view, deps=deps)</code></span>
-<span class='src-line'><b>  72</b><code>                buffer = &quot;&quot;</code></span>
-<span class='src-line'><b>  73</b><code>                state = _apply_first_run_action(action, payload, view=view, selected=selected, notices=notices)</code></span>
-<span class='src-line'><b>  74</b><code>                view, selected, editing_field, next_job_id, should_exit = state</code></span>
-<span class='src-line'><b>  75</b><code>                if should_exit:</code></span>
-<span class='src-line'><b>  76</b><code>                    return None</code></span>
-<span class='src-line'><b>  77</b><code>                needs_render = True</code></span>
-<span class='src-line'><b>  78</b><code>                continue</code></span>
-<span class='src-line'><b>  79</b><code>            if char in {&quot;\x04&quot;}:</code></span>
-<span class='src-line'><b>  80</b><code>                return None</code></span>
-<span class='src-line'><b>  81</b><code>            if char == &quot;\x03&quot;:</code></span>
-<span class='src-line'><b>  82</b><code>                buffer = &quot;&quot;</code></span>
-<span class='src-line'><b>  83</b><code>                _append_notice(notices, &quot;cancelled input&quot;)</code></span>
-<span class='src-line'><b>  84</b><code>                needs_render = True</code></span>
-<span class='src-line'><b>  85</b><code>                continue</code></span>
-<span class='src-line'><b>  86</b><code>            if char in {&quot;\x7f&quot;, &quot;\b&quot;}:</code></span>
-<span class='src-line'><b>  87</b><code>                buffer = buffer[:-1]</code></span>
-<span class='src-line'><b>  88</b><code>                needs_render = True</code></span>
-<span class='src-line'><b>  89</b><code>                continue</code></span>
-<span class='src-line'><b>  90</b><code>            if char == &quot;\t&quot;:</code></span>
-<span class='src-line'><b>  91</b><code>                buffer = autocomplete_slash(buffer, FIRST_RUN_SLASH_COMMANDS)</code></span>
-<span class='src-line'><b>  92</b><code>                needs_render = True</code></span>
-<span class='src-line'><b>  93</b><code>                continue</code></span>
-<span class='src-line'><b>  94</b><code>            if char == &quot;\x1b&quot;:</code></span>
-<span class='src-line'><b>  95</b><code>                view, selected, editing_field, next_job_id, should_exit = _handle_first_run_escape(</code></span>
-<span class='src-line'><b>  96</b><code>                    stdin_fd,</code></span>
-<span class='src-line'><b>  97</b><code>                    view=view,</code></span>
-<span class='src-line'><b>  98</b><code>                    selected=selected,</code></span>
-<span class='src-line'><b>  99</b><code>                    notices=notices,</code></span>
-<span class='src-line'><b> 100</b><code>                    deps=deps,</code></span>
-<span class='src-line'><b> 101</b><code>                )</code></span>
-<span class='src-line'><b> 102</b><code>                if should_exit:</code></span>
-<span class='src-line'><b> 103</b><code>                    return None</code></span>
-<span class='src-line'><b> 104</b><code>                needs_render = True</code></span>
-<span class='src-line'><b> 105</b><code>                continue</code></span>
-<span class='src-line'><b> 106</b><code>            if char.isprintable():</code></span>
-<span class='src-line'><b> 107</b><code>                buffer += char</code></span>
-<span class='src-line'><b> 108</b><code>                needs_render = True</code></span>
-<span class='src-line'><b> 109</b><code>    finally:</code></span>
-<span class='src-line'><b> 110</b><code>        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_attrs)</code></span>
-<span class='src-line'><b> 111</b><code>        print(&quot;\033[?1002l\033[?1000l\033[?1006l\033[?25h\033[0m\033[?1049l&quot;, flush=True)</code></span>
-<span class='src-line'><b> 112</b><code>    return next_job_id</code></span>
-<span class='src-line'><b> 113</b><code></code></span>
+<span class='src-line'><b>  32</b><code></code></span>
+<span class='src-line'><b>  33</b><code>def run_first_run_frame(*, deps: FirstRunRuntimeDeps) -&gt; str | None:</code></span>
+<span class='src-line'><b>  34</b><code>    buffer = &quot;&quot;</code></span>
+<span class='src-line'><b>  35</b><code>    notices: list[str] = []</code></span>
+<span class='src-line'><b>  36</b><code>    next_job_id: str | None = None</code></span>
+<span class='src-line'><b>  37</b><code>    view = &quot;start&quot;</code></span>
+<span class='src-line'><b>  38</b><code>    selected = 0</code></span>
+<span class='src-line'><b>  39</b><code>    editing_field: str | None = None</code></span>
+<span class='src-line'><b>  40</b><code>    old_attrs = termios.tcgetattr(sys.stdin)</code></span>
+<span class='src-line'><b>  41</b><code>    print(_frame_enter_sequence(), end=&quot;&quot;, flush=True)</code></span>
+<span class='src-line'><b>  42</b><code>    try:</code></span>
+<span class='src-line'><b>  43</b><code>        stdin_fd = sys.stdin.fileno()</code></span>
+<span class='src-line'><b>  44</b><code>        tty.setcbreak(stdin_fd)</code></span>
+<span class='src-line'><b>  45</b><code>        needs_render = True</code></span>
+<span class='src-line'><b>  46</b><code>        last_render = 0.0</code></span>
+<span class='src-line'><b>  47</b><code>        last_frame = &quot;&quot;</code></span>
+<span class='src-line'><b>  48</b><code>        while next_job_id is None:</code></span>
+<span class='src-line'><b>  49</b><code>            now = time.monotonic()</code></span>
+<span class='src-line'><b>  50</b><code>            if needs_render or now - last_render &gt;= 1.0:</code></span>
+<span class='src-line'><b>  51</b><code>                selected = clamp_selection(selected, deps.actions(view))</code></span>
+<span class='src-line'><b>  52</b><code>                last_frame = deps.render_frame(buffer, notices, selected, view, editing_field, last_frame)</code></span>
+<span class='src-line'><b>  53</b><code>                needs_render = False</code></span>
+<span class='src-line'><b>  54</b><code>                last_render = now</code></span>
+<span class='src-line'><b>  55</b><code>            readable, _, _ = select.select([stdin_fd], [], [], 0.05)</code></span>
+<span class='src-line'><b>  56</b><code>            if not readable:</code></span>
+<span class='src-line'><b>  57</b><code>                continue</code></span>
+<span class='src-line'><b>  58</b><code>            char = read_terminal_char(stdin_fd)</code></span>
+<span class='src-line'><b>  59</b><code>            if editing_field is not None:</code></span>
+<span class='src-line'><b>  60</b><code>                buffer, editing_field, should_exit = _handle_edit_input(</code></span>
+<span class='src-line'><b>  61</b><code>                    char,</code></span>
+<span class='src-line'><b>  62</b><code>                    buffer=buffer,</code></span>
+<span class='src-line'><b>  63</b><code>                    editing_field=editing_field,</code></span>
+<span class='src-line'><b>  64</b><code>                    notices=notices,</code></span>
+<span class='src-line'><b>  65</b><code>                    stdin_fd=stdin_fd,</code></span>
+<span class='src-line'><b>  66</b><code>                )</code></span>
+<span class='src-line'><b>  67</b><code>                if should_exit:</code></span>
+<span class='src-line'><b>  68</b><code>                    return None</code></span>
+<span class='src-line'><b>  69</b><code>                needs_render = True</code></span>
+<span class='src-line'><b>  70</b><code>                continue</code></span>
+<span class='src-line'><b>  71</b><code>            if char in {&quot;\r&quot;, &quot;\n&quot;}:</code></span>
+<span class='src-line'><b>  72</b><code>                action, payload = _submit_first_run_line(buffer, selected=selected, view=view, deps=deps)</code></span>
+<span class='src-line'><b>  73</b><code>                buffer = &quot;&quot;</code></span>
+<span class='src-line'><b>  74</b><code>                state = _apply_first_run_action(action, payload, view=view, selected=selected, notices=notices)</code></span>
+<span class='src-line'><b>  75</b><code>                view, selected, editing_field, next_job_id, should_exit = state</code></span>
+<span class='src-line'><b>  76</b><code>                if should_exit:</code></span>
+<span class='src-line'><b>  77</b><code>                    return None</code></span>
+<span class='src-line'><b>  78</b><code>                needs_render = True</code></span>
+<span class='src-line'><b>  79</b><code>                continue</code></span>
+<span class='src-line'><b>  80</b><code>            if char in {&quot;\x04&quot;}:</code></span>
+<span class='src-line'><b>  81</b><code>                return None</code></span>
+<span class='src-line'><b>  82</b><code>            if char == &quot;\x03&quot;:</code></span>
+<span class='src-line'><b>  83</b><code>                buffer = &quot;&quot;</code></span>
+<span class='src-line'><b>  84</b><code>                _append_notice(notices, &quot;cancelled input&quot;)</code></span>
+<span class='src-line'><b>  85</b><code>                needs_render = True</code></span>
+<span class='src-line'><b>  86</b><code>                continue</code></span>
+<span class='src-line'><b>  87</b><code>            if char in {&quot;\x7f&quot;, &quot;\b&quot;}:</code></span>
+<span class='src-line'><b>  88</b><code>                buffer = buffer[:-1]</code></span>
+<span class='src-line'><b>  89</b><code>                needs_render = True</code></span>
+<span class='src-line'><b>  90</b><code>                continue</code></span>
+<span class='src-line'><b>  91</b><code>            if char == &quot;\t&quot;:</code></span>
+<span class='src-line'><b>  92</b><code>                buffer = autocomplete_slash(buffer, FIRST_RUN_SLASH_COMMANDS)</code></span>
+<span class='src-line'><b>  93</b><code>                needs_render = True</code></span>
+<span class='src-line'><b>  94</b><code>                continue</code></span>
+<span class='src-line'><b>  95</b><code>            if char == &quot;\x1b&quot;:</code></span>
+<span class='src-line'><b>  96</b><code>                view, selected, editing_field, next_job_id, should_exit = _handle_first_run_escape(</code></span>
+<span class='src-line'><b>  97</b><code>                    stdin_fd,</code></span>
+<span class='src-line'><b>  98</b><code>                    view=view,</code></span>
+<span class='src-line'><b>  99</b><code>                    selected=selected,</code></span>
+<span class='src-line'><b> 100</b><code>                    notices=notices,</code></span>
+<span class='src-line'><b> 101</b><code>                    deps=deps,</code></span>
+<span class='src-line'><b> 102</b><code>                )</code></span>
+<span class='src-line'><b> 103</b><code>                if should_exit:</code></span>
+<span class='src-line'><b> 104</b><code>                    return None</code></span>
+<span class='src-line'><b> 105</b><code>                needs_render = True</code></span>
+<span class='src-line'><b> 106</b><code>                continue</code></span>
+<span class='src-line'><b> 107</b><code>            if char.isprintable():</code></span>
+<span class='src-line'><b> 108</b><code>                buffer += char</code></span>
+<span class='src-line'><b> 109</b><code>                needs_render = True</code></span>
+<span class='src-line'><b> 110</b><code>    finally:</code></span>
+<span class='src-line'><b> 111</b><code>        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_attrs)</code></span>
+<span class='src-line'><b> 112</b><code>        print(_frame_exit_sequence(), flush=True)</code></span>
+<span class='src-line'><b> 113</b><code>    return next_job_id</code></span>
 <span class='src-line'><b> 114</b><code></code></span>
-<span class='src-line'><b> 115</b><code>def clamp_selection(selected: int, actions: list[tuple[str, str, str]]) -&gt; int:</code></span>
-<span class='src-line'><b> 116</b><code>    if not actions:</code></span>
-<span class='src-line'><b> 117</b><code>        return 0</code></span>
-<span class='src-line'><b> 118</b><code>    return max(0, min(selected, len(actions) - 1))</code></span>
-<span class='src-line'><b> 119</b><code></code></span>
+<span class='src-line'><b> 115</b><code></code></span>
+<span class='src-line'><b> 116</b><code>def clamp_selection(selected: int, actions: list[tuple[str, str, str]]) -&gt; int:</code></span>
+<span class='src-line'><b> 117</b><code>    if not actions:</code></span>
+<span class='src-line'><b> 118</b><code>        return 0</code></span>
+<span class='src-line'><b> 119</b><code>    return max(0, min(selected, len(actions) - 1))</code></span>
 <span class='src-line'><b> 120</b><code></code></span>
-<span class='src-line'><b> 121</b><code>def _submit_first_run_line(</code></span>
-<span class='src-line'><b> 122</b><code>    buffer: str,</code></span>
-<span class='src-line'><b> 123</b><code>    *,</code></span>
-<span class='src-line'><b> 124</b><code>    selected: int,</code></span>
-<span class='src-line'><b> 125</b><code>    view: str,</code></span>
-<span class='src-line'><b> 126</b><code>    deps: FirstRunRuntimeDeps,</code></span>
-<span class='src-line'><b> 127</b><code>) -&gt; tuple[str, str | list[str] | None]:</code></span>
-<span class='src-line'><b> 128</b><code>    line = buffer.strip()</code></span>
-<span class='src-line'><b> 129</b><code>    if not line:</code></span>
-<span class='src-line'><b> 130</b><code>        return deps.handle_action(deps.actions(view)[selected][0])</code></span>
-<span class='src-line'><b> 131</b><code>    return deps.handle_line(line)</code></span>
-<span class='src-line'><b> 132</b><code></code></span>
+<span class='src-line'><b> 121</b><code></code></span>
+<span class='src-line'><b> 122</b><code>def _submit_first_run_line(</code></span>
+<span class='src-line'><b> 123</b><code>    buffer: str,</code></span>
+<span class='src-line'><b> 124</b><code>    *,</code></span>
+<span class='src-line'><b> 125</b><code>    selected: int,</code></span>
+<span class='src-line'><b> 126</b><code>    view: str,</code></span>
+<span class='src-line'><b> 127</b><code>    deps: FirstRunRuntimeDeps,</code></span>
+<span class='src-line'><b> 128</b><code>) -&gt; tuple[str, str | list[str] | None]:</code></span>
+<span class='src-line'><b> 129</b><code>    line = buffer.strip()</code></span>
+<span class='src-line'><b> 130</b><code>    if not line:</code></span>
+<span class='src-line'><b> 131</b><code>        return deps.handle_action(deps.actions(view)[selected][0])</code></span>
+<span class='src-line'><b> 132</b><code>    return deps.handle_line(line)</code></span>
 <span class='src-line'><b> 133</b><code></code></span>
-<span class='src-line'><b> 134</b><code>def _handle_first_run_escape(</code></span>
-<span class='src-line'><b> 135</b><code>    stdin_fd: int,</code></span>
-<span class='src-line'><b> 136</b><code>    *,</code></span>
-<span class='src-line'><b> 137</b><code>    view: str,</code></span>
-<span class='src-line'><b> 138</b><code>    selected: int,</code></span>
-<span class='src-line'><b> 139</b><code>    notices: list[str],</code></span>
-<span class='src-line'><b> 140</b><code>    deps: FirstRunRuntimeDeps,</code></span>
-<span class='src-line'><b> 141</b><code>) -&gt; tuple[str, int, str | None, str | None, bool]:</code></span>
-<span class='src-line'><b> 142</b><code>    key, payload = decode_terminal_escape(read_escape_sequence(&quot;\x1b&quot;, fd=stdin_fd))</code></span>
-<span class='src-line'><b> 143</b><code>    if key == &quot;up&quot;:</code></span>
-<span class='src-line'><b> 144</b><code>        actions = deps.actions(view)</code></span>
-<span class='src-line'><b> 145</b><code>        return view, (selected - 1) % len(actions), None, None, False</code></span>
-<span class='src-line'><b> 146</b><code>    if key == &quot;down&quot;:</code></span>
-<span class='src-line'><b> 147</b><code>        actions = deps.actions(view)</code></span>
-<span class='src-line'><b> 148</b><code>        return view, (selected + 1) % len(actions), None, None, False</code></span>
-<span class='src-line'><b> 149</b><code>    if key in {&quot;left&quot;, &quot;right&quot;}:</code></span>
-<span class='src-line'><b> 150</b><code>        return view, 0, None, None, False</code></span>
-<span class='src-line'><b> 151</b><code>    if key == &quot;click&quot; and isinstance(payload, tuple):</code></span>
-<span class='src-line'><b> 152</b><code>        clicked = deps.click_action(payload[0], payload[1], view)</code></span>
-<span class='src-line'><b> 153</b><code>        if clicked is not None:</code></span>
-<span class='src-line'><b> 154</b><code>            action, payload = deps.handle_action(deps.actions(view)[clicked][0])</code></span>
-<span class='src-line'><b> 155</b><code>            return _apply_first_run_action(action, payload, view=view, selected=clicked, notices=notices)</code></span>
-<span class='src-line'><b> 156</b><code>    drain_pending_input(stdin_fd)</code></span>
-<span class='src-line'><b> 157</b><code>    return view, selected, None, None, False</code></span>
-<span class='src-line'><b> 158</b><code></code></span>
+<span class='src-line'><b> 134</b><code></code></span>
+<span class='src-line'><b> 135</b><code>def _handle_first_run_escape(</code></span>
+<span class='src-line'><b> 136</b><code>    stdin_fd: int,</code></span>
+<span class='src-line'><b> 137</b><code>    *,</code></span>
+<span class='src-line'><b> 138</b><code>    view: str,</code></span>
+<span class='src-line'><b> 139</b><code>    selected: int,</code></span>
+<span class='src-line'><b> 140</b><code>    notices: list[str],</code></span>
+<span class='src-line'><b> 141</b><code>    deps: FirstRunRuntimeDeps,</code></span>
+<span class='src-line'><b> 142</b><code>) -&gt; tuple[str, int, str | None, str | None, bool]:</code></span>
+<span class='src-line'><b> 143</b><code>    key, payload = decode_terminal_escape(read_escape_sequence(&quot;\x1b&quot;, fd=stdin_fd))</code></span>
+<span class='src-line'><b> 144</b><code>    if key == &quot;up&quot;:</code></span>
+<span class='src-line'><b> 145</b><code>        actions = deps.actions(view)</code></span>
+<span class='src-line'><b> 146</b><code>        return view, (selected - 1) % len(actions), None, None, False</code></span>
+<span class='src-line'><b> 147</b><code>    if key == &quot;down&quot;:</code></span>
+<span class='src-line'><b> 148</b><code>        actions = deps.actions(view)</code></span>
+<span class='src-line'><b> 149</b><code>        return view, (selected + 1) % len(actions), None, None, False</code></span>
+<span class='src-line'><b> 150</b><code>    if key in {&quot;left&quot;, &quot;right&quot;}:</code></span>
+<span class='src-line'><b> 151</b><code>        return view, 0, None, None, False</code></span>
+<span class='src-line'><b> 152</b><code>    if key == &quot;click&quot; and isinstance(payload, tuple):</code></span>
+<span class='src-line'><b> 153</b><code>        clicked = deps.click_action(payload[0], payload[1], view)</code></span>
+<span class='src-line'><b> 154</b><code>        if clicked is not None:</code></span>
+<span class='src-line'><b> 155</b><code>            action, payload = deps.handle_action(deps.actions(view)[clicked][0])</code></span>
+<span class='src-line'><b> 156</b><code>            return _apply_first_run_action(action, payload, view=view, selected=clicked, notices=notices)</code></span>
+<span class='src-line'><b> 157</b><code>    drain_pending_input(stdin_fd)</code></span>
+<span class='src-line'><b> 158</b><code>    return view, selected, None, None, False</code></span>
 <span class='src-line'><b> 159</b><code></code></span>
-<span class='src-line'><b> 160</b><code>def _apply_first_run_action(</code></span>
-<span class='src-line'><b> 161</b><code>    action: str,</code></span>
-<span class='src-line'><b> 162</b><code>    payload: str | list[str] | None,</code></span>
-<span class='src-line'><b> 163</b><code>    *,</code></span>
-<span class='src-line'><b> 164</b><code>    view: str,</code></span>
-<span class='src-line'><b> 165</b><code>    selected: int,</code></span>
-<span class='src-line'><b> 166</b><code>    notices: list[str],</code></span>
-<span class='src-line'><b> 167</b><code>) -&gt; tuple[str, int, str | None, str | None, bool]:</code></span>
-<span class='src-line'><b> 168</b><code>    if action == &quot;view&quot;:</code></span>
-<span class='src-line'><b> 169</b><code>        notices.clear()</code></span>
-<span class='src-line'><b> 170</b><code>        return str(payload or &quot;start&quot;), 0, None, None, False</code></span>
-<span class='src-line'><b> 171</b><code>    if action == &quot;exit&quot;:</code></span>
-<span class='src-line'><b> 172</b><code>        return view, selected, None, None, True</code></span>
-<span class='src-line'><b> 173</b><code>    if action == &quot;clear&quot;:</code></span>
-<span class='src-line'><b> 174</b><code>        notices.clear()</code></span>
-<span class='src-line'><b> 175</b><code>        return view, selected, None, None, False</code></span>
-<span class='src-line'><b> 176</b><code>    if action == &quot;open&quot;:</code></span>
-<span class='src-line'><b> 177</b><code>        return view, selected, None, str(payload), False</code></span>
-<span class='src-line'><b> 178</b><code>    if action == &quot;edit&quot;:</code></span>
-<span class='src-line'><b> 179</b><code>        editing_field = str(payload)</code></span>
-<span class='src-line'><b> 180</b><code>        _append_notice(notices, f&quot;editing {editing_field}; enter saves, escape cancels&quot;, limit=10)</code></span>
-<span class='src-line'><b> 181</b><code>        return view, selected, editing_field, None, False</code></span>
-<span class='src-line'><b> 182</b><code>    if isinstance(payload, list):</code></span>
-<span class='src-line'><b> 183</b><code>        for item in payload:</code></span>
-<span class='src-line'><b> 184</b><code>            if str(item).strip():</code></span>
-<span class='src-line'><b> 185</b><code>                _append_notice(notices, str(item), limit=10)</code></span>
-<span class='src-line'><b> 186</b><code>    elif payload:</code></span>
-<span class='src-line'><b> 187</b><code>        _append_notice(notices, str(payload), limit=10)</code></span>
-<span class='src-line'><b> 188</b><code>    return view, selected, None, None, False</code></span>
-<span class='src-line'><b> 189</b><code></code></span>
+<span class='src-line'><b> 160</b><code></code></span>
+<span class='src-line'><b> 161</b><code>def _apply_first_run_action(</code></span>
+<span class='src-line'><b> 162</b><code>    action: str,</code></span>
+<span class='src-line'><b> 163</b><code>    payload: str | list[str] | None,</code></span>
+<span class='src-line'><b> 164</b><code>    *,</code></span>
+<span class='src-line'><b> 165</b><code>    view: str,</code></span>
+<span class='src-line'><b> 166</b><code>    selected: int,</code></span>
+<span class='src-line'><b> 167</b><code>    notices: list[str],</code></span>
+<span class='src-line'><b> 168</b><code>) -&gt; tuple[str, int, str | None, str | None, bool]:</code></span>
+<span class='src-line'><b> 169</b><code>    if action == &quot;view&quot;:</code></span>
+<span class='src-line'><b> 170</b><code>        notices.clear()</code></span>
+<span class='src-line'><b> 171</b><code>        return str(payload or &quot;start&quot;), 0, None, None, False</code></span>
+<span class='src-line'><b> 172</b><code>    if action == &quot;exit&quot;:</code></span>
+<span class='src-line'><b> 173</b><code>        return view, selected, None, None, True</code></span>
+<span class='src-line'><b> 174</b><code>    if action == &quot;clear&quot;:</code></span>
+<span class='src-line'><b> 175</b><code>        notices.clear()</code></span>
+<span class='src-line'><b> 176</b><code>        return view, selected, None, None, False</code></span>
+<span class='src-line'><b> 177</b><code>    if action == &quot;open&quot;:</code></span>
+<span class='src-line'><b> 178</b><code>        return view, selected, None, str(payload), False</code></span>
+<span class='src-line'><b> 179</b><code>    if action == &quot;edit&quot;:</code></span>
+<span class='src-line'><b> 180</b><code>        editing_field = str(payload)</code></span>
+<span class='src-line'><b> 181</b><code>        _append_notice(notices, f&quot;editing {editing_field}; enter saves, escape cancels&quot;, limit=10)</code></span>
+<span class='src-line'><b> 182</b><code>        return view, selected, editing_field, None, False</code></span>
+<span class='src-line'><b> 183</b><code>    if isinstance(payload, list):</code></span>
+<span class='src-line'><b> 184</b><code>        for item in payload:</code></span>
+<span class='src-line'><b> 185</b><code>            if str(item).strip():</code></span>
+<span class='src-line'><b> 186</b><code>                _append_notice(notices, str(item), limit=10)</code></span>
+<span class='src-line'><b> 187</b><code>    elif payload:</code></span>
+<span class='src-line'><b> 188</b><code>        _append_notice(notices, str(payload), limit=10)</code></span>
+<span class='src-line'><b> 189</b><code>    return view, selected, None, None, False</code></span>
 <span class='src-line'><b> 190</b><code></code></span>
-<span class='src-line'><b> 191</b><code>def _handle_edit_input(</code></span>
-<span class='src-line'><b> 192</b><code>    char: str,</code></span>
-<span class='src-line'><b> 193</b><code>    *,</code></span>
-<span class='src-line'><b> 194</b><code>    buffer: str,</code></span>
-<span class='src-line'><b> 195</b><code>    editing_field: str,</code></span>
-<span class='src-line'><b> 196</b><code>    notices: list[str],</code></span>
-<span class='src-line'><b> 197</b><code>    stdin_fd: int,</code></span>
-<span class='src-line'><b> 198</b><code>) -&gt; tuple[str, str | None, bool]:</code></span>
-<span class='src-line'><b> 199</b><code>    if char in {&quot;\r&quot;, &quot;\n&quot;}:</code></span>
-<span class='src-line'><b> 200</b><code>        _append_notice(notices, inline_setting_notice(editing_field, buffer), limit=10)</code></span>
-<span class='src-line'><b> 201</b><code>        return &quot;&quot;, None, False</code></span>
-<span class='src-line'><b> 202</b><code>    if char in {&quot;\x04&quot;}:</code></span>
-<span class='src-line'><b> 203</b><code>        return buffer, editing_field, True</code></span>
-<span class='src-line'><b> 204</b><code>    if char == &quot;\x03&quot;:</code></span>
-<span class='src-line'><b> 205</b><code>        _append_notice(notices, &quot;cancelled edit&quot;, limit=10)</code></span>
-<span class='src-line'><b> 206</b><code>        return &quot;&quot;, None, False</code></span>
-<span class='src-line'><b> 207</b><code>    if char in {&quot;\x7f&quot;, &quot;\b&quot;}:</code></span>
-<span class='src-line'><b> 208</b><code>        return buffer[:-1], editing_field, False</code></span>
-<span class='src-line'><b> 209</b><code>    if char == &quot;\x1b&quot;:</code></span>
-<span class='src-line'><b> 210</b><code>        key, _payload = decode_terminal_escape(read_escape_sequence(char, fd=stdin_fd))</code></span>
-<span class='src-line'><b> 211</b><code>        if key == &quot;unknown&quot;:</code></span>
-<span class='src-line'><b> 212</b><code>            _append_notice(notices, &quot;cancelled edit&quot;, limit=10)</code></span>
-<span class='src-line'><b> 213</b><code>            return &quot;&quot;, None, False</code></span>
-<span class='src-line'><b> 214</b><code>        return buffer, editing_field, False</code></span>
-<span class='src-line'><b> 215</b><code>    if char.isprintable():</code></span>
-<span class='src-line'><b> 216</b><code>        return buffer + char, editing_field, False</code></span>
-<span class='src-line'><b> 217</b><code>    return buffer, editing_field, False</code></span>
-<span class='src-line'><b> 218</b><code></code></span>
+<span class='src-line'><b> 191</b><code></code></span>
+<span class='src-line'><b> 192</b><code>def _handle_edit_input(</code></span>
+<span class='src-line'><b> 193</b><code>    char: str,</code></span>
+<span class='src-line'><b> 194</b><code>    *,</code></span>
+<span class='src-line'><b> 195</b><code>    buffer: str,</code></span>
+<span class='src-line'><b> 196</b><code>    editing_field: str,</code></span>
+<span class='src-line'><b> 197</b><code>    notices: list[str],</code></span>
+<span class='src-line'><b> 198</b><code>    stdin_fd: int,</code></span>
+<span class='src-line'><b> 199</b><code>) -&gt; tuple[str, str | None, bool]:</code></span>
+<span class='src-line'><b> 200</b><code>    if char in {&quot;\r&quot;, &quot;\n&quot;}:</code></span>
+<span class='src-line'><b> 201</b><code>        _append_notice(notices, inline_setting_notice(editing_field, buffer), limit=10)</code></span>
+<span class='src-line'><b> 202</b><code>        return &quot;&quot;, None, False</code></span>
+<span class='src-line'><b> 203</b><code>    if char in {&quot;\x04&quot;}:</code></span>
+<span class='src-line'><b> 204</b><code>        return buffer, editing_field, True</code></span>
+<span class='src-line'><b> 205</b><code>    if char == &quot;\x03&quot;:</code></span>
+<span class='src-line'><b> 206</b><code>        _append_notice(notices, &quot;cancelled edit&quot;, limit=10)</code></span>
+<span class='src-line'><b> 207</b><code>        return &quot;&quot;, None, False</code></span>
+<span class='src-line'><b> 208</b><code>    if char in {&quot;\x7f&quot;, &quot;\b&quot;}:</code></span>
+<span class='src-line'><b> 209</b><code>        return buffer[:-1], editing_field, False</code></span>
+<span class='src-line'><b> 210</b><code>    if char == &quot;\x1b&quot;:</code></span>
+<span class='src-line'><b> 211</b><code>        key, _payload = decode_terminal_escape(read_escape_sequence(char, fd=stdin_fd))</code></span>
+<span class='src-line'><b> 212</b><code>        if key == &quot;unknown&quot;:</code></span>
+<span class='src-line'><b> 213</b><code>            _append_notice(notices, &quot;cancelled edit&quot;, limit=10)</code></span>
+<span class='src-line'><b> 214</b><code>            return &quot;&quot;, None, False</code></span>
+<span class='src-line'><b> 215</b><code>        return buffer, editing_field, False</code></span>
+<span class='src-line'><b> 216</b><code>    if char.isprintable():</code></span>
+<span class='src-line'><b> 217</b><code>        return buffer + char, editing_field, False</code></span>
+<span class='src-line'><b> 218</b><code>    return buffer, editing_field, False</code></span>
 <span class='src-line'><b> 219</b><code></code></span>
-<span class='src-line'><b> 220</b><code>def _append_notice(notices: list[str], message: str, *, limit: int = 10) -&gt; None:</code></span>
-<span class='src-line'><b> 221</b><code>    notices.append(message)</code></span>
-<span class='src-line'><b> 222</b><code>    notices[:] = notices[-limit:]</code></span></pre>
+<span class='src-line'><b> 220</b><code></code></span>
+<span class='src-line'><b> 221</b><code>def _append_notice(notices: list[str], message: str, *, limit: int = 10) -&gt; None:</code></span>
+<span class='src-line'><b> 222</b><code>    notices.append(message)</code></span>
+<span class='src-line'><b> 223</b><code>    notices[:] = notices[-limit:]</code></span></pre>
 </details>
 <details class="source-file searchable" data-search="nipux_cli/first_run_tui.py &quot;&quot;&quot;First-run terminal UI rendering for Nipux.&quot;&quot;&quot;
 
@@ -29827,6 +29851,15 @@ def _themed_lines(lines: list[str], *, width: int) -&gt; list[str]:
     return [bg + _fit_ansi(line, width).replace(reset, reset + bg) + reset for line in lines]
 
 
+def _frame_enter_sequence() -&gt; str:
+    theme = &quot;\033[48;5;235m\033[38;5;252m&quot; if _fancy_ui() else &quot;&quot;
+    return f&quot;\033[?1049h{theme}\033[2J\033[H\033[?25l\033[?1000h\033[?1002h\033[?1006h&quot;
+
+
+def _frame_exit_sequence() -&gt; str:
+    return &quot;\033[?1006l\033[?1002l\033[?1000l\033[?25h\033[0m\033[?1049l&quot;
+
+
 def _page_indicator(active: str, pages: list[tuple[str, str]]) -&gt; str:
     parts: list[str] = []
     for key, label in pages:
@@ -29888,7 +29921,7 @@ def _event_badge(label: str) -&gt; str:
         &quot;ERROR&quot;: &quot;31&quot;,
     }.get(label, &quot;37&quot;)
     return _style(padded, color)">
-<summary>nipux_cli/tui_style.py <span>136 lines</span></summary>
+<summary>nipux_cli/tui_style.py <span>145 lines</span></summary>
 <pre class="source-code"><span class='src-line'><b>   1</b><code>&quot;&quot;&quot;Small terminal styling helpers shared by the CLI frame renderers.&quot;&quot;&quot;</code></span>
 <span class='src-line'><b>   2</b><code></code></span>
 <span class='src-line'><b>   3</b><code>from __future__ import annotations</code></span>
@@ -29964,67 +29997,76 @@ def _event_badge(label: str) -&gt; str:
 <span class='src-line'><b>  73</b><code>    return [bg + _fit_ansi(line, width).replace(reset, reset + bg) + reset for line in lines]</code></span>
 <span class='src-line'><b>  74</b><code></code></span>
 <span class='src-line'><b>  75</b><code></code></span>
-<span class='src-line'><b>  76</b><code>def _page_indicator(active: str, pages: list[tuple[str, str]]) -&gt; str:</code></span>
-<span class='src-line'><b>  77</b><code>    parts: list[str] = []</code></span>
-<span class='src-line'><b>  78</b><code>    for key, label in pages:</code></span>
-<span class='src-line'><b>  79</b><code>        if key == active:</code></span>
-<span class='src-line'><b>  80</b><code>            parts.append(f&quot;{_accent(&#x27;●&#x27;)} {_bold(label)}&quot;)</code></span>
-<span class='src-line'><b>  81</b><code>        else:</code></span>
-<span class='src-line'><b>  82</b><code>            parts.append(f&quot;{_muted(&#x27;○&#x27;)} {_muted(label)}&quot;)</code></span>
-<span class='src-line'><b>  83</b><code>    return &quot;  &quot;.join(parts)</code></span>
+<span class='src-line'><b>  76</b><code>def _frame_enter_sequence() -&gt; str:</code></span>
+<span class='src-line'><b>  77</b><code>    theme = &quot;\033[48;5;235m\033[38;5;252m&quot; if _fancy_ui() else &quot;&quot;</code></span>
+<span class='src-line'><b>  78</b><code>    return f&quot;\033[?1049h{theme}\033[2J\033[H\033[?25l\033[?1000h\033[?1002h\033[?1006h&quot;</code></span>
+<span class='src-line'><b>  79</b><code></code></span>
+<span class='src-line'><b>  80</b><code></code></span>
+<span class='src-line'><b>  81</b><code>def _frame_exit_sequence() -&gt; str:</code></span>
+<span class='src-line'><b>  82</b><code>    return &quot;\033[?1006l\033[?1002l\033[?1000l\033[?25h\033[0m\033[?1049l&quot;</code></span>
+<span class='src-line'><b>  83</b><code></code></span>
 <span class='src-line'><b>  84</b><code></code></span>
-<span class='src-line'><b>  85</b><code></code></span>
-<span class='src-line'><b>  86</b><code>def _status_badge(value: Any) -&gt; str:</code></span>
-<span class='src-line'><b>  87</b><code>    text = str(value)</code></span>
-<span class='src-line'><b>  88</b><code>    color = {</code></span>
-<span class='src-line'><b>  89</b><code>        &quot;active&quot;: &quot;32&quot;,</code></span>
-<span class='src-line'><b>  90</b><code>        &quot;advancing&quot;: &quot;32&quot;,</code></span>
-<span class='src-line'><b>  91</b><code>        &quot;running&quot;: &quot;32&quot;,</code></span>
-<span class='src-line'><b>  92</b><code>        &quot;queued&quot;: &quot;33&quot;,</code></span>
-<span class='src-line'><b>  93</b><code>        &quot;planning&quot;: &quot;35&quot;,</code></span>
-<span class='src-line'><b>  94</b><code>        &quot;waiting&quot;: &quot;35&quot;,</code></span>
-<span class='src-line'><b>  95</b><code>        &quot;open&quot;: &quot;33&quot;,</code></span>
-<span class='src-line'><b>  96</b><code>        &quot;idle&quot;: &quot;33&quot;,</code></span>
-<span class='src-line'><b>  97</b><code>        &quot;paused&quot;: &quot;33&quot;,</code></span>
-<span class='src-line'><b>  98</b><code>        &quot;cancelled&quot;: &quot;31&quot;,</code></span>
-<span class='src-line'><b>  99</b><code>        &quot;failed&quot;: &quot;31&quot;,</code></span>
-<span class='src-line'><b> 100</b><code>        &quot;completed&quot;: &quot;36&quot;,</code></span>
-<span class='src-line'><b> 101</b><code>    }.get(text, &quot;37&quot;)</code></span>
-<span class='src-line'><b> 102</b><code>    return _style(text, color)</code></span>
-<span class='src-line'><b> 103</b><code></code></span>
-<span class='src-line'><b> 104</b><code></code></span>
-<span class='src-line'><b> 105</b><code>def _event_badge(label: str) -&gt; str:</code></span>
-<span class='src-line'><b> 106</b><code>    padded = f&quot;{label:&lt;8}&quot;</code></span>
-<span class='src-line'><b> 107</b><code>    color = {</code></span>
-<span class='src-line'><b> 108</b><code>        &quot;AGENT&quot;: &quot;36&quot;,</code></span>
-<span class='src-line'><b> 109</b><code>        &quot;USER&quot;: &quot;35&quot;,</code></span>
-<span class='src-line'><b> 110</b><code>        &quot;FOLLOW&quot;: &quot;35&quot;,</code></span>
-<span class='src-line'><b> 111</b><code>        &quot;YOU&quot;: &quot;35&quot;,</code></span>
-<span class='src-line'><b> 112</b><code>        &quot;NIPUX&quot;: &quot;36&quot;,</code></span>
-<span class='src-line'><b> 113</b><code>        &quot;RUN&quot;: &quot;34&quot;,</code></span>
-<span class='src-line'><b> 114</b><code>        &quot;TOOL&quot;: &quot;34&quot;,</code></span>
-<span class='src-line'><b> 115</b><code>        &quot;DONE&quot;: &quot;32&quot;,</code></span>
-<span class='src-line'><b> 116</b><code>        &quot;FILE&quot;: &quot;32&quot;,</code></span>
-<span class='src-line'><b> 117</b><code>        &quot;SAVE&quot;: &quot;32&quot;,</code></span>
-<span class='src-line'><b> 118</b><code>        &quot;OUTPUT&quot;: &quot;32&quot;,</code></span>
-<span class='src-line'><b> 119</b><code>        &quot;FIND&quot;: &quot;32&quot;,</code></span>
-<span class='src-line'><b> 120</b><code>        &quot;SOURCE&quot;: &quot;36&quot;,</code></span>
-<span class='src-line'><b> 121</b><code>        &quot;TASK&quot;: &quot;33&quot;,</code></span>
-<span class='src-line'><b> 122</b><code>        &quot;ROAD&quot;: &quot;35&quot;,</code></span>
-<span class='src-line'><b> 123</b><code>        &quot;VALID&quot;: &quot;35&quot;,</code></span>
-<span class='src-line'><b> 124</b><code>        &quot;TEST&quot;: &quot;33&quot;,</code></span>
-<span class='src-line'><b> 125</b><code>        &quot;UPDATE&quot;: &quot;36&quot;,</code></span>
-<span class='src-line'><b> 126</b><code>        &quot;ACK&quot;: &quot;36&quot;,</code></span>
-<span class='src-line'><b> 127</b><code>        &quot;FAIL&quot;: &quot;31&quot;,</code></span>
-<span class='src-line'><b> 128</b><code>        &quot;LEARN&quot;: &quot;36&quot;,</code></span>
-<span class='src-line'><b> 129</b><code>        &quot;PLAN&quot;: &quot;36&quot;,</code></span>
-<span class='src-line'><b> 130</b><code>        &quot;DIGEST&quot;: &quot;36&quot;,</code></span>
-<span class='src-line'><b> 131</b><code>        &quot;MEMORY&quot;: &quot;36&quot;,</code></span>
-<span class='src-line'><b> 132</b><code>        &quot;SYSTEM&quot;: &quot;2&quot;,</code></span>
-<span class='src-line'><b> 133</b><code>        &quot;BLOCK&quot;: &quot;33&quot;,</code></span>
-<span class='src-line'><b> 134</b><code>        &quot;ERROR&quot;: &quot;31&quot;,</code></span>
-<span class='src-line'><b> 135</b><code>    }.get(label, &quot;37&quot;)</code></span>
-<span class='src-line'><b> 136</b><code>    return _style(padded, color)</code></span></pre>
+<span class='src-line'><b>  85</b><code>def _page_indicator(active: str, pages: list[tuple[str, str]]) -&gt; str:</code></span>
+<span class='src-line'><b>  86</b><code>    parts: list[str] = []</code></span>
+<span class='src-line'><b>  87</b><code>    for key, label in pages:</code></span>
+<span class='src-line'><b>  88</b><code>        if key == active:</code></span>
+<span class='src-line'><b>  89</b><code>            parts.append(f&quot;{_accent(&#x27;●&#x27;)} {_bold(label)}&quot;)</code></span>
+<span class='src-line'><b>  90</b><code>        else:</code></span>
+<span class='src-line'><b>  91</b><code>            parts.append(f&quot;{_muted(&#x27;○&#x27;)} {_muted(label)}&quot;)</code></span>
+<span class='src-line'><b>  92</b><code>    return &quot;  &quot;.join(parts)</code></span>
+<span class='src-line'><b>  93</b><code></code></span>
+<span class='src-line'><b>  94</b><code></code></span>
+<span class='src-line'><b>  95</b><code>def _status_badge(value: Any) -&gt; str:</code></span>
+<span class='src-line'><b>  96</b><code>    text = str(value)</code></span>
+<span class='src-line'><b>  97</b><code>    color = {</code></span>
+<span class='src-line'><b>  98</b><code>        &quot;active&quot;: &quot;32&quot;,</code></span>
+<span class='src-line'><b>  99</b><code>        &quot;advancing&quot;: &quot;32&quot;,</code></span>
+<span class='src-line'><b> 100</b><code>        &quot;running&quot;: &quot;32&quot;,</code></span>
+<span class='src-line'><b> 101</b><code>        &quot;queued&quot;: &quot;33&quot;,</code></span>
+<span class='src-line'><b> 102</b><code>        &quot;planning&quot;: &quot;35&quot;,</code></span>
+<span class='src-line'><b> 103</b><code>        &quot;waiting&quot;: &quot;35&quot;,</code></span>
+<span class='src-line'><b> 104</b><code>        &quot;open&quot;: &quot;33&quot;,</code></span>
+<span class='src-line'><b> 105</b><code>        &quot;idle&quot;: &quot;33&quot;,</code></span>
+<span class='src-line'><b> 106</b><code>        &quot;paused&quot;: &quot;33&quot;,</code></span>
+<span class='src-line'><b> 107</b><code>        &quot;cancelled&quot;: &quot;31&quot;,</code></span>
+<span class='src-line'><b> 108</b><code>        &quot;failed&quot;: &quot;31&quot;,</code></span>
+<span class='src-line'><b> 109</b><code>        &quot;completed&quot;: &quot;36&quot;,</code></span>
+<span class='src-line'><b> 110</b><code>    }.get(text, &quot;37&quot;)</code></span>
+<span class='src-line'><b> 111</b><code>    return _style(text, color)</code></span>
+<span class='src-line'><b> 112</b><code></code></span>
+<span class='src-line'><b> 113</b><code></code></span>
+<span class='src-line'><b> 114</b><code>def _event_badge(label: str) -&gt; str:</code></span>
+<span class='src-line'><b> 115</b><code>    padded = f&quot;{label:&lt;8}&quot;</code></span>
+<span class='src-line'><b> 116</b><code>    color = {</code></span>
+<span class='src-line'><b> 117</b><code>        &quot;AGENT&quot;: &quot;36&quot;,</code></span>
+<span class='src-line'><b> 118</b><code>        &quot;USER&quot;: &quot;35&quot;,</code></span>
+<span class='src-line'><b> 119</b><code>        &quot;FOLLOW&quot;: &quot;35&quot;,</code></span>
+<span class='src-line'><b> 120</b><code>        &quot;YOU&quot;: &quot;35&quot;,</code></span>
+<span class='src-line'><b> 121</b><code>        &quot;NIPUX&quot;: &quot;36&quot;,</code></span>
+<span class='src-line'><b> 122</b><code>        &quot;RUN&quot;: &quot;34&quot;,</code></span>
+<span class='src-line'><b> 123</b><code>        &quot;TOOL&quot;: &quot;34&quot;,</code></span>
+<span class='src-line'><b> 124</b><code>        &quot;DONE&quot;: &quot;32&quot;,</code></span>
+<span class='src-line'><b> 125</b><code>        &quot;FILE&quot;: &quot;32&quot;,</code></span>
+<span class='src-line'><b> 126</b><code>        &quot;SAVE&quot;: &quot;32&quot;,</code></span>
+<span class='src-line'><b> 127</b><code>        &quot;OUTPUT&quot;: &quot;32&quot;,</code></span>
+<span class='src-line'><b> 128</b><code>        &quot;FIND&quot;: &quot;32&quot;,</code></span>
+<span class='src-line'><b> 129</b><code>        &quot;SOURCE&quot;: &quot;36&quot;,</code></span>
+<span class='src-line'><b> 130</b><code>        &quot;TASK&quot;: &quot;33&quot;,</code></span>
+<span class='src-line'><b> 131</b><code>        &quot;ROAD&quot;: &quot;35&quot;,</code></span>
+<span class='src-line'><b> 132</b><code>        &quot;VALID&quot;: &quot;35&quot;,</code></span>
+<span class='src-line'><b> 133</b><code>        &quot;TEST&quot;: &quot;33&quot;,</code></span>
+<span class='src-line'><b> 134</b><code>        &quot;UPDATE&quot;: &quot;36&quot;,</code></span>
+<span class='src-line'><b> 135</b><code>        &quot;ACK&quot;: &quot;36&quot;,</code></span>
+<span class='src-line'><b> 136</b><code>        &quot;FAIL&quot;: &quot;31&quot;,</code></span>
+<span class='src-line'><b> 137</b><code>        &quot;LEARN&quot;: &quot;36&quot;,</code></span>
+<span class='src-line'><b> 138</b><code>        &quot;PLAN&quot;: &quot;36&quot;,</code></span>
+<span class='src-line'><b> 139</b><code>        &quot;DIGEST&quot;: &quot;36&quot;,</code></span>
+<span class='src-line'><b> 140</b><code>        &quot;MEMORY&quot;: &quot;36&quot;,</code></span>
+<span class='src-line'><b> 141</b><code>        &quot;SYSTEM&quot;: &quot;2&quot;,</code></span>
+<span class='src-line'><b> 142</b><code>        &quot;BLOCK&quot;: &quot;33&quot;,</code></span>
+<span class='src-line'><b> 143</b><code>        &quot;ERROR&quot;: &quot;31&quot;,</code></span>
+<span class='src-line'><b> 144</b><code>    }.get(label, &quot;37&quot;)</code></span>
+<span class='src-line'><b> 145</b><code>    return _style(padded, color)</code></span></pre>
 </details>
 <details class="source-file searchable" data-search="nipux_cli/updates.py &quot;&quot;&quot;Readable durable progress reports for jobs.&quot;&quot;&quot;
 
@@ -34124,6 +34166,174 @@ def observation_for_prompt(tool_name: str | None, output: dict[str, Any]) -&gt; 
 <span class='src-line'><b> 165</b><code>        return True</code></span>
 <span class='src-line'><b> 166</b><code>    service_terms = (&quot;custom ecommerce&quot;, &quot;ux/ui&quot;, &quot;payment integration&quot;, &quot;mobile responsiveness&quot;, &quot;headless commerce&quot;)</code></span>
 <span class='src-line'><b> 167</b><code>    return any(term in text for term in service_terms) and len(text.split()) &gt;= 5</code></span></pre>
+</details>
+<details class="source-file searchable" data-search="nipux_cli/worker_tool_summary.py &quot;&quot;&quot;Compact result summaries for worker tool executions.&quot;&quot;&quot;
+
+from __future__ import annotations
+
+from typing import Any
+
+from nipux_cli.metric_format import format_metric_value
+
+
+def summarize_tool_result(name: str, args: dict[str, Any], result: dict[str, Any], *, ok: bool) -&gt; str:
+    if not ok:
+        return f&quot;{name} failed: {result.get(&#x27;error&#x27;) or &#x27;unknown error&#x27;}&quot;
+    if name == &quot;web_search&quot;:
+        results = result.get(&quot;results&quot;) if isinstance(result.get(&quot;results&quot;), list) else []
+        top = &quot;; &quot;.join((item.get(&quot;title&quot;) or &quot;untitled&quot;) for item in results[:3])
+        return f&quot;web_search query={args.get(&#x27;query&#x27;)!r} returned {len(results)} results: {top}&quot;
+    if name == &quot;web_extract&quot;:
+        pages = result.get(&quot;pages&quot;) if isinstance(result.get(&quot;pages&quot;), list) else []
+        ok_pages = [page for page in pages if not page.get(&quot;error&quot;)]
+        return f&quot;web_extract fetched {len(ok_pages)}/{len(pages)} pages&quot;
+    if name == &quot;shell_exec&quot;:
+        command = str(result.get(&quot;command&quot;) or args.get(&quot;command&quot;) or &quot;&quot;)
+        return (
+            f&quot;shell_exec rc={result.get(&#x27;returncode&#x27;)} &quot;
+            f&quot;duration={result.get(&#x27;duration_seconds&#x27;)}s cmd={command!r}&quot;
+        )
+    if name == &quot;write_artifact&quot;:
+        return f&quot;write_artifact saved {result.get(&#x27;artifact_id&#x27;)} at {result.get(&#x27;path&#x27;)}&quot;
+    if name == &quot;write_file&quot;:
+        return f&quot;write_file {result.get(&#x27;mode&#x27;) or &#x27;overwrite&#x27;} {result.get(&#x27;path&#x27;)} bytes={result.get(&#x27;bytes&#x27;)}&quot;
+    if name == &quot;defer_job&quot;:
+        return f&quot;defer_job until {result.get(&#x27;defer_until&#x27;)}&quot;
+    if name == &quot;report_update&quot;:
+        update = result.get(&quot;update&quot;) if isinstance(result.get(&quot;update&quot;), dict) else {}
+        return f&quot;report_update saved: {str(update.get(&#x27;message&#x27;) or &#x27;&#x27;)[:160]}&quot;
+    if name == &quot;record_lesson&quot;:
+        lesson = result.get(&quot;lesson&quot;) if isinstance(result.get(&quot;lesson&quot;), dict) else {}
+        category = lesson.get(&quot;category&quot;) or &quot;memory&quot;
+        text = str(lesson.get(&quot;lesson&quot;) or &quot;&quot;)[:160]
+        return f&quot;record_lesson saved {category}: {text}&quot;
+    if name == &quot;record_source&quot;:
+        source = result.get(&quot;source&quot;) if isinstance(result.get(&quot;source&quot;), dict) else {}
+        return f&quot;record_source updated {source.get(&#x27;source&#x27;)} score={source.get(&#x27;usefulness_score&#x27;)} yield={source.get(&#x27;yield_count&#x27;)}&quot;
+    if name == &quot;record_findings&quot;:
+        return (
+            f&quot;record_findings updated ledger: {result.get(&#x27;added&#x27;, 0)} new, &quot;
+            f&quot;{result.get(&#x27;updated&#x27;, 0)} updated, {result.get(&#x27;sources_updated&#x27;, 0)} sources&quot;
+        )
+    if name == &quot;record_tasks&quot;:
+        return f&quot;record_tasks updated queue: {result.get(&#x27;added&#x27;, 0)} new, {result.get(&#x27;updated&#x27;, 0)} updated&quot;
+    if name == &quot;record_roadmap&quot;:
+        roadmap = result.get(&quot;roadmap&quot;) if isinstance(result.get(&quot;roadmap&quot;), dict) else {}
+        return (
+            f&quot;record_roadmap {roadmap.get(&#x27;status&#x27;)}: {roadmap.get(&#x27;title&#x27;)} &quot;
+            f&quot;milestones={len(roadmap.get(&#x27;milestones&#x27;) or [])}&quot;
+        )
+    if name == &quot;record_milestone_validation&quot;:
+        validation = result.get(&quot;validation&quot;) if isinstance(result.get(&quot;validation&quot;), dict) else {}
+        return (
+            f&quot;record_milestone_validation {validation.get(&#x27;validation_status&#x27;)}: &quot;
+            f&quot;{validation.get(&#x27;title&#x27;)} followups={len(result.get(&#x27;follow_up_tasks&#x27;) or [])}&quot;
+        )
+    if name == &quot;record_experiment&quot;:
+        experiment = result.get(&quot;experiment&quot;) if isinstance(result.get(&quot;experiment&quot;), dict) else {}
+        metric = &quot;&quot;
+        if experiment.get(&quot;metric_value&quot;) is not None:
+            metric = &quot; &quot; + format_metric_value(
+                experiment.get(&quot;metric_name&quot;) or &quot;metric&quot;,
+                experiment.get(&quot;metric_value&quot;),
+                experiment.get(&quot;metric_unit&quot;) or &quot;&quot;,
+            )
+        best = &quot; best&quot; if experiment.get(&quot;best_observed&quot;) else &quot;&quot;
+        return f&quot;record_experiment {experiment.get(&#x27;status&#x27;)}: {experiment.get(&#x27;title&#x27;)}{metric}{best}&quot;
+    if name == &quot;acknowledge_operator_context&quot;:
+        return f&quot;acknowledge_operator_context">
+<summary>nipux_cli/worker_tool_summary.py <span>91 lines</span></summary>
+<pre class="source-code"><span class='src-line'><b>   1</b><code>&quot;&quot;&quot;Compact result summaries for worker tool executions.&quot;&quot;&quot;</code></span>
+<span class='src-line'><b>   2</b><code></code></span>
+<span class='src-line'><b>   3</b><code>from __future__ import annotations</code></span>
+<span class='src-line'><b>   4</b><code></code></span>
+<span class='src-line'><b>   5</b><code>from typing import Any</code></span>
+<span class='src-line'><b>   6</b><code></code></span>
+<span class='src-line'><b>   7</b><code>from nipux_cli.metric_format import format_metric_value</code></span>
+<span class='src-line'><b>   8</b><code></code></span>
+<span class='src-line'><b>   9</b><code></code></span>
+<span class='src-line'><b>  10</b><code>def summarize_tool_result(name: str, args: dict[str, Any], result: dict[str, Any], *, ok: bool) -&gt; str:</code></span>
+<span class='src-line'><b>  11</b><code>    if not ok:</code></span>
+<span class='src-line'><b>  12</b><code>        return f&quot;{name} failed: {result.get(&#x27;error&#x27;) or &#x27;unknown error&#x27;}&quot;</code></span>
+<span class='src-line'><b>  13</b><code>    if name == &quot;web_search&quot;:</code></span>
+<span class='src-line'><b>  14</b><code>        results = result.get(&quot;results&quot;) if isinstance(result.get(&quot;results&quot;), list) else []</code></span>
+<span class='src-line'><b>  15</b><code>        top = &quot;; &quot;.join((item.get(&quot;title&quot;) or &quot;untitled&quot;) for item in results[:3])</code></span>
+<span class='src-line'><b>  16</b><code>        return f&quot;web_search query={args.get(&#x27;query&#x27;)!r} returned {len(results)} results: {top}&quot;</code></span>
+<span class='src-line'><b>  17</b><code>    if name == &quot;web_extract&quot;:</code></span>
+<span class='src-line'><b>  18</b><code>        pages = result.get(&quot;pages&quot;) if isinstance(result.get(&quot;pages&quot;), list) else []</code></span>
+<span class='src-line'><b>  19</b><code>        ok_pages = [page for page in pages if not page.get(&quot;error&quot;)]</code></span>
+<span class='src-line'><b>  20</b><code>        return f&quot;web_extract fetched {len(ok_pages)}/{len(pages)} pages&quot;</code></span>
+<span class='src-line'><b>  21</b><code>    if name == &quot;shell_exec&quot;:</code></span>
+<span class='src-line'><b>  22</b><code>        command = str(result.get(&quot;command&quot;) or args.get(&quot;command&quot;) or &quot;&quot;)</code></span>
+<span class='src-line'><b>  23</b><code>        return (</code></span>
+<span class='src-line'><b>  24</b><code>            f&quot;shell_exec rc={result.get(&#x27;returncode&#x27;)} &quot;</code></span>
+<span class='src-line'><b>  25</b><code>            f&quot;duration={result.get(&#x27;duration_seconds&#x27;)}s cmd={command!r}&quot;</code></span>
+<span class='src-line'><b>  26</b><code>        )</code></span>
+<span class='src-line'><b>  27</b><code>    if name == &quot;write_artifact&quot;:</code></span>
+<span class='src-line'><b>  28</b><code>        return f&quot;write_artifact saved {result.get(&#x27;artifact_id&#x27;)} at {result.get(&#x27;path&#x27;)}&quot;</code></span>
+<span class='src-line'><b>  29</b><code>    if name == &quot;write_file&quot;:</code></span>
+<span class='src-line'><b>  30</b><code>        return f&quot;write_file {result.get(&#x27;mode&#x27;) or &#x27;overwrite&#x27;} {result.get(&#x27;path&#x27;)} bytes={result.get(&#x27;bytes&#x27;)}&quot;</code></span>
+<span class='src-line'><b>  31</b><code>    if name == &quot;defer_job&quot;:</code></span>
+<span class='src-line'><b>  32</b><code>        return f&quot;defer_job until {result.get(&#x27;defer_until&#x27;)}&quot;</code></span>
+<span class='src-line'><b>  33</b><code>    if name == &quot;report_update&quot;:</code></span>
+<span class='src-line'><b>  34</b><code>        update = result.get(&quot;update&quot;) if isinstance(result.get(&quot;update&quot;), dict) else {}</code></span>
+<span class='src-line'><b>  35</b><code>        return f&quot;report_update saved: {str(update.get(&#x27;message&#x27;) or &#x27;&#x27;)[:160]}&quot;</code></span>
+<span class='src-line'><b>  36</b><code>    if name == &quot;record_lesson&quot;:</code></span>
+<span class='src-line'><b>  37</b><code>        lesson = result.get(&quot;lesson&quot;) if isinstance(result.get(&quot;lesson&quot;), dict) else {}</code></span>
+<span class='src-line'><b>  38</b><code>        category = lesson.get(&quot;category&quot;) or &quot;memory&quot;</code></span>
+<span class='src-line'><b>  39</b><code>        text = str(lesson.get(&quot;lesson&quot;) or &quot;&quot;)[:160]</code></span>
+<span class='src-line'><b>  40</b><code>        return f&quot;record_lesson saved {category}: {text}&quot;</code></span>
+<span class='src-line'><b>  41</b><code>    if name == &quot;record_source&quot;:</code></span>
+<span class='src-line'><b>  42</b><code>        source = result.get(&quot;source&quot;) if isinstance(result.get(&quot;source&quot;), dict) else {}</code></span>
+<span class='src-line'><b>  43</b><code>        return f&quot;record_source updated {source.get(&#x27;source&#x27;)} score={source.get(&#x27;usefulness_score&#x27;)} yield={source.get(&#x27;yield_count&#x27;)}&quot;</code></span>
+<span class='src-line'><b>  44</b><code>    if name == &quot;record_findings&quot;:</code></span>
+<span class='src-line'><b>  45</b><code>        return (</code></span>
+<span class='src-line'><b>  46</b><code>            f&quot;record_findings updated ledger: {result.get(&#x27;added&#x27;, 0)} new, &quot;</code></span>
+<span class='src-line'><b>  47</b><code>            f&quot;{result.get(&#x27;updated&#x27;, 0)} updated, {result.get(&#x27;sources_updated&#x27;, 0)} sources&quot;</code></span>
+<span class='src-line'><b>  48</b><code>        )</code></span>
+<span class='src-line'><b>  49</b><code>    if name == &quot;record_tasks&quot;:</code></span>
+<span class='src-line'><b>  50</b><code>        return f&quot;record_tasks updated queue: {result.get(&#x27;added&#x27;, 0)} new, {result.get(&#x27;updated&#x27;, 0)} updated&quot;</code></span>
+<span class='src-line'><b>  51</b><code>    if name == &quot;record_roadmap&quot;:</code></span>
+<span class='src-line'><b>  52</b><code>        roadmap = result.get(&quot;roadmap&quot;) if isinstance(result.get(&quot;roadmap&quot;), dict) else {}</code></span>
+<span class='src-line'><b>  53</b><code>        return (</code></span>
+<span class='src-line'><b>  54</b><code>            f&quot;record_roadmap {roadmap.get(&#x27;status&#x27;)}: {roadmap.get(&#x27;title&#x27;)} &quot;</code></span>
+<span class='src-line'><b>  55</b><code>            f&quot;milestones={len(roadmap.get(&#x27;milestones&#x27;) or [])}&quot;</code></span>
+<span class='src-line'><b>  56</b><code>        )</code></span>
+<span class='src-line'><b>  57</b><code>    if name == &quot;record_milestone_validation&quot;:</code></span>
+<span class='src-line'><b>  58</b><code>        validation = result.get(&quot;validation&quot;) if isinstance(result.get(&quot;validation&quot;), dict) else {}</code></span>
+<span class='src-line'><b>  59</b><code>        return (</code></span>
+<span class='src-line'><b>  60</b><code>            f&quot;record_milestone_validation {validation.get(&#x27;validation_status&#x27;)}: &quot;</code></span>
+<span class='src-line'><b>  61</b><code>            f&quot;{validation.get(&#x27;title&#x27;)} followups={len(result.get(&#x27;follow_up_tasks&#x27;) or [])}&quot;</code></span>
+<span class='src-line'><b>  62</b><code>        )</code></span>
+<span class='src-line'><b>  63</b><code>    if name == &quot;record_experiment&quot;:</code></span>
+<span class='src-line'><b>  64</b><code>        experiment = result.get(&quot;experiment&quot;) if isinstance(result.get(&quot;experiment&quot;), dict) else {}</code></span>
+<span class='src-line'><b>  65</b><code>        metric = &quot;&quot;</code></span>
+<span class='src-line'><b>  66</b><code>        if experiment.get(&quot;metric_value&quot;) is not None:</code></span>
+<span class='src-line'><b>  67</b><code>            metric = &quot; &quot; + format_metric_value(</code></span>
+<span class='src-line'><b>  68</b><code>                experiment.get(&quot;metric_name&quot;) or &quot;metric&quot;,</code></span>
+<span class='src-line'><b>  69</b><code>                experiment.get(&quot;metric_value&quot;),</code></span>
+<span class='src-line'><b>  70</b><code>                experiment.get(&quot;metric_unit&quot;) or &quot;&quot;,</code></span>
+<span class='src-line'><b>  71</b><code>            )</code></span>
+<span class='src-line'><b>  72</b><code>        best = &quot; best&quot; if experiment.get(&quot;best_observed&quot;) else &quot;&quot;</code></span>
+<span class='src-line'><b>  73</b><code>        return f&quot;record_experiment {experiment.get(&#x27;status&#x27;)}: {experiment.get(&#x27;title&#x27;)}{metric}{best}&quot;</code></span>
+<span class='src-line'><b>  74</b><code>    if name == &quot;acknowledge_operator_context&quot;:</code></span>
+<span class='src-line'><b>  75</b><code>        return f&quot;acknowledge_operator_context {result.get(&#x27;status&#x27;)} count={result.get(&#x27;count&#x27;, 0)}&quot;</code></span>
+<span class='src-line'><b>  76</b><code>    if name == &quot;browser_navigate&quot;:</code></span>
+<span class='src-line'><b>  77</b><code>        data = result.get(&quot;data&quot;) if isinstance(result.get(&quot;data&quot;), dict) else {}</code></span>
+<span class='src-line'><b>  78</b><code>        title = data.get(&quot;title&quot;) or &quot;&quot;</code></span>
+<span class='src-line'><b>  79</b><code>        url = data.get(&quot;url&quot;) or &quot;&quot;</code></span>
+<span class='src-line'><b>  80</b><code>        warning = f&quot; | warning={result.get(&#x27;source_warning&#x27;)}&quot; if result.get(&quot;source_warning&quot;) else &quot;&quot;</code></span>
+<span class='src-line'><b>  81</b><code>        return f&quot;browser_navigate opened {title} &lt;{url}&gt;{warning}&quot;</code></span>
+<span class='src-line'><b>  82</b><code>    if name == &quot;browser_snapshot&quot;:</code></span>
+<span class='src-line'><b>  83</b><code>        snapshot = str(result.get(&quot;snapshot&quot;) or result.get(&quot;data&quot;) or &quot;&quot;)</code></span>
+<span class='src-line'><b>  84</b><code>        warning = f&quot; | warning={result.get(&#x27;source_warning&#x27;)}&quot; if result.get(&quot;source_warning&quot;) else &quot;&quot;</code></span>
+<span class='src-line'><b>  85</b><code>        return f&quot;browser_snapshot returned {len(snapshot)} chars{warning}&quot;</code></span>
+<span class='src-line'><b>  86</b><code>    if name == &quot;read_artifact&quot;:</code></span>
+<span class='src-line'><b>  87</b><code>        return f&quot;read_artifact read {result.get(&#x27;artifact_id&#x27;)}&quot;</code></span>
+<span class='src-line'><b>  88</b><code>    if name == &quot;search_artifacts&quot;:</code></span>
+<span class='src-line'><b>  89</b><code>        results = result.get(&quot;results&quot;) if isinstance(result.get(&quot;results&quot;), list) else []</code></span>
+<span class='src-line'><b>  90</b><code>        return f&quot;search_artifacts returned {len(results)} results for {args.get(&#x27;query&#x27;)!r}&quot;</code></span>
+<span class='src-line'><b>  91</b><code>    return f&quot;{name} completed&quot;</code></span></pre>
 </details>
 <details class="source-file searchable" data-search="nipux_cli/worker_usage.py &quot;&quot;&quot;Usage accounting for worker model turns.&quot;&quot;&quot;
 
@@ -44754,7 +44964,7 @@ class AntiBotBrowserRegistry:
       <div class="grid"><article class='card warning searchable' data-search='Large modules tests/nipux_cli/test_worker.py (2786 lines), nipux_cli/cli.py (2517 lines), tests/nipux_cli/test_cli.py (2476 lines), nipux_cli/db.py (2407 lines), nipux_cli/worker.py (2221 lines)'><h3>Large modules</h3><p>tests/nipux_cli/test_worker.py (2786 lines), nipux_cli/cli.py (2517 lines), tests/nipux_cli/test_cli.py (2476 lines), nipux_cli/db.py (2407 lines), nipux_cli/worker.py (2221 lines)</p></article>
 <article class='card warning searchable' data-search='Prompt surfaces 12 prompt/instruction-like strings were extracted. Inspect this section after any agent-behavior change.'><h3>Prompt surfaces</h3><p>12 prompt/instruction-like strings were extracted. Inspect this section after any agent-behavior change.</p></article>
 <article class='card warning searchable' data-search='Tool surface 27 tools are exposed to the worker. Review descriptions whenever generic behavior changes.'><h3>Tool surface</h3><p>27 tools are exposed to the worker. Review descriptions whenever generic behavior changes.</p></article>
-<article class='card warning searchable' data-search='Symbol map 1197 symbols were parsed. Large modules are candidates for refactoring once behavior stabilizes.'><h3>Symbol map</h3><p>1197 symbols were parsed. Large modules are candidates for refactoring once behavior stabilizes.</p></article></div>
+<article class='card warning searchable' data-search='Symbol map 1200 symbols were parsed. Large modules are candidates for refactoring once behavior stabilizes.'><h3>Symbol map</h3><p>1200 symbols were parsed. Large modules are candidates for refactoring once behavior stabilizes.</p></article></div>
     </section>
   </main>
 </div>

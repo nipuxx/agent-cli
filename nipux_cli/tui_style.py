@@ -73,6 +73,15 @@ def _themed_lines(lines: list[str], *, width: int) -> list[str]:
     return [bg + _fit_ansi(line, width).replace(reset, reset + bg) + reset for line in lines]
 
 
+def _frame_enter_sequence() -> str:
+    theme = "\033[48;5;235m\033[38;5;252m" if _fancy_ui() else ""
+    return f"\033[?1049h{theme}\033[2J\033[H\033[?25l\033[?1000h\033[?1002h\033[?1006h"
+
+
+def _frame_exit_sequence() -> str:
+    return "\033[?1006l\033[?1002l\033[?1000l\033[?25h\033[0m\033[?1049l"
+
+
 def _page_indicator(active: str, pages: list[tuple[str, str]]) -> str:
     parts: list[str] = []
     for key, label in pages:

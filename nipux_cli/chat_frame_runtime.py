@@ -20,7 +20,7 @@ from nipux_cli.tui_input import (
     read_terminal_char,
 )
 from nipux_cli.tui_outcomes import CHAT_RIGHT_PAGES
-from nipux_cli.tui_style import _one_line
+from nipux_cli.tui_style import _frame_enter_sequence, _frame_exit_sequence, _one_line
 
 
 @dataclass(frozen=True)
@@ -77,7 +77,7 @@ def run_chat_frame(job_id: str, *, history_limit: int, deps: ChatFrameDeps) -> N
     snapshot = deps.load_snapshot(job_id, history_limit)
     job_id = str(snapshot["job_id"])
     old_attrs = termios.tcgetattr(sys.stdin)
-    print("\033[?1049h\033[H\033[?25l\033[?1000h\033[?1002h\033[?1006h", end="", flush=True)
+    print(_frame_enter_sequence(), end="", flush=True)
     try:
         stdin_fd = sys.stdin.fileno()
         tty.setcbreak(stdin_fd)
@@ -169,7 +169,7 @@ def run_chat_frame(job_id: str, *, history_limit: int, deps: ChatFrameDeps) -> N
                 needs_render = True
     finally:
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_attrs)
-        print("\033[?1006l\033[?1002l\033[?1000l\033[?25h\033[0m\033[?1049l", flush=True)
+        print(_frame_exit_sequence(), flush=True)
 
 
 def emit_frame_if_changed(frame: str, previous_frame: str = "") -> str:
