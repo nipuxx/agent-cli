@@ -31,6 +31,12 @@ from nipux_cli.chat_intent import (
     natural_command_for,
 )
 from nipux_cli.chat_context import build_chat_messages as _build_chat_messages
+from nipux_cli.chat_frame_runtime import (
+    compact_command_output as _compact_command_output,
+    emit_frame_if_changed as _emit_frame_if_changed,
+    frame_next_job_id as _frame_next_job_id,
+    next_chat_right_view as _next_chat_right_view,
+)
 from nipux_cli.chat_tui import build_chat_frame as _build_chat_tui_frame
 from nipux_cli.config import (
     DEFAULT_BASE_URL,
@@ -76,7 +82,6 @@ from nipux_cli.settings import (
     save_config_field,
 )
 from nipux_cli.tui_events import (
-    CHAT_RIGHT_PAGES,
     clean_step_summary as _clean_step_summary,
     friendly_error_text as _friendly_error_text,
     generic_display_text as _generic_display_text,
@@ -1177,39 +1182,6 @@ def _capture_chat_command(job_id: str, line: str) -> tuple[bool, str]:
     return keep_running, stream.getvalue()
 
 
-def _compact_command_output(output: str) -> list[str]:
-    lines = [" ".join(line.split()) for line in output.splitlines() if line.strip()]
-    compacted: list[str] = []
-    for line in lines:
-        if line.startswith("\033[2J"):
-            continue
-        compacted.append(_one_line(line, 120))
-    return compacted[-8:]
-
-
-def _frame_next_job_id(snapshot: dict[str, Any], current_job_id: str, *, direction: int) -> str | None:
-    jobs = snapshot.get("jobs")
-    if not isinstance(jobs, list) or not jobs:
-        return None
-    ids = [str(job.get("id")) for job in jobs if job.get("id")]
-    if not ids:
-        return None
-    try:
-        index = ids.index(str(current_job_id))
-    except ValueError:
-        index = 0
-    return ids[(index + direction) % len(ids)]
-
-
-def _next_chat_right_view(current: str, direction: int) -> str:
-    keys = [key for key, _label in CHAT_RIGHT_PAGES]
-    try:
-        index = keys.index(current)
-    except ValueError:
-        index = 0
-    return keys[(index + direction) % len(keys)]
-
-
 def _is_plain_chat_line(line: str) -> bool:
     stripped = line.strip()
     if not stripped or stripped.startswith("/"):
@@ -1260,12 +1232,6 @@ def _render_chat_frame(
         editing_field=editing_field,
     )
     return _emit_frame_if_changed(frame, previous_frame)
-
-
-def _emit_frame_if_changed(frame: str, previous_frame: str = "") -> str:
-    if frame != previous_frame:
-        print("\033[H" + frame, end="", flush=True)
-    return frame
 
 
 def _build_chat_frame(
