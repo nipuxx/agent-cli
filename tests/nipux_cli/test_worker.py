@@ -230,6 +230,13 @@ def test_run_one_step_blocks_content_only_worker_turn(tmp_path):
         assert step["kind"] == "assistant"
         assert step["status"] == "blocked"
         assert step["error"] == "worker tool call required"
+        prompt = build_messages(
+            db.get_job(job_id),
+            db.list_steps(job_id=job_id),
+            timeline_events=db.list_timeline_events(job_id, limit=30),
+        )[-1]["content"]
+        assert "What should I do next?" not in prompt
+        assert "worker tool call required" in prompt
         job = db.get_job(job_id)
         assert job["metadata"]["last_agent_update"]["category"] == "blocked"
     finally:
