@@ -2025,6 +2025,22 @@ def _auto_open_revision_task_for_deliverable(
         metadata = task.get("metadata") if isinstance(task.get("metadata"), dict) else {}
         if metadata.get("revision_source_artifact_id") == artifact_id:
             return None
+        if metadata.get("source") == "auto_revision_loop":
+            db.append_task_record(
+                job_id,
+                title=str(task.get("title") or ""),
+                status="skipped",
+                priority=_as_int(task.get("priority")),
+                goal=str(task.get("goal") or ""),
+                source_hint=str(task.get("source_hint") or ""),
+                result=f"Superseded by newer saved output {artifact_id}.",
+                parent=str(task.get("parent") or ""),
+                output_contract=str(task.get("output_contract") or ""),
+                acceptance_criteria=str(task.get("acceptance_criteria") or ""),
+                evidence_needed=str(task.get("evidence_needed") or ""),
+                stall_behavior=str(task.get("stall_behavior") or ""),
+                metadata={**metadata, "superseded_by_artifact_id": artifact_id},
+            )
     task = db.append_task_record(
         job_id,
         title=f"Review and revise saved output {artifact_id}",

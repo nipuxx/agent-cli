@@ -396,6 +396,56 @@ def test_evidence_artifact_does_not_complete_deliverable_task(tmp_path):
         db.close()
 
 
+def test_new_deliverable_supersedes_old_auto_revision_task(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job(
+            "Keep improving a durable report",
+            title="report",
+            kind="generic",
+            metadata={
+                "task_queue": [
+                    {
+                        "title": "Review and revise saved output art_old",
+                        "status": "open",
+                        "priority": 4,
+                        "output_contract": "report",
+                        "metadata": {
+                            "source": "auto_revision_loop",
+                            "revision_source_artifact_id": "art_old",
+                        },
+                    }
+                ]
+            },
+        )
+        llm = ScriptedLLM([
+            LLMResponse(tool_calls=[
+                ToolCall(
+                    name="write_artifact",
+                    arguments={
+                        "title": "Report Draft Revision",
+                        "summary": "Updated durable report draft",
+                        "content": "This revised report draft supersedes the previous saved output.",
+                    },
+                )
+            ])
+        ])
+
+        result = run_one_step(job_id, config=config, db=db, llm=llm)
+
+        assert result.status == "completed"
+        tasks = db.get_job(job_id)["metadata"]["task_queue"]
+        old = next(task for task in tasks if task["metadata"].get("revision_source_artifact_id") == "art_old")
+        new = next(task for task in tasks if task["metadata"].get("revision_source_artifact_id") != "art_old")
+        assert old["status"] == "skipped"
+        assert old["metadata"]["superseded_by_artifact_id"]
+        assert new["status"] == "open"
+        assert new["metadata"]["source"] == "auto_revision_loop"
+    finally:
+        db.close()
+
+
 def test_audit_report_draft_counts_as_deliverable_output(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")
