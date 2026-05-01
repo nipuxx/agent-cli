@@ -334,6 +334,14 @@ def test_write_artifact_reconciles_matching_report_task(tmp_path):
         assert task["status"] == "done"
         assert task["metadata"]["auto_reconciled_from_artifact"]
         assert "Saved output" in task["result"]
+        revision_tasks = [
+            item
+            for item in job["metadata"]["task_queue"]
+            if item["status"] == "open" and item.get("metadata", {}).get("source") == "auto_revision_loop"
+        ]
+        assert len(revision_tasks) == 1
+        assert revision_tasks[0]["output_contract"] == "report"
+        assert revision_tasks[0]["metadata"]["revision_source_artifact_id"]
     finally:
         db.close()
 
@@ -379,6 +387,11 @@ def test_evidence_artifact_does_not_complete_deliverable_task(tmp_path):
         task = job["metadata"]["task_queue"][0]
         assert task["status"] == "open"
         assert "auto_reconciled_from_artifact" not in task.get("metadata", {})
+        assert not [
+            item
+            for item in job["metadata"]["task_queue"]
+            if item.get("metadata", {}).get("source") == "auto_revision_loop"
+        ]
     finally:
         db.close()
 

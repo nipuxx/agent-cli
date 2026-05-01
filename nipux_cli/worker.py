@@ -1999,6 +1999,58 @@ def _auto_reconcile_artifact_tasks(
     return reconciled
 
 
+def _auto_open_revision_task_for_deliverable(
+    *,
+    db: AgentDB,
+    job_id: str,
+    args: dict[str, Any],
+    result: dict[str, Any],
+) -> dict[str, Any] | None:
+    artifact_id = str(result.get("artifact_id") or "")
+    if not artifact_id:
+        return None
+    artifact_title = str(args.get("title") or "")
+    artifact_summary = str(args.get("summary") or "")
+    if not _artifact_can_reconcile_task(
+        contract="report",
+        task_text="review revise draft report deliverable",
+        artifact_title=artifact_title,
+        artifact_summary=artifact_summary,
+    ):
+        return None
+    job = db.get_job(job_id)
+    for task in _metadata_list(job, "task_queue"):
+        if str(task.get("status") or "open").strip().lower() not in {"open", "active"}:
+            continue
+        metadata = task.get("metadata") if isinstance(task.get("metadata"), dict) else {}
+        if metadata.get("revision_source_artifact_id") == artifact_id:
+            return None
+    task = db.append_task_record(
+        job_id,
+        title=f"Review and revise saved output {artifact_id}",
+        status="open",
+        priority=4,
+        goal="Use the latest saved deliverable as a baseline, check it against evidence and acceptance criteria, then improve it.",
+        source_hint=artifact_id,
+        output_contract="report",
+        acceptance_criteria="The saved output is reviewed and either revised, validated, or given concrete follow-up gaps.",
+        evidence_needed="Saved output, relevant evidence artifacts or files, and explicit gap/revision notes.",
+        stall_behavior="If no useful revision is possible, record why and open the next evidence, validation, or monitoring branch.",
+        metadata={
+            "source": "auto_revision_loop",
+            "revision_source_artifact_id": artifact_id,
+            "source_title": artifact_title,
+        },
+    )
+    db.append_agent_update(
+        job_id,
+        f"Opened revision branch for saved output {artifact_id}: {_clip_text(artifact_title or artifact_summary, 160)}.",
+        category="plan",
+        metadata={"artifact_id": artifact_id, "task_key": task.get("key"), "source": "auto_revision_loop"},
+    )
+    return task
+
+
 def _artifact_can_reconcile_task(
     *,
     contract: str,
@@ -2183,6 +2235,18 @@ def _execute_tool_call(
                         {"title": task.get("title"), "status": task.get("status")}
                         for task in reconciled_tasks[:8]
                     ]
+                revision_task = _auto_open_revision_task_for_deliverable(
+                    db=db,
+                    job_id=job_id,
+                    args=call.arguments,
+                    result=result,
+                )
+                if revision_task:
+                    result["auto_revision_task"] = {
+                        "title": revision_task.get("title"),
+                        "status": revision_task.get("status"),
+                        "key": revision_task.get("key"),
+                    }
         return (
             StepExecution(job_id=job_id, run_id=run_id, step_id=step_id, tool_name=call.name, status=status, result=result),
             status != "completed",
