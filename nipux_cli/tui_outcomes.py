@@ -220,7 +220,8 @@ def recent_model_update_lines(
     if limit <= 0:
         return []
     lines: list[str] = []
-    seen: set[tuple[str, str]] = set()
+    items: list[dict[str, Any]] = []
+    index_by_key: dict[tuple[str, str], int] = {}
     for event in reversed(events):
         parsed = model_update_event_parts(event, width=max(width, 180))
         if not parsed:
@@ -231,11 +232,22 @@ def recent_model_update_lines(
         if label not in PRIMARY_OUTCOME_LABELS and not (include_research and label == "DONE"):
             continue
         key = (label, text)
-        if key in seen:
+        if key in index_by_key:
+            items[index_by_key[key]]["count"] = int(items[index_by_key[key]].get("count") or 1) + 1
             continue
-        seen.add(key)
+        index_by_key[key] = len(items)
+        items.append({"label": label, "text": text, "clock": clock, "count": 1})
+        if len(items) >= max(limit * 2, limit + 8):
+            break
+    for item in items:
+        label = str(item["label"])
+        text = str(item["text"])
+        clock = str(item["clock"])
+        count = int(item.get("count") or 1)
         prefix = f"{_muted(clock)} {_event_badge(label)} " if clock else f"{_event_badge(label)} "
         available = max(12, width - len(_strip_ansi(prefix)))
+        if count > 1:
+            text = f"{text} x{count}"
         wrapped = textwrap.wrap(text, width=available) or [""]
         lines.append(_fit_ansi(prefix + wrapped[0], width))
         if len(lines) >= limit:

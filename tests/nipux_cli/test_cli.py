@@ -1279,6 +1279,24 @@ def test_status_recent_outcomes_hide_plan_update_noise():
     assert "summarized current counts" not in rendered
 
 
+def test_status_recent_outcomes_compact_repeated_updates():
+    events = [
+        {
+            "event_type": "agent_message",
+            "title": "error",
+            "body": "Model provider requires operator action.",
+            "metadata": {},
+            "created_at": f"2026-05-01T12:0{index}:00+00:00",
+        }
+        for index in range(3)
+    ]
+
+    rendered = "\n".join(recent_model_update_lines(events, width=96, limit=4))
+
+    assert rendered.count("Model provider requires operator action") == 1
+    assert "x3" in rendered
+
+
 def test_hourly_outcomes_hide_plan_update_noise():
     events = [
         {
