@@ -33,6 +33,8 @@ from nipux_cli.worker_policy import (
     BRANCH_WORK_TOOLS,
     CHURN_TOOLS,
     DELIVERABLE_ARTIFACT_TERMS,
+    DELIVERABLE_PROGRESS_BLOCKED_TOOLS,
+    DELIVERABLE_RESEARCH_BUDGET_STEPS,
     EVIDENCE_ARTIFACT_TERMS,
     EXPERIMENT_DELIVERY_ACTION_TERMS,
     EXPERIMENT_INFORMATION_ACTION_TERMS,
@@ -126,6 +128,7 @@ def build_messages(
     )
     measurement_obligation = _measurement_obligation_for_prompt(job)
     measured_progress_guard = _measured_progress_guard_for_prompt(job, recent_steps)
+    deliverable_progress_guard = _deliverable_progress_guard_for_prompt(job, recent_steps)
     progress_accounting_guard = _progress_accounting_for_prompt(recent_steps)
     activity_stagnation = _activity_stagnation_for_prompt(job)
     context_pressure = context_pressure_for_prompt(job)
@@ -151,6 +154,7 @@ def build_messages(
             ("Operator context", operator_messages),
             ("Pending measurement obligation", measurement_obligation),
             ("Measured progress guard", measured_progress_guard),
+            ("Deliverable progress guard", deliverable_progress_guard),
             ("Progress accounting guard", progress_accounting_guard),
             ("Activity stagnation", activity_stagnation),
             ("Context pressure", context_pressure),
@@ -208,6 +212,21 @@ def _measured_progress_guard_for_prompt(job: dict[str, Any], recent_steps: list[
         f"shell_budget={context.get('shell_action_budget')} reason={context.get('reason')}. "
         "Next useful actions: run a small measuring action, call record_experiment for a known result, "
         "or use record_tasks to create an experiment/action/monitor task with acceptance criteria and evidence."
+    )
+
+
+def _deliverable_progress_guard_for_prompt(job: dict[str, Any], recent_steps: list[dict[str, Any]]) -> str:
+    context = _deliverable_progress_guard_context(job, recent_steps)
+    if not context:
+        return "None."
+    return (
+        "This objective or active task expects a durable deliverable, but recent branch work has not produced a "
+        "draft/report/file checkpoint. "
+        f"completed_since_last_deliverable={context.get('completed_since_last_deliverable')} "
+        f"research_budget={context.get('research_budget')} reason={context.get('reason')}. "
+        "Next useful actions: write_file or write_artifact for a partial deliverable, record_tasks for a smaller "
+        "deliverable branch, record_roadmap/record_milestone_validation for validation, or record_lesson if the "
+        "deliverable is blocked."
     )
 
 
@@ -301,6 +320,14 @@ def _next_action_constraint(job: dict[str, Any], recent_steps: list[dict[str, An
             "Recent checkpoints show activity without durable progress. "
             "Use a ledger or planning tool to classify what changed, reject the low-yield branch, or open a better branch "
             "before more read-only work or output churn."
+        )
+    deliverable_guard = _deliverable_progress_guard_context(job, recent_steps)
+    if deliverable_guard:
+        return (
+            "This job needs a durable deliverable checkpoint, not more background collection. "
+            "Use write_file or write_artifact to save a partial draft/report/file, or use record_tasks, "
+            "record_roadmap, record_milestone_validation, or record_lesson to explain the specific blocker "
+            "and the next deliverable branch."
         )
     experiment_next_action = _latest_experiment_next_action_context(job)
     if experiment_next_action:
@@ -818,6 +845,89 @@ def _task_text_requires_measurement(task: dict[str, Any]) -> bool:
     )
 
 
+def _job_requires_deliverable_progress(job: dict[str, Any]) -> bool:
+    tasks = _metadata_list(job, "task_queue")
+    for task in tasks:
+        status = str(task.get("status") or "open").strip().lower()
+        if status in {"done", "skipped"}:
+            continue
+        if str(task.get("output_contract") or "").strip().lower() == "report":
+            return True
+    text = " ".join(str(job.get(key) or "") for key in ("title", "objective", "kind")).lower()
+    tokens = set(re.findall(r"[a-z][a-z0-9_-]+", text))
+    objective_terms = DELIVERABLE_ARTIFACT_TERMS - {"compiled", "final", "revision", "section", "updated"}
+    return bool(tokens & objective_terms)
+
+
+def _step_is_deliverable_checkpoint(step: dict[str, Any]) -> bool:
+    tool = step.get("tool_name")
+    if tool == "write_file":
+        return True
+    if tool != "write_artifact":
+        return False
+    input_data = step.get("input") if isinstance(step.get("input"), dict) else {}
+    args = input_data.get("arguments") if isinstance(input_data.get("arguments"), dict) else {}
+    text = " ".join(
+        str(value or "")
+        for value in (
+            args.get("title"),
+            args.get("summary"),
+            args.get("artifact_type"),
+            step.get("summary"),
+        )
+    ).lower()
+    tokens = set(re.findall(r"[a-z][a-z0-9_-]+", text))
+    if tokens & EVIDENCE_ARTIFACT_TERMS:
+        return False
+    return bool(tokens & DELIVERABLE_ARTIFACT_TERMS)
+
+
+def _deliverable_progress_guard_context(
+    job: dict[str, Any],
+    recent_steps: list[dict[str, Any]],
+    *,
+    budget: int = DELIVERABLE_RESEARCH_BUDGET_STEPS,
+) -> dict[str, Any] | None:
+    if not _job_requires_deliverable_progress(job):
+        return None
+    completed = [step for step in recent_steps if step.get("status") == "completed"]
+    if not completed:
+        return None
+    last_checkpoint_index = -1
+    for index, step in enumerate(completed):
+        if _step_is_deliverable_checkpoint(step):
+            last_checkpoint_index = index
+    tail = completed[last_checkpoint_index + 1 :]
+    branch_activity = [
+        step
+        for step in tail
+        if step.get("tool_name") in BRANCH_WORK_TOOLS
+        or (
+            step.get("tool_name") == "shell_exec"
+            and _shell_command_looks_read_only(_step_command(step))
+        )
+    ]
+    if len(branch_activity) < budget:
+        return None
+    deliverable_accounting_tools = {"record_tasks", "record_roadmap", "record_milestone_validation", "record_lesson"}
+    if any(step.get("tool_name") in deliverable_accounting_tools for step in tail[-6:]):
+        return None
+    return {
+        "reason": "no deliverable checkpoint yet" if last_checkpoint_index < 0 else "no recent deliverable checkpoint",
+        "research_budget": budget,
+        "completed_since_last_deliverable": len(tail),
+        "branch_activity": len(branch_activity),
+        "since_step": branch_activity[0].get("step_no") if branch_activity else None,
+        "tools": [step.get("tool_name") or step.get("kind") for step in branch_activity[-10:]],
+    }
+
+
+def _step_command(step: dict[str, Any]) -> str:
+    input_data = step.get("input") if isinstance(step.get("input"), dict) else {}
+    args = input_data.get("arguments") if isinstance(input_data.get("arguments"), dict) else {}
+    return str(args.get("command") or "")
+
+
 def _measured_progress_guard_context(
     job: dict[str, Any],
     recent_steps: list[dict[str, Any]],
@@ -1082,6 +1192,7 @@ def _blocked_tool_call_result(
         return result, f"blocked {name}; record_experiment required after measured output"
 
     measured_progress_guard = _measured_progress_guard_context(job, recent_steps)
+    deliverable_progress_guard = _deliverable_progress_guard_context(job, recent_steps)
     progress_churn = _progress_churn_context(recent_steps)
     artifact_accounting = _artifact_accounting_context(recent_steps)
     activity_stagnation = _activity_stagnation_context(job)
@@ -1135,6 +1246,22 @@ def _blocked_tool_call_result(
             ),
         }
         return result, f"blocked {name}; durable progress required after activity-only checkpoints"
+
+    shell_read_only = name == "shell_exec" and _shell_command_looks_read_only(str(args.get("command") or ""))
+    if deliverable_progress_guard and (name in DELIVERABLE_PROGRESS_BLOCKED_TOOLS or shell_read_only):
+        result = {
+            "success": False,
+            "error": "deliverable checkpoint required",
+            "blocked_tool": name,
+            "blocked_arguments": args,
+            "deliverable_progress_guard": deliverable_progress_guard,
+            "guidance": (
+                "This job is deliverable-framed and has done enough background work without a draft/report/file "
+                "checkpoint. Save a partial deliverable with write_file or write_artifact, or record_tasks, "
+                "record_roadmap, record_milestone_validation, or record_lesson if the deliverable is blocked."
+            ),
+        }
+        return result, f"blocked {name}; deliverable checkpoint required"
 
     roadmap_staleness = _roadmap_staleness_context(job, recent_steps)
     if roadmap_staleness and name in ROADMAP_STALENESS_BLOCKED_TOOLS:

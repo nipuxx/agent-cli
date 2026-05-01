@@ -2087,6 +2087,98 @@ def test_prompt_tells_model_to_open_new_branch_when_tasks_are_exhausted():
     assert "use record_tasks to open the next concrete branch" in content
 
 
+def test_prompt_pushes_deliverable_checkpoint_after_long_research():
+    job = {
+        "title": "paper",
+        "kind": "generic",
+        "objective": "write a complete research paper from evidence",
+        "metadata": {
+            "task_queue": [
+                {
+                    "title": "Save the first durable draft",
+                    "status": "open",
+                    "priority": 8,
+                    "output_contract": "report",
+                }
+            ],
+        },
+    }
+    steps = [
+        {
+            "step_no": index + 1,
+            "status": "completed",
+            "kind": "tool",
+            "tool_name": "shell_exec",
+            "input": {"arguments": {"command": f"cat source_{index}.txt"}},
+        }
+        for index in range(18)
+    ]
+
+    content = build_messages(job, steps)[-1]["content"]
+
+    assert "Deliverable progress guard:" in content
+    assert "durable deliverable checkpoint" in content
+    assert "write_file or write_artifact" in content
+
+
+def test_run_one_step_blocks_more_research_when_deliverable_needs_checkpoint(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job(
+            "Write a complete report from collected evidence",
+            title="deliverable",
+            metadata={
+                "task_queue": [
+                    {
+                        "title": "Save the first durable report checkpoint",
+                        "status": "open",
+                        "priority": 8,
+                        "output_contract": "report",
+                    }
+                ]
+            },
+        )
+        run_id = db.start_run(job_id, model="fake")
+        for index in range(15):
+            step_id = db.add_step(
+                job_id=job_id,
+                run_id=run_id,
+                kind="tool",
+                tool_name="shell_exec",
+                input_data={"arguments": {"command": f"cat source_{index}.txt"}},
+            )
+            db.finish_step(step_id, status="completed", output_data={"success": True, "stdout": "note"})
+        ledger_step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="record_findings")
+        db.finish_step(ledger_step_id, status="completed", output_data={"success": True})
+        for index in range(15, 18):
+            step_id = db.add_step(
+                job_id=job_id,
+                run_id=run_id,
+                kind="tool",
+                tool_name="shell_exec",
+                input_data={"arguments": {"command": f"cat source_{index}.txt"}},
+            )
+            db.finish_step(step_id, status="completed", output_data={"success": True, "stdout": "note"})
+        db.finish_run(run_id, "completed")
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[ToolCall(name="web_search", arguments={"query": "more background sources"})])
+            ]),
+        )
+
+        assert result.status == "blocked"
+        assert result.result["error"] == "deliverable checkpoint required"
+        assert result.result["blocked_tool"] == "web_search"
+        assert result.result["recoverable"] is True
+    finally:
+        db.close()
+
+
 def test_prompt_includes_roadmap_and_validation_constraints():
     job = {
         "title": "broad work",

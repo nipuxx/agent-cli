@@ -162,6 +162,7 @@ ROADMAP_STALENESS_BLOCKED_TOOLS = INFORMATION_GATHERING_TOOLS | {
 }
 CHURN_TOOLS = INFORMATION_GATHERING_TOOLS | ARTIFACT_REVIEW_TOOLS | {"shell_exec"}
 ACTIVITY_STAGNATION_BLOCKED_TOOLS = CHURN_TOOLS | {"write_artifact", "write_file", "report_update"}
+DELIVERABLE_PROGRESS_BLOCKED_TOOLS = INFORMATION_GATHERING_TOOLS | ARTIFACT_REVIEW_TOOLS | {"report_update"}
 MEASURABLE_RESEARCH_BLOCKED_TOOLS = INFORMATION_GATHERING_TOOLS | {
     "write_artifact",
     "record_findings",
@@ -177,6 +178,7 @@ MEASURABLE_PROGRESS_PATTERN = re.compile(
 )
 RECOVERABLE_GUARD_ERRORS = {
     "artifact search loop blocked",
+    "deliverable checkpoint required",
     "durable progress required",
     "duplicate tool call blocked",
     "experiment next action pending",
@@ -192,6 +194,7 @@ RECOVERABLE_GUARD_ERRORS = {
 }
 MEASURABLE_RESEARCH_BUDGET_STEPS = 18
 MEASURABLE_ACTION_BUDGET_STEPS = 4
+DELIVERABLE_RESEARCH_BUDGET_STEPS = 18
 ACTIVITY_STAGNATION_CHECKPOINTS = 3
 TASK_QUEUE_SATURATION_OPEN_TASKS = 40
 PROGRAM_PROMPT_CHARS = 2000
@@ -222,6 +225,7 @@ PROMPT_SECTION_BUDGETS = {
     "Operator context": 2_200,
     "Pending measurement obligation": 1_100,
     "Measured progress guard": 1_000,
+    "Deliverable progress guard": 1_000,
     "Progress accounting guard": 900,
     "Activity stagnation": 900,
     "Program": 1_400,
@@ -276,12 +280,28 @@ EVIDENCE_ARTIFACT_TERMS = {
     "sources",
 }
 DELIVERABLE_ARTIFACT_TERMS = {
+    "article",
+    "checklist",
     "compiled",
+    "deck",
     "deliverable",
+    "doc",
+    "document",
     "draft",
     "final",
+    "guide",
+    "manual",
+    "memo",
+    "outline",
+    "paper",
+    "presentation",
+    "report",
     "revision",
+    "section",
+    "spec",
+    "template",
     "updated",
+    "writeup",
 }
 TASK_DELIVERABLE_ACTION_TERMS = {
     "add",
