@@ -2352,23 +2352,17 @@ def _right_pane_lines(
     if pending_measurement:
         info_lines.append(f"{_muted('Measure')} pending step #{pending_measurement.get('source_step_no') or '?'}")
     info_lines.append("")
-    info_lines.append(_bold("Jobs / output"))
-    for item in jobs[:4]:
-        for job_line in _frame_jobs_lines([item], focused_job_id=job_id, daemon_running=daemon_running, width=width)[:1]:
-            info_lines.append(job_line)
-        outputs = job_artifacts.get(str(item.get("id"))) or []
-        if outputs:
-            for artifact in outputs[:2]:
-                title = _one_line(str(artifact.get("title") or artifact.get("id") or "output"), max(12, width - 10))
-                info_lines.append(_fit_ansi(f"   {_event_badge('SAVE')} {title}", width))
-        else:
-            info_lines.append(_fit_ansi(f"   {_muted('no saved output yet')}", width))
+    info_lines.append(_bold("Jobs"))
+    info_lines.extend(_frame_jobs_lines(jobs[:5], focused_job_id=job_id, daemon_running=daemon_running, width=width))
     current_outputs = job_artifacts.get(job_id) or []
+    info_lines.append("")
+    info_lines.append(_bold("Saved outputs"))
     if current_outputs:
-        info_lines.append("")
-        info_lines.append(_bold("Open latest"))
-        for index, artifact in enumerate(current_outputs[:3], start=1):
-            info_lines.append(_fit_ansi(f"{index}. {_one_line(artifact.get('title') or artifact.get('id'), width - 4)}", width))
+        for index, artifact in enumerate(current_outputs[:4], start=1):
+            title = _one_line(str(artifact.get("title") or artifact.get("id") or "output"), max(10, width - 8))
+            info_lines.append(_fit_ansi(f"{index}. {_event_badge('SAVE')} {title}", width))
+    else:
+        info_lines.append(_muted("No saved outputs yet."))
     return info_lines[:rows]
 
 
@@ -2607,15 +2601,11 @@ def _chat_workspace_lines(
     title = _one_line(str(job.get("title") or "untitled"), max(10, width))
     return [
         f"{_muted('Page')}   {_page_indicator(right_view, CHAT_RIGHT_PAGES)}",
-        "",
         _bold(title),
         f"{_status_badge(state)} {_muted('worker')} {_status_badge(worker)}  {_muted(_one_line(daemon_text, max(8, width - 28)))}",
-        "",
         f"{_muted('Goal')}   {goal_lines[0]}",
         f"{_muted('       ')}{goal_lines[1]}",
         f"{_muted('Latest')} {_one_line(latest_text, width - 8)}",
-        "",
-        _bold("Counts"),
         *_metrics_grid_lines(metrics, width=width),
         "",
     ]
