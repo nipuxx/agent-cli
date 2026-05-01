@@ -82,7 +82,7 @@ pre { max-height: 540px; overflow: auto; background: #050606; border: 1px solid 
 <div class="shell">
   <aside class="sidebar">
     <div class="logo">NIPUX ATLAS</div>
-    <div class="subtitle">Generated from tracked source on e953ccbc.</div>
+    <div class="subtitle">Generated from tracked source on 8306ca19.</div>
     <input id="search" class="search" placeholder="filter files, prompts, tools..." autocomplete="off">
     <nav class="nav">
       <a href="#architecture">Architecture</a>
@@ -97,9 +97,9 @@ pre { max-height: 540px; overflow: auto; background: #050606; border: 1px solid 
       <a href="#risks">Review Points</a>
     </nav>
     <div class="stats">
-      <div class="stat"><b>46</b><span>tracked files</span></div>
-      <div class="stat"><b>23,561</b><span>tracked lines mapped</span></div>
-      <div class="stat"><b>985</b><span>python symbols</span></div>
+      <div class="stat"><b>48</b><span>tracked files</span></div>
+      <div class="stat"><b>23,718</b><span>tracked lines mapped</span></div>
+      <div class="stat"><b>991</b><span>python symbols</span></div>
       <div class="stat"><b>26</b><span>runtime tools</span></div>
     </div>
   </aside>
@@ -458,7 +458,7 @@ have incorporated or intentionally superseded a steer/follow_up message.
     </section>
 
     <section id="files" class="section">
-      <header><div><div class="kicker">Source index</div><h2>Important Files</h2></div><span class="muted">39 Python modules plus docs/config files.</span></header>
+      <header><div><div class="kicker">Source index</div><h2>Important Files</h2></div><span class="muted">41 Python modules plus docs/config files.</span></header>
       <div class="grid"><article class="file-card searchable" data-search="AGENTS.md This repo is now a barebones long-running worker, not a broad assistant distribution. none">
 <header><h3>AGENTS.md</h3><span>32 lines</span></header>
 <p>This repo is now a barebones long-running worker, not a broad assistant distribution.</p>
@@ -466,7 +466,7 @@ have incorporated or intentionally superseded a steer/follow_up message.
 <details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> none</p><p><strong>Symbols:</strong> none</p></details>
 </article>
 <article class="file-card searchable" data-search="README.md ```text none">
-<header><h3>README.md</h3><span>302 lines</span></header>
+<header><h3>README.md</h3><span>304 lines</span></header>
 <p>```text</p>
 <div class="meta"><span>0 symbols</span><span>0 TODOs</span></div>
 <details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> none</p><p><strong>Symbols:</strong> none</p></details>
@@ -569,6 +569,12 @@ daemon, state store, model adapter, artifact store, and fixed tool surface. none
 <p>Generic filtering for operator messages that enter worker context.</p>
 <div class="meta"><span>6 symbols</span><span>0 TODOs</span></div>
 <details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> __future__, re, typing</p><p><strong>Symbols:</strong> operator_entry_is_active, operator_entry_is_prompt_relevant, active_prompt_operator_entries, inactive_prompt_operator_ids, _conversation_only, _actionable</p></details>
+</article>
+<article class="file-card searchable" data-search="nipux_cli/planning.py Generic initial planning primitives for long-running jobs. initial_plan_for_objective, initial_task_contract, initial_roadmap_for_objective, format_initial_plan">
+<header><h3>nipux_cli/planning.py</h3><span>123 lines</span></header>
+<p>Generic initial planning primitives for long-running jobs.</p>
+<div class="meta"><span>4 symbols</span><span>0 TODOs</span></div>
+<details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> __future__, typing</p><p><strong>Symbols:</strong> initial_plan_for_objective, initial_task_contract, initial_roadmap_for_objective, format_initial_plan</p></details>
 </article>
 <article class="file-card searchable" data-search="nipux_cli/progress.py Generic progress summaries for long-running jobs. ProgressCheckpoint, build_progress_checkpoint, ledger_counts, recent_progress_bits, _metadata_list, _clip_text, _as_int">
 <header><h3>nipux_cli/progress.py</h3><span>129 lines</span></header>
@@ -707,6 +713,12 @@ daemon, state store, model adapter, artifact store, and fixed tool surface. none
 <p>No module docstring.</p>
 <div class="meta"><span>4 symbols</span><span>0 TODOs</span></div>
 <details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> nipux_cli.operator_context</p><p><strong>Symbols:</strong> _entry, test_conversation_only_operator_messages_do_not_enter_worker_prompt, test_actionable_operator_messages_remain_worker_constraints, test_inactive_prompt_operator_ids_returns_only_conversation_active_messages</p></details>
+</article>
+<article class="file-card searchable" data-search="tests/nipux_cli/test_planning.py No module docstring. test_initial_task_contracts_are_generic_and_complete, test_initial_roadmap_uses_valid_generic_contracts">
+<header><h3>tests/nipux_cli/test_planning.py</h3><span>32 lines</span></header>
+<p>No module docstring.</p>
+<div class="meta"><span>2 symbols</span><span>0 TODOs</span></div>
+<details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> nipux_cli.planning</p><p><strong>Symbols:</strong> test_initial_task_contracts_are_generic_and_complete, test_initial_roadmap_uses_valid_generic_contracts</p></details>
 </article>
 <article class="file-card searchable" data-search="tests/nipux_cli/test_progress.py No module docstring. test_progress_checkpoint_reports_deltas_and_recent_durable_work, test_progress_checkpoint_for_saved_output_is_concise, test_progress_helpers_ignore_malformed_metadata">
 <header><h3>tests/nipux_cli/test_progress.py</h3><span>73 lines</span></header>
@@ -3676,6 +3688,30 @@ daemon, state store, model adapter, artifact store, and fixed tool surface. none
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> _conversation_only, any, join, message.split, pattern.search</p>
 </article>
+<article class="symbol searchable" data-search="nipux_cli/planning.py initial_plan_for_objective No docstring. join, objective.split">
+<h3>initial_plan_for_objective</h3>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/planning.py:8</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> join, objective.split</p>
+</article>
+<article class="symbol searchable" data-search="nipux_cli/planning.py initial_task_contract No docstring. task_title.lower">
+<h3>initial_task_contract</h3>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/planning.py:28</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> task_title.lower</p>
+</article>
+<article class="symbol searchable" data-search="nipux_cli/planning.py initial_roadmap_for_objective No docstring. none">
+<h3>initial_roadmap_for_objective</h3>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/planning.py:66</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> none</p>
+</article>
+<article class="symbol searchable" data-search="nipux_cli/planning.py format_initial_plan No docstring. isinstance, join, lines.append, lines.extend, plan.get, str">
+<h3>format_initial_plan</h3>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/planning.py:112</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> isinstance, join, lines.append, lines.extend, plan.get, str</p>
+</article>
 <article class="symbol searchable" data-search="nipux_cli/progress.py ProgressCheckpoint No docstring. dataclass">
 <h3>ProgressCheckpoint</h3>
 <p><span class="pill">class</span> <span class="pill">nipux_cli/progress.py:10</span></p>
@@ -5878,6 +5914,18 @@ daemon, state store, model adapter, artifact store, and fixed tool surface. none
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> _entry, inactive_prompt_operator_ids</p>
 </article>
+<article class="symbol searchable" data-search="tests/nipux_cli/test_planning.py test_initial_task_contracts_are_generic_and_complete No docstring. initial_task_contract">
+<h3>test_initial_task_contracts_are_generic_and_complete</h3>
+<p><span class="pill">function</span> <span class="pill">tests/nipux_cli/test_planning.py:4</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> initial_task_contract</p>
+</article>
+<article class="symbol searchable" data-search="tests/nipux_cli/test_planning.py test_initial_roadmap_uses_valid_generic_contracts No docstring. initial_roadmap_for_objective">
+<h3>test_initial_roadmap_uses_valid_generic_contracts</h3>
+<p><span class="pill">function</span> <span class="pill">tests/nipux_cli/test_planning.py:19</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> initial_roadmap_for_objective</p>
+</article>
 <article class="symbol searchable" data-search="tests/nipux_cli/test_progress.py test_progress_checkpoint_reports_deltas_and_recent_durable_work No docstring. build_progress_checkpoint">
 <h3>test_progress_checkpoint_reports_deltas_and_recent_durable_work</h3>
 <p><span class="pill">function</span> <span class="pill">tests/nipux_cli/test_progress.py:4</span></p>
@@ -6877,7 +6925,7 @@ profiles.
 
 Nipux talks to OpenAI-compatible `/v1/chat/completions` and `/v1/models`
 servers. Use any serving stack tha">
-<summary>README.md <span>302 lines</span></summary>
+<summary>README.md <span>304 lines</span></summary>
 <pre class="source-code"><span class='src-line'><b>   1</b><code># Nipux CLI</code></span>
 <span class='src-line'><b>   2</b><code></code></span>
 <span class='src-line'><b>   3</b><code>```text</code></span>
@@ -7059,127 +7107,129 @@ servers. Use any serving stack tha">
 <span class='src-line'><b> 179</b><code></code></span>
 <span class='src-line'><b> 180</b><code>The no-argument CLI opens the focused job directly. Plain text becomes operator</code></span>
 <span class='src-line'><b> 181</b><code>steering for the next worker step. The terminal UI keeps conversation/output on</code></span>
-<span class='src-line'><b> 182</b><code>the left and controls, jobs, status, and settings on the right.</code></span>
-<span class='src-line'><b> 183</b><code></code></span>
-<span class='src-line'><b> 184</b><code>```text</code></span>
-<span class='src-line'><b> 185</b><code>nipux &gt; what are you working on?</code></span>
-<span class='src-line'><b> 186</b><code>nipux &gt; prioritize measured progress over notes</code></span>
-<span class='src-line'><b> 187</b><code>```</code></span>
-<span class='src-line'><b> 188</b><code></code></span>
-<span class='src-line'><b> 189</b><code>For direct command use:</code></span>
+<span class='src-line'><b> 182</b><code>the left and status, jobs, saved outputs, updates, and worker activity on the</code></span>
+<span class='src-line'><b> 183</b><code>right. Configuration is handled through slash commands such as `/model`,</code></span>
+<span class='src-line'><b> 184</b><code>`/api-key`, `/base-url`, and `/context`, not a separate settings page.</code></span>
+<span class='src-line'><b> 185</b><code></code></span>
+<span class='src-line'><b> 186</b><code>```text</code></span>
+<span class='src-line'><b> 187</b><code>nipux &gt; what are you working on?</code></span>
+<span class='src-line'><b> 188</b><code>nipux &gt; prioritize measured progress over notes</code></span>
+<span class='src-line'><b> 189</b><code>```</code></span>
 <span class='src-line'><b> 190</b><code></code></span>
-<span class='src-line'><b> 191</b><code>```bash</code></span>
-<span class='src-line'><b> 192</b><code>uv run nipux status &quot;nightly research&quot; --full</code></span>
-<span class='src-line'><b> 193</b><code>uv run nipux history &quot;nightly research&quot;</code></span>
-<span class='src-line'><b> 194</b><code>uv run nipux events &quot;nightly research&quot; --follow</code></span>
-<span class='src-line'><b> 195</b><code>uv run nipux activity &quot;nightly research&quot; --follow</code></span>
-<span class='src-line'><b> 196</b><code>uv run nipux findings &quot;nightly research&quot;</code></span>
-<span class='src-line'><b> 197</b><code>uv run nipux tasks &quot;nightly research&quot;</code></span>
-<span class='src-line'><b> 198</b><code>uv run nipux roadmap &quot;nightly research&quot;</code></span>
-<span class='src-line'><b> 199</b><code>uv run nipux experiments &quot;nightly research&quot;</code></span>
-<span class='src-line'><b> 200</b><code>uv run nipux sources &quot;nightly research&quot;</code></span>
-<span class='src-line'><b> 201</b><code>uv run nipux memory &quot;nightly research&quot;</code></span>
-<span class='src-line'><b> 202</b><code>uv run nipux metrics &quot;nightly research&quot;</code></span>
-<span class='src-line'><b> 203</b><code>uv run nipux artifacts &quot;nightly research&quot; --paths</code></span>
-<span class='src-line'><b> 204</b><code>```</code></span>
-<span class='src-line'><b> 205</b><code></code></span>
-<span class='src-line'><b> 206</b><code>Use `nipux health` for daemon truth without opening the dashboard. It reports</code></span>
-<span class='src-line'><b> 207</b><code>the lock state, heartbeat, recent failures, log paths, autostart state, focused</code></span>
-<span class='src-line'><b> 208</b><code>job, and latest daemon events.</code></span>
-<span class='src-line'><b> 209</b><code></code></span>
-<span class='src-line'><b> 210</b><code>## Tool Surface</code></span>
+<span class='src-line'><b> 191</b><code>For direct command use:</code></span>
+<span class='src-line'><b> 192</b><code></code></span>
+<span class='src-line'><b> 193</b><code>```bash</code></span>
+<span class='src-line'><b> 194</b><code>uv run nipux status &quot;nightly research&quot; --full</code></span>
+<span class='src-line'><b> 195</b><code>uv run nipux history &quot;nightly research&quot;</code></span>
+<span class='src-line'><b> 196</b><code>uv run nipux events &quot;nightly research&quot; --follow</code></span>
+<span class='src-line'><b> 197</b><code>uv run nipux activity &quot;nightly research&quot; --follow</code></span>
+<span class='src-line'><b> 198</b><code>uv run nipux findings &quot;nightly research&quot;</code></span>
+<span class='src-line'><b> 199</b><code>uv run nipux tasks &quot;nightly research&quot;</code></span>
+<span class='src-line'><b> 200</b><code>uv run nipux roadmap &quot;nightly research&quot;</code></span>
+<span class='src-line'><b> 201</b><code>uv run nipux experiments &quot;nightly research&quot;</code></span>
+<span class='src-line'><b> 202</b><code>uv run nipux sources &quot;nightly research&quot;</code></span>
+<span class='src-line'><b> 203</b><code>uv run nipux memory &quot;nightly research&quot;</code></span>
+<span class='src-line'><b> 204</b><code>uv run nipux metrics &quot;nightly research&quot;</code></span>
+<span class='src-line'><b> 205</b><code>uv run nipux artifacts &quot;nightly research&quot; --paths</code></span>
+<span class='src-line'><b> 206</b><code>```</code></span>
+<span class='src-line'><b> 207</b><code></code></span>
+<span class='src-line'><b> 208</b><code>Use `nipux health` for daemon truth without opening the dashboard. It reports</code></span>
+<span class='src-line'><b> 209</b><code>the lock state, heartbeat, recent failures, log paths, autostart state, focused</code></span>
+<span class='src-line'><b> 210</b><code>job, and latest daemon events.</code></span>
 <span class='src-line'><b> 211</b><code></code></span>
-<span class='src-line'><b> 212</b><code>The worker exposes a deliberately small tool registry:</code></span>
+<span class='src-line'><b> 212</b><code>## Tool Surface</code></span>
 <span class='src-line'><b> 213</b><code></code></span>
-<span class='src-line'><b> 214</b><code>- `browser_navigate`</code></span>
-<span class='src-line'><b> 215</b><code>- `browser_snapshot`</code></span>
-<span class='src-line'><b> 216</b><code>- `browser_click`</code></span>
-<span class='src-line'><b> 217</b><code>- `browser_type`</code></span>
-<span class='src-line'><b> 218</b><code>- `browser_scroll`</code></span>
-<span class='src-line'><b> 219</b><code>- `browser_back`</code></span>
-<span class='src-line'><b> 220</b><code>- `browser_press`</code></span>
-<span class='src-line'><b> 221</b><code>- `browser_console`</code></span>
-<span class='src-line'><b> 222</b><code>- `web_search`</code></span>
-<span class='src-line'><b> 223</b><code>- `web_extract`</code></span>
-<span class='src-line'><b> 224</b><code>- `shell_exec`</code></span>
-<span class='src-line'><b> 225</b><code>- `write_artifact`</code></span>
-<span class='src-line'><b> 226</b><code>- `read_artifact`</code></span>
-<span class='src-line'><b> 227</b><code>- `search_artifacts`</code></span>
-<span class='src-line'><b> 228</b><code>- `update_job_state`</code></span>
-<span class='src-line'><b> 229</b><code>- `report_update`</code></span>
-<span class='src-line'><b> 230</b><code>- `record_lesson`</code></span>
-<span class='src-line'><b> 231</b><code>- `record_source`</code></span>
-<span class='src-line'><b> 232</b><code>- `record_findings`</code></span>
-<span class='src-line'><b> 233</b><code>- `record_tasks`</code></span>
-<span class='src-line'><b> 234</b><code>- `record_roadmap`</code></span>
-<span class='src-line'><b> 235</b><code>- `record_milestone_validation`</code></span>
-<span class='src-line'><b> 236</b><code>- `record_experiment`</code></span>
-<span class='src-line'><b> 237</b><code>- `send_digest_email`</code></span>
-<span class='src-line'><b> 238</b><code></code></span>
-<span class='src-line'><b> 239</b><code>`shell_exec` is bounded with timeouts and output capture. Browser sessions use</code></span>
-<span class='src-line'><b> 240</b><code>per-job profiles under `~/.nipux/browser-profiles/`. Anti-bot, CAPTCHA, login,</code></span>
-<span class='src-line'><b> 241</b><code>and paywall pages are recorded as visible source-quality warnings; Nipux does</code></span>
-<span class='src-line'><b> 242</b><code>not bypass protections.</code></span>
-<span class='src-line'><b> 243</b><code></code></span>
-<span class='src-line'><b> 244</b><code>## Command Reference</code></span>
+<span class='src-line'><b> 214</b><code>The worker exposes a deliberately small tool registry:</code></span>
+<span class='src-line'><b> 215</b><code></code></span>
+<span class='src-line'><b> 216</b><code>- `browser_navigate`</code></span>
+<span class='src-line'><b> 217</b><code>- `browser_snapshot`</code></span>
+<span class='src-line'><b> 218</b><code>- `browser_click`</code></span>
+<span class='src-line'><b> 219</b><code>- `browser_type`</code></span>
+<span class='src-line'><b> 220</b><code>- `browser_scroll`</code></span>
+<span class='src-line'><b> 221</b><code>- `browser_back`</code></span>
+<span class='src-line'><b> 222</b><code>- `browser_press`</code></span>
+<span class='src-line'><b> 223</b><code>- `browser_console`</code></span>
+<span class='src-line'><b> 224</b><code>- `web_search`</code></span>
+<span class='src-line'><b> 225</b><code>- `web_extract`</code></span>
+<span class='src-line'><b> 226</b><code>- `shell_exec`</code></span>
+<span class='src-line'><b> 227</b><code>- `write_artifact`</code></span>
+<span class='src-line'><b> 228</b><code>- `read_artifact`</code></span>
+<span class='src-line'><b> 229</b><code>- `search_artifacts`</code></span>
+<span class='src-line'><b> 230</b><code>- `update_job_state`</code></span>
+<span class='src-line'><b> 231</b><code>- `report_update`</code></span>
+<span class='src-line'><b> 232</b><code>- `record_lesson`</code></span>
+<span class='src-line'><b> 233</b><code>- `record_source`</code></span>
+<span class='src-line'><b> 234</b><code>- `record_findings`</code></span>
+<span class='src-line'><b> 235</b><code>- `record_tasks`</code></span>
+<span class='src-line'><b> 236</b><code>- `record_roadmap`</code></span>
+<span class='src-line'><b> 237</b><code>- `record_milestone_validation`</code></span>
+<span class='src-line'><b> 238</b><code>- `record_experiment`</code></span>
+<span class='src-line'><b> 239</b><code>- `send_digest_email`</code></span>
+<span class='src-line'><b> 240</b><code></code></span>
+<span class='src-line'><b> 241</b><code>`shell_exec` is bounded with timeouts and output capture. Browser sessions use</code></span>
+<span class='src-line'><b> 242</b><code>per-job profiles under `~/.nipux/browser-profiles/`. Anti-bot, CAPTCHA, login,</code></span>
+<span class='src-line'><b> 243</b><code>and paywall pages are recorded as visible source-quality warnings; Nipux does</code></span>
+<span class='src-line'><b> 244</b><code>not bypass protections.</code></span>
 <span class='src-line'><b> 245</b><code></code></span>
-<span class='src-line'><b> 246</b><code>```bash</code></span>
-<span class='src-line'><b> 247</b><code>nipux init [--force] [--openrouter] [--model MODEL] [--base-url URL] [--api-key-env ENV]</code></span>
-<span class='src-line'><b> 248</b><code>nipux doctor [--check-model]</code></span>
-<span class='src-line'><b> 249</b><code>nipux shell [--status]</code></span>
-<span class='src-line'><b> 250</b><code>nipux create &quot;objective&quot; [--title TITLE] [--kind KIND] [--cadence CADENCE]</code></span>
-<span class='src-line'><b> 251</b><code>nipux jobs</code></span>
-<span class='src-line'><b> 252</b><code>nipux ls</code></span>
-<span class='src-line'><b> 253</b><code>nipux focus [JOB_TITLE]</code></span>
-<span class='src-line'><b> 254</b><code>nipux rename JOB_TITLE --title NEW_TITLE</code></span>
-<span class='src-line'><b> 255</b><code>nipux delete JOB_TITLE [--keep-files]</code></span>
-<span class='src-line'><b> 256</b><code>nipux chat [JOB_TITLE] [--no-history]</code></span>
-<span class='src-line'><b> 257</b><code>nipux steer [--job JOB_TITLE] MESSAGE</code></span>
-<span class='src-line'><b> 258</b><code>nipux pause [JOB_TITLE] [note...]</code></span>
-<span class='src-line'><b> 259</b><code>nipux resume [JOB_TITLE]</code></span>
-<span class='src-line'><b> 260</b><code>nipux cancel [JOB_TITLE] [note...]</code></span>
-<span class='src-line'><b> 261</b><code>nipux start [--poll-seconds N]</code></span>
-<span class='src-line'><b> 262</b><code>nipux stop</code></span>
-<span class='src-line'><b> 263</b><code>nipux autostart install|status|uninstall [--poll-seconds N]</code></span>
-<span class='src-line'><b> 264</b><code>nipux service install|status|uninstall [--poll-seconds N]</code></span>
-<span class='src-line'><b> 265</b><code>nipux browser-dashboard [--port N] [--foreground] [--stop]</code></span>
-<span class='src-line'><b> 266</b><code>nipux health</code></span>
-<span class='src-line'><b> 267</b><code>nipux status [JOB_TITLE] [--full] [--json]</code></span>
-<span class='src-line'><b> 268</b><code>nipux history [JOB_TITLE] [--full] [--json]</code></span>
-<span class='src-line'><b> 269</b><code>nipux events [JOB_TITLE] [--follow] [--json]</code></span>
-<span class='src-line'><b> 270</b><code>nipux activity [JOB_TITLE] [--follow] [--verbose]</code></span>
-<span class='src-line'><b> 271</b><code>nipux updates [JOB_TITLE]</code></span>
-<span class='src-line'><b> 272</b><code>nipux dashboard [JOB_TITLE]</code></span>
-<span class='src-line'><b> 273</b><code>nipux findings [JOB_TITLE] [--limit N] [--json]</code></span>
-<span class='src-line'><b> 274</b><code>nipux tasks [JOB_TITLE] [--limit N] [--status STATUS] [--json]</code></span>
-<span class='src-line'><b> 275</b><code>nipux roadmap [JOB_TITLE] [--limit N] [--json]</code></span>
-<span class='src-line'><b> 276</b><code>nipux experiments [JOB_TITLE] [--limit N] [--status STATUS] [--json]</code></span>
-<span class='src-line'><b> 277</b><code>nipux sources [JOB_TITLE] [--limit N] [--json]</code></span>
-<span class='src-line'><b> 278</b><code>nipux memory [JOB_TITLE]</code></span>
-<span class='src-line'><b> 279</b><code>nipux metrics [JOB_TITLE]</code></span>
-<span class='src-line'><b> 280</b><code>nipux artifacts [JOB_TITLE] [--paths]</code></span>
-<span class='src-line'><b> 281</b><code>nipux artifact QUERY_OR_TITLE [--job JOB_TITLE]</code></span>
-<span class='src-line'><b> 282</b><code>nipux lessons [JOB_TITLE]</code></span>
-<span class='src-line'><b> 283</b><code>nipux learn [--job JOB_TITLE] [--category CATEGORY] LESSON</code></span>
-<span class='src-line'><b> 284</b><code>nipux logs [JOB_TITLE] [--limit N] [--verbose]</code></span>
-<span class='src-line'><b> 285</b><code>nipux outputs [JOB_TITLE] [--limit N] [--verbose]</code></span>
-<span class='src-line'><b> 286</b><code>nipux watch JOB_TITLE [--verbose]</code></span>
-<span class='src-line'><b> 287</b><code>nipux run-one JOB_TITLE [--fake]</code></span>
-<span class='src-line'><b> 288</b><code>nipux work [JOB_TITLE] [--steps N] [--verbose] [--dashboard]</code></span>
-<span class='src-line'><b> 289</b><code>nipux run [JOB_TITLE] [--poll-seconds N] [--no-follow]</code></span>
-<span class='src-line'><b> 290</b><code>nipux daemon [--once] [--fake] [--verbose] [--poll-seconds N]</code></span>
-<span class='src-line'><b> 291</b><code>nipux digest JOB_TITLE</code></span>
-<span class='src-line'><b> 292</b><code>nipux daily-digest [--day YYYY-MM-DD]</code></span>
-<span class='src-line'><b> 293</b><code>```</code></span>
-<span class='src-line'><b> 294</b><code></code></span>
-<span class='src-line'><b> 295</b><code>## Development</code></span>
+<span class='src-line'><b> 246</b><code>## Command Reference</code></span>
+<span class='src-line'><b> 247</b><code></code></span>
+<span class='src-line'><b> 248</b><code>```bash</code></span>
+<span class='src-line'><b> 249</b><code>nipux init [--force] [--openrouter] [--model MODEL] [--base-url URL] [--api-key-env ENV]</code></span>
+<span class='src-line'><b> 250</b><code>nipux doctor [--check-model]</code></span>
+<span class='src-line'><b> 251</b><code>nipux shell [--status]</code></span>
+<span class='src-line'><b> 252</b><code>nipux create &quot;objective&quot; [--title TITLE] [--kind KIND] [--cadence CADENCE]</code></span>
+<span class='src-line'><b> 253</b><code>nipux jobs</code></span>
+<span class='src-line'><b> 254</b><code>nipux ls</code></span>
+<span class='src-line'><b> 255</b><code>nipux focus [JOB_TITLE]</code></span>
+<span class='src-line'><b> 256</b><code>nipux rename JOB_TITLE --title NEW_TITLE</code></span>
+<span class='src-line'><b> 257</b><code>nipux delete JOB_TITLE [--keep-files]</code></span>
+<span class='src-line'><b> 258</b><code>nipux chat [JOB_TITLE] [--no-history]</code></span>
+<span class='src-line'><b> 259</b><code>nipux steer [--job JOB_TITLE] MESSAGE</code></span>
+<span class='src-line'><b> 260</b><code>nipux pause [JOB_TITLE] [note...]</code></span>
+<span class='src-line'><b> 261</b><code>nipux resume [JOB_TITLE]</code></span>
+<span class='src-line'><b> 262</b><code>nipux cancel [JOB_TITLE] [note...]</code></span>
+<span class='src-line'><b> 263</b><code>nipux start [--poll-seconds N]</code></span>
+<span class='src-line'><b> 264</b><code>nipux stop</code></span>
+<span class='src-line'><b> 265</b><code>nipux autostart install|status|uninstall [--poll-seconds N]</code></span>
+<span class='src-line'><b> 266</b><code>nipux service install|status|uninstall [--poll-seconds N]</code></span>
+<span class='src-line'><b> 267</b><code>nipux browser-dashboard [--port N] [--foreground] [--stop]</code></span>
+<span class='src-line'><b> 268</b><code>nipux health</code></span>
+<span class='src-line'><b> 269</b><code>nipux status [JOB_TITLE] [--full] [--json]</code></span>
+<span class='src-line'><b> 270</b><code>nipux history [JOB_TITLE] [--full] [--json]</code></span>
+<span class='src-line'><b> 271</b><code>nipux events [JOB_TITLE] [--follow] [--json]</code></span>
+<span class='src-line'><b> 272</b><code>nipux activity [JOB_TITLE] [--follow] [--verbose]</code></span>
+<span class='src-line'><b> 273</b><code>nipux updates [JOB_TITLE]</code></span>
+<span class='src-line'><b> 274</b><code>nipux dashboard [JOB_TITLE]</code></span>
+<span class='src-line'><b> 275</b><code>nipux findings [JOB_TITLE] [--limit N] [--json]</code></span>
+<span class='src-line'><b> 276</b><code>nipux tasks [JOB_TITLE] [--limit N] [--status STATUS] [--json]</code></span>
+<span class='src-line'><b> 277</b><code>nipux roadmap [JOB_TITLE] [--limit N] [--json]</code></span>
+<span class='src-line'><b> 278</b><code>nipux experiments [JOB_TITLE] [--limit N] [--status STATUS] [--json]</code></span>
+<span class='src-line'><b> 279</b><code>nipux sources [JOB_TITLE] [--limit N] [--json]</code></span>
+<span class='src-line'><b> 280</b><code>nipux memory [JOB_TITLE]</code></span>
+<span class='src-line'><b> 281</b><code>nipux metrics [JOB_TITLE]</code></span>
+<span class='src-line'><b> 282</b><code>nipux artifacts [JOB_TITLE] [--paths]</code></span>
+<span class='src-line'><b> 283</b><code>nipux artifact QUERY_OR_TITLE [--job JOB_TITLE]</code></span>
+<span class='src-line'><b> 284</b><code>nipux lessons [JOB_TITLE]</code></span>
+<span class='src-line'><b> 285</b><code>nipux learn [--job JOB_TITLE] [--category CATEGORY] LESSON</code></span>
+<span class='src-line'><b> 286</b><code>nipux logs [JOB_TITLE] [--limit N] [--verbose]</code></span>
+<span class='src-line'><b> 287</b><code>nipux outputs [JOB_TITLE] [--limit N] [--verbose]</code></span>
+<span class='src-line'><b> 288</b><code>nipux watch JOB_TITLE [--verbose]</code></span>
+<span class='src-line'><b> 289</b><code>nipux run-one JOB_TITLE [--fake]</code></span>
+<span class='src-line'><b> 290</b><code>nipux work [JOB_TITLE] [--steps N] [--verbose] [--dashboard]</code></span>
+<span class='src-line'><b> 291</b><code>nipux run [JOB_TITLE] [--poll-seconds N] [--no-follow]</code></span>
+<span class='src-line'><b> 292</b><code>nipux daemon [--once] [--fake] [--verbose] [--poll-seconds N]</code></span>
+<span class='src-line'><b> 293</b><code>nipux digest JOB_TITLE</code></span>
+<span class='src-line'><b> 294</b><code>nipux daily-digest [--day YYYY-MM-DD]</code></span>
+<span class='src-line'><b> 295</b><code>```</code></span>
 <span class='src-line'><b> 296</b><code></code></span>
-<span class='src-line'><b> 297</b><code>```bash</code></span>
-<span class='src-line'><b> 298</b><code>PYTEST_ADDOPTS=&#x27;&#x27; uv run --extra dev python -m pytest -q</code></span>
-<span class='src-line'><b> 299</b><code>uv run --extra dev ruff check --isolated nipux_cli tests/nipux_cli</code></span>
-<span class='src-line'><b> 300</b><code>```</code></span>
-<span class='src-line'><b> 301</b><code></code></span>
-<span class='src-line'><b> 302</b><code>The active implementation notes live in `plans/barebones-24-7-agent.md`.</code></span></pre>
+<span class='src-line'><b> 297</b><code>## Development</code></span>
+<span class='src-line'><b> 298</b><code></code></span>
+<span class='src-line'><b> 299</b><code>```bash</code></span>
+<span class='src-line'><b> 300</b><code>PYTEST_ADDOPTS=&#x27;&#x27; uv run --extra dev python -m pytest -q</code></span>
+<span class='src-line'><b> 301</b><code>uv run --extra dev ruff check --isolated nipux_cli tests/nipux_cli</code></span>
+<span class='src-line'><b> 302</b><code>```</code></span>
+<span class='src-line'><b> 303</b><code></code></span>
+<span class='src-line'><b> 304</b><code>The active implementation notes live in `plans/barebones-24-7-agent.md`.</code></span></pre>
 </details>
 <details class="source-file searchable" data-search="RELEASE_CHECKLIST.md # Release Checklist
 
@@ -20390,6 +20440,211 @@ def _actionable(message: str) -&gt; bool:
 <span class='src-line'><b>  82</b><code>        return False</code></span>
 <span class='src-line'><b>  83</b><code>    return any(pattern.search(text) for pattern in ACTIONABLE_PATTERNS)</code></span></pre>
 </details>
+<details class="source-file searchable" data-search="nipux_cli/planning.py &quot;&quot;&quot;Generic initial planning primitives for long-running jobs.&quot;&quot;&quot;
+
+from __future__ import annotations
+
+from typing import Any
+
+
+def initial_plan_for_objective(objective: str) -&gt; dict[str, Any]:
+    objective_text = &quot; &quot;.join(objective.split())
+    return {
+        &quot;status&quot;: &quot;needs_operator_review&quot;,
+        &quot;summary&quot;: &quot;I will turn this objective into a durable long-running job before starting tool work.&quot;,
+        &quot;tasks&quot;: [
+            &quot;Clarify the exact success criteria and constraints.&quot;,
+            &quot;Map the first research or execution branches.&quot;,
+            &quot;Collect evidence and save outputs as files.&quot;,
+            &quot;Reflect on what worked, update memory, and continue with the next branch.&quot;,
+        ],
+        &quot;questions&quot;: [
+            &quot;What result would make this job successful?&quot;,
+            &quot;Are there sources, actions, or approaches I should avoid?&quot;,
+            &quot;Should this run aggressively in the background or wait for review between branches?&quot;,
+        ],
+        &quot;objective&quot;: objective_text,
+    }
+
+
+def initial_task_contract(task_title: str) -&gt; dict[str, str]:
+    lowered = task_title.lower()
+    if &quot;clarify&quot; in lowered or &quot;criteria&quot; in lowered or &quot;constraint&quot; in lowered:
+        return {
+            &quot;output_contract&quot;: &quot;decision&quot;,
+            &quot;acceptance_criteria&quot;: &quot;Success criteria, constraints, and first branches are explicit.&quot;,
+            &quot;evidence_needed&quot;: &quot;Operator context, durable notes, or an updated roadmap/task queue.&quot;,
+            &quot;stall_behavior&quot;: &quot;Ask for the missing constraint or record a decision with the best current assumption.&quot;,
+        }
+    if &quot;map&quot; in lowered or &quot;research&quot; in lowered or &quot;branch&quot; in lowered:
+        return {
+            &quot;output_contract&quot;: &quot;research&quot;,
+            &quot;acceptance_criteria&quot;: &quot;At least one viable branch is selected and low-value branches are avoided.&quot;,
+            &quot;evidence_needed&quot;: &quot;Source notes, branch rationale, source ledger entries, or saved research output.&quot;,
+            &quot;stall_behavior&quot;: &quot;Record a low-yield lesson and pivot to a different branch.&quot;,
+        }
+    if &quot;collect&quot; in lowered or &quot;evidence&quot; in lowered or &quot;save&quot; in lowered or &quot;output&quot; in lowered:
+        return {
+            &quot;output_contract&quot;: &quot;artifact&quot;,
+            &quot;acceptance_criteria&quot;: &quot;A durable output is saved and linked to the task or ledger.&quot;,
+            &quot;evidence_needed&quot;: &quot;Artifact, file output, finding record, source record, or experiment record.&quot;,
+            &quot;stall_behavior&quot;: &quot;Record what evidence is missing and create the next evidence-producing task.&quot;,
+        }
+    if &quot;reflect&quot; in lowered or &quot;memory&quot; in lowered or &quot;continue&quot; in lowered:
+        return {
+            &quot;output_contract&quot;: &quot;monitor&quot;,
+            &quot;acceptance_criteria&quot;: &quot;Progress is evaluated from durable deltas and the next branch is chosen.&quot;,
+            &quot;evidence_needed&quot;: &quot;Reflection, lesson, task update, roadmap validation, or experiment comparison.&quot;,
+            &quot;stall_behavior&quot;: &quot;Record a blocker or pivot when no durable delta was produced.&quot;,
+        }
+    return {
+        &quot;output_contract&quot;: &quot;action&quot;,
+        &quot;acceptance_criteria&quot;: &quot;The task produces an observable durable change.&quot;,
+        &quot;evidence_needed&quot;: &quot;Tool result plus artifact, ledger, task, roadmap, or experiment update.&quot;,
+        &quot;stall_behavior&quot;: &quot;Record a blocker and open a smaller follow-up task.&quot;,
+    }
+
+
+def initial_roadmap_for_objective(*, title: str, objective: str) -&gt; dict[str, Any]:
+    return {
+        &quot;title&quot;: title,
+        &quot;status&quot;: &quot;planned&quot;,
+        &quot;objective&quot;: objective,
+        &quot;scope&quot;: &quot;Initial roadmap generated from the objective. Refine this as evidence and operator context arrive.&quot;,
+        &quot;current_milestone&quot;: &quot;Clarify and frame the work&quot;,
+        &quot;validation_contract&quot;: (
+            &quot;Each milestone needs observable evidence that its acceptance criteria were met, &quot;
+            &quot;or a recorded blocker plus follow-up tasks.&quot;
+        ),
+        &quot;milestones&quot;: [
+            {
+                &quot;title&quot;: &quot;Clarify and frame the work&quot;,
+                &quot;status">
+<summary>nipux_cli/planning.py <span>123 lines</span></summary>
+<pre class="source-code"><span class='src-line'><b>   1</b><code>&quot;&quot;&quot;Generic initial planning primitives for long-running jobs.&quot;&quot;&quot;</code></span>
+<span class='src-line'><b>   2</b><code></code></span>
+<span class='src-line'><b>   3</b><code>from __future__ import annotations</code></span>
+<span class='src-line'><b>   4</b><code></code></span>
+<span class='src-line'><b>   5</b><code>from typing import Any</code></span>
+<span class='src-line'><b>   6</b><code></code></span>
+<span class='src-line'><b>   7</b><code></code></span>
+<span class='src-line'><b>   8</b><code>def initial_plan_for_objective(objective: str) -&gt; dict[str, Any]:</code></span>
+<span class='src-line'><b>   9</b><code>    objective_text = &quot; &quot;.join(objective.split())</code></span>
+<span class='src-line'><b>  10</b><code>    return {</code></span>
+<span class='src-line'><b>  11</b><code>        &quot;status&quot;: &quot;needs_operator_review&quot;,</code></span>
+<span class='src-line'><b>  12</b><code>        &quot;summary&quot;: &quot;I will turn this objective into a durable long-running job before starting tool work.&quot;,</code></span>
+<span class='src-line'><b>  13</b><code>        &quot;tasks&quot;: [</code></span>
+<span class='src-line'><b>  14</b><code>            &quot;Clarify the exact success criteria and constraints.&quot;,</code></span>
+<span class='src-line'><b>  15</b><code>            &quot;Map the first research or execution branches.&quot;,</code></span>
+<span class='src-line'><b>  16</b><code>            &quot;Collect evidence and save outputs as files.&quot;,</code></span>
+<span class='src-line'><b>  17</b><code>            &quot;Reflect on what worked, update memory, and continue with the next branch.&quot;,</code></span>
+<span class='src-line'><b>  18</b><code>        ],</code></span>
+<span class='src-line'><b>  19</b><code>        &quot;questions&quot;: [</code></span>
+<span class='src-line'><b>  20</b><code>            &quot;What result would make this job successful?&quot;,</code></span>
+<span class='src-line'><b>  21</b><code>            &quot;Are there sources, actions, or approaches I should avoid?&quot;,</code></span>
+<span class='src-line'><b>  22</b><code>            &quot;Should this run aggressively in the background or wait for review between branches?&quot;,</code></span>
+<span class='src-line'><b>  23</b><code>        ],</code></span>
+<span class='src-line'><b>  24</b><code>        &quot;objective&quot;: objective_text,</code></span>
+<span class='src-line'><b>  25</b><code>    }</code></span>
+<span class='src-line'><b>  26</b><code></code></span>
+<span class='src-line'><b>  27</b><code></code></span>
+<span class='src-line'><b>  28</b><code>def initial_task_contract(task_title: str) -&gt; dict[str, str]:</code></span>
+<span class='src-line'><b>  29</b><code>    lowered = task_title.lower()</code></span>
+<span class='src-line'><b>  30</b><code>    if &quot;clarify&quot; in lowered or &quot;criteria&quot; in lowered or &quot;constraint&quot; in lowered:</code></span>
+<span class='src-line'><b>  31</b><code>        return {</code></span>
+<span class='src-line'><b>  32</b><code>            &quot;output_contract&quot;: &quot;decision&quot;,</code></span>
+<span class='src-line'><b>  33</b><code>            &quot;acceptance_criteria&quot;: &quot;Success criteria, constraints, and first branches are explicit.&quot;,</code></span>
+<span class='src-line'><b>  34</b><code>            &quot;evidence_needed&quot;: &quot;Operator context, durable notes, or an updated roadmap/task queue.&quot;,</code></span>
+<span class='src-line'><b>  35</b><code>            &quot;stall_behavior&quot;: &quot;Ask for the missing constraint or record a decision with the best current assumption.&quot;,</code></span>
+<span class='src-line'><b>  36</b><code>        }</code></span>
+<span class='src-line'><b>  37</b><code>    if &quot;map&quot; in lowered or &quot;research&quot; in lowered or &quot;branch&quot; in lowered:</code></span>
+<span class='src-line'><b>  38</b><code>        return {</code></span>
+<span class='src-line'><b>  39</b><code>            &quot;output_contract&quot;: &quot;research&quot;,</code></span>
+<span class='src-line'><b>  40</b><code>            &quot;acceptance_criteria&quot;: &quot;At least one viable branch is selected and low-value branches are avoided.&quot;,</code></span>
+<span class='src-line'><b>  41</b><code>            &quot;evidence_needed&quot;: &quot;Source notes, branch rationale, source ledger entries, or saved research output.&quot;,</code></span>
+<span class='src-line'><b>  42</b><code>            &quot;stall_behavior&quot;: &quot;Record a low-yield lesson and pivot to a different branch.&quot;,</code></span>
+<span class='src-line'><b>  43</b><code>        }</code></span>
+<span class='src-line'><b>  44</b><code>    if &quot;collect&quot; in lowered or &quot;evidence&quot; in lowered or &quot;save&quot; in lowered or &quot;output&quot; in lowered:</code></span>
+<span class='src-line'><b>  45</b><code>        return {</code></span>
+<span class='src-line'><b>  46</b><code>            &quot;output_contract&quot;: &quot;artifact&quot;,</code></span>
+<span class='src-line'><b>  47</b><code>            &quot;acceptance_criteria&quot;: &quot;A durable output is saved and linked to the task or ledger.&quot;,</code></span>
+<span class='src-line'><b>  48</b><code>            &quot;evidence_needed&quot;: &quot;Artifact, file output, finding record, source record, or experiment record.&quot;,</code></span>
+<span class='src-line'><b>  49</b><code>            &quot;stall_behavior&quot;: &quot;Record what evidence is missing and create the next evidence-producing task.&quot;,</code></span>
+<span class='src-line'><b>  50</b><code>        }</code></span>
+<span class='src-line'><b>  51</b><code>    if &quot;reflect&quot; in lowered or &quot;memory&quot; in lowered or &quot;continue&quot; in lowered:</code></span>
+<span class='src-line'><b>  52</b><code>        return {</code></span>
+<span class='src-line'><b>  53</b><code>            &quot;output_contract&quot;: &quot;monitor&quot;,</code></span>
+<span class='src-line'><b>  54</b><code>            &quot;acceptance_criteria&quot;: &quot;Progress is evaluated from durable deltas and the next branch is chosen.&quot;,</code></span>
+<span class='src-line'><b>  55</b><code>            &quot;evidence_needed&quot;: &quot;Reflection, lesson, task update, roadmap validation, or experiment comparison.&quot;,</code></span>
+<span class='src-line'><b>  56</b><code>            &quot;stall_behavior&quot;: &quot;Record a blocker or pivot when no durable delta was produced.&quot;,</code></span>
+<span class='src-line'><b>  57</b><code>        }</code></span>
+<span class='src-line'><b>  58</b><code>    return {</code></span>
+<span class='src-line'><b>  59</b><code>        &quot;output_contract&quot;: &quot;action&quot;,</code></span>
+<span class='src-line'><b>  60</b><code>        &quot;acceptance_criteria&quot;: &quot;The task produces an observable durable change.&quot;,</code></span>
+<span class='src-line'><b>  61</b><code>        &quot;evidence_needed&quot;: &quot;Tool result plus artifact, ledger, task, roadmap, or experiment update.&quot;,</code></span>
+<span class='src-line'><b>  62</b><code>        &quot;stall_behavior&quot;: &quot;Record a blocker and open a smaller follow-up task.&quot;,</code></span>
+<span class='src-line'><b>  63</b><code>    }</code></span>
+<span class='src-line'><b>  64</b><code></code></span>
+<span class='src-line'><b>  65</b><code></code></span>
+<span class='src-line'><b>  66</b><code>def initial_roadmap_for_objective(*, title: str, objective: str) -&gt; dict[str, Any]:</code></span>
+<span class='src-line'><b>  67</b><code>    return {</code></span>
+<span class='src-line'><b>  68</b><code>        &quot;title&quot;: title,</code></span>
+<span class='src-line'><b>  69</b><code>        &quot;status&quot;: &quot;planned&quot;,</code></span>
+<span class='src-line'><b>  70</b><code>        &quot;objective&quot;: objective,</code></span>
+<span class='src-line'><b>  71</b><code>        &quot;scope&quot;: &quot;Initial roadmap generated from the objective. Refine this as evidence and operator context arrive.&quot;,</code></span>
+<span class='src-line'><b>  72</b><code>        &quot;current_milestone&quot;: &quot;Clarify and frame the work&quot;,</code></span>
+<span class='src-line'><b>  73</b><code>        &quot;validation_contract&quot;: (</code></span>
+<span class='src-line'><b>  74</b><code>            &quot;Each milestone needs observable evidence that its acceptance criteria were met, &quot;</code></span>
+<span class='src-line'><b>  75</b><code>            &quot;or a recorded blocker plus follow-up tasks.&quot;</code></span>
+<span class='src-line'><b>  76</b><code>        ),</code></span>
+<span class='src-line'><b>  77</b><code>        &quot;milestones&quot;: [</code></span>
+<span class='src-line'><b>  78</b><code>            {</code></span>
+<span class='src-line'><b>  79</b><code>                &quot;title&quot;: &quot;Clarify and frame the work&quot;,</code></span>
+<span class='src-line'><b>  80</b><code>                &quot;status&quot;: &quot;planned&quot;,</code></span>
+<span class='src-line'><b>  81</b><code>                &quot;priority&quot;: 10,</code></span>
+<span class='src-line'><b>  82</b><code>                &quot;goal&quot;: &quot;Turn the objective into concrete success criteria and constraints.&quot;,</code></span>
+<span class='src-line'><b>  83</b><code>                &quot;acceptance_criteria&quot;: &quot;Success criteria and first branches are explicit.&quot;,</code></span>
+<span class='src-line'><b>  84</b><code>                &quot;evidence_needed&quot;: &quot;Operator context, planning notes, or a recorded task queue.&quot;,</code></span>
+<span class='src-line'><b>  85</b><code>                &quot;features&quot;: [{&quot;title&quot;: &quot;Capture success criteria&quot;, &quot;status&quot;: &quot;planned&quot;, &quot;output_contract&quot;: &quot;decision&quot;}],</code></span>
+<span class='src-line'><b>  86</b><code>            },</code></span>
+<span class='src-line'><b>  87</b><code>            {</code></span>
+<span class='src-line'><b>  88</b><code>                &quot;title&quot;: &quot;Execute first durable branches&quot;,</code></span>
+<span class='src-line'><b>  89</b><code>                &quot;status&quot;: &quot;planned&quot;,</code></span>
+<span class='src-line'><b>  90</b><code>                &quot;priority&quot;: 8,</code></span>
+<span class='src-line'><b>  91</b><code>                &quot;goal&quot;: &quot;Produce artifacts, findings, actions, or measurements that advance the objective.&quot;,</code></span>
+<span class='src-line'><b>  92</b><code>                &quot;acceptance_criteria&quot;: &quot;At least one branch produces durable evidence.&quot;,</code></span>
+<span class='src-line'><b>  93</b><code>                &quot;evidence_needed&quot;: &quot;Saved outputs plus ledger updates.&quot;,</code></span>
+<span class='src-line'><b>  94</b><code>                &quot;features&quot;: [</code></span>
+<span class='src-line'><b>  95</b><code>                    {&quot;title&quot;: &quot;Run the first evidence-producing branch&quot;, &quot;status&quot;: &quot;planned&quot;, &quot;output_contract&quot;: &quot;artifact&quot;}</code></span>
+<span class='src-line'><b>  96</b><code>                ],</code></span>
+<span class='src-line'><b>  97</b><code>            },</code></span>
+<span class='src-line'><b>  98</b><code>            {</code></span>
+<span class='src-line'><b>  99</b><code>                &quot;title&quot;: &quot;Validate and continue&quot;,</code></span>
+<span class='src-line'><b> 100</b><code>                &quot;status&quot;: &quot;planned&quot;,</code></span>
+<span class='src-line'><b> 101</b><code>                &quot;priority&quot;: 6,</code></span>
+<span class='src-line'><b> 102</b><code>                &quot;goal&quot;: &quot;Check results against acceptance criteria and create follow-up work.&quot;,</code></span>
+<span class='src-line'><b> 103</b><code>                &quot;acceptance_criteria&quot;: &quot;Validation is passed, failed, or blocked with a next action.&quot;,</code></span>
+<span class='src-line'><b> 104</b><code>                &quot;evidence_needed&quot;: &quot;record_milestone_validation entry and follow-up tasks if needed.&quot;,</code></span>
+<span class='src-line'><b> 105</b><code>                &quot;features&quot;: [{&quot;title&quot;: &quot;Validate the checkpoint&quot;, &quot;status&quot;: &quot;planned&quot;, &quot;output_contract&quot;: &quot;decision&quot;}],</code></span>
+<span class='src-line'><b> 106</b><code>            },</code></span>
+<span class='src-line'><b> 107</b><code>        ],</code></span>
+<span class='src-line'><b> 108</b><code>        &quot;metadata&quot;: {&quot;phase&quot;: &quot;initial_plan&quot;},</code></span>
+<span class='src-line'><b> 109</b><code>    }</code></span>
+<span class='src-line'><b> 110</b><code></code></span>
+<span class='src-line'><b> 111</b><code></code></span>
+<span class='src-line'><b> 112</b><code>def format_initial_plan(plan: dict[str, Any]) -&gt; str:</code></span>
+<span class='src-line'><b> 113</b><code>    tasks = plan.get(&quot;tasks&quot;) if isinstance(plan.get(&quot;tasks&quot;), list) else []</code></span>
+<span class='src-line'><b> 114</b><code>    questions = plan.get(&quot;questions&quot;) if isinstance(plan.get(&quot;questions&quot;), list) else []</code></span>
+<span class='src-line'><b> 115</b><code>    lines = [str(plan.get(&quot;summary&quot;) or &quot;Initial plan created.&quot;)]</code></span>
+<span class='src-line'><b> 116</b><code>    if tasks:</code></span>
+<span class='src-line'><b> 117</b><code>        lines.append(&quot;Plan:&quot;)</code></span>
+<span class='src-line'><b> 118</b><code>        lines.extend(f&quot;- {task}&quot; for task in tasks)</code></span>
+<span class='src-line'><b> 119</b><code>    if questions:</code></span>
+<span class='src-line'><b> 120</b><code>        lines.append(&quot;Questions:&quot;)</code></span>
+<span class='src-line'><b> 121</b><code>        lines.extend(f&quot;- {question}&quot; for question in questions)</code></span>
+<span class='src-line'><b> 122</b><code>    lines.append(&quot;Reply with answers, or use the right-side Run control when this plan is good enough to start.&quot;)</code></span>
+<span class='src-line'><b> 123</b><code>    return &quot;\n&quot;.join(lines)</code></span></pre>
+</details>
 <details class="source-file searchable" data-search="nipux_cli/progress.py &quot;&quot;&quot;Generic progress summaries for long-running jobs.&quot;&quot;&quot;
 
 from __future__ import annotations
@@ -30760,6 +31015,73 @@ def test_inactive_prompt_operator_ids_returns_only_conversation_active_messages(
 <span class='src-line'><b>  29</b><code></code></span>
 <span class='src-line'><b>  30</b><code>    assert inactive_prompt_operator_ids(messages) == [&quot;op_chat&quot;]</code></span></pre>
 </details>
+<details class="source-file searchable" data-search="tests/nipux_cli/test_planning.py from nipux_cli.planning import initial_roadmap_for_objective, initial_task_contract
+
+
+def test_initial_task_contracts_are_generic_and_complete():
+    for title in [
+        &quot;Clarify the exact success criteria and constraints.&quot;,
+        &quot;Map the first research or execution branches.&quot;,
+        &quot;Collect evidence and save outputs as files.&quot;,
+        &quot;Reflect on what worked, update memory, and continue with the next branch.&quot;,
+    ]:
+        contract = initial_task_contract(title)
+
+        assert contract[&quot;output_contract&quot;] in {&quot;research&quot;, &quot;artifact&quot;, &quot;experiment&quot;, &quot;action&quot;, &quot;monitor&quot;, &quot;decision&quot;, &quot;report&quot;}
+        assert contract[&quot;acceptance_criteria&quot;]
+        assert contract[&quot;evidence_needed&quot;]
+        assert contract[&quot;stall_behavior&quot;]
+
+
+def test_initial_roadmap_uses_valid_generic_contracts():
+    roadmap = initial_roadmap_for_objective(title=&quot;paper&quot;, objective=&quot;write a paper&quot;)
+
+    for milestone in roadmap[&quot;milestones&quot;]:
+        for feature in milestone[&quot;features&quot;]:
+            assert feature[&quot;output_contract&quot;] in {
+                &quot;research&quot;,
+                &quot;artifact&quot;,
+                &quot;experiment&quot;,
+                &quot;action&quot;,
+                &quot;monitor&quot;,
+                &quot;decision&quot;,
+                &quot;report&quot;,
+            }
+">
+<summary>tests/nipux_cli/test_planning.py <span>32 lines</span></summary>
+<pre class="source-code"><span class='src-line'><b>   1</b><code>from nipux_cli.planning import initial_roadmap_for_objective, initial_task_contract</code></span>
+<span class='src-line'><b>   2</b><code></code></span>
+<span class='src-line'><b>   3</b><code></code></span>
+<span class='src-line'><b>   4</b><code>def test_initial_task_contracts_are_generic_and_complete():</code></span>
+<span class='src-line'><b>   5</b><code>    for title in [</code></span>
+<span class='src-line'><b>   6</b><code>        &quot;Clarify the exact success criteria and constraints.&quot;,</code></span>
+<span class='src-line'><b>   7</b><code>        &quot;Map the first research or execution branches.&quot;,</code></span>
+<span class='src-line'><b>   8</b><code>        &quot;Collect evidence and save outputs as files.&quot;,</code></span>
+<span class='src-line'><b>   9</b><code>        &quot;Reflect on what worked, update memory, and continue with the next branch.&quot;,</code></span>
+<span class='src-line'><b>  10</b><code>    ]:</code></span>
+<span class='src-line'><b>  11</b><code>        contract = initial_task_contract(title)</code></span>
+<span class='src-line'><b>  12</b><code></code></span>
+<span class='src-line'><b>  13</b><code>        assert contract[&quot;output_contract&quot;] in {&quot;research&quot;, &quot;artifact&quot;, &quot;experiment&quot;, &quot;action&quot;, &quot;monitor&quot;, &quot;decision&quot;, &quot;report&quot;}</code></span>
+<span class='src-line'><b>  14</b><code>        assert contract[&quot;acceptance_criteria&quot;]</code></span>
+<span class='src-line'><b>  15</b><code>        assert contract[&quot;evidence_needed&quot;]</code></span>
+<span class='src-line'><b>  16</b><code>        assert contract[&quot;stall_behavior&quot;]</code></span>
+<span class='src-line'><b>  17</b><code></code></span>
+<span class='src-line'><b>  18</b><code></code></span>
+<span class='src-line'><b>  19</b><code>def test_initial_roadmap_uses_valid_generic_contracts():</code></span>
+<span class='src-line'><b>  20</b><code>    roadmap = initial_roadmap_for_objective(title=&quot;paper&quot;, objective=&quot;write a paper&quot;)</code></span>
+<span class='src-line'><b>  21</b><code></code></span>
+<span class='src-line'><b>  22</b><code>    for milestone in roadmap[&quot;milestones&quot;]:</code></span>
+<span class='src-line'><b>  23</b><code>        for feature in milestone[&quot;features&quot;]:</code></span>
+<span class='src-line'><b>  24</b><code>            assert feature[&quot;output_contract&quot;] in {</code></span>
+<span class='src-line'><b>  25</b><code>                &quot;research&quot;,</code></span>
+<span class='src-line'><b>  26</b><code>                &quot;artifact&quot;,</code></span>
+<span class='src-line'><b>  27</b><code>                &quot;experiment&quot;,</code></span>
+<span class='src-line'><b>  28</b><code>                &quot;action&quot;,</code></span>
+<span class='src-line'><b>  29</b><code>                &quot;monitor&quot;,</code></span>
+<span class='src-line'><b>  30</b><code>                &quot;decision&quot;,</code></span>
+<span class='src-line'><b>  31</b><code>                &quot;report&quot;,</code></span>
+<span class='src-line'><b>  32</b><code>            }</code></span></pre>
+</details>
 <details class="source-file searchable" data-search="tests/nipux_cli/test_progress.py from nipux_cli.progress import build_progress_checkpoint, ledger_counts, recent_progress_bits
 
 
@@ -34405,6 +34727,9 @@ class AntiBotBrowserRegistry:
 <article class="test-card searchable" data-search="tests/nipux_cli/test_operator_context.py test_conversation_only_operator_messages_do_not_enter_worker_prompt test_actionable_operator_messages_remain_worker_constraints test_inactive_prompt_operator_ids_returns_only_conversation_active_messages">
 <h3>tests/nipux_cli/test_operator_context.py</h3><p><strong>3</strong> tests · 30 lines</p>
 <p class="muted">test_conversation_only_operator_messages_do_not_enter_worker_prompt, test_actionable_operator_messages_remain_worker_constraints, test_inactive_prompt_operator_ids_returns_only_conversation_active_messages</p></article>
+<article class="test-card searchable" data-search="tests/nipux_cli/test_planning.py test_initial_task_contracts_are_generic_and_complete test_initial_roadmap_uses_valid_generic_contracts">
+<h3>tests/nipux_cli/test_planning.py</h3><p><strong>2</strong> tests · 32 lines</p>
+<p class="muted">test_initial_task_contracts_are_generic_and_complete, test_initial_roadmap_uses_valid_generic_contracts</p></article>
 <article class="test-card searchable" data-search="tests/nipux_cli/test_progress.py test_progress_checkpoint_reports_deltas_and_recent_durable_work test_progress_checkpoint_for_saved_output_is_concise test_progress_helpers_ignore_malformed_metadata">
 <h3>tests/nipux_cli/test_progress.py</h3><p><strong>3</strong> tests · 73 lines</p>
 <p class="muted">test_progress_checkpoint_reports_deltas_and_recent_durable_work, test_progress_checkpoint_for_saved_output_is_concise, test_progress_helpers_ignore_malformed_metadata</p></article>
@@ -34427,7 +34752,7 @@ class AntiBotBrowserRegistry:
       <div class="grid"><article class='card warning searchable' data-search='Large modules nipux_cli/cli.py (6313 lines), nipux_cli/worker.py (3081 lines), tests/nipux_cli/test_worker.py (2440 lines), nipux_cli/db.py (2396 lines), tests/nipux_cli/test_cli.py (1553 lines)'><h3>Large modules</h3><p>nipux_cli/cli.py (6313 lines), nipux_cli/worker.py (3081 lines), tests/nipux_cli/test_worker.py (2440 lines), nipux_cli/db.py (2396 lines), tests/nipux_cli/test_cli.py (1553 lines)</p></article>
 <article class='card warning searchable' data-search='Prompt surfaces 12 prompt/instruction-like strings were extracted. Inspect this section after any agent-behavior change.'><h3>Prompt surfaces</h3><p>12 prompt/instruction-like strings were extracted. Inspect this section after any agent-behavior change.</p></article>
 <article class='card warning searchable' data-search='Tool surface 26 tools are exposed to the worker. Review descriptions whenever generic behavior changes.'><h3>Tool surface</h3><p>26 tools are exposed to the worker. Review descriptions whenever generic behavior changes.</p></article>
-<article class='card warning searchable' data-search='Symbol map 985 symbols were parsed. Large modules are candidates for refactoring once behavior stabilizes.'><h3>Symbol map</h3><p>985 symbols were parsed. Large modules are candidates for refactoring once behavior stabilizes.</p></article></div>
+<article class='card warning searchable' data-search='Symbol map 991 symbols were parsed. Large modules are candidates for refactoring once behavior stabilizes.'><h3>Symbol map</h3><p>991 symbols were parsed. Large modules are candidates for refactoring once behavior stabilizes.</p></article></div>
     </section>
   </main>
 </div>
