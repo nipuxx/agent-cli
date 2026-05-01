@@ -49,6 +49,7 @@ def test_initial_plan_adapts_to_deliverable_objectives():
     assert plan["profile"] == "deliverable"
     assert "report" in contracts
     assert any("draft" in title.lower() or "report" in title.lower() for title in plan["tasks"])
+    assert any("revise" in title.lower() and "evidence" in title.lower() for title in plan["tasks"])
 
 
 def test_initial_plan_treats_generated_files_as_deliverables():

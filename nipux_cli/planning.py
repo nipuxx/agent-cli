@@ -306,6 +306,7 @@ def _initial_tasks_for_profiles(profiles: list[str]) -> list[str]:
                 "Map the outline, audience, evidence gaps, and acceptance criteria.",
                 "Collect evidence for the first section or deliverable unit.",
                 "Save a durable draft or report checkpoint.",
+                "Review and revise the latest draft against evidence gaps and acceptance criteria.",
             ]
         )
     elif primary == "monitor":
