@@ -522,3 +522,74 @@ def test_record_tasks_accepts_generic_output_contracts(tmp_path):
         assert task["stall_behavior"] == "record blocker and pivot"
     finally:
         db.close()
+
+
+def test_record_tasks_downgrades_done_artifact_without_delivery_evidence(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Update a deliverable")
+        run_id = db.start_run(job_id, model="fake")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="record_tasks")
+        ctx = ToolContext(config=config, db=db, artifacts=ArtifactStore(tmp_path, db), job_id=job_id, run_id=run_id, step_id=step_id)
+
+        raw = DEFAULT_REGISTRY.handle(
+            "record_tasks",
+            {
+                "tasks": [{
+                    "title": "Update report draft",
+                    "status": "done",
+                    "output_contract": "artifact",
+                    "result": "Updated the report",
+                }]
+            },
+            ctx,
+        )
+        result = json.loads(raw)
+        task = db.get_job(job_id)["metadata"]["task_queue"][0]
+
+        assert result["success"] is True
+        assert task["status"] == "active"
+        assert task["metadata"]["completion_validation"] == "missing_recent_deliverable_evidence"
+        assert task["metadata"]["claimed_result"] == "Updated the report"
+    finally:
+        db.close()
+
+
+def test_record_tasks_allows_done_artifact_after_delivery_evidence(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Update a deliverable")
+        run_id = db.start_run(job_id, model="fake")
+        artifact_step = db.add_step(
+            job_id=job_id,
+            run_id=run_id,
+            kind="tool",
+            tool_name="write_artifact",
+            input_data={"arguments": {"title": "Final report draft", "summary": "Updated report deliverable"}},
+        )
+        db.finish_step(artifact_step, status="completed", summary="write_artifact saved art_demo")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="record_tasks")
+        ctx = ToolContext(config=config, db=db, artifacts=ArtifactStore(tmp_path, db), job_id=job_id, run_id=run_id, step_id=step_id)
+
+        raw = DEFAULT_REGISTRY.handle(
+            "record_tasks",
+            {
+                "tasks": [{
+                    "title": "Update report draft",
+                    "status": "done",
+                    "output_contract": "artifact",
+                    "result": "Saved final report draft",
+                }]
+            },
+            ctx,
+        )
+        result = json.loads(raw)
+        task = db.get_job(job_id)["metadata"]["task_queue"][0]
+
+        assert result["success"] is True
+        assert task["status"] == "done"
+        assert "completion_validation" not in task.get("metadata", {})
+    finally:
+        db.close()

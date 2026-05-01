@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import signal
 import subprocess
 import time
@@ -29,6 +30,27 @@ class ToolContext:
 
 
 Handler = Callable[[dict[str, Any], ToolContext], str]
+
+EVIDENCE_OUTPUT_TERMS = {
+    "audit",
+    "checkpoint",
+    "evidence",
+    "extract",
+    "extracted",
+    "notes",
+    "source",
+    "sources",
+}
+DELIVERABLE_OUTPUT_TERMS = {
+    "compiled",
+    "deliverable",
+    "draft",
+    "final",
+    "paper",
+    "report",
+    "revision",
+    "updated",
+}
 
 
 @dataclass(frozen=True)
@@ -321,22 +343,33 @@ def _record_tasks(args: dict[str, Any], ctx: ToolContext) -> str:
         title = str(task.get("title") or task.get("name") or "").strip()
         if not title:
             continue
+        status = str(task.get("status") or "open")
+        output_contract = str(task.get("output_contract") or task.get("contract") or "")
+        result_text = str(task.get("result") or task.get("outcome") or "")
+        metadata = task.get("metadata") if isinstance(task.get("metadata"), dict) else {}
+        status, metadata = _validated_task_status(
+            ctx,
+            status=status,
+            output_contract=output_contract,
+            result=result_text,
+            metadata=metadata,
+        )
         priority_arg = task.get("priority")
         priority = int(priority_arg) if isinstance(priority_arg, (int, float)) else 0
         entry = ctx.db.append_task_record(
             ctx.job_id,
             title=title,
-            status=str(task.get("status") or "open"),
+            status=status,
             priority=priority,
             goal=str(task.get("goal") or task.get("description") or ""),
             source_hint=str(task.get("source_hint") or task.get("source") or ""),
-            result=str(task.get("result") or task.get("outcome") or ""),
+            result=result_text,
             parent=str(task.get("parent") or ""),
-            output_contract=str(task.get("output_contract") or task.get("contract") or ""),
+            output_contract=output_contract,
             acceptance_criteria=str(task.get("acceptance_criteria") or ""),
             evidence_needed=str(task.get("evidence_needed") or ""),
             stall_behavior=str(task.get("stall_behavior") or ""),
-            metadata=task.get("metadata") if isinstance(task.get("metadata"), dict) else {},
+            metadata=metadata,
         )
         if entry.get("created"):
             added += 1
@@ -360,6 +393,67 @@ def _record_tasks(args: dict[str, Any], ctx: ToolContext) -> str:
             via_tool="record_tasks",
         )
     return _json({"success": True, "job_id": ctx.job_id, "added": added, "updated": updated, "tasks": stored})
+
+
+def _validated_task_status(
+    ctx: ToolContext,
+    *,
+    status: str,
+    output_contract: str,
+    result: str,
+    metadata: dict[str, Any],
+) -> tuple[str, dict[str, Any]]:
+    normalized_status = status.strip().lower().replace(" ", "_") or "open"
+    contract = output_contract.strip().lower().replace(" ", "_")
+    if normalized_status != "done" or contract not in {"artifact", "report"}:
+        return status, metadata
+    if _recent_deliverable_evidence(ctx):
+        return status, metadata
+    updated = dict(metadata)
+    updated["completion_validation"] = "missing_recent_deliverable_evidence"
+    if result:
+        updated["claimed_result"] = result
+    return "active", updated
+
+
+def _recent_deliverable_evidence(ctx: ToolContext, *, limit: int = 12) -> bool:
+    for step in reversed(ctx.db.list_steps(job_id=ctx.job_id, limit=limit)):
+        if step.get("id") == ctx.step_id:
+            continue
+        if step.get("status") != "completed":
+            continue
+        tool_name = str(step.get("tool_name") or "")
+        input_data = step.get("input") if isinstance(step.get("input"), dict) else {}
+        args = input_data.get("arguments") if isinstance(input_data.get("arguments"), dict) else {}
+        if tool_name == "write_artifact" and _artifact_args_look_like_deliverable(args):
+            return True
+        if tool_name == "shell_exec" and _shell_command_looks_like_write(str(args.get("command") or "")):
+            return True
+    return False
+
+
+def _artifact_args_look_like_deliverable(args: dict[str, Any]) -> bool:
+    text = " ".join(str(args.get(key) or "") for key in ("title", "summary", "type")).lower()
+    if not text:
+        return False
+    evidence_like = any(term in text for term in EVIDENCE_OUTPUT_TERMS)
+    deliverable_like = any(term in text for term in DELIVERABLE_OUTPUT_TERMS)
+    return deliverable_like and not (evidence_like and not deliverable_like)
+
+
+def _shell_command_looks_like_write(command: str) -> bool:
+    text = command.strip()
+    if not text:
+        return False
+    write_patterns = [
+        r">\s*[^&]",
+        r"\btee\b",
+        r"\bcat\s+>\b",
+        r"\bpython[0-9.]*\b.*\bwrite_text\b",
+        r"\bpython[0-9.]*\b.*\bopen\([^)]*,\s*['\"]w",
+        r"\bsed\s+-i\b",
+    ]
+    return any(re.search(pattern, text, flags=re.IGNORECASE | re.DOTALL) for pattern in write_patterns)
 
 
 def _record_roadmap(args: dict[str, Any], ctx: ToolContext) -> str:
