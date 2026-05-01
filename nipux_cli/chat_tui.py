@@ -7,12 +7,10 @@ from typing import Any
 from nipux_cli.first_run_tui import first_run_themed_lines
 from nipux_cli.settings import edit_target_hint, edit_target_label, edit_target_masks_input
 from nipux_cli.tui_commands import CHAT_SLASH_COMMANDS, slash_suggestion_lines
-from nipux_cli.tui_events import (
-    chat_pane_lines,
-    chat_updates_pane_lines,
-    clean_step_summary,
-)
+from nipux_cli.tui_event_format import clean_step_summary
+from nipux_cli.tui_events import chat_pane_lines
 from nipux_cli.tui_layout import _compose_bar, _top_bar, _two_col_line, _two_col_title
+from nipux_cli.tui_outcomes import chat_updates_pane_lines
 from nipux_cli.tui_status import (
     chat_work_pane_lines,
     job_display_state,

@@ -7,13 +7,11 @@ from typing import Any
 
 from nipux_cli.operator_context import active_prompt_operator_entries
 from nipux_cli.scheduling import job_deferred_until
+from nipux_cli.tui_event_format import experiment_metric_text
 from nipux_cli.tui_events import (
-    CHAT_RIGHT_PAGES,
-    experiment_metric_text,
-    latest_durable_outcome_line,
-    recent_model_update_lines,
     worker_activity_lines,
 )
+from nipux_cli.tui_outcomes import CHAT_RIGHT_PAGES, latest_durable_outcome_line, recent_model_update_lines
 from nipux_cli.tui_layout import _metric_strip
 from nipux_cli.tui_style import (
     _accent,

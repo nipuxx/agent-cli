@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from nipux_cli.tui_events import CHAT_RIGHT_PAGES
+from nipux_cli.tui_outcomes import CHAT_RIGHT_PAGES
 from nipux_cli.tui_style import _one_line
 
 

@@ -8,7 +8,7 @@ from typing import Any
 from nipux_cli.config import AppConfig
 from nipux_cli.daemon import daemon_lock_status
 from nipux_cli.db import AgentDB
-from nipux_cli.tui_events import hourly_update_lines
+from nipux_cli.tui_outcomes import hourly_update_lines
 from nipux_cli.tui_status import job_display_state
 from nipux_cli.tui_style import _one_line
 

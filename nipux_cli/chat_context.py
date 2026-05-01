@@ -8,7 +8,7 @@ from nipux_cli.db import AgentDB
 from nipux_cli.event_render import event_line
 from nipux_cli.metric_format import format_metric_value
 from nipux_cli.operator_context import active_prompt_operator_entries
-from nipux_cli.tui_events import clean_step_summary
+from nipux_cli.tui_event_format import clean_step_summary
 
 
 def build_chat_messages(db: AgentDB, job: dict[str, Any], message: str) -> list[dict[str, str]]:

@@ -6,7 +6,7 @@ import shlex
 from typing import Any
 
 from nipux_cli.metric_format import format_metric_value
-from nipux_cli.tui_events import clean_step_summary, generic_display_text
+from nipux_cli.tui_event_format import clean_step_summary, generic_display_text
 from nipux_cli.tui_style import _one_line
 
 

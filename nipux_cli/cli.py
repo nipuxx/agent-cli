@@ -102,10 +102,12 @@ from nipux_cli.settings_commands import (
     capture_setting_command as _capture_setting_command,
     handle_chat_setting_command as _handle_chat_setting_command,
 )
-from nipux_cli.tui_events import (
+from nipux_cli.tui_event_format import (
     clean_step_summary as _clean_step_summary,
     friendly_error_text as _friendly_error_text,
     generic_display_text as _generic_display_text,
+)
+from nipux_cli.tui_events import (
     live_badge as _live_badge,
     minimal_live_event_line as _minimal_live_event_line,
 )

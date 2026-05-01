@@ -35,7 +35,8 @@ from nipux_cli.config import load_config
 from nipux_cli.daemon import append_daemon_event
 from nipux_cli.db import AgentDB
 from nipux_cli.llm import LLMResponse
-from nipux_cli.tui_events import chat_pane_lines, hourly_update_lines, recent_model_update_lines
+from nipux_cli.tui_events import chat_pane_lines
+from nipux_cli.tui_outcomes import hourly_update_lines, recent_model_update_lines
 
 
 def test_cli_has_operator_commands():

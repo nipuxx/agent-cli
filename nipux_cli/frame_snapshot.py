@@ -7,7 +7,7 @@ from typing import Any
 from nipux_cli.config import AppConfig
 from nipux_cli.daemon import daemon_lock_status
 from nipux_cli.db import AgentDB
-from nipux_cli.tui_events import SUMMARY_EVENT_TYPES
+from nipux_cli.tui_outcomes import SUMMARY_EVENT_TYPES
 
 
 def load_frame_snapshot(
