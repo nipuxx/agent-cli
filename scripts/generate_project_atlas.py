@@ -19,6 +19,9 @@ EXCLUDED = {
     "docs/project-atlas.html",
     "uv.lock",
 }
+SENSITIVE_ASSIGNMENT_RE = re.compile(
+    r"^(\s*)([A-Z0-9_]*(?:API_KEY|TOKEN|SECRET|PASSWORD)[A-Z0-9_]*)(\s*)=(.*)$"
+)
 
 
 @dataclass
@@ -514,14 +517,24 @@ def module_imports(source: SourceFile) -> list[str]:
 
 
 def render_source_file(source: SourceFile) -> str:
+    rendered_lines = [redact_source_line(line) for line in source.lines]
+    search_text = "\n".join(rendered_lines)
     code = "\n".join(
         f"<span class='src-line'><b>{index:>4}</b><code>{esc(line)}</code></span>"
-        for index, line in enumerate(source.lines, start=1)
+        for index, line in enumerate(rendered_lines, start=1)
     )
-    return f"""<details class="source-file searchable" data-search="{esc(source.path + ' ' + source.text[:4000])}">
+    return f"""<details class="source-file searchable" data-search="{esc(source.path + ' ' + search_text[:4000])}">
 <summary>{esc(source.path)} <span>{len(source.lines)} lines</span></summary>
 <pre class="source-code">{code}</pre>
 </details>"""
+
+
+def redact_source_line(line: str) -> str:
+    match = SENSITIVE_ASSIGNMENT_RE.match(line)
+    if not match:
+        return line
+    indent, name, _space, _value = match.groups()
+    return f"{indent}{name} = <redacted>"
 
 
 def render_symbol(symbol: Symbol) -> str:
