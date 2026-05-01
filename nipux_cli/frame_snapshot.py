@@ -20,7 +20,7 @@ def load_frame_snapshot(
 ) -> dict[str, Any]:
     """Return the compact state bundle rendered by the chat TUI."""
 
-    resolved_job_id = default_job_id or job_id
+    resolved_job_id = job_id or default_job_id
     job = db.get_job(resolved_job_id)
     jobs = db.list_jobs()
     token_usage = db.job_token_usage(resolved_job_id)

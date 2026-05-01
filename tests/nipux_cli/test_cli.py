@@ -1,3 +1,5 @@
+import json
+
 from nipux_cli.artifacts import ArtifactStore
 from nipux_cli import __version__
 from nipux_cli.cli import (
@@ -1346,6 +1348,22 @@ def test_frame_snapshot_keeps_summary_events_durable(monkeypatch, tmp_path):
     assert "Actual finding" in summary_text
     assert "web_search" not in summary_text
     assert "search noise" not in summary_text
+
+
+def test_frame_snapshot_respects_explicit_job_over_saved_focus(monkeypatch, tmp_path):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        focused_id = db.create_job("saved focus", title="saved focus")
+        requested_id = db.create_job("requested focus", title="requested focus")
+        (tmp_path / "shell_state.json").write_text(json.dumps({"focus_job_id": focused_id}), encoding="utf-8")
+    finally:
+        db.close()
+
+    snapshot = _load_frame_snapshot(requested_id, history_limit=4)
+
+    assert snapshot["job_id"] == requested_id
+    assert snapshot["job"]["title"] == "requested focus"
 
 
 def test_chat_status_page_marks_deferred_jobs_waiting():
