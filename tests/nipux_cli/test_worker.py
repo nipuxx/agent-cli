@@ -269,6 +269,95 @@ def test_write_artifact_reconciles_matching_report_task(tmp_path):
         db.close()
 
 
+def test_evidence_artifact_does_not_complete_deliverable_task(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job(
+            "Improve a durable report",
+            title="report",
+            kind="generic",
+            metadata={
+                "task_queue": [
+                    {
+                        "title": "Update report with new citations",
+                        "status": "open",
+                        "priority": 5,
+                        "output_contract": "artifact",
+                        "acceptance_criteria": "Report text is updated with citations.",
+                        "evidence_needed": "Updated report draft, not just source notes.",
+                    }
+                ]
+            },
+        )
+        llm = ScriptedLLM([
+            LLMResponse(tool_calls=[
+                ToolCall(
+                    name="write_artifact",
+                    arguments={
+                        "title": "Evidence: citation sources",
+                        "summary": "Extracted source notes for citations",
+                        "content": "These notes describe sources that could later be used in the report.",
+                    },
+                )
+            ])
+        ])
+
+        result = run_one_step(job_id, config=config, db=db, llm=llm)
+
+        assert result.status == "completed"
+        job = db.get_job(job_id)
+        task = job["metadata"]["task_queue"][0]
+        assert task["status"] == "open"
+        assert "auto_reconciled_from_artifact" not in task.get("metadata", {})
+    finally:
+        db.close()
+
+
+def test_evidence_artifact_can_complete_research_task(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job(
+            "Gather source evidence",
+            title="research",
+            kind="generic",
+            metadata={
+                "task_queue": [
+                    {
+                        "title": "Collect citation source evidence",
+                        "status": "open",
+                        "priority": 5,
+                        "output_contract": "research",
+                        "acceptance_criteria": "Evidence sources are saved.",
+                    }
+                ]
+            },
+        )
+        llm = ScriptedLLM([
+            LLMResponse(tool_calls=[
+                ToolCall(
+                    name="write_artifact",
+                    arguments={
+                        "title": "Evidence: citation sources",
+                        "summary": "Extracted source evidence",
+                        "content": "Citation source evidence for later report writing.",
+                    },
+                )
+            ])
+        ])
+
+        result = run_one_step(job_id, config=config, db=db, llm=llm)
+
+        assert result.status == "completed"
+        job = db.get_job(job_id)
+        task = job["metadata"]["task_queue"][0]
+        assert task["status"] == "done"
+        assert task["metadata"]["auto_reconciled_from_artifact"]
+    finally:
+        db.close()
+
+
 def test_run_one_step_blocks_artifact_churn_until_progress_accounting(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

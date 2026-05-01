@@ -223,6 +223,39 @@ TEXT_TOKEN_STOPWORDS = {
     "with",
 }
 
+EVIDENCE_ARTIFACT_TERMS = {
+    "audit",
+    "checkpoint",
+    "evidence",
+    "extract",
+    "extracted",
+    "notes",
+    "source",
+    "sources",
+}
+DELIVERABLE_ARTIFACT_TERMS = {
+    "compiled",
+    "deliverable",
+    "draft",
+    "final",
+    "paper",
+    "report",
+    "revision",
+    "updated",
+}
+TASK_DELIVERABLE_ACTION_TERMS = {
+    "add",
+    "append",
+    "compile",
+    "create",
+    "edit",
+    "insert",
+    "polish",
+    "rewrite",
+    "update",
+    "write",
+}
+
 BROWSER_REF_IGNORE_NAMES = {
     "about us",
     "back to top",
@@ -2429,6 +2462,13 @@ def _auto_reconcile_artifact_tasks(
             str(task.get(key) or "")
             for key in ("title", "goal", "acceptance_criteria", "evidence_needed", "source_hint")
         )
+        if not _artifact_can_reconcile_task(
+            contract=contract,
+            task_text=task_text,
+            artifact_title=artifact_title,
+            artifact_summary=artifact_summary,
+        ):
+            continue
         task_tokens = _text_tokens(task_text)
         if len(task_tokens) < 2:
             continue
@@ -2465,6 +2505,30 @@ def _auto_reconcile_artifact_tasks(
             metadata={"artifact_id": artifact_id, "task_count": len(reconciled)},
         )
     return reconciled
+
+
+def _artifact_can_reconcile_task(
+    *,
+    contract: str,
+    task_text: str,
+    artifact_title: str,
+    artifact_summary: str,
+) -> bool:
+    contract = contract.strip().lower()
+    if contract in {"experiment", "action", "monitor"}:
+        return False
+    if contract == "research":
+        return True
+    artifact_text = f"{artifact_title} {artifact_summary}".lower()
+    task_lower = task_text.lower()
+    evidence_like = any(term in artifact_text for term in EVIDENCE_ARTIFACT_TERMS)
+    deliverable_like = any(term in artifact_text for term in DELIVERABLE_ARTIFACT_TERMS)
+    task_needs_deliverable_action = any(term in task_lower for term in TASK_DELIVERABLE_ACTION_TERMS)
+    if evidence_like and not deliverable_like:
+        return False
+    if task_needs_deliverable_action and not deliverable_like:
+        return False
+    return True
 
 
 def _auto_checkpoint_update(
