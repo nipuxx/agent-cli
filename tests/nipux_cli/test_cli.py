@@ -100,6 +100,19 @@ def test_init_openrouter_writes_secret_free_config_and_env_template(monkeypatch,
     assert "sk-" not in env_text
 
 
+def test_init_defaults_to_qwen_openrouter(monkeypatch, tmp_path):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+
+    main(["init"])
+
+    config_text = (tmp_path / "config.yaml").read_text(encoding="utf-8")
+    env_text = (tmp_path / ".env").read_text(encoding="utf-8")
+    assert "name: qwen/qwen3.6-27b" in config_text
+    assert "base_url: https://openrouter.ai/api/v1" in config_text
+    assert "api_key_env: OPENROUTER_API_KEY" in config_text
+    assert env_text.strip().endswith("OPENROUTER_API_KEY" + "=")
+
+
 def test_init_openrouter_defaults_to_qwen36(monkeypatch, tmp_path):
     monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
 
