@@ -1355,6 +1355,17 @@ def _first_run_left_lines(
     selected: int,
 ) -> list[str]:
     selected_label = _first_run_actions(view)[_clamp_first_run_selection(selected, view)][1]
+    if not notices:
+        content = [
+            *[_center_ansi(_style(line, "37;1"), width) for line in NIPUX_HERO],
+            "",
+            _center_ansi(_muted("A long-running agent harness."), width),
+            _center_ansi(_muted("Type an objective, or use the controls on the right."), width),
+            "",
+            _center_ansi(f"{_muted('Selected')} {_accent(selected_label)}", width),
+        ]
+        top_pad = max(0, (rows - len(content)) // 2 - 1)
+        return ([""] * top_pad + content)[:rows]
     lines = [
         _bold("No agent output yet."),
         _muted("Create a job from the control pane or type a goal in the input line."),
@@ -1893,7 +1904,7 @@ def _build_chat_frame(
     state = _job_display_state(job, bool(daemon["running"]))
     worker = _worker_label(job, bool(daemon["running"]))
     latest_step = steps[-1] if steps else None
-    left_width = max(52, int(width * 0.64))
+    left_width = max(56, int(width * 0.62))
     right_width = max(34, width - left_width - 3)
     if right_width < 34:
         right_width = 34
@@ -1926,7 +1937,7 @@ def _build_chat_frame(
         hint = _edit_target_hint(editing_field)
         prompt_label = _edit_target_label(editing_field)
     else:
-        hint = "Talk to Nipux. ←→ switches status, updates, and settings. ↑↓ switches jobs."
+        hint = "Enter sends  ·  / commands  ·  ←→ panels  ·  ↑↓ jobs"
         prompt_label = "❯"
     compose_lines = _compose_bar(
         input_buffer,
@@ -1981,7 +1992,7 @@ def _build_chat_frame(
             rows=right_rows,
             right_view=right_view,
         )
-        right_title = "Jobs / Workers"
+        right_title = "Status"
     lines = [*header, _two_col_title(left_width, right_width, "Chat", right_title)]
     for index in range(body_rows):
         left = chat_lines[index] if index < len(chat_lines) else ""
@@ -2006,26 +2017,35 @@ def _top_bar(
     context_length: int = 0,
     base_url: str = "",
 ) -> list[str]:
-    title = f"{_bold(_accent('Nipux CLI'))} {_status_dot(state)}"
+    dots = f"{_style('●', '31')} {_style('●', '33')} {_style('●', '32')}  " if _fancy_ui() else ""
+    title = f"{dots}{_bold(_accent('Nipux CLI'))} {_status_dot(state)}"
     daemon_compact = "running" if daemon.startswith("running") else "stopped"
-    parts = [_pill("daemon", daemon_compact), _pill("model", model)]
+    runtime = _pill("daemon", daemon_compact)
     usage_text = _token_usage_topline(token_usage or {}, context_length=context_length, model=model, base_url=base_url)
-    if usage_text:
-        parts.append(usage_text)
-    meta = "  ".join(parts)
-    first = _fit_ansi(title, max(20, width - len(_strip_ansi(meta)) - 3))
+    model_line = f"{_muted('model')} {_style(_one_line(model, max(16, width // 3)), '36')}"
+    first = _edge_line(title, runtime, width=width)
+    second = _edge_line(model_line, usage_text, width=width)
     return [
-        first + " " * max(1, width - len(_strip_ansi(first)) - len(_strip_ansi(meta))) + meta,
+        first,
+        second,
         _muted("─" * width),
     ]
 
 
 def _two_col_title(left_width: int, right_width: int, left: str, right: str) -> str:
-    return _fit_ansi(_bold(left), left_width) + _muted(" │ ") + _fit_ansi(_bold(right), right_width)
+    return _muted("╭─ ") + _fit_ansi(_bold(left), max(0, left_width - 3)) + _muted(" │ ") + _fit_ansi(_bold(right), right_width)
 
 
 def _two_col_line(left: str, right: str, *, left_width: int, right_width: int) -> str:
     return _fit_ansi(left, left_width) + _muted(" │ ") + _fit_ansi(right, right_width)
+
+
+def _edge_line(left: str, right: str, *, width: int) -> str:
+    right_len = len(_strip_ansi(right))
+    left_width = max(0, width - right_len - 2)
+    left_text = _fit_ansi(left, left_width)
+    gap = max(1, width - len(_strip_ansi(left_text)) - right_len)
+    return _fit_ansi(left_text + " " * gap + right, width)
 
 
 def _chat_pane_lines(events: list[dict[str, Any]], notices: list[str], *, width: int, rows: int) -> list[str]:
@@ -2042,14 +2062,46 @@ def _chat_pane_lines(events: list[dict[str, Any]], notices: list[str], *, width:
         else:
             items.append(("NIPUX", notice, ""))
     if not items:
-        return [
-            _muted("No chat yet."),
-            _muted("Ask Nipux to create jobs, start work, check status, or explain saved output."),
-        ][:rows]
+        return _chat_empty_state_lines(width=width, rows=rows)
     output_rows: list[str] = []
     for label, body, clock in items[-max(4, rows) :]:
         _append_chat_output(output_rows, label, body, clock=clock, width=width)
     return output_rows[-rows:]
+
+
+NIPUX_HERO = [
+    " _   _ ___ ____  _   ___  __",
+    "| \\ | |_ _|  _ \\| | | \\ \\/ /",
+    "|  \\| || || |_) | | | |>  < ",
+    "| |\\  || ||  __/| |_| /_/\\_\\",
+    "|_| \\_|___|_|    \\___/      ",
+]
+
+
+def _chat_empty_state_lines(*, width: int, rows: int) -> list[str]:
+    if width < 48:
+        content = [
+            _center_ansi(_bold(_accent("NIPUX")), width),
+            "",
+            _center_ansi(_muted("Type normally to talk."), width),
+        ]
+        return content[:rows]
+    content = [
+        *[_center_ansi(_style(line, "37;1"), width) for line in NIPUX_HERO],
+        "",
+        _center_ansi(_muted("A persistent agent workspace."), width),
+        _center_ansi(_muted("Enter sends  ·  / opens commands  ·  arrows switch panels"), width),
+    ]
+    top_pad = max(0, (rows - len(content)) // 2 - 1)
+    return ([""] * top_pad + content)[:rows]
+
+
+def _center_ansi(text: str, width: int) -> str:
+    text_width = len(_strip_ansi(text))
+    if text_width >= width:
+        return _fit_ansi(text, width)
+    left_pad = max(0, (width - text_width) // 2)
+    return _fit_ansi(" " * left_pad + text, width)
 
 
 def _chat_event_parts(event: dict[str, Any]) -> tuple[str, str, str] | None:
@@ -2366,20 +2418,20 @@ def _right_pane_lines(
         info_lines.append(f"{_muted('Context')} {_one_line(active_operator[-1].get('message') or '', width - 8)}")
     if pending_measurement:
         info_lines.append(f"{_muted('Measure')} pending step #{pending_measurement.get('source_step_no') or '?'}")
-    info_lines.append(
-        f"{_bold('Controls')}  {_muted('new')}  {_muted('run')}  {_muted('pause')}  {_muted('jobs')}  {_muted('settings')}"
-    )
     info_lines.append("")
     info_lines.append(_bold("Jobs"))
     for job_line in _frame_jobs_lines(jobs, focused_job_id=job_id, daemon_running=daemon_running, width=width)[:4]:
         info_lines.append(job_line)
     worker_lines = _worker_activity_lines(events, width=width, limit=min(8, max(2, rows // 3)))
     if not worker_lines:
+        info_lines.append("")
+        info_lines.append(_bold("Activity"))
+        info_lines.append(_muted("No recent worker events."))
         return info_lines[:rows]
     base_budget = max(0, rows - len(worker_lines) - 2)
     base_lines = info_lines[:base_budget]
     base_lines.append("")
-    base_lines.append(_bold("Workers"))
+    base_lines.append(_bold("Activity"))
     base_lines.extend(worker_lines)
     return base_lines[:rows]
 
@@ -2520,21 +2572,14 @@ def _chat_settings_pane_lines(
 ) -> list[str]:
     config = load_config()
     lines = [
-        *_chat_workspace_lines(
-            right_view="settings",
-            job=job,
-            state=state,
-            worker=worker,
-            daemon_text=daemon_text,
-            model=model,
-            goal_text=goal_text,
-            latest_text=latest_text,
-            metrics=metrics,
-            width=width,
-        ),
+        f"{_muted('Page')}   {_page_indicator('settings', CHAT_RIGHT_PAGES)}",
+        "",
+        _bold(_one_line(str(job.get("title") or "untitled"), width)),
+        f"{_status_badge(state)} {_muted('worker')} {_status_badge(worker)}",
+        "",
         _bold("Commands"),
         f"{_muted('Config')} {_one_line(_short_path(_config_path()), width - 8)}",
-        *_settings_command_lines(config=config, width=width, limit=max(4, rows - 12)),
+        *_settings_command_lines(config=config, width=width, limit=max(4, rows - 8)),
     ]
     return [_fit_ansi(line, width) for line in lines[:rows]]
 
@@ -2555,18 +2600,41 @@ def _chat_workspace_lines(
     goal_lines = textwrap.wrap(goal_text, width=max(20, width - 8))[:2] or [""]
     while len(goal_lines) < 2:
         goal_lines.append("")
+    title = _one_line(str(job.get("title") or "untitled"), max(10, width))
     return [
         f"{_muted('Page')}   {_page_indicator(right_view, CHAT_RIGHT_PAGES)}",
-        f"{_muted('Focus')}  {_bold(_one_line(job.get('title') or 'untitled', width - 8))}",
-        f"{_muted('State')}  {_status_badge(state)}  {_muted('worker')} {_status_badge(worker)}",
-        f"{_muted('Daemon')} {_one_line(daemon_text, width - 8)}",
-        f"{_muted('Model')}  {_one_line(model, width - 8)}",
+        "",
+        _bold(title),
+        f"{_status_badge(state)} {_muted('worker')} {_status_badge(worker)}  {_muted(_one_line(daemon_text, max(8, width - 28)))}",
+        "",
         f"{_muted('Goal')}   {goal_lines[0]}",
-        f"{_muted('Goal')}   {goal_lines[1]}",
+        f"{_muted('       ')}{goal_lines[1]}",
         f"{_muted('Latest')} {_one_line(latest_text, width - 8)}",
-        _metric_strip(metrics, width=width),
+        "",
+        _bold("Counts"),
+        *_metrics_grid_lines(metrics, width=width),
         "",
     ]
+
+
+def _metrics_grid_lines(metrics: list[tuple[str, Any]], *, width: int) -> list[str]:
+    wanted = ["actions", "outputs", "findings", "sources", "tasks", "experiments", "memory"]
+    lookup = {label: value for label, value in metrics}
+    items = [(label, lookup[label]) for label in wanted if label in lookup]
+    if width < 40:
+        return [_metric_strip(items, width=width)]
+    lines: list[str] = []
+    col_width = max(16, (width - 2) // 2)
+    for index in range(0, len(items), 2):
+        left = _metric_cell(items[index], width=col_width)
+        right = _metric_cell(items[index + 1], width=col_width) if index + 1 < len(items) else ""
+        lines.append(_fit_ansi(left + "  " + right, width))
+    return lines
+
+
+def _metric_cell(item: tuple[str, Any], *, width: int) -> str:
+    label, value = item
+    return _fit_ansi(f"{_muted(label)} {_bold(value)}", width)
 
 
 def _activity_text(event: dict[str, Any], *, width: int) -> str:
@@ -2598,7 +2666,7 @@ def _compose_bar(
         lines.extend(suggestions)
     lines.extend(
         [
-            _muted("─") + _bold(title) + _muted("─" * max(0, width - len(title) - 1)),
+            _muted("╭─") + _bold(title) + _muted("─" * max(0, width - len(title) - 2)),
             _fit_ansi(hint, width),
             _fit_ansi(prompt, width),
         ]

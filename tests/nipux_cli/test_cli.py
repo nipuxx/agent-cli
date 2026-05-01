@@ -224,7 +224,7 @@ def test_first_run_frame_uses_full_screen_ui_not_banner(monkeypatch, tmp_path):
     assert "Control" in frame
     assert "Compose" in frame
     assert "New job" in frame
-    assert "_   _" not in frame
+    assert "_   _" in frame
     assert "FIRST RUN" not in frame
     assert "nipux menu >" not in frame
     assert "/shell" not in frame
@@ -646,7 +646,7 @@ def test_chat_frame_is_bounded_and_has_composer():
     assert len(frame.splitlines()) <= 22
     assert "Nipux CLI" in frame
     assert "Chat" in frame
-    assert "Jobs / Workers" in frame
+    assert "Status" in frame
     assert "Latest" in frame
     assert "search demo" in frame
     assert "ctx" in frame
@@ -721,9 +721,36 @@ def test_chat_frame_separates_chat_from_worker_activity():
 
     assert "start a benchmark job" in frame
     assert "I created the job" in frame
-    assert "Workers" in frame
+    assert "Activity" in frame
     assert "python bench.py" in frame
     assert "python bench.py" not in chat_side
+
+
+def test_chat_frame_empty_state_uses_sleek_hero():
+    snapshot = {
+        "job_id": "job_demo",
+        "job": {
+            "id": "job_demo",
+            "title": "demo job",
+            "objective": "keep chat visible",
+            "status": "running",
+            "kind": "generic",
+            "metadata": {},
+        },
+        "jobs": [{"id": "job_demo", "title": "demo job", "status": "running", "kind": "generic", "metadata": {}}],
+        "steps": [],
+        "artifacts": [],
+        "memory_entries": [],
+        "events": [],
+        "daemon": {"running": True, "metadata": {"pid": 123}},
+        "model": "model/demo",
+    }
+
+    frame = _build_chat_frame(snapshot, "", [], width=120, height=28)
+
+    assert "_   _ ___" in frame
+    assert "A persistent agent workspace." in frame
+    assert "No chat yet." not in frame
 
 
 def test_chat_frame_does_not_cap_long_agent_messages():
