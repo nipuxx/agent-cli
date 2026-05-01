@@ -13,7 +13,7 @@ Use this before sharing the repository with outside users.
 
 - `uv tool install --editable .` works from a checkout.
 - `uv run nipux --help` works without installing.
-- `nipux init --openrouter` writes `~/.nipux/config.yaml` and a blank `~/.nipux/.env` template.
+- `nipux init` writes the default Qwen/OpenRouter `~/.nipux/config.yaml` and a blank `~/.nipux/.env` template.
 - `nipux doctor` passes for local runtime checks after initialization.
 - `nipux daemon --once --fake` runs without a model key.
 

@@ -26,7 +26,7 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://nepox.com"
+Homepage = "https://nipux.com"
 Source = "https://github.com/nipuxx/agent-cli"
 Issues = "https://github.com/nipuxx/agent-cli/issues"
 
