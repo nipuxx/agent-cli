@@ -19,6 +19,7 @@ from typing import Any
 from nipux_cli.config import AppConfig, load_config
 from nipux_cli.db import AgentDB
 from nipux_cli.digest import write_daily_digest
+from nipux_cli.provider_errors import provider_action_required, provider_rate_limited
 from nipux_cli.scheduling import job_deferred_until, job_is_deferred
 
 
@@ -509,32 +510,11 @@ def _is_rate_limit_error(exc: Exception) -> bool:
 
 
 def _is_rate_limit_text(text: str) -> bool:
-    lowered = text.lower()
-    return (
-        "429" in lowered
-        or "rate limit" in lowered
-        or "ratelimit" in lowered
-        or "too many requests" in lowered
-        or "temporarily over capacity" in lowered
-    )
+    return provider_rate_limited(text)
 
 
 def _is_provider_config_text(text: str) -> bool:
-    lowered = text.lower()
-    return (
-        "401" in lowered
-        or "403" in lowered
-        or "authentication" in lowered
-        or "permissiondenied" in lowered
-        or "permission denied" in lowered
-        or "invalid api key" in lowered
-        or ("api key" in lowered and ("missing" in lowered or "invalid" in lowered))
-        or "key limit exceeded" in lowered
-        or "insufficient quota" in lowered
-        or "quota exceeded" in lowered
-        or "billing" in lowered
-        or "credits" in lowered
-    )
+    return provider_action_required(text)
 
 
 def _retry_after_seconds(exc: Exception) -> float | None:

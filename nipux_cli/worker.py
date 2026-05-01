@@ -21,6 +21,7 @@ from nipux_cli.operator_context import (
     operator_entry_is_prompt_relevant,
 )
 from nipux_cli.progress import build_progress_checkpoint
+from nipux_cli.provider_errors import provider_action_required_note
 from nipux_cli.source_quality import anti_bot_reason
 from nipux_cli.tools import DEFAULT_REGISTRY, ToolContext, ToolRegistry
 
@@ -2414,39 +2415,7 @@ def _error_result(exc: Exception) -> dict[str, Any]:
 
 
 def _hard_llm_provider_failure_note(exc: Exception) -> str:
-    text = _provider_error_text(exc)
-    hard_markers = {
-        "authenticationerror",
-        "permissiondeniederror",
-        "authentication failed",
-        "permission denied",
-        "invalid api key",
-        "incorrect api key",
-        "user not found",
-        "key limit exceeded",
-        "insufficient_quota",
-        "insufficient quota",
-        "insufficient credits",
-        "billing",
-        "payment required",
-        "credit limit",
-        "quota exceeded",
-        "401",
-        "403",
-    }
-    if not any(marker in text for marker in hard_markers):
-        return ""
-    return (
-        "Model provider requires operator action: authentication, permission, billing, or quota is blocking calls. "
-        "Paused this job so the daemon does not repeat failing model requests. Update credentials/model access, then resume."
-    )
-
-
-def _provider_error_text(exc: Exception) -> str:
-    parts = [type(exc).__name__, str(exc)]
-    if isinstance(exc, LLMResponseError) and exc.payload:
-        parts.append(json.dumps(exc.payload, ensure_ascii=False, default=str))
-    return " ".join(parts).lower()
+    return provider_action_required_note(exc)
 
 
 def _max_step_no(steps: list[dict[str, Any]]) -> int:
