@@ -49,6 +49,7 @@ from nipux_cli.first_run_tui import (
     build_first_run_frame as _build_first_run_tui_frame,
     first_run_columns as _first_run_columns,
 )
+from nipux_cli.frame_snapshot import load_frame_snapshot
 from nipux_cli.operator_context import active_prompt_operator_entries
 from nipux_cli.planning import (
     format_initial_plan,
@@ -72,7 +73,6 @@ from nipux_cli.settings import (
 )
 from nipux_cli.tui_events import (
     CHAT_RIGHT_PAGES,
-    SUMMARY_EVENT_TYPES,
     clean_step_summary as _clean_step_summary,
     friendly_error_text as _friendly_error_text,
     generic_display_text as _generic_display_text,
@@ -1223,45 +1223,15 @@ def _is_plain_chat_line(line: str) -> bool:
 def _load_frame_snapshot(job_id: str, *, history_limit: int = 12) -> dict[str, Any]:
     db, config = _db()
     try:
-        job_id = _default_job_id(db) or job_id
-        job = db.get_job(job_id)
-        jobs = db.list_jobs()
-        counts = db.job_record_counts(job_id)
-        steps = db.list_steps(job_id=job_id, limit=80)
-        artifacts = db.list_artifacts(job_id, limit=8)
-        job_artifacts = {
-            str(item["id"]): db.list_artifacts(str(item["id"]), limit=3)
-            for item in jobs[:6]
-            if item.get("id")
-        }
-        memory_entries = db.list_memory(job_id)[:8]
-        events = db.list_events(job_id=job_id, limit=max(history_limit * 16, 240))
-        summary_events = db.list_events(
-            job_id=job_id,
-            limit=max(history_limit * 24, 360),
-            event_types=SUMMARY_EVENT_TYPES,
+        return load_frame_snapshot(
+            db,
+            config,
+            job_id,
+            default_job_id=_default_job_id(db),
+            history_limit=history_limit,
         )
-        token_usage = db.job_token_usage(job_id)
-        daemon = daemon_lock_status(config.runtime.home / "agentd.lock")
     finally:
         db.close()
-    return {
-        "job_id": job_id,
-        "job": job,
-        "jobs": jobs,
-        "steps": steps,
-        "artifacts": artifacts,
-        "job_artifacts": job_artifacts,
-        "memory_entries": memory_entries,
-        "events": events,
-        "summary_events": summary_events,
-        "daemon": daemon,
-        "model": config.model.model,
-        "base_url": config.model.base_url,
-        "context_length": config.model.context_length,
-        "token_usage": token_usage,
-        "counts": counts,
-    }
 
 
 def _render_chat_frame(
