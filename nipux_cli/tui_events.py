@@ -100,7 +100,13 @@ def chat_pane_lines(events: list[dict[str, Any]], notices: list[str], *, width: 
     output_rows: list[str] = []
     for label, body, clock in items[-max(4, rows) :]:
         append_chat_output(output_rows, label, body, clock=clock, width=width)
-    return output_rows[-rows:]
+    if len(output_rows) <= rows:
+        return output_rows
+    if rows <= 1:
+        return output_rows[-rows:]
+    hidden = len(output_rows) - rows + 1
+    marker = _fit_ansi(_muted(f"... {hidden} chat lines hidden; use /history for full text."), width)
+    return [marker, *output_rows[-(rows - 1) :]]
 
 
 def chat_empty_state_lines(*, width: int, rows: int) -> list[str]:

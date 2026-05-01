@@ -31,7 +31,7 @@ from nipux_cli.cli import (
 from nipux_cli.config import load_config
 from nipux_cli.daemon import append_daemon_event
 from nipux_cli.db import AgentDB
-from nipux_cli.tui_events import recent_model_update_lines
+from nipux_cli.tui_events import chat_pane_lines, recent_model_update_lines
 
 
 def test_cli_has_operator_commands():
@@ -1012,6 +1012,23 @@ def test_recent_outcome_lines_wrap_long_updates():
     assert len(lines) >= 2
     assert "Trajectory distillation improves" in rendered
     assert "teacher traces include failures" in rendered
+
+
+def test_chat_pane_marks_hidden_overflow():
+    events = [
+        {
+            "event_type": "agent_message",
+            "title": "chat",
+            "body": " ".join(f"word{i}" for i in range(80)),
+            "metadata": {},
+            "created_at": "2026-04-25T12:00:00Z",
+        }
+    ]
+
+    lines = chat_pane_lines(events, [], width=48, rows=4)
+
+    assert "chat lines hidden" in lines[0]
+    assert len(lines) == 4
 
 
 def test_chat_updates_page_uses_deeper_summary_events():
