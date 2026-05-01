@@ -160,7 +160,7 @@ def test_main_no_args_with_no_jobs_shows_first_run_menu(monkeypatch, tmp_path, c
     out = capsys.readouterr().out
     assert "FIRST RUN" in out
     assert "new       create a job" in out
-    assert "settings  show model, home, daemon, and config" in out
+    assert "settings" not in out.lower()
     assert "shell     open the full command console" not in out
     assert "doctor    check local setup" in out
     assert "_   _" not in out
@@ -235,40 +235,37 @@ def test_first_run_frame_has_slash_command_popup(monkeypatch, tmp_path):
 
     frame = _build_first_run_frame("/", [], width=100, height=26)
 
-    assert "commands" not in frame
-    assert "/new" not in frame
-    assert "/doctor" not in frame
+    assert "commands" in frame
+    assert "/new" in frame
+    assert "/jobs" in frame
+    assert "/model" in frame
     assert "/settings" not in frame
     assert "/shell" not in frame
-    assert "tab completes first match" not in frame
+    assert "tab completes first match" in frame
 
 
-def test_first_run_frame_has_settings_view(monkeypatch, tmp_path):
+def test_first_run_frame_has_no_settings_page(monkeypatch, tmp_path):
     monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
 
     frame = _build_first_run_frame("", [], width=100, height=26, view="settings", selected=1)
 
-    assert "Settings" in frame
-    assert "Config" in frame
-    assert "/base-url URL" in frame
-    assert "/api-key KEY" in frame
-    assert "/timeout SECONDS" in frame
-    assert "API env" not in frame
-    assert "Page" in frame
+    assert "Settings" not in frame
+    assert "/base-url URL" not in frame
+    assert "/api-key KEY" not in frame
+    assert "/timeout SECONDS" not in frame
+    assert "Mode" in frame
+    assert "Start" in frame
     assert "/shell" not in frame
 
 
-def test_first_run_frame_edits_settings_inline(monkeypatch, tmp_path):
+def test_first_run_frame_uses_command_palette_for_config(monkeypatch, tmp_path):
     monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
 
-    frame = _build_first_run_frame(
-        "", [], width=100, height=26, view="settings", selected=0, editing_field="model.name"
-    )
+    frame = _build_first_run_frame("/model", [], width=100, height=26)
 
-    assert "Editing model.name" in frame
-    assert "model.name [" not in frame
-    assert "Settings" in frame
-    assert "●" in frame
+    assert "/model" in frame
+    assert "set model" in frame
+    assert "Settings" not in frame
 
 
 def test_settings_editor_persists_model_config(monkeypatch, tmp_path):
@@ -288,7 +285,7 @@ def test_settings_editor_persists_model_config(monkeypatch, tmp_path):
 
 def test_slash_autocomplete_filters_commands():
     assert _autocomplete_slash("/do", FIRST_RUN_SLASH_COMMANDS) == "/doctor "
-    assert _autocomplete_slash("/se", FIRST_RUN_SLASH_COMMANDS) == "/settings "
+    assert _autocomplete_slash("/mo", FIRST_RUN_SLASH_COMMANDS) == "/model "
     assert _autocomplete_slash("/sta", CHAT_SLASH_COMMANDS) == "/status "
     assert _autocomplete_slash("/step", CHAT_SLASH_COMMANDS) == "/step-limit "
     assert _autocomplete_slash("/out", FIRST_RUN_SLASH_COMMANDS) == "/output-chars "
@@ -317,7 +314,6 @@ def test_first_run_click_maps_right_pane_actions(monkeypatch):
 
     assert _first_run_click_action(70, 11, view="start") == 0
     assert _first_run_click_action(70, 13, view="start") == 2
-    assert _first_run_click_action(70, 11, view="settings") == 0
     assert _first_run_click_action(10, 12, view="start") is None
 
 
@@ -329,7 +325,7 @@ def test_frame_next_job_cycles_jobs():
     assert _frame_next_job_id(snapshot, "missing", direction=1) == "two"
 
 
-def test_chat_help_has_settings_without_shell(monkeypatch, tmp_path, capsys):
+def test_chat_help_has_config_slash_commands_without_settings_page(monkeypatch, tmp_path, capsys):
     monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
     db = AgentDB(tmp_path / "state.db")
     try:
@@ -340,7 +336,7 @@ def test_chat_help_has_settings_without_shell(monkeypatch, tmp_path, capsys):
     assert _chat_handle_line(job_id, "/help") is True
 
     out = capsys.readouterr().out
-    assert "/settings" in out
+    assert "/settings" not in out
     assert "/model MODEL" in out
     assert "/api-key KEY" in out
     assert "/timeout SECONDS" in out
@@ -357,12 +353,6 @@ def test_chat_settings_slash_commands_persist_config(monkeypatch, tmp_path, caps
         job_id = db.create_job("Research topic", title="research")
     finally:
         db.close()
-
-    assert _chat_handle_line(job_id, "/settings") is True
-    out = capsys.readouterr().out
-    assert "/model MODEL" in out
-    assert "/base-url URL" in out
-    assert "/api-key KEY" in out
 
     assert _chat_handle_line(job_id, "/model provider/model") is True
     assert _chat_handle_line(job_id, "/base-url https://example.com/v1") is True
@@ -648,7 +638,6 @@ def test_chat_frame_is_bounded_and_has_composer():
     assert "Chat" in frame
     assert "Status" in frame
     assert "Latest" in frame
-    assert "search demo" in frame
     assert "ctx" in frame
     assert "4.1K/8.2K" in frame
     assert "out" in frame
@@ -657,23 +646,14 @@ def test_chat_frame_is_bounded_and_has_composer():
     assert "Compose" in frame
     assert "❯ hello" in frame
 
-    settings = _build_chat_frame(snapshot, "", [], width=100, height=24, right_view="settings", selected_control=1)
-    assert "Settings" in settings
-    assert "/base-url URL" in settings
-    assert "/timeout SECONDS" in settings
+    work = _build_chat_frame(snapshot, "", [], width=100, height=24, right_view="work")
+    assert "Work" in work
+    assert "Tool / console" in work
+    assert "search demo" in work
 
-    editing = _build_chat_frame(
-        snapshot,
-        "demo/model",
-        [],
-        width=100,
-        height=24,
-        right_view="settings",
-        selected_control=0,
-        editing_field="model.name",
-    )
-    assert "Editing model.name" in editing
-    assert "model.name demo/model" in editing
+    updates = _build_chat_frame(snapshot, "", [], width=100, height=24, right_view="updates")
+    assert "Progress" in updates
+    assert "Progress by hour" in updates
 
     secret = _build_chat_frame(
         snapshot,
@@ -681,12 +661,9 @@ def test_chat_frame_is_bounded_and_has_composer():
         [],
         width=100,
         height=24,
-        right_view="settings",
-        selected_control=2,
         editing_field="secret:model.api_key",
     )
     assert "Editing API key" in secret
-    assert "API env" not in secret
     assert "secret-value" not in secret
     assert "••••" in secret
 
@@ -716,12 +693,12 @@ def test_chat_frame_separates_chat_from_worker_activity():
         "model": "model/demo",
     }
 
-    frame = _build_chat_frame(snapshot, "", [], width=130, height=24)
+    frame = _build_chat_frame(snapshot, "", [], width=130, height=24, right_view="work")
     chat_side = frame.split(" │ ", 1)[0]
 
     assert "start a benchmark job" in frame
     assert "I created the job" in frame
-    assert "Activity" in frame
+    assert "Tool / console" in frame
     assert "python bench.py" in frame
     assert "python bench.py" not in chat_side
 
@@ -798,7 +775,7 @@ def test_plain_chat_control_intents_map_to_commands():
     assert _chat_control_command("start working") == "/run"
     assert _chat_control_command("pause this job") == "/pause"
     assert _chat_control_command("show jobs") == "/jobs"
-    assert _chat_control_command("change model") == "/settings"
+    assert _chat_control_command("change model") == "/model"
 
 
 def test_plain_chat_control_intent_does_not_queue_operator_context(monkeypatch, tmp_path):
@@ -867,9 +844,10 @@ def test_chat_frame_surfaces_actual_work_events():
         "counts": {"steps": 10, "artifacts": 1, "memory": 1},
     }
 
-    frame = _build_chat_frame(snapshot, "", [], width=150, height=34)
+    updates = _build_chat_frame(snapshot, "", [], width=150, height=34, right_view="updates")
+    work = _build_chat_frame(snapshot, "", [], width=150, height=34, right_view="work")
+    frame = updates + "\n" + work
 
-    assert "please keep improving" in frame
     assert "Research Paper Draft" in frame
     assert "Distillation finding" in frame
     assert "Compare methods" in frame
@@ -908,7 +886,8 @@ def test_chat_frame_has_model_updates_page():
 
     frame = _build_chat_frame(snapshot, "", [], width=132, height=28, right_view="updates")
 
-    assert "Model Updates" in frame
+    assert "Progress" in frame
+    assert "Progress by hour" in frame
     assert "distillation agents" in frame
     assert "Literature Review Draft" in frame
     assert "Trajectory distillation" in frame
@@ -953,7 +932,7 @@ def test_chat_frame_collapses_repeated_failures_and_hides_memory_noise():
         "counts": {"steps": 3, "artifacts": 0, "memory": 1},
     }
 
-    frame = _build_chat_frame(snapshot, "", [], width=120, height=24)
+    frame = _build_chat_frame(snapshot, "", [], width=120, height=24, right_view="work")
 
     assert "FAIL x3" in frame
     assert "very long compact memory" not in frame

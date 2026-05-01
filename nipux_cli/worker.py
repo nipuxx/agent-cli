@@ -2757,14 +2757,72 @@ def _auto_checkpoint_update(
     tasks = metadata.get("task_queue") if isinstance(metadata.get("task_queue"), list) else []
     experiments = metadata.get("experiment_ledger") if isinstance(metadata.get("experiment_ledger"), list) else []
     lessons = metadata.get("lessons") if isinstance(metadata.get("lessons"), list) else []
+    roadmap = metadata.get("roadmap") if isinstance(metadata.get("roadmap"), dict) else {}
+    milestones = roadmap.get("milestones") if isinstance(roadmap.get("milestones"), list) else []
     artifact_id = result.get("artifact_id") or ""
+    counts = {
+        "findings": len(findings),
+        "sources": len(sources),
+        "tasks": len(tasks),
+        "experiments": len(experiments),
+        "lessons": len(lessons),
+        "milestones": len(milestones),
+    }
+    previous = metadata.get("last_checkpoint_counts") if isinstance(metadata.get("last_checkpoint_counts"), dict) else {}
+    deltas = {
+        key: counts[key] - int(previous.get(key) or 0)
+        for key in counts
+    }
+    recent_bits = _checkpoint_recent_bits(findings=findings, tasks=tasks, experiments=experiments, milestones=milestones)
     if is_finding_batch:
-        message = f"Saved a finding-related artifact {artifact_id}; ledger now has {len(findings)} findings, {len(sources)} sources, {len(tasks)} tasks, and {len(experiments)} experiments."
+        message = f"Saved output {artifact_id}; ledgers now have {len(findings)} findings, {len(sources)} sources, {len(tasks)} tasks, and {len(experiments)} experiments."
         category = "finding"
     else:
-        message = f"Checkpoint at step #{step_no}: {len(findings)} findings, {len(sources)} sources, {len(tasks)} tasks, {len(experiments)} experiments, {len(lessons)} lessons recorded."
+        changed = ", ".join(f"+{value} {key}" for key, value in deltas.items() if value > 0)
+        if not changed:
+            changed = "no new durable ledger entries"
+        message = (
+            f"Checkpoint step #{step_no}: {changed}. Totals: {len(findings)} findings, {len(sources)} sources, "
+            f"{len(tasks)} tasks, {len(experiments)} experiments, {len(lessons)} lessons."
+        )
         category = "progress"
+    if recent_bits:
+        message = f"{message} Recent: {recent_bits}."
     db.append_agent_update(job_id, message, category=category, metadata={"step_no": step_no, "tool": tool_name})
+    db.update_job_metadata(job_id, {"last_checkpoint_counts": counts})
+
+
+def _checkpoint_recent_bits(
+    *,
+    findings: list[Any],
+    tasks: list[Any],
+    experiments: list[Any],
+    milestones: list[Any],
+) -> str:
+    bits: list[str] = []
+    if findings:
+        finding = findings[-1]
+        if isinstance(finding, dict):
+            bits.append(f"finding={_clip_text(str(finding.get('name') or finding.get('title') or 'finding'), 80)}")
+    active_tasks = [
+        task for task in tasks
+        if isinstance(task, dict) and str(task.get("status") or "open").lower() in {"active", "open", "blocked"}
+    ]
+    if active_tasks:
+        task = sorted(active_tasks, key=lambda entry: -_as_int(entry.get("priority")))[0]
+        bits.append(f"task={_clip_text(str(task.get('title') or 'task'), 80)}")
+    measured = [experiment for experiment in experiments if isinstance(experiment, dict) and experiment.get("metric_value") is not None]
+    if measured:
+        experiment = measured[-1]
+        metric = f"{experiment.get('metric_name') or 'metric'}={experiment.get('metric_value')}{experiment.get('metric_unit') or ''}"
+        bits.append(f"measurement={_clip_text(metric, 80)}")
+    active_milestones = [
+        milestone for milestone in milestones
+        if isinstance(milestone, dict) and str(milestone.get("status") or "planned").lower() in {"active", "validating", "blocked"}
+    ]
+    if active_milestones:
+        bits.append(f"milestone={_clip_text(str(active_milestones[-1].get('title') or 'milestone'), 80)}")
+    return "; ".join(bits)
 
 
 def _execute_tool_call(

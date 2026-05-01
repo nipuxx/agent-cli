@@ -153,7 +153,6 @@ NATURAL_COMMANDS = {
 FIRST_RUN_SLASH_COMMANDS = [
     ("/new", "create a job"),
     ("/jobs", "list jobs"),
-    ("/settings", "open settings"),
     ("/model", "set model"),
     ("/base-url", "set endpoint"),
     ("/api-key", "save key"),
@@ -183,7 +182,6 @@ CHAT_SLASH_COMMANDS = [
     ("/artifact", "open output"),
     ("/memory", "learning"),
     ("/status", "job state"),
-    ("/settings", "local setup"),
     ("/model", "set model"),
     ("/base-url", "set endpoint"),
     ("/api-key", "save key"),
@@ -206,16 +204,8 @@ CHAT_SLASH_COMMANDS = [
 FIRST_RUN_ACTIONS = [
     ("new", "New job", "type a goal, then press enter"),
     ("jobs", "Jobs", "show saved workspaces"),
-    ("settings", "Settings", "model, home, daemon, config"),
     ("doctor", "Doctor", "check local setup"),
     ("init", "Init", "write starter config"),
-    ("exit", "Exit", "leave Nipux"),
-]
-
-FIRST_RUN_SETTINGS_ACTIONS = [
-    ("back", "Back", "return to start"),
-    ("doctor", "Doctor", "check local setup"),
-    ("init", "Init config", "write starter config"),
     ("exit", "Exit", "leave Nipux"),
 ]
 
@@ -579,10 +569,9 @@ def _print_first_run_menu() -> None:
     print("Create or manage jobs")
     print("  1  new       create a job and open its workspace")
     print("  2  jobs      list jobs")
-    print("  3  settings  show model, home, daemon, and config")
-    print("  4  doctor    check local setup")
-    print("  5  init      write starter config/env files")
-    print("  6  exit")
+    print("  3  doctor    check local setup")
+    print("  4  init      write starter config/env files")
+    print("  5  exit")
     print()
     print('Type `new OBJECTIVE`, `create "OBJECTIVE"`, any command, or paste an objective directly.')
 
@@ -595,7 +584,7 @@ def _handle_first_run_menu_line(line: str, *, history_limit: int = 12) -> bool:
     if line.startswith("/"):
         line = line[1:].strip()
     lowered = line.lower()
-    if lowered in {"exit", "quit", ":q", "6"}:
+    if lowered in {"exit", "quit", ":q", "5"}:
         return False
     if lowered in {"help", "?", "commands"}:
         _print_first_run_menu()
@@ -617,16 +606,13 @@ def _handle_first_run_menu_line(line: str, *, history_limit: int = 12) -> bool:
     if lowered in {"2", "jobs", "ls"}:
         cmd_jobs(argparse.Namespace())
         return True
-    if lowered in {"3", "settings"}:
-        _print_first_run_settings()
-        return True
-    if lowered in {"4", "doctor"}:
+    if lowered in {"3", "doctor"}:
         try:
             cmd_doctor(argparse.Namespace(check_model=False))
         except SystemExit:
             pass
         return True
-    if lowered in {"5", "init"}:
+    if lowered in {"4", "init"}:
         cmd_init(argparse.Namespace(path=None, force=False))
         return True
     first = _first_token(line)
@@ -657,43 +643,7 @@ def _handle_first_run_menu_line(line: str, *, history_limit: int = 12) -> bool:
     return True
 
 
-def _print_first_run_settings() -> None:
-    _print_chat_settings_summary()
-
-
-def _print_chat_settings_summary() -> None:
-    config = load_config()
-    daemon = daemon_lock_status(config.runtime.home / "agentd.lock")
-    key_state = "set" if config.model.api_key else "missing"
-    print("Settings")
-    print(f"  model         {config.model.model}")
-    print(f"  base-url      {config.model.base_url}")
-    print(f"  api-key       {key_state} via {config.model.api_key_env}")
-    print(f"  context       {config.model.context_length}")
-    print(f"  timeout       {config.model.request_timeout_seconds}s")
-    print(f"  home          {_short_path(config.runtime.home)}")
-    print(f"  daemon        {_daemon_state_line(daemon)}")
-    print(f"  config        {_short_path(_config_path())}")
-    print()
-    print("Slash settings")
-    print("  /model MODEL                 set model name")
-    print("  /base-url URL                set OpenAI-compatible endpoint")
-    print("  /api-key KEY                 save API key locally without echoing it")
-    print("  /api-key-env ENV_NAME        change which env var stores the API key")
-    print("  /context TOKENS              set prompt token budget")
-    print("  /timeout SECONDS             set model request timeout")
-    print("  /home PATH                   set Nipux state directory")
-    print("  /step-limit SECONDS          set worker step timeout")
-    print("  /output-chars CHARS          set inline saved-output limit")
-    print("  /daily-digest true|false     enable or disable daily digest")
-    print("  /digest-time HH:MM           set daily digest time")
-    print("  /doctor                      check local setup")
-
-
 def _handle_chat_setting_command(command: str, rest: list[str]) -> bool:
-    if command == "settings":
-        _print_chat_settings_summary()
-        return True
     if command in {"key", "api-key"}:
         if not rest:
             config = load_config()
@@ -724,7 +674,7 @@ def _capture_setting_command(line: str) -> list[str]:
     stream = StringIO()
     with redirect_stdout(stream):
         if not _handle_chat_setting_command(parts[0], parts[1:]):
-            print(f"unknown setting command: /{parts[0]}")
+            print(f"unknown config command: /{parts[0]}")
     lines = [" ".join(item.split()) for item in stream.getvalue().splitlines() if item.strip()]
     return lines[-12:] or ["done"]
 
@@ -740,7 +690,7 @@ def _prompt_first_run_value(label: str) -> str:
 def _first_run_create_and_open(objective: str, *, history_limit: int = 12) -> None:
     job_id, title = _create_job(objective=objective, title=None, kind="generic", cadence=None)
     print(f"created {title}")
-    print("Opening workspace. Use the right-side controls to run, switch jobs, or inspect settings.")
+    print("Opening workspace. Use the right-side controls to run, switch jobs, or inspect output.")
     _enter_chat(job_id, show_history=True, history_limit=history_limit)
 
 
@@ -760,7 +710,7 @@ def _enter_first_run_frame(*, history_limit: int = 12) -> None:
     selected = 0
     editing_field: str | None = None
     old_attrs = termios.tcgetattr(sys.stdin)
-    print("\033[?25l\033[?1000h\033[?1002h\033[?1006h", end="", flush=True)
+    print("\033[?1049h\033[H\033[?25l\033[?1000h\033[?1002h\033[?1006h", end="", flush=True)
     try:
         stdin_fd = sys.stdin.fileno()
         tty.setcbreak(stdin_fd)
@@ -859,6 +809,8 @@ def _enter_first_run_frame(*, history_limit: int = 12) -> None:
                 needs_render = True
                 continue
             if char == "\t":
+                buffer = _autocomplete_slash(buffer, FIRST_RUN_SLASH_COMMANDS)
+                needs_render = True
                 continue
             if char == "\x1b":
                 key, payload = _decode_terminal_escape(_read_escape_sequence(char, fd=stdin_fd))
@@ -866,11 +818,7 @@ def _enter_first_run_frame(*, history_limit: int = 12) -> None:
                     selected = (selected - 1) % len(_first_run_actions(view))
                 elif key == "down":
                     selected = (selected + 1) % len(_first_run_actions(view))
-                elif key == "left":
-                    view = "start"
-                    selected = 0
-                elif key == "right":
-                    view = "settings"
+                elif key in {"left", "right"}:
                     selected = 0
                 elif key == "click" and isinstance(payload, tuple):
                     clicked = _first_run_click_action(payload[0], payload[1], view=view)
@@ -903,7 +851,7 @@ def _enter_first_run_frame(*, history_limit: int = 12) -> None:
                 needs_render = True
     finally:
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_attrs)
-        print("\033[?1002l\033[?1000l\033[?1006l\033[?25h\033[0m", flush=True)
+        print("\033[?1002l\033[?1000l\033[?1006l\033[?25h\033[0m\033[?1049l", flush=True)
     if next_job_id:
         _enter_chat(next_job_id, show_history=True, history_limit=history_limit)
 
@@ -1029,7 +977,7 @@ def _coerce_config_value(field: str, raw_value: str) -> Any:
 
 
 def _first_run_actions(view: str) -> list[tuple[str, str, str]]:
-    return FIRST_RUN_SETTINGS_ACTIONS if view == "settings" else FIRST_RUN_ACTIONS
+    return FIRST_RUN_ACTIONS
 
 
 def _clamp_first_run_selection(selected: int, view: str) -> int:
@@ -1046,8 +994,6 @@ def _handle_first_run_action(action: str) -> tuple[str, str | list[str] | None]:
         return "edit", action
     if action == "new":
         return "notice", "Type the goal in the input line, then press Enter."
-    if action == "settings":
-        return "view", "settings"
     if action == "back":
         return "view", "start"
     if action == "jobs":
@@ -1136,23 +1082,24 @@ def _first_run_click_action(x: int, y: int, *, view: str) -> int | None:
     return index if 0 <= index < len(actions) else None
 
 
-def _chat_settings_click_action(x: int, y: int, *, right_view: str) -> int | None:
-    if right_view != "settings":
-        return None
+def _chat_page_click(x: int, y: int, *, right_view: str) -> str | None:
+    del right_view
     width, _height = shutil.get_terminal_size((100, 30))
     width = max(92, width)
-    left_width = max(48, int(width * 0.58))
+    left_width = max(56, int(width * 0.64))
     right_width = max(34, width - left_width - 3)
     if right_width < 34:
-        left_width = max(48, width - 34 - 3)
+        left_width = max(48, width - right_width - 3)
     right_start = left_width + 4
-    if x < right_start:
+    if x < right_start or y > 8:
         return None
-    body_start_y = 4
-    settings_action_index = 13
-    index = y - (body_start_y + settings_action_index)
-    actions = _first_run_actions("settings")
-    return index if 0 <= index < len(actions) else None
+    relative = max(0, x - right_start)
+    third = max(1, right_width // 3)
+    if relative < third:
+        return "status"
+    if relative < third * 2:
+        return "updates"
+    return "work"
 
 
 def _handle_first_run_frame_line(line: str) -> tuple[str, str | list[str] | None]:
@@ -1160,14 +1107,14 @@ def _handle_first_run_frame_line(line: str) -> tuple[str, str | list[str] | None
     if original.startswith("/"):
         original = original[1:].strip()
     lowered = original.lower()
-    if lowered in {"exit", "quit", ":q", "6"}:
+    if lowered in {"exit", "quit", ":q", "5"}:
         return "exit", None
     if lowered in {"clear"}:
         return "clear", None
     if lowered in {"help", "?", "commands"}:
         return "notice", [
             "Talk normally here, or ask Nipux to create a job with a concrete goal.",
-            "Use the right-side controls for jobs, settings, setup checks, and exit.",
+            "Use the right-side controls for jobs, setup checks, and exit.",
             "When a job exists, the left pane becomes its chat and output stream.",
         ]
     if lowered in {"1", "new"}:
@@ -1176,20 +1123,20 @@ def _handle_first_run_frame_line(line: str) -> tuple[str, str | list[str] | None
         return "open", _create_first_run_job(original[4:].strip())
     if lowered in {"2", "jobs", "ls"}:
         return "notice", _capture_first_run_command("jobs")
-    if lowered in {"3", "settings"}:
-        return "view", "settings"
+    if lowered == "settings":
+        return "notice", "Config is changed with slash commands: /model, /api-key, /base-url, /context."
     if lowered in {"back"}:
         return "view", "start"
-    if lowered in {"4", "doctor"}:
+    if lowered in {"3", "doctor"}:
         return "notice", _capture_first_run_command("doctor")
-    if lowered in {"5", "init"}:
+    if lowered in {"4", "init"}:
         return "notice", _capture_first_run_command("init")
     if lowered == "shell":
         return "notice", "The old console is only available as `nipux shell` from your terminal."
     first = _first_token(original)
     if first == "shell":
         return "notice", "The old console is only available as `nipux shell` from your terminal."
-    if first in CHAT_SETTING_COMMANDS or first in {"settings", "api-key", "key"}:
+    if first in CHAT_SETTING_COMMANDS or first in {"api-key", "key"}:
         return "notice", _capture_setting_command(original)
     if first in SHELL_COMMAND_NAMES:
         before_job_id = _current_default_job_id()
@@ -1209,7 +1156,7 @@ def _first_run_chat_reply(message: str) -> str:
     if lowered in {"hi", "hello", "hey", "yo"}:
         return "Hi. Tell me what long-running work you want, or use the controls on the right to create a job."
     if "what can" in lowered or "help" in lowered:
-        return "I can spin up long-running jobs, keep their output on the left, and let you monitor or change settings from the right."
+        return "I can spin up long-running jobs, keep their output on the left, and let you monitor work from the right."
     return "I can chat here, but I only create a job when you give me a concrete goal like 'create a job to monitor nightly benchmarks'."
 
 
@@ -1259,7 +1206,7 @@ def _render_first_run_frame(
         view=view,
         editing_field=editing_field,
     )
-    print("\033[H\033[2J" + frame, end="", flush=True)
+    print("\033[H" + frame, end="", flush=True)
 
 
 def _build_first_run_frame(
@@ -1290,10 +1237,12 @@ def _build_first_run_frame(
     else:
         hint = "Enter selects the highlighted control. ↑↓ moves. ←→ switches pages. Click selects."
         prompt_label = "❯"
+    suggestions = [] if editing_field else _slash_suggestion_lines(input_buffer, FIRST_RUN_SLASH_COMMANDS, width=width)
     compose_lines = _compose_bar(
         input_buffer,
         width=width,
         hint=hint,
+        suggestions=suggestions,
         prompt_label=prompt_label,
         mask_input=_edit_target_masks_input(editing_field),
     )
@@ -1372,11 +1321,11 @@ def _first_run_left_lines(
         "",
         f"{_muted('Selected')} {_accent(selected_label)}",
         "",
-        f"{_muted('Pages')} {_page_indicator(view, [('start', 'Start'), ('settings', 'Settings')])}",
+        f"{_muted('Mode')} {_accent('Start')}",
         "",
         _muted("After a job exists, this side becomes the agent conversation and output stream."),
         "",
-        _muted("Use arrows, Enter, or click. Controls stay on the right."),
+        _muted("Use arrows, Enter, click, or / commands. Controls stay on the right."),
     ]
     if notices:
         lines.extend(["", _muted("Recent")])
@@ -1406,17 +1355,6 @@ def _first_run_right_lines(
         config_path=config_path,
         width=width,
     )
-    if view == "settings":
-        lines = [
-            *profile_lines,
-            _bold("Commands"),
-            *_settings_command_lines(config=load_config(), width=width, limit=max(4, rows - len(profile_lines) - 6)),
-            "",
-            _bold("Actions"),
-            *_first_run_action_lines(_first_run_actions(view), selected, width=width),
-        ]
-        return [_fit_ansi(line, width) for line in lines[:rows]]
-
     lines = [
         *profile_lines,
         _bold("Actions"),
@@ -1441,7 +1379,7 @@ def _first_run_profile_lines(
     width: int,
 ) -> list[str]:
     return [
-        f"{_muted('Page')}   {_page_indicator(view, [('start', 'Start'), ('settings', 'Settings')])}",
+        f"{_muted('Mode')}   {_accent('Start')}",
         f"{_muted('Model')}  {_one_line(model, width - 8)}",
         f"{_muted('Daemon')} {_one_line(daemon_text, width - 8)}",
         f"{_muted('Home')}   {_one_line(home, width - 8)}",
@@ -1464,34 +1402,6 @@ def _first_run_action_lines(actions: list[tuple[str, str, str]], selected: int, 
             state = "set" if config.model.api_key else "missing"
             detail = state
         lines.append(_fit_ansi(f"{marker} {_fit_ansi(name, 14)} {_muted(detail)}", width))
-    return lines
-
-
-def _settings_command_lines(*, config: Any, width: int, limit: int | None = None) -> list[str]:
-    key_state = "set" if config.model.api_key else "missing"
-    entries = [
-        ("/model MODEL", config.model.model),
-        ("/base-url URL", config.model.base_url),
-        ("/api-key KEY", f"{key_state} via {config.model.api_key_env}"),
-        ("/api-key-env ENV", config.model.api_key_env),
-        ("/context TOKENS", str(config.model.context_length)),
-        ("/timeout SECONDS", f"{config.model.request_timeout_seconds:g}"),
-        ("/home PATH", _short_path(config.runtime.home, max_width=max(12, width - 24))),
-        ("/step-limit SEC", str(config.runtime.max_step_seconds)),
-        ("/output-chars N", str(config.runtime.artifact_inline_char_limit)),
-        ("/daily-digest BOOL", str(config.runtime.daily_digest_enabled).lower()),
-        ("/digest-time HH:MM", config.runtime.daily_digest_time),
-    ]
-    visible = entries if limit is None else entries[: max(0, limit)]
-    lines: list[str] = []
-    command_width = min(22, max(len(command) for command, _value in entries) + 1)
-    for command, value in visible:
-        command_text = _fit_ansi(_accent(command), command_width)
-        value_text = _muted(_one_line(value, max(10, width - command_width - 1)))
-        lines.append(_fit_ansi(f"{command_text} {value_text}", width))
-    hidden = len(entries) - len(visible)
-    if hidden > 0:
-        lines.append(_muted(f"... {hidden} more settings commands. Use /settings for the full list."))
     return lines
 
 
@@ -1564,7 +1474,7 @@ def _enter_chat_frame(job_id: str, *, history_limit: int = 12) -> None:
     snapshot = _load_frame_snapshot(job_id, history_limit=history_limit)
     job_id = str(snapshot["job_id"])
     old_attrs = termios.tcgetattr(sys.stdin)
-    print("\033[?25l", end="", flush=True)
+    print("\033[?1049h\033[H\033[?25l\033[?1000h\033[?1002h\033[?1006h", end="", flush=True)
     try:
         stdin_fd = sys.stdin.fileno()
         tty.setcbreak(stdin_fd)
@@ -1582,10 +1492,7 @@ def _enter_chat_frame(job_id: str, *, history_limit: int = 12) -> None:
                     notices.append(f"frame refresh failed: {type(exc).__name__}")
                     notices[:] = notices[-12:]
             if needs_render:
-                if right_view == "settings":
-                    selected_control = _clamp_first_run_selection(selected_control, "settings")
-                else:
-                    selected_control = 0
+                selected_control = 0
                 _render_chat_frame(
                     snapshot,
                     buffer,
@@ -1637,21 +1544,6 @@ def _enter_chat_frame(job_id: str, *, history_limit: int = 12) -> None:
                 line = buffer.strip()
                 buffer = ""
                 if not line:
-                    if right_view == "settings":
-                        action, payload = _handle_first_run_action(_first_run_actions("settings")[selected_control][0])
-                        if action == "view":
-                            right_view = "status"
-                            selected_control = 0
-                        elif action == "edit":
-                            editing_field = str(payload)
-                            notices.append(f"editing {editing_field}; enter saves, escape cancels")
-                            notices[:] = notices[-12:]
-                        elif isinstance(payload, list):
-                            notices.extend(str(item) for item in payload if str(item).strip())
-                            notices[:] = notices[-12:]
-                        elif payload:
-                            notices.append(str(payload))
-                            notices[:] = notices[-12:]
                     needs_render = True
                     continue
                 if line in {"clear", "/clear"}:
@@ -1698,6 +1590,8 @@ def _enter_chat_frame(job_id: str, *, history_limit: int = 12) -> None:
                 needs_render = True
                 continue
             if char == "\t":
+                buffer = _autocomplete_slash(buffer, CHAT_SLASH_COMMANDS)
+                needs_render = True
                 continue
             if char == "\x1b":
                 key, payload = _decode_terminal_escape(_read_escape_sequence(char, fd=stdin_fd))
@@ -1707,9 +1601,6 @@ def _enter_chat_frame(job_id: str, *, history_limit: int = 12) -> None:
                 elif key == "left" and not buffer:
                     right_view = _next_chat_right_view(right_view, -1)
                     selected_control = 0
-                elif key in {"up", "down"} and not buffer and right_view == "settings":
-                    delta = -1 if key == "up" else 1
-                    selected_control = (selected_control + delta) % len(_first_run_actions("settings"))
                 elif key in {"up", "down"} and not buffer:
                     next_focus = _frame_next_job_id(snapshot, job_id, direction=-1 if key == "up" else 1)
                     if next_focus and next_focus != job_id:
@@ -1720,23 +1611,10 @@ def _enter_chat_frame(job_id: str, *, history_limit: int = 12) -> None:
                         notices.append(f"focus {title}")
                         notices[:] = notices[-12:]
                 elif key == "click" and isinstance(payload, tuple):
-                    clicked = _chat_settings_click_action(payload[0], payload[1], right_view=right_view)
-                    if clicked is not None:
-                        selected_control = clicked
-                        action, payload = _handle_first_run_action(_first_run_actions("settings")[selected_control][0])
-                        if action == "view":
-                            right_view = "status"
-                            selected_control = 0
-                        elif action == "edit":
-                            editing_field = str(payload)
-                            notices.append(f"editing {editing_field}; enter saves, escape cancels")
-                            notices[:] = notices[-12:]
-                        elif isinstance(payload, list):
-                            notices.extend(str(item) for item in payload if str(item).strip())
-                            notices[:] = notices[-12:]
-                        elif payload:
-                            notices.append(str(payload))
-                            notices[:] = notices[-12:]
+                    clicked_view = _chat_page_click(payload[0], payload[1], right_view=right_view)
+                    if clicked_view:
+                        right_view = clicked_view
+                        selected_control = 0
                 else:
                     _drain_pending_input(stdin_fd)
                 needs_render = True
@@ -1746,7 +1624,7 @@ def _enter_chat_frame(job_id: str, *, history_limit: int = 12) -> None:
                 needs_render = True
     finally:
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_attrs)
-        print("\033[?25h\033[0m", flush=True)
+        print("\033[?1006l\033[?1002l\033[?1000l\033[?25h\033[0m\033[?1049l", flush=True)
 
 
 def _capture_chat_command(job_id: str, line: str) -> tuple[bool, str]:
@@ -1821,8 +1699,13 @@ def _load_frame_snapshot(job_id: str, *, history_limit: int = 12) -> dict[str, A
         counts = db.job_record_counts(job_id)
         steps = db.list_steps(job_id=job_id, limit=80)
         artifacts = db.list_artifacts(job_id, limit=8)
+        job_artifacts = {
+            str(item["id"]): db.list_artifacts(str(item["id"]), limit=3)
+            for item in jobs[:6]
+            if item.get("id")
+        }
         memory_entries = db.list_memory(job_id)[:8]
-        events = db.list_events(job_id=job_id, limit=max(history_limit * 8, 100))
+        events = db.list_events(job_id=job_id, limit=max(history_limit * 16, 240))
         token_usage = db.job_token_usage(job_id)
         daemon = daemon_lock_status(config.runtime.home / "agentd.lock")
     finally:
@@ -1833,6 +1716,7 @@ def _load_frame_snapshot(job_id: str, *, history_limit: int = 12) -> dict[str, A
         "jobs": jobs,
         "steps": steps,
         "artifacts": artifacts,
+        "job_artifacts": job_artifacts,
         "memory_entries": memory_entries,
         "events": events,
         "daemon": daemon,
@@ -1864,7 +1748,7 @@ def _render_chat_frame(
         selected_control=selected_control,
         editing_field=editing_field,
     )
-    print("\033[H\033[2J" + frame, end="", flush=True)
+    print("\033[H" + frame, end="", flush=True)
 
 
 def _build_chat_frame(
@@ -1884,6 +1768,10 @@ def _build_chat_frame(
     jobs = snapshot["jobs"]
     steps = snapshot["steps"]
     artifacts = snapshot["artifacts"]
+    job_id = str(snapshot["job_id"])
+    job_artifacts = snapshot.get("job_artifacts") if isinstance(snapshot.get("job_artifacts"), dict) else {}
+    if artifacts:
+        job_artifacts.setdefault(job_id, artifacts)
     memory_entries = snapshot["memory_entries"]
     events = snapshot["events"]
     daemon = snapshot["daemon"]
@@ -1891,7 +1779,6 @@ def _build_chat_frame(
     base_url = str(snapshot.get("base_url") or "")
     token_usage = snapshot.get("token_usage") if isinstance(snapshot.get("token_usage"), dict) else {}
     context_length = int(snapshot.get("context_length") or 0)
-    job_id = str(snapshot["job_id"])
     counts = snapshot.get("counts") if isinstance(snapshot.get("counts"), dict) else {}
     findings = _metadata_records(job, "finding_ledger")
     sources = _metadata_records(job, "source_ledger")
@@ -1904,7 +1791,7 @@ def _build_chat_frame(
     state = _job_display_state(job, bool(daemon["running"]))
     worker = _worker_label(job, bool(daemon["running"]))
     latest_step = steps[-1] if steps else None
-    left_width = max(56, int(width * 0.62))
+    left_width = max(56, int(width * 0.64))
     right_width = max(34, width - left_width - 3)
     if right_width < 34:
         right_width = 34
@@ -1939,10 +1826,12 @@ def _build_chat_frame(
     else:
         hint = "Enter sends  ·  / commands  ·  ←→ panels  ·  ↑↓ jobs"
         prompt_label = "❯"
+    suggestions = [] if editing_field else _slash_suggestion_lines(input_buffer, CHAT_SLASH_COMMANDS, width=width)
     compose_lines = _compose_bar(
         input_buffer,
         width=width,
         hint=hint,
+        suggestions=suggestions,
         prompt_label=prompt_label,
         mask_input=_edit_target_masks_input(editing_field),
     )
@@ -1951,33 +1840,29 @@ def _build_chat_frame(
     chat_rows = body_rows
     right_rows = body_rows
     chat_lines = _chat_pane_lines(events, notices, width=left_width, rows=chat_rows)
-    if right_view == "settings":
-        right_lines = _chat_settings_pane_lines(
-            job=job,
-            state=state,
-            worker=worker,
-            daemon_text=daemon_text,
-            model=model,
-            goal_text=goal_text,
-            latest_text=latest_text,
-            metrics=metrics,
-            selected=selected_control,
-            width=right_width,
-            rows=right_rows,
-        )
-        right_title = "Settings"
-    elif right_view == "updates":
+    if right_view == "updates":
         right_lines = _chat_updates_pane_lines(
             job=job,
             events=events,
             width=right_width,
             rows=right_rows,
         )
-        right_title = "Model Updates"
+        right_title = "Progress"
+    elif right_view == "work":
+        right_lines = _chat_work_pane_lines(
+            job=job,
+            events=events,
+            tasks=tasks,
+            experiments=experiments,
+            width=right_width,
+            rows=right_rows,
+        )
+        right_title = "Work"
     else:
         right_lines = _right_pane_lines(
             job=job,
             jobs=jobs,
+            job_artifacts=job_artifacts,
             job_id=job_id,
             daemon_running=bool(daemon["running"]),
             state=state,
@@ -2275,7 +2160,7 @@ _LOW_SIGNAL_FRAME_TOOLS = {
     "write_artifact",
 }
 
-CHAT_RIGHT_PAGES = [("status", "Status"), ("updates", "Updates"), ("settings", "Settings")]
+CHAT_RIGHT_PAGES = [("status", "Status"), ("updates", "Updates"), ("work", "Work")]
 
 
 def _append_agent_output(lines: list[str], label: str, body: Any, *, clock: str, count: int, width: int) -> None:
@@ -2359,7 +2244,7 @@ def _friendly_error_text(text: str) -> str:
     if "key limit exceeded" in lowered:
         return "Provider key limit exceeded. Update the key limit or switch models."
     if "authenticationerror" in lowered or "user not found" in lowered or "401" in lowered:
-        return "Model authentication failed. Update the API key in Settings, then try again."
+        return "Model authentication failed. Update the API key with /api-key, then try again."
     if "permissiondeniederror" in lowered or "403" in lowered:
         return "Provider permission denied. Check model access or key limits."
     return _one_line(_clean_step_summary(text), 220)
@@ -2380,6 +2265,7 @@ def _right_pane_lines(
     *,
     job: dict[str, Any],
     jobs: list[dict[str, Any]],
+    job_artifacts: dict[str, list[dict[str, Any]]],
     job_id: str,
     daemon_running: bool,
     state: str,
@@ -2419,21 +2305,76 @@ def _right_pane_lines(
     if pending_measurement:
         info_lines.append(f"{_muted('Measure')} pending step #{pending_measurement.get('source_step_no') or '?'}")
     info_lines.append("")
-    info_lines.append(_bold("Jobs"))
-    for job_line in _frame_jobs_lines(jobs, focused_job_id=job_id, daemon_running=daemon_running, width=width)[:4]:
-        info_lines.append(job_line)
-    worker_lines = _worker_activity_lines(events, width=width, limit=min(8, max(2, rows // 3)))
-    if not worker_lines:
+    info_lines.append(_bold("Jobs / output"))
+    for item in jobs[:4]:
+        for job_line in _frame_jobs_lines([item], focused_job_id=job_id, daemon_running=daemon_running, width=width)[:1]:
+            info_lines.append(job_line)
+        outputs = job_artifacts.get(str(item.get("id"))) or []
+        if outputs:
+            for artifact in outputs[:2]:
+                title = _one_line(str(artifact.get("title") or artifact.get("id") or "output"), max(12, width - 10))
+                info_lines.append(_fit_ansi(f"   {_event_badge('SAVE')} {title}", width))
+        else:
+            info_lines.append(_fit_ansi(f"   {_muted('no saved output yet')}", width))
+    current_outputs = job_artifacts.get(job_id) or []
+    if current_outputs:
         info_lines.append("")
-        info_lines.append(_bold("Activity"))
-        info_lines.append(_muted("No recent worker events."))
-        return info_lines[:rows]
-    base_budget = max(0, rows - len(worker_lines) - 2)
-    base_lines = info_lines[:base_budget]
-    base_lines.append("")
-    base_lines.append(_bold("Activity"))
-    base_lines.extend(worker_lines)
-    return base_lines[:rows]
+        info_lines.append(_bold("Open latest"))
+        for index, artifact in enumerate(current_outputs[:3], start=1):
+            info_lines.append(_fit_ansi(f"{index}. {_one_line(artifact.get('title') or artifact.get('id'), width - 4)}", width))
+    return info_lines[:rows]
+
+
+def _chat_work_pane_lines(
+    *,
+    job: dict[str, Any],
+    events: list[dict[str, Any]],
+    tasks: list[dict[str, Any]],
+    experiments: list[dict[str, Any]],
+    width: int,
+    rows: int,
+) -> list[str]:
+    lines = [
+        f"{_muted('Page')}   {_page_indicator('work', CHAT_RIGHT_PAGES)}",
+        f"{_muted('Focus')}  {_bold(_one_line(job.get('title') or 'untitled', width - 8))}",
+        "",
+        _bold("Tool / console"),
+    ]
+    tool_lines = _worker_activity_lines(events, width=width, limit=max(4, rows // 2))
+    if tool_lines:
+        lines.extend(tool_lines)
+    else:
+        lines.append(_muted("No recent tool calls."))
+    remaining = max(0, rows - len(lines))
+    if remaining > 4:
+        lines.append("")
+        lines.append(_bold("Tasks"))
+        for task in _rank_visible_tasks(tasks)[: max(1, remaining // 2)]:
+            status = str(task.get("status") or "open")
+            title = _one_line(str(task.get("title") or "task"), max(10, width - 15))
+            lines.append(_fit_ansi(f"{_status_badge(status)} {title}", width))
+    remaining = max(0, rows - len(lines))
+    if remaining > 3 and experiments:
+        lines.append("")
+        lines.append(_bold("Measurements"))
+        for experiment in experiments[-max(1, remaining - 2) :]:
+            metric = _experiment_metric_text(experiment)
+            title = _one_line(str(experiment.get("title") or "experiment"), max(10, width - 16))
+            suffix = f" {_muted(metric)}" if metric else ""
+            lines.append(_fit_ansi(f"{_event_badge('TEST')} {title}{suffix}", width))
+    return [_fit_ansi(line, width) for line in lines[:rows]]
+
+
+def _rank_visible_tasks(tasks: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    status_order = {"active": 0, "open": 1, "blocked": 2, "validating": 3, "done": 4, "skipped": 5}
+    return sorted(
+        [task for task in tasks if isinstance(task, dict)],
+        key=lambda task: (
+            status_order.get(str(task.get("status") or "open"), 9),
+            -int(task.get("priority") or 0),
+            str(task.get("title") or ""),
+        ),
+    )
 
 
 def _worker_activity_lines(events: list[dict[str, Any]], *, width: int, limit: int) -> list[str]:
@@ -2468,16 +2409,60 @@ def _chat_updates_pane_lines(
         f"{_muted('Page')}   {_page_indicator('updates', CHAT_RIGHT_PAGES)}",
         f"{_muted('Focus')}  {_bold(_one_line(job.get('title') or 'untitled', width - 8))}",
         "",
-        _bold("Model Updates"),
-        _muted("Durable progress, outputs, findings, measurements, and decisions."),
+        _bold("Progress by hour"),
+        _muted("Summaries of durable output, findings, measurements, decisions, and files."),
         "",
     ]
-    update_lines = _model_update_lines(events, width=width, limit=max(4, rows - len(lines)))
+    update_lines = _hourly_update_lines(events, width=width, limit=max(4, rows - len(lines)))
     if update_lines:
         lines.extend(update_lines)
     else:
-        lines.append(_muted("No durable model updates yet. Worker steps remain on Status."))
+        lines.append(_muted("No durable model updates yet. Tool calls are on Work."))
     return [_fit_ansi(line, width) for line in lines[:rows]]
+
+
+def _hourly_update_lines(events: list[dict[str, Any]], *, width: int, limit: int) -> list[str]:
+    if limit <= 0:
+        return []
+    buckets: dict[str, dict[str, Any]] = {}
+    order: list[str] = []
+    for event in events:
+        parsed = _model_update_event_parts(event, width=width)
+        if not parsed:
+            continue
+        label, text, clock = parsed
+        hour = _event_hour(event)
+        if hour not in buckets:
+            buckets[hour] = {"counts": {}, "items": [], "clock": clock}
+            order.append(hour)
+        bucket = buckets[hour]
+        counts = bucket["counts"]
+        counts[label] = int(counts.get(label) or 0) + 1
+        item = (label, text)
+        if item not in bucket["items"]:
+            bucket["items"].append(item)
+    rendered: list[str] = []
+    recent_hours = order[-max(1, min(len(order), limit)) :]
+    per_bucket = max(2, min(8, (limit // max(1, len(recent_hours))) - 1))
+    for hour in recent_hours:
+        bucket = buckets[hour]
+        counts = bucket["counts"]
+        summary = " ".join(f"{count} {label.lower()}" for label, count in sorted(counts.items()))
+        rendered.append(_fit_ansi(f"{_muted(hour)} {_bold(summary or 'activity')}", width))
+        for label, text in bucket["items"][-per_bucket:]:
+            rendered.append(_fit_ansi(f"  {_event_badge(label)} {_one_line(text, max(16, width - 11))}", width))
+        if len(rendered) >= limit:
+            return rendered[:limit]
+    return rendered[-limit:]
+
+
+def _event_hour(event: dict[str, Any]) -> str:
+    compact = _compact_time(str(event.get("created_at") or ""))
+    if len(compact) >= 13 and compact[10:11] == " ":
+        return f"{compact[:13]}:00"
+    if len(compact) >= 2:
+        return compact
+    return "recent"
 
 
 def _model_update_lines(events: list[dict[str, Any]], *, width: int, limit: int) -> list[str]:
@@ -2554,34 +2539,6 @@ def _model_update_event_parts(event: dict[str, Any], *, width: int) -> tuple[str
             path = str(output.get("path") or _event_tool_args(metadata).get("path") or "")
             return "FILE", _one_line(f"updated {_short_path(path, max_width=chars - 8)}", chars), clock
     return None
-
-
-def _chat_settings_pane_lines(
-    *,
-    job: dict[str, Any],
-    state: str,
-    worker: str,
-    daemon_text: str,
-    model: str,
-    goal_text: str,
-    latest_text: str,
-    metrics: list[tuple[str, Any]],
-    selected: int,
-    width: int,
-    rows: int,
-) -> list[str]:
-    config = load_config()
-    lines = [
-        f"{_muted('Page')}   {_page_indicator('settings', CHAT_RIGHT_PAGES)}",
-        "",
-        _bold(_one_line(str(job.get("title") or "untitled"), width)),
-        f"{_status_badge(state)} {_muted('worker')} {_status_badge(worker)}",
-        "",
-        _bold("Commands"),
-        f"{_muted('Config')} {_one_line(_short_path(_config_path()), width - 8)}",
-        *_settings_command_lines(config=config, width=width, limit=max(4, rows - 8)),
-    ]
-    return [_fit_ansi(line, width) for line in lines[:rows]]
 
 
 def _chat_workspace_lines(
@@ -2829,8 +2786,8 @@ def _format_usage_cost(usage: dict[str, Any], *, model: str, base_url: str) -> s
     if _model_cost_is_zero(model=model, base_url=base_url):
         return "$0.00"
     if _safe_int(usage.get("estimated_calls")):
-        return "est n/a"
-    return "n/a"
+        return "pending"
+    return "pending"
 
 
 def _format_compact_count(value: Any) -> str:
@@ -5449,7 +5406,7 @@ def _chat_handle_line(job_id: str, line: str, *, reply_fn=None) -> bool:
         print("  /jobs /focus JOB_TITLE /switch JOB_TITLE /new OBJECTIVE /delete [JOB_TITLE]")
         print("  /history /events /activity /outputs /updates /status /health")
         print("  /artifacts /artifact QUERY /findings /tasks /roadmap /experiments /sources /memory /metrics /lessons")
-        print("  /settings /model MODEL /base-url URL /api-key KEY /api-key-env ENV /context TOKENS")
+        print("  /model MODEL /base-url URL /api-key KEY /api-key-env ENV /context TOKENS")
         print("  /timeout SECONDS /home PATH /step-limit SECONDS /output-chars CHARS /daily-digest BOOL /digest-time HH:MM /doctor")
         print("  /run /start /restart /work N /work-verbose N /stop /pause [note] /resume /cancel [note]")
         print("  /learn LESSON /note MESSAGE /follow MESSAGE /digest /clear /exit")
@@ -5744,8 +5701,10 @@ def _chat_control_command(line: str) -> str:
         return f"/{natural}"
     if lowered in {"jobs", "show jobs", "list jobs", "switch jobs", "change jobs"}:
         return "/jobs"
-    if lowered in {"settings", "show settings", "model settings", "change model", "edit settings"}:
-        return "/settings"
+    if lowered in {"settings", "show settings"}:
+        return "/model"
+    if lowered in {"model settings", "change model", "edit settings"}:
+        return "/model"
     if lowered in {
         "run",
         "start",

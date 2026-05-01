@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import json
+import urllib.error
+import urllib.parse
+import urllib.request
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
@@ -80,12 +83,20 @@ class OpenAIChatLLM:
                 parsed = {}
             calls.append(ToolCall(name=call.function.name, arguments=parsed, id=call.id or ""))
         content = message.content or ""
+        response_id = _response_id(response)
+        usage = _response_usage(response, messages=messages, content=content, tool_calls=calls)
+        usage = _enrich_openrouter_generation_usage(
+            usage,
+            response_id=response_id,
+            base_url=self.config.base_url,
+            api_key=self.config.api_key,
+        )
         return LLMResponse(
             content=content,
             tool_calls=calls,
-            usage=_response_usage(response, messages=messages, content=content, tool_calls=calls),
+            usage=usage,
             model=_response_model(response),
-            response_id=_response_id(response),
+            response_id=response_id,
         )
 
     def complete(self, *, messages: list[dict[str, Any]]) -> str:
@@ -154,6 +165,66 @@ def _response_usage(
         "total_tokens": prompt_tokens + completion_tokens,
         "estimated": True,
     }
+
+
+def _enrich_openrouter_generation_usage(
+    usage: dict[str, Any],
+    *,
+    response_id: str,
+    base_url: str,
+    api_key: str,
+) -> dict[str, Any]:
+    if usage.get("cost") is not None or not response_id or not api_key:
+        return usage
+    if "openrouter.ai" not in base_url:
+        return usage
+    parsed = urllib.parse.urlparse(base_url)
+    root = f"{parsed.scheme or 'https'}://{parsed.netloc or 'openrouter.ai'}"
+    url = f"{root}/api/v1/generation?id={urllib.parse.quote(response_id)}"
+    request = urllib.request.Request(url, headers={"Authorization": f"Bearer {api_key}"})
+    try:
+        with urllib.request.urlopen(request, timeout=5) as response:
+            payload = json.loads(response.read().decode("utf-8", errors="replace"))
+    except (OSError, urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError):
+        return usage
+    data = payload.get("data") if isinstance(payload, dict) else None
+    if not isinstance(data, dict):
+        return usage
+    enriched = dict(usage)
+    cost = _safe_float(data.get("total_cost") or data.get("cost"))
+    if cost is not None:
+        enriched["cost"] = cost
+    prompt = _safe_int(data.get("native_tokens_prompt") or data.get("tokens_prompt"))
+    completion = _safe_int(data.get("native_tokens_completion") or data.get("tokens_completion"))
+    total = _safe_int(data.get("native_tokens_total") or data.get("tokens_total"))
+    if prompt is not None:
+        enriched["prompt_tokens"] = prompt
+    if completion is not None:
+        enriched["completion_tokens"] = completion
+    if total is not None:
+        enriched["total_tokens"] = total
+    elif prompt is not None or completion is not None:
+        enriched["total_tokens"] = int(enriched.get("prompt_tokens") or 0) + int(enriched.get("completion_tokens") or 0)
+    enriched["estimated"] = bool(enriched.get("estimated")) and cost is None
+    return enriched
+
+
+def _safe_float(value: Any) -> float | None:
+    try:
+        if value in (None, ""):
+            return None
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _safe_int(value: Any) -> int | None:
+    try:
+        if value in (None, ""):
+            return None
+        return int(float(value))
+    except (TypeError, ValueError):
+        return None
 
 
 def _estimate_token_count(text: str) -> int:
