@@ -827,7 +827,7 @@ def test_frame_emit_skips_unchanged_render(capsys):
     assert second == "frame"
     assert third == "next"
     assert out.count("\033[H") == 2
-    assert out.count("\033[J") == 2
+    assert "\033[J" not in out
 
 
 def test_chat_frame_does_not_cap_long_agent_messages():
@@ -1109,6 +1109,31 @@ def test_hourly_outcomes_prioritize_durable_work_over_research_noise():
     assert "Harness Architecture Notes" in rendered
     assert "Context budget check" in rendered
     assert "generic harness patterns" not in rendered
+
+
+def test_hourly_outcomes_wrap_long_durable_updates_without_pre_truncation():
+    events = [
+        {
+            "event_type": "finding",
+            "title": (
+                "Distillation survey breakthrough: teacher trajectories should include failed tool calls, "
+                "operator corrections, recovery steps, and measured validation so the student learns the "
+                "whole harness loop instead of only final answers"
+            ),
+            "body": "",
+            "metadata": {},
+            "created_at": "2026-05-01T12:05:00+00:00",
+        },
+    ]
+
+    rendered = "\n".join(hourly_update_lines(events, width=82, limit=6))
+
+    assert "operator corrections" in rendered
+    assert "measured" in rendered
+    assert "validation" in rendered
+    assert "only" in rendered
+    assert "final answers" in rendered
+    assert "..." not in rendered
 
 
 def test_chat_updates_page_includes_agent_error_updates():

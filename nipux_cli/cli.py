@@ -1264,7 +1264,7 @@ def _render_chat_frame(
 
 def _emit_frame_if_changed(frame: str, previous_frame: str = "") -> str:
     if frame != previous_frame:
-        print("\033[H" + frame + "\033[J", end="", flush=True)
+        print("\033[H" + frame, end="", flush=True)
     return frame
 
 

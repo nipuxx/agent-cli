@@ -193,7 +193,7 @@ def worker_activity_lines(events: list[dict[str, Any]], *, width: int, limit: in
     return rendered
 
 
-def model_update_event_parts(event: dict[str, Any], *, width: int) -> tuple[str, str, str] | None:
+def model_update_event_parts(event: dict[str, Any], *, width: int, compact: bool = True) -> tuple[str, str, str] | None:
     kind = str(event.get("event_type") or "")
     title = generic_display_text(event.get("title") or "")
     body = generic_display_text(event.get("body") or "")
@@ -203,51 +203,51 @@ def model_update_event_parts(event: dict[str, Any], *, width: int) -> tuple[str,
     chars = max(24, width - 16)
     if kind == "artifact":
         detail = event_title_body(title, body or str(metadata.get("summary") or ""), fallback="saved output")
-        return "SAVE", _one_line(detail, chars), clock
+        return "SAVE", _outcome_text(detail, chars=chars, compact=compact), clock
     if kind == "finding":
-        return "FIND", _one_line(event_title_body(title, body, fallback="finding"), chars), clock
+        return "FIND", _outcome_text(event_title_body(title, body, fallback="finding"), chars=chars, compact=compact), clock
     if kind == "source":
-        return "SOURCE", _one_line(event_title_body(title, body, fallback="source"), chars), clock
+        return "SOURCE", _outcome_text(event_title_body(title, body, fallback="source"), chars=chars, compact=compact), clock
     if kind == "experiment":
         metric = experiment_metric_text(metadata)
         detail = event_title_body(title, body, fallback="measurement")
         if metric and metric not in detail:
             detail = f"{detail} - {metric}"
-        return "TEST", _one_line(detail, chars), clock
+        return "TEST", _outcome_text(detail, chars=chars, compact=compact), clock
     if kind == "task":
         task_status = str(metadata.get("status") or "")
         detail = event_title_body(title, body, fallback="task")
         prefix = f"{task_status} " if task_status else ""
-        return "TASK", _one_line(prefix + detail, chars), clock
+        return "TASK", _outcome_text(prefix + detail, chars=chars, compact=compact), clock
     if kind == "roadmap":
-        return "ROAD", _one_line(event_title_body(title, body, fallback="roadmap"), chars), clock
+        return "ROAD", _outcome_text(event_title_body(title, body, fallback="roadmap"), chars=chars, compact=compact), clock
     if kind == "milestone_validation":
         validation = str(metadata.get("validation_status") or metadata.get("status") or "")
         detail = event_title_body(title, body, fallback="milestone")
-        return "VALID", _one_line(f"{validation} {detail}".strip(), chars), clock
+        return "VALID", _outcome_text(f"{validation} {detail}".strip(), chars=chars, compact=compact), clock
     if kind == "lesson":
-        return "LEARN", _one_line(event_title_body(title, body, fallback="lesson"), chars), clock
+        return "LEARN", _outcome_text(event_title_body(title, body, fallback="lesson"), chars=chars, compact=compact), clock
     if kind == "reflection":
-        return "PLAN", _one_line(brief_reflection_text(body or title), chars), clock
+        return "PLAN", _outcome_text(brief_reflection_text(body or title), chars=chars, compact=compact), clock
     if kind == "agent_message" and title.lower() in {"error", "blocked"}:
         detail = _chat_agent_message_text(title, body) or event_title_body(title, body, fallback="error")
-        return "FAIL", _one_line(detail, chars), clock
+        return "FAIL", _outcome_text(detail, chars=chars, compact=compact), clock
     if kind == "agent_message" and title.lower() in {"progress", "update", "report", "plan", "planning"}:
         detail = _chat_agent_message_text(title, body) or event_title_body(title, body, fallback="update")
-        return "UPDATE", _one_line(detail, chars), clock
+        return "UPDATE", _outcome_text(detail, chars=chars, compact=compact), clock
     if kind == "tool_result" and status == "completed":
         tool = title
         if tool in {"web_search", "web_extract"}:
-            return "DONE", _one_line(tool_live_summary(tool, metadata, body), chars), clock
+            return "DONE", _outcome_text(tool_live_summary(tool, metadata, body), chars=chars, compact=compact), clock
         if tool == "shell_exec":
             command = str(event_tool_args(metadata).get("command") or "")
             target = shell_write_target(command)
             if target:
-                return "FILE", _one_line(f"updated {_short_path(target, max_width=chars - 8)} via shell", chars), clock
+                return "FILE", _outcome_text(f"updated {_short_path(target, max_width=chars - 8)} via shell", chars=chars, compact=compact), clock
         if tool == "write_file":
             output = metadata.get("output") if isinstance(metadata.get("output"), dict) else {}
             path = str(output.get("path") or event_tool_args(metadata).get("path") or "")
-            return "FILE", _one_line(f"updated {_short_path(path, max_width=chars - 8)}", chars), clock
+            return "FILE", _outcome_text(f"updated {_short_path(path, max_width=chars - 8)}", chars=chars, compact=compact), clock
     return None
 
 
@@ -330,7 +330,7 @@ def hourly_update_lines(events: list[dict[str, Any]], *, width: int, limit: int)
     buckets: dict[str, dict[str, Any]] = {}
     order: list[str] = []
     for event in events:
-        parsed = model_update_event_parts(event, width=max(width, 220))
+        parsed = model_update_event_parts(event, width=max(width, 220), compact=False)
         if not parsed:
             continue
         label, text, clock = parsed
@@ -359,13 +359,20 @@ def hourly_update_lines(events: list[dict[str, Any]], *, width: int, limit: int)
             available = max(16, width - len(_strip_ansi(prefix)))
             parts = textwrap.wrap(text, width=available) or [""]
             rendered.append(_fit_ansi(prefix + parts[0], width))
-            for part in parts[1:3]:
+            for part in parts[1:]:
                 rendered.append(_fit_ansi(" " * len(_strip_ansi(prefix)) + part, width))
                 if len(rendered) >= limit:
                     return rendered[:limit]
         if len(rendered) >= limit:
             return rendered[:limit]
     return rendered[-limit:]
+
+
+def _outcome_text(text: str, *, chars: int, compact: bool) -> str:
+    clean = generic_display_text(text)
+    if compact:
+        return _one_line(clean, chars)
+    return _one_line(clean, 900)
 
 
 def hourly_outcome_summary(counts: dict[str, Any]) -> str:
