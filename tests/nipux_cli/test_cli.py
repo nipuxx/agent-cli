@@ -908,6 +908,41 @@ def test_chat_frame_has_model_updates_page():
     assert "paper.md" in frame
 
 
+def test_chat_status_page_shows_job_outputs():
+    snapshot = {
+        "job_id": "job_demo",
+        "job": {
+            "id": "job_demo",
+            "title": "demo job",
+            "objective": "show created outputs per job",
+            "status": "running",
+            "kind": "generic",
+            "metadata": {},
+        },
+        "jobs": [
+            {"id": "job_demo", "title": "demo job", "status": "running", "kind": "generic", "metadata": {}},
+            {"id": "job_other", "title": "other job", "status": "queued", "kind": "generic", "metadata": {}},
+        ],
+        "steps": [],
+        "artifacts": [{"id": "art_demo", "title": "Primary Saved Draft"}],
+        "job_artifacts": {
+            "job_demo": [{"id": "art_demo", "title": "Primary Saved Draft"}],
+            "job_other": [{"id": "art_other", "title": "Other Job Deliverable"}],
+        },
+        "memory_entries": [],
+        "events": [],
+        "daemon": {"running": True, "metadata": {"pid": 123}},
+        "model": "model/demo",
+        "counts": {"steps": 0, "artifacts": 1, "memory": 0},
+    }
+
+    frame = _build_chat_frame(snapshot, "", [], width=132, height=34)
+
+    assert "Jobs" in frame
+    assert "Primary Saved Draft" in frame
+    assert "Other Job Deliverable" in frame
+
+
 def test_chat_frame_collapses_repeated_failures_and_hides_memory_noise():
     repeated_error = {
         "event_type": "error",

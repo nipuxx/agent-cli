@@ -2169,7 +2169,16 @@ def _right_pane_lines(
         info_lines.append(f"{_muted('Measure')} pending step #{pending_measurement.get('source_step_no') or '?'}")
     info_lines.append("")
     info_lines.append(_bold("Jobs"))
-    info_lines.extend(_frame_jobs_lines(jobs[:5], focused_job_id=job_id, daemon_running=daemon_running, width=width))
+    info_lines.extend(
+        _frame_jobs_lines(
+            jobs[:5],
+            focused_job_id=job_id,
+            daemon_running=daemon_running,
+            width=width,
+            job_artifacts=job_artifacts,
+            show_outputs=True,
+        )
+    )
     current_outputs = job_artifacts.get(job_id) or []
     info_lines.append("")
     info_lines.append(_bold("Saved outputs"))
@@ -2485,11 +2494,18 @@ def _compose_bar(
 
 
 def _frame_jobs_lines(
-    jobs: list[dict[str, Any]], *, focused_job_id: str, daemon_running: bool, width: int
+    jobs: list[dict[str, Any]],
+    *,
+    focused_job_id: str,
+    daemon_running: bool,
+    width: int,
+    job_artifacts: dict[str, list[dict[str, Any]]] | None = None,
+    show_outputs: bool = False,
 ) -> list[str]:
     rendered = []
     for index, item in enumerate(jobs[:5], start=1):
-        marker = _accent("●") if str(item.get("id")) == focused_job_id else _muted("○")
+        item_id = str(item.get("id") or "")
+        marker = _accent("●") if item_id == focused_job_id else _muted("○")
         title_width = max(14, min(30, width - 34))
         title = _one_line(str(item.get("title") or item.get("id") or "job"), title_width)
         state = _status_badge(_job_display_state(item, daemon_running))
@@ -2502,6 +2518,11 @@ def _frame_jobs_lines(
                 width,
             )
         )
+        outputs = (job_artifacts or {}).get(item_id) or []
+        if show_outputs and outputs:
+            latest = outputs[0]
+            output_title = _one_line(str(latest.get("title") or latest.get("id") or "saved output"), max(8, width - 15))
+            rendered.append(_fit_ansi(f"   {_event_badge('SAVE')} {output_title}", width))
     return rendered
 
 
