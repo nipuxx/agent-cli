@@ -1055,7 +1055,7 @@ def test_chat_status_page_marks_deferred_jobs_waiting():
             "objective": "check a long-running process later",
             "status": "running",
             "kind": "generic",
-            "metadata": {"defer_until": "2999-01-01T00:00:00+00:00"},
+            "metadata": {"defer_until": "2999-01-01T00:00:00+00:00", "defer_reason": "external process running"},
         },
         "jobs": [
             {
@@ -1063,7 +1063,7 @@ def test_chat_status_page_marks_deferred_jobs_waiting():
                 "title": "deferred job",
                 "status": "running",
                 "kind": "generic",
-                "metadata": {"defer_until": "2999-01-01T00:00:00+00:00"},
+                "metadata": {"defer_until": "2999-01-01T00:00:00+00:00", "defer_reason": "external process running"},
             }
         ],
         "steps": [],
@@ -1078,6 +1078,9 @@ def test_chat_status_page_marks_deferred_jobs_waiting():
     frame = _build_chat_frame(snapshot, "", [], width=132, height=28)
 
     assert "waiting" in frame
+    assert "Wait" in frame
+    assert "next check" in frame
+    assert "external" in frame
     assert "active" not in frame
 
 

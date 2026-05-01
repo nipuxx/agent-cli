@@ -1881,6 +1881,9 @@ def _right_pane_lines(
         info_lines.append(f"{_muted('Context')} {_one_line(active_operator[-1].get('message') or '', width - 8)}")
     if pending_measurement:
         info_lines.append(f"{_muted('Measure')} pending step #{pending_measurement.get('source_step_no') or '?'}")
+    defer_line = _defer_status_line(job, width=width)
+    if defer_line:
+        info_lines.append(defer_line)
     latest_outcome = _latest_durable_outcome_line(events, width=width)
     if latest_outcome:
         info_lines.append(latest_outcome)
@@ -1906,6 +1909,19 @@ def _right_pane_lines(
     else:
         info_lines.append(_muted("No saved outputs yet."))
     return info_lines[:rows]
+
+
+def _defer_status_line(job: dict[str, Any], *, width: int) -> str:
+    until = _job_deferred_until(job)
+    if not until:
+        return ""
+    metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
+    reason = str(metadata.get("defer_reason") or metadata.get("defer_next_action") or "").strip()
+    time_text = until.astimezone().strftime("%b %d %H:%M")
+    detail = f"next check {time_text}"
+    if reason:
+        detail += f" - {reason}"
+    return _fit_ansi(f"{_muted('Wait')}   {_one_line(detail, max(12, width - 7))}", width)
 
 
 def _chat_work_pane_lines(
