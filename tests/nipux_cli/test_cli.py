@@ -1083,7 +1083,8 @@ def test_chat_frame_has_model_updates_page():
 
     assert "Outcomes" in frame
     assert "Outcomes by hour" in frame
-    assert "1 research" in frame
+    assert "1 outputs" in frame
+    assert "1 measurements" in frame
     assert "Literature Review Draft" in frame
     assert "Trajectory distillation" in frame
     assert "Citation density check" in frame
@@ -1126,7 +1127,8 @@ def test_chat_pane_marks_hidden_overflow():
     lines = chat_pane_lines(events, [], width=48, rows=4)
 
     assert "word0 word1" in lines[0]
-    assert "more lines in /history" in lines[-1]
+    assert "middle lines hidden" in "\n".join(lines)
+    assert "word" in lines[-1]
     assert len(lines) == 4
 
 
@@ -1290,6 +1292,36 @@ def test_hourly_outcomes_hide_plan_update_noise():
     assert "Saved research draft" in rendered
     assert "Checkpoint at step" not in rendered
     assert "summarized current counts" not in rendered
+
+
+def test_hourly_outcome_summary_uses_progress_order():
+    events = [
+        {
+            "event_type": "source",
+            "title": "source scored",
+            "body": "",
+            "metadata": {},
+            "created_at": "2026-05-01T12:01:00+00:00",
+        },
+        {
+            "event_type": "artifact",
+            "title": "draft saved",
+            "body": "",
+            "metadata": {},
+            "created_at": "2026-05-01T12:02:00+00:00",
+        },
+        {
+            "event_type": "experiment",
+            "title": "metric checked",
+            "body": "",
+            "metadata": {"metric_name": "score", "metric_value": 1, "metric_unit": "point"},
+            "created_at": "2026-05-01T12:03:00+00:00",
+        },
+    ]
+
+    rendered = "\n".join(hourly_update_lines(events, width=96, limit=8))
+
+    assert "1 outputs 1 measurements 1 sources" in rendered
 
 
 def test_hourly_outcomes_wrap_long_durable_updates_without_pre_truncation():

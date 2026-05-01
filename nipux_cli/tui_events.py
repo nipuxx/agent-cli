@@ -106,10 +106,16 @@ def chat_pane_lines(events: list[dict[str, Any]], notices: list[str], *, width: 
         return output_rows[-rows:]
     newest = rendered_items[-1]
     if len(newest) >= rows:
-        visible = newest[: rows - 1]
-        hidden = len(newest) - len(visible)
-        marker = _fit_ansi(_muted(f"... {hidden} more lines in /history."), width)
-        return [*visible, marker]
+        if rows <= 3:
+            visible = newest[: rows - 1]
+            hidden = len(newest) - len(visible)
+            marker = _fit_ansi(_muted(f"... {hidden} more lines in /history."), width)
+            return [*visible, marker]
+        head = max(1, min(4, rows // 3))
+        tail = max(1, rows - head - 1)
+        hidden = max(0, len(newest) - head - tail)
+        marker = _fit_ansi(_muted(f"... {hidden} middle lines hidden; /history shows all."), width)
+        return [*newest[:head], marker, *newest[-tail:]]
     visible_blocks: list[list[str]] = [newest]
     used = len(newest)
     hidden_lines = 0

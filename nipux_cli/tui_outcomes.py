@@ -37,6 +37,21 @@ DURABLE_OUTCOME_LABELS = {
 
 SUMMARY_COUNT_LABELS = DURABLE_OUTCOME_LABELS | {"DONE", "FAIL"}
 PRIMARY_OUTCOME_LABELS = DURABLE_OUTCOME_LABELS | {"FAIL"}
+OUTCOME_LABEL_ORDER = [
+    "SAVE",
+    "FIND",
+    "TEST",
+    "FILE",
+    "TASK",
+    "ROAD",
+    "VALID",
+    "SOURCE",
+    "LEARN",
+    "PLAN",
+    "UPDATE",
+    "FAIL",
+    "DONE",
+]
 
 OUTCOME_SUMMARY_NAMES = {
     "SAVE": "outputs",
@@ -285,7 +300,9 @@ def hourly_update_lines(events: list[dict[str, Any]], *, width: int, limit: int)
 
 def hourly_outcome_summary(counts: dict[str, Any]) -> str:
     pieces: list[str] = []
-    for label in sorted(counts):
+    ordered = [label for label in OUTCOME_LABEL_ORDER if label in counts]
+    ordered.extend(sorted(label for label in counts if label not in set(OUTCOME_LABEL_ORDER)))
+    for label in ordered:
         count = int(counts.get(label) or 0)
         if count <= 0:
             continue
