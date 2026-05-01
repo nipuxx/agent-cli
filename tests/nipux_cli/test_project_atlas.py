@@ -22,7 +22,7 @@ def test_project_atlas_generator_maps_prompts_tools_and_source_without_self_embe
     tools = generator.extract_tools(files)
 
     assert "docs/project-atlas.html" not in {source.path for source in files}
-    assert any(prompt.path == "nipux_cli/worker.py" and "SYSTEM_PROMPT" in prompt.name for prompt in prompts)
+    assert any(prompt.path == "nipux_cli/worker_policy.py" and "SYSTEM_PROMPT" in prompt.name for prompt in prompts)
     assert any(tool["name"] == "web_search" for tool in tools)
 
 

@@ -41,7 +41,7 @@ def current_runtime_fingerprint() -> dict[str, Any]:
 
     from nipux_cli import __version__
     from nipux_cli.tools import DEFAULT_REGISTRY
-    from nipux_cli.worker import SYSTEM_PROMPT, WORKER_PROTOCOL_VERSION
+    from nipux_cli.worker_policy import SYSTEM_PROMPT, WORKER_PROTOCOL_VERSION
 
     tool_schema = DEFAULT_REGISTRY.openai_tools()
     tool_schema_hash = hashlib.sha256(json.dumps(tool_schema, sort_keys=True, default=str).encode("utf-8")).hexdigest()
