@@ -50,6 +50,7 @@ def test_cli_has_operator_commands():
     assert parser.parse_args(["updates"]).func.__name__ == "cmd_updates"
     assert parser.parse_args(["update"]).func.__name__ == "cmd_updates"
     assert parser.parse_args(["outcomes"]).func.__name__ == "cmd_updates"
+    assert parser.parse_args(["outcomes", "--all"]).all is True
     assert parser.parse_args(["steer", "focus", "sources"]).func.__name__ == "cmd_steer"
     assert parser.parse_args(["say", "focus", "sources"]).func.__name__ == "cmd_steer"
     assert parser.parse_args(["pause"]).func.__name__ == "cmd_pause"
@@ -933,6 +934,7 @@ def test_plain_chat_control_intents_map_to_commands():
     assert _chat_control_command("what has it done") == "/outcomes"
     assert _chat_control_command("what have you done so far") == "/outcomes"
     assert _chat_control_command("what did the model do") == "/outcomes"
+    assert _chat_control_command("what have all jobs done") == "/outcomes all"
 
 
 def test_plain_chat_control_intent_does_not_queue_operator_context(monkeypatch, tmp_path):
@@ -2409,6 +2411,57 @@ def test_updates_command_summarizes_durable_outcomes(monkeypatch, tmp_path, caps
     assert "latest saved outputs:" in out
     assert "raw tool stream: activity" in out
     assert "recent tool calls:" not in out
+
+
+def test_updates_all_summarizes_durable_work_across_jobs(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        first_id = db.create_job("Research first topic", title="first")
+        second_id = db.create_job("Research second topic", title="second")
+        first_path = tmp_path / "first.md"
+        first_path.write_text("first", encoding="utf-8")
+        second_path = tmp_path / "second.md"
+        second_path.write_text("second", encoding="utf-8")
+        db.append_finding_record(first_id, name="First durable finding", category="evidence")
+        db.add_artifact(
+            job_id=first_id,
+            path=first_path,
+            sha256="abc",
+            artifact_type="text",
+            title="First saved output",
+            summary="first summary",
+        )
+        db.append_experiment_record(
+            second_id,
+            title="Second measured result",
+            status="measured",
+            metric_name="quality",
+            metric_value=9,
+            metric_unit="points",
+        )
+        db.add_artifact(
+            job_id=second_id,
+            path=second_path,
+            sha256="def",
+            artifact_type="text",
+            title="Second saved output",
+            summary="second summary",
+        )
+    finally:
+        db.close()
+
+    args = build_parser().parse_args(["outcomes", "--all", "--limit", "5", "--chars", "120"])
+    args.func(args)
+
+    out = capsys.readouterr().out
+    assert "outcomes all jobs | 2 tracked" in out
+    assert "first |" in out
+    assert "second |" in out
+    assert "First durable finding" in out
+    assert "First saved output" in out
+    assert "Second measured result" in out
+    assert "Second saved output" in out
 
 
 def test_history_and_events_commands_render_visible_timeline(monkeypatch, tmp_path, capsys):

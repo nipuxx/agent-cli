@@ -201,6 +201,7 @@ uv run nipux history "nightly research"
 uv run nipux events "nightly research" --follow
 uv run nipux activity "nightly research" --follow
 uv run nipux outcomes "nightly research"
+uv run nipux outcomes --all
 uv run nipux findings "nightly research"
 uv run nipux tasks "nightly research"
 uv run nipux roadmap "nightly research"
@@ -223,6 +224,8 @@ Use these views when a job has been running unattended:
 - `nipux outcomes JOB` or the **Outcomes** pane: durable work grouped by time,
   including saved outputs, findings, measurements, decisions, lessons, and file
   changes.
+- `nipux outcomes --all`: latest durable work and saved outputs for every job,
+  useful when several agents have been running in the background.
 - `nipux activity JOB --follow` or the **Work** pane: the raw live tool stream
   for debugging what the worker is doing right now.
 - `nipux usage JOB`: model calls, context pressure, output tokens, and cost when
@@ -302,7 +305,7 @@ nipux history [JOB_TITLE] [--full] [--json]
 nipux events [JOB_TITLE] [--follow] [--json]
 nipux activity [JOB_TITLE] [--follow] [--verbose]
 nipux updates [JOB_TITLE]
-nipux outcomes [JOB_TITLE]
+nipux outcomes [JOB_TITLE] [--all]
 nipux dashboard [JOB_TITLE]
 nipux findings [JOB_TITLE] [--limit N] [--json]
 nipux tasks [JOB_TITLE] [--limit N] [--status STATUS] [--json]

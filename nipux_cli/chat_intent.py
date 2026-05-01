@@ -9,7 +9,12 @@ NATURAL_COMMANDS = {
     "tell me updates": "updates",
     "show updates": "updates",
     "show outcomes": "outcomes",
+    "show all outcomes": "outcomes all",
+    "show all accomplishments": "outcomes all",
     "show accomplishments": "outcomes",
+    "what have all jobs done": "outcomes all",
+    "what has everything done": "outcomes all",
+    "what did all jobs do": "outcomes all",
     "what did it accomplish": "outcomes",
     "what has it done": "outcomes",
     "what has it done so far": "outcomes",
@@ -101,6 +106,15 @@ def chat_control_command(line: str) -> str:
         return "/resume"
     if lowered in {"history", "show history", "timeline", "show timeline"}:
         return "/history"
+    if lowered in {
+        "all outcomes",
+        "show all outcomes",
+        "show all accomplishments",
+        "what have all jobs done",
+        "what has everything done",
+        "what did all jobs do",
+    }:
+        return "/outcomes all"
     if lowered in {
         "outcomes",
         "show outcomes",

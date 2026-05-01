@@ -88,7 +88,8 @@ def handle_chat_slash_command(job_id: str, command: str, rest: list[str], *, dep
         )
         return True
     if command in {"updates", "outcomes", "outcome"}:
-        deps.updates(argparse.Namespace(job_id=job_id, limit=5, chars=180, paths=False))
+        all_jobs = bool(rest and rest[0].lower() == "all")
+        deps.updates(argparse.Namespace(job_id=job_id, all=all_jobs, limit=5, chars=180, paths=False))
         return True
     if command == "artifacts":
         deps.artifacts(argparse.Namespace(job_id=job_id, limit=10, chars=220, paths=False))

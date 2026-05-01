@@ -108,6 +108,8 @@ SLASH_ARGUMENT_HINTS = {
     "history": "LIMIT",
     "events": "LIMIT",
     "outputs": "LIMIT",
+    "outcomes": "all",
+    "updates": "all",
     "artifact": "QUERY_OR_ID",
     "work": "N",
     "work-verbose": "N",

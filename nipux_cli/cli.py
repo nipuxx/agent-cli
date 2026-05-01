@@ -165,7 +165,7 @@ from nipux_cli.tui_style import (
     _one_line,
     _status_badge,
 )
-from nipux_cli.updates import render_updates_report
+from nipux_cli.updates import render_all_updates_report, render_updates_report
 
 _save_config_field = save_config_field
 _config_field_value = config_field_value
@@ -1810,6 +1810,19 @@ def cmd_activity(args: argparse.Namespace) -> None:
 def cmd_updates(args: argparse.Namespace) -> None:
     db, config = _db()
     try:
+        if getattr(args, "all", False):
+            print(
+                "\n".join(
+                    render_all_updates_report(
+                        db,
+                        config,
+                        limit=args.limit,
+                        chars=args.chars,
+                        paths=args.paths,
+                    )
+                )
+            )
+            return
         job_id = _resolve_job_id(db, args.job_id)
         if not job_id:
             print("No jobs found.")
@@ -2109,7 +2122,7 @@ def _chat_handle_line(job_id: str, line: str, *, reply_fn=None) -> bool:
     if line in {"/help", "help"}:
         print("Chat commands:")
         print("  /jobs /focus JOB_TITLE /switch JOB_TITLE /new OBJECTIVE /delete [JOB_TITLE]")
-        print("  /history /events /activity /outputs /updates /outcomes /status /usage /health")
+        print("  /history /events /activity /outputs /updates /outcomes [all] /status /usage /health")
         print("  /artifacts /artifact QUERY /findings /tasks /roadmap /experiments /sources /memory /metrics /lessons")
         print("  /model MODEL /base-url URL /api-key KEY /api-key-env ENV /context TOKENS")
         print("  /input-cost DOLLARS_PER_1M_INPUT_TOKENS /output-cost DOLLARS_PER_1M_OUTPUT_TOKENS")

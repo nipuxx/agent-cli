@@ -269,6 +269,7 @@ def build_arg_parser(
 
     updates = sub.add_parser("updates", aliases=["update", "outcomes", "outcome"])
     updates.add_argument("job_id", nargs="*")
+    updates.add_argument("--all", action="store_true", help="Show durable outcome summaries for every job")
     updates.add_argument("--limit", type=int, default=5)
     updates.add_argument("--chars", type=int, default=180)
     updates.add_argument("--paths", action="store_true", help="Show full artifact paths")
