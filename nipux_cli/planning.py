@@ -290,7 +290,7 @@ def _initial_summary_for_profiles(profiles: list[str]) -> str:
 
 
 def _initial_tasks_for_profiles(profiles: list[str]) -> list[str]:
-    tasks: list[str] = ["Clarify success criteria, constraints, and stop conditions."]
+    tasks: list[str] = ["Clarify success criteria, constraints, and review/report cadence."]
     primary = profiles[0] if profiles else "general"
     if primary == "measured":
         tasks.extend(
