@@ -1751,6 +1751,23 @@ def test_run_one_step_allows_repeated_browser_snapshot(tmp_path):
         db.close()
 
 
+def test_run_one_step_allows_repeated_defer_for_monitor_intervals(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    call = ToolCall(name="defer_job", arguments={"seconds": 60, "reason": "wait for monitor interval"})
+    try:
+        job_id = db.create_job("Check a long-running process later", title="defer")
+        first = run_one_step(job_id, config=config, db=db, llm=ScriptedLLM([LLMResponse(tool_calls=[call])]))
+        second = run_one_step(job_id, config=config, db=db, llm=ScriptedLLM([LLMResponse(tool_calls=[call])]))
+
+        assert first.status == "completed"
+        assert second.status == "completed"
+        assert first.tool_name == "defer_job"
+        assert second.tool_name == "defer_job"
+    finally:
+        db.close()
+
+
 def test_run_one_step_blocks_search_after_unpersisted_extract(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

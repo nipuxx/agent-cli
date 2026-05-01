@@ -1466,7 +1466,7 @@ def _duplicate_recent_tool_call(
     *,
     window: int = 24,
 ) -> dict[str, Any] | None:
-    if name == "browser_snapshot":
+    if name in {"browser_snapshot", "defer_job"}:
         return None
     signature = _tool_signature(name, args)
     for step in reversed(recent_steps[-window:]):
