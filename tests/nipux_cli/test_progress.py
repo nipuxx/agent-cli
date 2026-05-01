@@ -58,6 +58,20 @@ def test_progress_checkpoint_for_saved_output_is_concise():
     assert "1 findings, 2 sources, 1 tasks, and 0 experiments" in checkpoint.message
 
 
+def test_progress_checkpoint_without_delta_is_activity_not_progress():
+    metadata = {"finding_ledger": [{}], "source_ledger": [{}], "task_queue": [{}], "experiment_ledger": []}
+
+    checkpoint = build_progress_checkpoint(
+        metadata,
+        previous_counts={"findings": 1, "sources": 1, "tasks": 1, "experiments": 0, "lessons": 0, "milestones": 0},
+        step_no=50,
+        tool_name="web_extract",
+    )
+
+    assert checkpoint.category == "activity"
+    assert "no new durable ledger entries" in checkpoint.message
+
+
 def test_progress_helpers_ignore_malformed_metadata():
     metadata = {
         "finding_ledger": "bad",

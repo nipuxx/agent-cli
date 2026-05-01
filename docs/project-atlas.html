@@ -82,7 +82,7 @@ pre { max-height: 540px; overflow: auto; background: #050606; border: 1px solid 
 <div class="shell">
   <aside class="sidebar">
     <div class="logo">NIPUX ATLAS</div>
-    <div class="subtitle">Generated from tracked source on bd346539.</div>
+    <div class="subtitle">Generated from tracked source on a08509b3.</div>
     <input id="search" class="search" placeholder="filter files, prompts, tools..." autocomplete="off">
     <nav class="nav">
       <a href="#architecture">Architecture</a>
@@ -98,8 +98,8 @@ pre { max-height: 540px; overflow: auto; background: #050606; border: 1px solid 
     </nav>
     <div class="stats">
       <div class="stat"><b>50</b><span>tracked files</span></div>
-      <div class="stat"><b>23,855</b><span>tracked lines mapped</span></div>
-      <div class="stat"><b>996</b><span>python symbols</span></div>
+      <div class="stat"><b>23,870</b><span>tracked lines mapped</span></div>
+      <div class="stat"><b>997</b><span>python symbols</span></div>
       <div class="stat"><b>26</b><span>runtime tools</span></div>
     </div>
   </aside>
@@ -577,7 +577,7 @@ daemon, state store, model adapter, artifact store, and fixed tool surface. none
 <details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> __future__, typing</p><p><strong>Symbols:</strong> initial_plan_for_objective, initial_task_contract, initial_roadmap_for_objective, format_initial_plan</p></details>
 </article>
 <article class="file-card searchable" data-search="nipux_cli/progress.py Generic progress summaries for long-running jobs. ProgressCheckpoint, build_progress_checkpoint, ledger_counts, recent_progress_bits, _metadata_list, _clip_text, _as_int">
-<header><h3>nipux_cli/progress.py</h3><span>129 lines</span></header>
+<header><h3>nipux_cli/progress.py</h3><span>130 lines</span></header>
 <p>Generic progress summaries for long-running jobs.</p>
 <div class="meta"><span>7 symbols</span><span>0 TODOs</span></div>
 <details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> __future__, dataclasses, typing</p><p><strong>Symbols:</strong> ProgressCheckpoint, build_progress_checkpoint, ledger_counts, recent_progress_bits, _metadata_list, _clip_text, _as_int</p></details>
@@ -732,11 +732,11 @@ daemon, state store, model adapter, artifact store, and fixed tool surface. none
 <div class="meta"><span>2 symbols</span><span>0 TODOs</span></div>
 <details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> nipux_cli.planning</p><p><strong>Symbols:</strong> test_initial_task_contracts_are_generic_and_complete, test_initial_roadmap_uses_valid_generic_contracts</p></details>
 </article>
-<article class="file-card searchable" data-search="tests/nipux_cli/test_progress.py No module docstring. test_progress_checkpoint_reports_deltas_and_recent_durable_work, test_progress_checkpoint_for_saved_output_is_concise, test_progress_helpers_ignore_malformed_metadata">
-<header><h3>tests/nipux_cli/test_progress.py</h3><span>73 lines</span></header>
+<article class="file-card searchable" data-search="tests/nipux_cli/test_progress.py No module docstring. test_progress_checkpoint_reports_deltas_and_recent_durable_work, test_progress_checkpoint_for_saved_output_is_concise, test_progress_checkpoint_without_delta_is_activity_not_progress, test_progress_helpers_ignore_malformed_metadata">
+<header><h3>tests/nipux_cli/test_progress.py</h3><span>87 lines</span></header>
 <p>No module docstring.</p>
-<div class="meta"><span>3 symbols</span><span>0 TODOs</span></div>
-<details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> nipux_cli.progress</p><p><strong>Symbols:</strong> test_progress_checkpoint_reports_deltas_and_recent_durable_work, test_progress_checkpoint_for_saved_output_is_concise, test_progress_helpers_ignore_malformed_metadata</p></details>
+<div class="meta"><span>4 symbols</span><span>0 TODOs</span></div>
+<details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> nipux_cli.progress</p><p><strong>Symbols:</strong> test_progress_checkpoint_reports_deltas_and_recent_durable_work, test_progress_checkpoint_for_saved_output_is_concise, test_progress_checkpoint_without_delta_is_activity_not_progress, test_progress_helpers_ignore_malformed_metadata</p></details>
 </article>
 <article class="file-card searchable" data-search="tests/nipux_cli/test_project_atlas.py No module docstring. _load_generator, test_project_atlas_generator_maps_prompts_tools_and_source_without_self_embedding">
 <header><h3>tests/nipux_cli/test_project_atlas.py</h3><span>26 lines</span></header>
@@ -3724,39 +3724,39 @@ daemon, state store, model adapter, artifact store, and fixed tool surface. none
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> dataclass</p>
 </article>
-<article class="symbol searchable" data-search="nipux_cli/progress.py build_progress_checkpoint Create the operator-facing checkpoint text from durable ledger deltas. ProgressCheckpoint, _as_int, deltas.items, join, ledger_counts, previous.get, recent_progress_bits">
+<article class="symbol searchable" data-search="nipux_cli/progress.py build_progress_checkpoint Create the operator-facing checkpoint text from durable ledger deltas. ProgressCheckpoint, _as_int, bool, deltas.items, join, ledger_counts, previous.get, recent_progress_bits">
 <h3>build_progress_checkpoint</h3>
 <p><span class="pill">function</span> <span class="pill">nipux_cli/progress.py:21</span></p>
 <p>Create the operator-facing checkpoint text from durable ledger deltas.</p>
-<p class="calls"><strong>Calls:</strong> ProgressCheckpoint, _as_int, deltas.items, join, ledger_counts, previous.get, recent_progress_bits</p>
+<p class="calls"><strong>Calls:</strong> ProgressCheckpoint, _as_int, bool, deltas.items, join, ledger_counts, previous.get, recent_progress_bits</p>
 </article>
 <article class="symbol searchable" data-search="nipux_cli/progress.py ledger_counts No docstring. _metadata_list, isinstance, len, metadata.get, roadmap.get">
 <h3>ledger_counts</h3>
-<p><span class="pill">function</span> <span class="pill">nipux_cli/progress.py:62</span></p>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/progress.py:63</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> _metadata_list, isinstance, len, metadata.get, roadmap.get</p>
 </article>
 <article class="symbol searchable" data-search="nipux_cli/progress.py recent_progress_bits No docstring. _as_int, _clip_text, _metadata_list, bits.append, entry.get, experiment.get, finding.get, get, isinstance, join, lower, metadata.get, milestone.get, roadmap.get, sorted, str">
 <h3>recent_progress_bits</h3>
-<p><span class="pill">function</span> <span class="pill">nipux_cli/progress.py:75</span></p>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/progress.py:76</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> _as_int, _clip_text, _metadata_list, bits.append, entry.get, experiment.get, finding.get, get, isinstance, join, lower, metadata.get, milestone.get, roadmap.get, sorted, str</p>
 </article>
 <article class="symbol searchable" data-search="nipux_cli/progress.py _metadata_list No docstring. isinstance, metadata.get">
 <h3>_metadata_list</h3>
-<p><span class="pill">function</span> <span class="pill">nipux_cli/progress.py:111</span></p>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/progress.py:112</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> isinstance, metadata.get</p>
 </article>
 <article class="symbol searchable" data-search="nipux_cli/progress.py _clip_text No docstring. join, len, max, rstrip, value.split">
 <h3>_clip_text</h3>
-<p><span class="pill">function</span> <span class="pill">nipux_cli/progress.py:118</span></p>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/progress.py:119</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> join, len, max, rstrip, value.split</p>
 </article>
 <article class="symbol searchable" data-search="nipux_cli/progress.py _as_int No docstring. int">
 <h3>_as_int</h3>
-<p><span class="pill">function</span> <span class="pill">nipux_cli/progress.py:125</span></p>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/progress.py:126</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> int</p>
 </article>
@@ -5980,9 +5980,15 @@ daemon, state store, model adapter, artifact store, and fixed tool surface. none
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> build_progress_checkpoint, checkpoint.message.startswith</p>
 </article>
+<article class="symbol searchable" data-search="tests/nipux_cli/test_progress.py test_progress_checkpoint_without_delta_is_activity_not_progress No docstring. build_progress_checkpoint">
+<h3>test_progress_checkpoint_without_delta_is_activity_not_progress</h3>
+<p><span class="pill">function</span> <span class="pill">tests/nipux_cli/test_progress.py:61</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> build_progress_checkpoint</p>
+</article>
 <article class="symbol searchable" data-search="tests/nipux_cli/test_progress.py test_progress_helpers_ignore_malformed_metadata No docstring. ledger_counts, recent_progress_bits">
 <h3>test_progress_helpers_ignore_malformed_metadata</h3>
-<p><span class="pill">function</span> <span class="pill">tests/nipux_cli/test_progress.py:61</span></p>
+<p><span class="pill">function</span> <span class="pill">tests/nipux_cli/test_progress.py:75</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> ledger_counts, recent_progress_bits</p>
 </article>
@@ -20641,6 +20647,7 @@ def build_progress_checkpoint(
         category = &quot;finding&quot;
     else:
         changed = &quot;, &quot;.join(f&quot;+{value} {key}&quot; for key, value in deltas.items() if value &gt; 0)
+        made_progress = bool(changed)
         if not changed:
             changed = &quot;no new durable ledger entries&quot;
         message = (
@@ -20648,7 +20655,7 @@ def build_progress_checkpoint(
             f&quot;{counts[&#x27;sources&#x27;]} sources, {counts[&#x27;tasks&#x27;]} tasks, {counts[&#x27;experiments&#x27;]} experiments, &quot;
             f&quot;{counts[&#x27;lessons&#x27;]} lessons.&quot;
         )
-        category = &quot;progress&quot;
+        category = &quot;progress&quot; if made_progress else &quot;activity&quot;
     if recent:
         message = f&quot;{message} Recent: {recent}.&quot;
     return ProgressCheckpoint(
@@ -20700,10 +20707,8 @@ def recent_progress_bits(metadata: dict[str, Any]) -&gt; str:
     milestones = roadmap.get(&quot;milestones&quot;) if isinstance(roadmap.get(&quot;milestones&quot;), list) else []
     active_milestones = [
         milestone
-        for milestone in milestones
-        if isinstance(milestone, dict)
-        and str(milesto">
-<summary>nipux_cli/progress.py <span>129 lines</span></summary>
+        for milestone in mi">
+<summary>nipux_cli/progress.py <span>130 lines</span></summary>
 <pre class="source-code"><span class='src-line'><b>   1</b><code>&quot;&quot;&quot;Generic progress summaries for long-running jobs.&quot;&quot;&quot;</code></span>
 <span class='src-line'><b>   2</b><code></code></span>
 <span class='src-line'><b>   3</b><code>from __future__ import annotations</code></span>
@@ -20746,93 +20751,94 @@ def recent_progress_bits(metadata: dict[str, Any]) -&gt; str:
 <span class='src-line'><b>  40</b><code>        category = &quot;finding&quot;</code></span>
 <span class='src-line'><b>  41</b><code>    else:</code></span>
 <span class='src-line'><b>  42</b><code>        changed = &quot;, &quot;.join(f&quot;+{value} {key}&quot; for key, value in deltas.items() if value &gt; 0)</code></span>
-<span class='src-line'><b>  43</b><code>        if not changed:</code></span>
-<span class='src-line'><b>  44</b><code>            changed = &quot;no new durable ledger entries&quot;</code></span>
-<span class='src-line'><b>  45</b><code>        message = (</code></span>
-<span class='src-line'><b>  46</b><code>            f&quot;Checkpoint step #{step_no}: {changed}. Totals: {counts[&#x27;findings&#x27;]} findings, &quot;</code></span>
-<span class='src-line'><b>  47</b><code>            f&quot;{counts[&#x27;sources&#x27;]} sources, {counts[&#x27;tasks&#x27;]} tasks, {counts[&#x27;experiments&#x27;]} experiments, &quot;</code></span>
-<span class='src-line'><b>  48</b><code>            f&quot;{counts[&#x27;lessons&#x27;]} lessons.&quot;</code></span>
-<span class='src-line'><b>  49</b><code>        )</code></span>
-<span class='src-line'><b>  50</b><code>        category = &quot;progress&quot;</code></span>
-<span class='src-line'><b>  51</b><code>    if recent:</code></span>
-<span class='src-line'><b>  52</b><code>        message = f&quot;{message} Recent: {recent}.&quot;</code></span>
-<span class='src-line'><b>  53</b><code>    return ProgressCheckpoint(</code></span>
-<span class='src-line'><b>  54</b><code>        message=message,</code></span>
-<span class='src-line'><b>  55</b><code>        category=category,</code></span>
-<span class='src-line'><b>  56</b><code>        counts=counts,</code></span>
-<span class='src-line'><b>  57</b><code>        deltas=deltas,</code></span>
-<span class='src-line'><b>  58</b><code>        recent=recent,</code></span>
-<span class='src-line'><b>  59</b><code>    )</code></span>
-<span class='src-line'><b>  60</b><code></code></span>
+<span class='src-line'><b>  43</b><code>        made_progress = bool(changed)</code></span>
+<span class='src-line'><b>  44</b><code>        if not changed:</code></span>
+<span class='src-line'><b>  45</b><code>            changed = &quot;no new durable ledger entries&quot;</code></span>
+<span class='src-line'><b>  46</b><code>        message = (</code></span>
+<span class='src-line'><b>  47</b><code>            f&quot;Checkpoint step #{step_no}: {changed}. Totals: {counts[&#x27;findings&#x27;]} findings, &quot;</code></span>
+<span class='src-line'><b>  48</b><code>            f&quot;{counts[&#x27;sources&#x27;]} sources, {counts[&#x27;tasks&#x27;]} tasks, {counts[&#x27;experiments&#x27;]} experiments, &quot;</code></span>
+<span class='src-line'><b>  49</b><code>            f&quot;{counts[&#x27;lessons&#x27;]} lessons.&quot;</code></span>
+<span class='src-line'><b>  50</b><code>        )</code></span>
+<span class='src-line'><b>  51</b><code>        category = &quot;progress&quot; if made_progress else &quot;activity&quot;</code></span>
+<span class='src-line'><b>  52</b><code>    if recent:</code></span>
+<span class='src-line'><b>  53</b><code>        message = f&quot;{message} Recent: {recent}.&quot;</code></span>
+<span class='src-line'><b>  54</b><code>    return ProgressCheckpoint(</code></span>
+<span class='src-line'><b>  55</b><code>        message=message,</code></span>
+<span class='src-line'><b>  56</b><code>        category=category,</code></span>
+<span class='src-line'><b>  57</b><code>        counts=counts,</code></span>
+<span class='src-line'><b>  58</b><code>        deltas=deltas,</code></span>
+<span class='src-line'><b>  59</b><code>        recent=recent,</code></span>
+<span class='src-line'><b>  60</b><code>    )</code></span>
 <span class='src-line'><b>  61</b><code></code></span>
-<span class='src-line'><b>  62</b><code>def ledger_counts(metadata: dict[str, Any]) -&gt; dict[str, int]:</code></span>
-<span class='src-line'><b>  63</b><code>    roadmap = metadata.get(&quot;roadmap&quot;) if isinstance(metadata.get(&quot;roadmap&quot;), dict) else {}</code></span>
-<span class='src-line'><b>  64</b><code>    milestones = roadmap.get(&quot;milestones&quot;) if isinstance(roadmap.get(&quot;milestones&quot;), list) else []</code></span>
-<span class='src-line'><b>  65</b><code>    return {</code></span>
-<span class='src-line'><b>  66</b><code>        &quot;findings&quot;: len(_metadata_list(metadata, &quot;finding_ledger&quot;)),</code></span>
-<span class='src-line'><b>  67</b><code>        &quot;sources&quot;: len(_metadata_list(metadata, &quot;source_ledger&quot;)),</code></span>
-<span class='src-line'><b>  68</b><code>        &quot;tasks&quot;: len(_metadata_list(metadata, &quot;task_queue&quot;)),</code></span>
-<span class='src-line'><b>  69</b><code>        &quot;experiments&quot;: len(_metadata_list(metadata, &quot;experiment_ledger&quot;)),</code></span>
-<span class='src-line'><b>  70</b><code>        &quot;lessons&quot;: len(_metadata_list(metadata, &quot;lessons&quot;)),</code></span>
-<span class='src-line'><b>  71</b><code>        &quot;milestones&quot;: len(milestones),</code></span>
-<span class='src-line'><b>  72</b><code>    }</code></span>
-<span class='src-line'><b>  73</b><code></code></span>
+<span class='src-line'><b>  62</b><code></code></span>
+<span class='src-line'><b>  63</b><code>def ledger_counts(metadata: dict[str, Any]) -&gt; dict[str, int]:</code></span>
+<span class='src-line'><b>  64</b><code>    roadmap = metadata.get(&quot;roadmap&quot;) if isinstance(metadata.get(&quot;roadmap&quot;), dict) else {}</code></span>
+<span class='src-line'><b>  65</b><code>    milestones = roadmap.get(&quot;milestones&quot;) if isinstance(roadmap.get(&quot;milestones&quot;), list) else []</code></span>
+<span class='src-line'><b>  66</b><code>    return {</code></span>
+<span class='src-line'><b>  67</b><code>        &quot;findings&quot;: len(_metadata_list(metadata, &quot;finding_ledger&quot;)),</code></span>
+<span class='src-line'><b>  68</b><code>        &quot;sources&quot;: len(_metadata_list(metadata, &quot;source_ledger&quot;)),</code></span>
+<span class='src-line'><b>  69</b><code>        &quot;tasks&quot;: len(_metadata_list(metadata, &quot;task_queue&quot;)),</code></span>
+<span class='src-line'><b>  70</b><code>        &quot;experiments&quot;: len(_metadata_list(metadata, &quot;experiment_ledger&quot;)),</code></span>
+<span class='src-line'><b>  71</b><code>        &quot;lessons&quot;: len(_metadata_list(metadata, &quot;lessons&quot;)),</code></span>
+<span class='src-line'><b>  72</b><code>        &quot;milestones&quot;: len(milestones),</code></span>
+<span class='src-line'><b>  73</b><code>    }</code></span>
 <span class='src-line'><b>  74</b><code></code></span>
-<span class='src-line'><b>  75</b><code>def recent_progress_bits(metadata: dict[str, Any]) -&gt; str:</code></span>
-<span class='src-line'><b>  76</b><code>    bits: list[str] = []</code></span>
-<span class='src-line'><b>  77</b><code>    findings = _metadata_list(metadata, &quot;finding_ledger&quot;)</code></span>
-<span class='src-line'><b>  78</b><code>    if findings:</code></span>
-<span class='src-line'><b>  79</b><code>        finding = findings[-1]</code></span>
-<span class='src-line'><b>  80</b><code>        bits.append(f&quot;finding={_clip_text(str(finding.get(&#x27;name&#x27;) or finding.get(&#x27;title&#x27;) or &#x27;finding&#x27;), 80)}&quot;)</code></span>
-<span class='src-line'><b>  81</b><code>    active_tasks = [</code></span>
-<span class='src-line'><b>  82</b><code>        task</code></span>
-<span class='src-line'><b>  83</b><code>        for task in _metadata_list(metadata, &quot;task_queue&quot;)</code></span>
-<span class='src-line'><b>  84</b><code>        if str(task.get(&quot;status&quot;) or &quot;open&quot;).lower() in {&quot;active&quot;, &quot;open&quot;, &quot;blocked&quot;}</code></span>
-<span class='src-line'><b>  85</b><code>    ]</code></span>
-<span class='src-line'><b>  86</b><code>    if active_tasks:</code></span>
-<span class='src-line'><b>  87</b><code>        task = sorted(active_tasks, key=lambda entry: -_as_int(entry.get(&quot;priority&quot;)))[0]</code></span>
-<span class='src-line'><b>  88</b><code>        bits.append(f&quot;task={_clip_text(str(task.get(&#x27;title&#x27;) or &#x27;task&#x27;), 80)}&quot;)</code></span>
-<span class='src-line'><b>  89</b><code>    measured = [</code></span>
-<span class='src-line'><b>  90</b><code>        experiment</code></span>
-<span class='src-line'><b>  91</b><code>        for experiment in _metadata_list(metadata, &quot;experiment_ledger&quot;)</code></span>
-<span class='src-line'><b>  92</b><code>        if experiment.get(&quot;metric_value&quot;) is not None</code></span>
-<span class='src-line'><b>  93</b><code>    ]</code></span>
-<span class='src-line'><b>  94</b><code>    if measured:</code></span>
-<span class='src-line'><b>  95</b><code>        experiment = measured[-1]</code></span>
-<span class='src-line'><b>  96</b><code>        metric = f&quot;{experiment.get(&#x27;metric_name&#x27;) or &#x27;metric&#x27;}={experiment.get(&#x27;metric_value&#x27;)}{experiment.get(&#x27;metric_unit&#x27;) or &#x27;&#x27;}&quot;</code></span>
-<span class='src-line'><b>  97</b><code>        bits.append(f&quot;measurement={_clip_text(metric, 80)}&quot;)</code></span>
-<span class='src-line'><b>  98</b><code>    roadmap = metadata.get(&quot;roadmap&quot;) if isinstance(metadata.get(&quot;roadmap&quot;), dict) else {}</code></span>
-<span class='src-line'><b>  99</b><code>    milestones = roadmap.get(&quot;milestones&quot;) if isinstance(roadmap.get(&quot;milestones&quot;), list) else []</code></span>
-<span class='src-line'><b> 100</b><code>    active_milestones = [</code></span>
-<span class='src-line'><b> 101</b><code>        milestone</code></span>
-<span class='src-line'><b> 102</b><code>        for milestone in milestones</code></span>
-<span class='src-line'><b> 103</b><code>        if isinstance(milestone, dict)</code></span>
-<span class='src-line'><b> 104</b><code>        and str(milestone.get(&quot;status&quot;) or &quot;planned&quot;).lower() in {&quot;active&quot;, &quot;validating&quot;, &quot;blocked&quot;}</code></span>
-<span class='src-line'><b> 105</b><code>    ]</code></span>
-<span class='src-line'><b> 106</b><code>    if active_milestones:</code></span>
-<span class='src-line'><b> 107</b><code>        bits.append(f&quot;milestone={_clip_text(str(active_milestones[-1].get(&#x27;title&#x27;) or &#x27;milestone&#x27;), 80)}&quot;)</code></span>
-<span class='src-line'><b> 108</b><code>    return &quot;; &quot;.join(bits)</code></span>
-<span class='src-line'><b> 109</b><code></code></span>
+<span class='src-line'><b>  75</b><code></code></span>
+<span class='src-line'><b>  76</b><code>def recent_progress_bits(metadata: dict[str, Any]) -&gt; str:</code></span>
+<span class='src-line'><b>  77</b><code>    bits: list[str] = []</code></span>
+<span class='src-line'><b>  78</b><code>    findings = _metadata_list(metadata, &quot;finding_ledger&quot;)</code></span>
+<span class='src-line'><b>  79</b><code>    if findings:</code></span>
+<span class='src-line'><b>  80</b><code>        finding = findings[-1]</code></span>
+<span class='src-line'><b>  81</b><code>        bits.append(f&quot;finding={_clip_text(str(finding.get(&#x27;name&#x27;) or finding.get(&#x27;title&#x27;) or &#x27;finding&#x27;), 80)}&quot;)</code></span>
+<span class='src-line'><b>  82</b><code>    active_tasks = [</code></span>
+<span class='src-line'><b>  83</b><code>        task</code></span>
+<span class='src-line'><b>  84</b><code>        for task in _metadata_list(metadata, &quot;task_queue&quot;)</code></span>
+<span class='src-line'><b>  85</b><code>        if str(task.get(&quot;status&quot;) or &quot;open&quot;).lower() in {&quot;active&quot;, &quot;open&quot;, &quot;blocked&quot;}</code></span>
+<span class='src-line'><b>  86</b><code>    ]</code></span>
+<span class='src-line'><b>  87</b><code>    if active_tasks:</code></span>
+<span class='src-line'><b>  88</b><code>        task = sorted(active_tasks, key=lambda entry: -_as_int(entry.get(&quot;priority&quot;)))[0]</code></span>
+<span class='src-line'><b>  89</b><code>        bits.append(f&quot;task={_clip_text(str(task.get(&#x27;title&#x27;) or &#x27;task&#x27;), 80)}&quot;)</code></span>
+<span class='src-line'><b>  90</b><code>    measured = [</code></span>
+<span class='src-line'><b>  91</b><code>        experiment</code></span>
+<span class='src-line'><b>  92</b><code>        for experiment in _metadata_list(metadata, &quot;experiment_ledger&quot;)</code></span>
+<span class='src-line'><b>  93</b><code>        if experiment.get(&quot;metric_value&quot;) is not None</code></span>
+<span class='src-line'><b>  94</b><code>    ]</code></span>
+<span class='src-line'><b>  95</b><code>    if measured:</code></span>
+<span class='src-line'><b>  96</b><code>        experiment = measured[-1]</code></span>
+<span class='src-line'><b>  97</b><code>        metric = f&quot;{experiment.get(&#x27;metric_name&#x27;) or &#x27;metric&#x27;}={experiment.get(&#x27;metric_value&#x27;)}{experiment.get(&#x27;metric_unit&#x27;) or &#x27;&#x27;}&quot;</code></span>
+<span class='src-line'><b>  98</b><code>        bits.append(f&quot;measurement={_clip_text(metric, 80)}&quot;)</code></span>
+<span class='src-line'><b>  99</b><code>    roadmap = metadata.get(&quot;roadmap&quot;) if isinstance(metadata.get(&quot;roadmap&quot;), dict) else {}</code></span>
+<span class='src-line'><b> 100</b><code>    milestones = roadmap.get(&quot;milestones&quot;) if isinstance(roadmap.get(&quot;milestones&quot;), list) else []</code></span>
+<span class='src-line'><b> 101</b><code>    active_milestones = [</code></span>
+<span class='src-line'><b> 102</b><code>        milestone</code></span>
+<span class='src-line'><b> 103</b><code>        for milestone in milestones</code></span>
+<span class='src-line'><b> 104</b><code>        if isinstance(milestone, dict)</code></span>
+<span class='src-line'><b> 105</b><code>        and str(milestone.get(&quot;status&quot;) or &quot;planned&quot;).lower() in {&quot;active&quot;, &quot;validating&quot;, &quot;blocked&quot;}</code></span>
+<span class='src-line'><b> 106</b><code>    ]</code></span>
+<span class='src-line'><b> 107</b><code>    if active_milestones:</code></span>
+<span class='src-line'><b> 108</b><code>        bits.append(f&quot;milestone={_clip_text(str(active_milestones[-1].get(&#x27;title&#x27;) or &#x27;milestone&#x27;), 80)}&quot;)</code></span>
+<span class='src-line'><b> 109</b><code>    return &quot;; &quot;.join(bits)</code></span>
 <span class='src-line'><b> 110</b><code></code></span>
-<span class='src-line'><b> 111</b><code>def _metadata_list(metadata: dict[str, Any], key: str) -&gt; list[dict[str, Any]]:</code></span>
-<span class='src-line'><b> 112</b><code>    value = metadata.get(key)</code></span>
-<span class='src-line'><b> 113</b><code>    if not isinstance(value, list):</code></span>
-<span class='src-line'><b> 114</b><code>        return []</code></span>
-<span class='src-line'><b> 115</b><code>    return [item for item in value if isinstance(item, dict)]</code></span>
-<span class='src-line'><b> 116</b><code></code></span>
+<span class='src-line'><b> 111</b><code></code></span>
+<span class='src-line'><b> 112</b><code>def _metadata_list(metadata: dict[str, Any], key: str) -&gt; list[dict[str, Any]]:</code></span>
+<span class='src-line'><b> 113</b><code>    value = metadata.get(key)</code></span>
+<span class='src-line'><b> 114</b><code>    if not isinstance(value, list):</code></span>
+<span class='src-line'><b> 115</b><code>        return []</code></span>
+<span class='src-line'><b> 116</b><code>    return [item for item in value if isinstance(item, dict)]</code></span>
 <span class='src-line'><b> 117</b><code></code></span>
-<span class='src-line'><b> 118</b><code>def _clip_text(value: str, limit: int) -&gt; str:</code></span>
-<span class='src-line'><b> 119</b><code>    text = &quot; &quot;.join(value.split())</code></span>
-<span class='src-line'><b> 120</b><code>    if len(text) &lt;= limit:</code></span>
-<span class='src-line'><b> 121</b><code>        return text</code></span>
-<span class='src-line'><b> 122</b><code>    return text[: max(0, limit - 1)].rstrip() + &quot;...&quot;</code></span>
-<span class='src-line'><b> 123</b><code></code></span>
+<span class='src-line'><b> 118</b><code></code></span>
+<span class='src-line'><b> 119</b><code>def _clip_text(value: str, limit: int) -&gt; str:</code></span>
+<span class='src-line'><b> 120</b><code>    text = &quot; &quot;.join(value.split())</code></span>
+<span class='src-line'><b> 121</b><code>    if len(text) &lt;= limit:</code></span>
+<span class='src-line'><b> 122</b><code>        return text</code></span>
+<span class='src-line'><b> 123</b><code>    return text[: max(0, limit - 1)].rstrip() + &quot;...&quot;</code></span>
 <span class='src-line'><b> 124</b><code></code></span>
-<span class='src-line'><b> 125</b><code>def _as_int(value: Any) -&gt; int:</code></span>
-<span class='src-line'><b> 126</b><code>    try:</code></span>
-<span class='src-line'><b> 127</b><code>        return int(value)</code></span>
-<span class='src-line'><b> 128</b><code>    except (TypeError, ValueError):</code></span>
-<span class='src-line'><b> 129</b><code>        return 0</code></span></pre>
+<span class='src-line'><b> 125</b><code></code></span>
+<span class='src-line'><b> 126</b><code>def _as_int(value: Any) -&gt; int:</code></span>
+<span class='src-line'><b> 127</b><code>    try:</code></span>
+<span class='src-line'><b> 128</b><code>        return int(value)</code></span>
+<span class='src-line'><b> 129</b><code>    except (TypeError, ValueError):</code></span>
+<span class='src-line'><b> 130</b><code>        return 0</code></span></pre>
 </details>
 <details class="source-file searchable" data-search="nipux_cli/source_quality.py &quot;&quot;&quot;Source quality checks for web and browser tools.&quot;&quot;&quot;
 
@@ -31468,6 +31474,20 @@ def test_progress_checkpoint_for_saved_output_is_concise():
     assert &quot;1 findings, 2 sources, 1 tasks, and 0 experiments&quot; in checkpoint.message
 
 
+def test_progress_checkpoint_without_delta_is_activity_not_progress():
+    metadata = {&quot;finding_ledger&quot;: [{}], &quot;source_ledger&quot;: [{}], &quot;task_queue&quot;: [{}], &quot;experiment_ledger&quot;: []}
+
+    checkpoint = build_progress_checkpoint(
+        metadata,
+        previous_counts={&quot;findings&quot;: 1, &quot;sources&quot;: 1, &quot;tasks&quot;: 1, &quot;experiments&quot;: 0, &quot;lessons&quot;: 0, &quot;milestones&quot;: 0},
+        step_no=50,
+        tool_name=&quot;web_extract&quot;,
+    )
+
+    assert checkpoint.category == &quot;activity&quot;
+    assert &quot;no new durable ledger entries&quot; in checkpoint.message
+
+
 def test_progress_helpers_ignore_malformed_metadata():
     metadata = {
         &quot;finding_ledger&quot;: &quot;bad&quot;,
@@ -31482,7 +31502,7 @@ def test_progress_helpers_ignore_malformed_metadata():
     assert &quot;task=Task&quot; in bits
     assert &quot;milestone=Milestone&quot; in bits
 ">
-<summary>tests/nipux_cli/test_progress.py <span>73 lines</span></summary>
+<summary>tests/nipux_cli/test_progress.py <span>87 lines</span></summary>
 <pre class="source-code"><span class='src-line'><b>   1</b><code>from nipux_cli.progress import build_progress_checkpoint, ledger_counts, recent_progress_bits</code></span>
 <span class='src-line'><b>   2</b><code></code></span>
 <span class='src-line'><b>   3</b><code></code></span>
@@ -31543,19 +31563,33 @@ def test_progress_helpers_ignore_malformed_metadata():
 <span class='src-line'><b>  58</b><code>    assert &quot;1 findings, 2 sources, 1 tasks, and 0 experiments&quot; in checkpoint.message</code></span>
 <span class='src-line'><b>  59</b><code></code></span>
 <span class='src-line'><b>  60</b><code></code></span>
-<span class='src-line'><b>  61</b><code>def test_progress_helpers_ignore_malformed_metadata():</code></span>
-<span class='src-line'><b>  62</b><code>    metadata = {</code></span>
-<span class='src-line'><b>  63</b><code>        &quot;finding_ledger&quot;: &quot;bad&quot;,</code></span>
-<span class='src-line'><b>  64</b><code>        &quot;source_ledger&quot;: [None, {&quot;url&quot;: &quot;ok&quot;}],</code></span>
-<span class='src-line'><b>  65</b><code>        &quot;task_queue&quot;: [{&quot;title&quot;: &quot;Task&quot;, &quot;status&quot;: &quot;blocked&quot;, &quot;priority&quot;: &quot;bad&quot;}],</code></span>
-<span class='src-line'><b>  66</b><code>        &quot;roadmap&quot;: {&quot;milestones&quot;: [&quot;bad&quot;, {&quot;title&quot;: &quot;Milestone&quot;, &quot;status&quot;: &quot;active&quot;}]},</code></span>
-<span class='src-line'><b>  67</b><code>    }</code></span>
-<span class='src-line'><b>  68</b><code></code></span>
-<span class='src-line'><b>  69</b><code>    assert ledger_counts(metadata)[&quot;sources&quot;] == 1</code></span>
-<span class='src-line'><b>  70</b><code>    assert ledger_counts(metadata)[&quot;milestones&quot;] == 2</code></span>
-<span class='src-line'><b>  71</b><code>    bits = recent_progress_bits(metadata)</code></span>
-<span class='src-line'><b>  72</b><code>    assert &quot;task=Task&quot; in bits</code></span>
-<span class='src-line'><b>  73</b><code>    assert &quot;milestone=Milestone&quot; in bits</code></span></pre>
+<span class='src-line'><b>  61</b><code>def test_progress_checkpoint_without_delta_is_activity_not_progress():</code></span>
+<span class='src-line'><b>  62</b><code>    metadata = {&quot;finding_ledger&quot;: [{}], &quot;source_ledger&quot;: [{}], &quot;task_queue&quot;: [{}], &quot;experiment_ledger&quot;: []}</code></span>
+<span class='src-line'><b>  63</b><code></code></span>
+<span class='src-line'><b>  64</b><code>    checkpoint = build_progress_checkpoint(</code></span>
+<span class='src-line'><b>  65</b><code>        metadata,</code></span>
+<span class='src-line'><b>  66</b><code>        previous_counts={&quot;findings&quot;: 1, &quot;sources&quot;: 1, &quot;tasks&quot;: 1, &quot;experiments&quot;: 0, &quot;lessons&quot;: 0, &quot;milestones&quot;: 0},</code></span>
+<span class='src-line'><b>  67</b><code>        step_no=50,</code></span>
+<span class='src-line'><b>  68</b><code>        tool_name=&quot;web_extract&quot;,</code></span>
+<span class='src-line'><b>  69</b><code>    )</code></span>
+<span class='src-line'><b>  70</b><code></code></span>
+<span class='src-line'><b>  71</b><code>    assert checkpoint.category == &quot;activity&quot;</code></span>
+<span class='src-line'><b>  72</b><code>    assert &quot;no new durable ledger entries&quot; in checkpoint.message</code></span>
+<span class='src-line'><b>  73</b><code></code></span>
+<span class='src-line'><b>  74</b><code></code></span>
+<span class='src-line'><b>  75</b><code>def test_progress_helpers_ignore_malformed_metadata():</code></span>
+<span class='src-line'><b>  76</b><code>    metadata = {</code></span>
+<span class='src-line'><b>  77</b><code>        &quot;finding_ledger&quot;: &quot;bad&quot;,</code></span>
+<span class='src-line'><b>  78</b><code>        &quot;source_ledger&quot;: [None, {&quot;url&quot;: &quot;ok&quot;}],</code></span>
+<span class='src-line'><b>  79</b><code>        &quot;task_queue&quot;: [{&quot;title&quot;: &quot;Task&quot;, &quot;status&quot;: &quot;blocked&quot;, &quot;priority&quot;: &quot;bad&quot;}],</code></span>
+<span class='src-line'><b>  80</b><code>        &quot;roadmap&quot;: {&quot;milestones&quot;: [&quot;bad&quot;, {&quot;title&quot;: &quot;Milestone&quot;, &quot;status&quot;: &quot;active&quot;}]},</code></span>
+<span class='src-line'><b>  81</b><code>    }</code></span>
+<span class='src-line'><b>  82</b><code></code></span>
+<span class='src-line'><b>  83</b><code>    assert ledger_counts(metadata)[&quot;sources&quot;] == 1</code></span>
+<span class='src-line'><b>  84</b><code>    assert ledger_counts(metadata)[&quot;milestones&quot;] == 2</code></span>
+<span class='src-line'><b>  85</b><code>    bits = recent_progress_bits(metadata)</code></span>
+<span class='src-line'><b>  86</b><code>    assert &quot;task=Task&quot; in bits</code></span>
+<span class='src-line'><b>  87</b><code>    assert &quot;milestone=Milestone&quot; in bits</code></span></pre>
 </details>
 <details class="source-file searchable" data-search="tests/nipux_cli/test_project_atlas.py import importlib.util
 import sys
@@ -35059,9 +35093,9 @@ class AntiBotBrowserRegistry:
 <article class="test-card searchable" data-search="tests/nipux_cli/test_planning.py test_initial_task_contracts_are_generic_and_complete test_initial_roadmap_uses_valid_generic_contracts">
 <h3>tests/nipux_cli/test_planning.py</h3><p><strong>2</strong> tests · 32 lines</p>
 <p class="muted">test_initial_task_contracts_are_generic_and_complete, test_initial_roadmap_uses_valid_generic_contracts</p></article>
-<article class="test-card searchable" data-search="tests/nipux_cli/test_progress.py test_progress_checkpoint_reports_deltas_and_recent_durable_work test_progress_checkpoint_for_saved_output_is_concise test_progress_helpers_ignore_malformed_metadata">
-<h3>tests/nipux_cli/test_progress.py</h3><p><strong>3</strong> tests · 73 lines</p>
-<p class="muted">test_progress_checkpoint_reports_deltas_and_recent_durable_work, test_progress_checkpoint_for_saved_output_is_concise, test_progress_helpers_ignore_malformed_metadata</p></article>
+<article class="test-card searchable" data-search="tests/nipux_cli/test_progress.py test_progress_checkpoint_reports_deltas_and_recent_durable_work test_progress_checkpoint_for_saved_output_is_concise test_progress_checkpoint_without_delta_is_activity_not_progress test_progress_helpers_ignore_malformed_metadata">
+<h3>tests/nipux_cli/test_progress.py</h3><p><strong>4</strong> tests · 87 lines</p>
+<p class="muted">test_progress_checkpoint_reports_deltas_and_recent_durable_work, test_progress_checkpoint_for_saved_output_is_concise, test_progress_checkpoint_without_delta_is_activity_not_progress, test_progress_helpers_ignore_malformed_metadata</p></article>
 <article class="test-card searchable" data-search="tests/nipux_cli/test_project_atlas.py test_project_atlas_generator_maps_prompts_tools_and_source_without_self_embedding">
 <h3>tests/nipux_cli/test_project_atlas.py</h3><p><strong>1</strong> tests · 26 lines</p>
 <p class="muted">test_project_atlas_generator_maps_prompts_tools_and_source_without_self_embedding</p></article>
@@ -35081,7 +35115,7 @@ class AntiBotBrowserRegistry:
       <div class="grid"><article class='card warning searchable' data-search='Large modules nipux_cli/cli.py (6227 lines), nipux_cli/worker.py (3081 lines), tests/nipux_cli/test_worker.py (2440 lines), nipux_cli/db.py (2396 lines), tests/nipux_cli/test_cli.py (1617 lines)'><h3>Large modules</h3><p>nipux_cli/cli.py (6227 lines), nipux_cli/worker.py (3081 lines), tests/nipux_cli/test_worker.py (2440 lines), nipux_cli/db.py (2396 lines), tests/nipux_cli/test_cli.py (1617 lines)</p></article>
 <article class='card warning searchable' data-search='Prompt surfaces 12 prompt/instruction-like strings were extracted. Inspect this section after any agent-behavior change.'><h3>Prompt surfaces</h3><p>12 prompt/instruction-like strings were extracted. Inspect this section after any agent-behavior change.</p></article>
 <article class='card warning searchable' data-search='Tool surface 26 tools are exposed to the worker. Review descriptions whenever generic behavior changes.'><h3>Tool surface</h3><p>26 tools are exposed to the worker. Review descriptions whenever generic behavior changes.</p></article>
-<article class='card warning searchable' data-search='Symbol map 996 symbols were parsed. Large modules are candidates for refactoring once behavior stabilizes.'><h3>Symbol map</h3><p>996 symbols were parsed. Large modules are candidates for refactoring once behavior stabilizes.</p></article></div>
+<article class='card warning searchable' data-search='Symbol map 997 symbols were parsed. Large modules are candidates for refactoring once behavior stabilizes.'><h3>Symbol map</h3><p>997 symbols were parsed. Large modules are candidates for refactoring once behavior stabilizes.</p></article></div>
     </section>
   </main>
 </div>

@@ -40,6 +40,7 @@ def build_progress_checkpoint(
         category = "finding"
     else:
         changed = ", ".join(f"+{value} {key}" for key, value in deltas.items() if value > 0)
+        made_progress = bool(changed)
         if not changed:
             changed = "no new durable ledger entries"
         message = (
@@ -47,7 +48,7 @@ def build_progress_checkpoint(
             f"{counts['sources']} sources, {counts['tasks']} tasks, {counts['experiments']} experiments, "
             f"{counts['lessons']} lessons."
         )
-        category = "progress"
+        category = "progress" if made_progress else "activity"
     if recent:
         message = f"{message} Recent: {recent}."
     return ProgressCheckpoint(
