@@ -27,7 +27,6 @@ from nipux_cli.tui_style import (
     _one_line,
     _page_indicator,
     _status_badge,
-    _strip_ansi,
 )
 
 
@@ -220,29 +219,38 @@ def frame_jobs_lines(
                 width,
             )
         )
-        outputs = (job_artifacts or {}).get(item_id) or []
-        if show_outputs and outputs:
-            latest = outputs[0]
-            counts = (job_counts or {}).get(item_id) or {}
-            output_total = int(counts.get("artifacts") or len(outputs))
-            count_prefix = f"{_muted(str(output_total) + 'x')} " if output_total > 1 else ""
-            output_title = _one_line(
-                str(latest.get("title") or latest.get("id") or "saved output"),
-                max(8, width - 14 - len(f"{output_total}x " if output_total > 1 else "")),
-            )
-            rendered.append(_fit_ansi(f"   {_event_badge('SAVE')} {count_prefix}{output_title}", width))
         if show_outputs:
-            outcome_line = _job_latest_non_output_line(
-                (job_summary_events or {}).get(item_id) or [],
+            rendered.extend(_job_compact_work_lines(
+                outputs=(job_artifacts or {}).get(item_id) or [],
+                counts=(job_counts or {}).get(item_id) or {},
+                events=(job_summary_events or {}).get(item_id) or [],
                 width=width,
-                skip_save=bool(outputs),
-            )
-            if outcome_line:
-                rendered.append(outcome_line)
+            ))
     return rendered
 
 
-def _job_latest_non_output_line(events: list[dict[str, Any]], *, width: int, skip_save: bool) -> str:
+def _job_compact_work_lines(
+    *,
+    outputs: list[dict[str, Any]],
+    counts: dict[str, Any],
+    events: list[dict[str, Any]],
+    width: int,
+) -> list[str]:
+    lines: list[str] = []
+    if outputs:
+        latest = outputs[0]
+        output_total = int(counts.get("artifacts") or len(outputs))
+        count_prefix = f"{output_total}x " if output_total > 1 else ""
+        title_budget = max(12, width - 11 - len(count_prefix))
+        output_title = _one_line(str(latest.get("title") or latest.get("id") or "saved output"), title_budget)
+        lines.append(_fit_ansi(f"   {_muted('out')}  {count_prefix}{output_title}", width))
+    outcome = _job_latest_non_output_piece(events, width=max(12, width - 8), skip_save=bool(outputs))
+    if outcome:
+        lines.append(_fit_ansi("   " + outcome, width))
+    return lines
+
+
+def _job_latest_non_output_piece(events: list[dict[str, Any]], *, width: int, skip_save: bool) -> str:
     for event in reversed(events):
         parsed = model_update_event_parts(event, width=max(width, 120))
         if not parsed:
@@ -252,9 +260,26 @@ def _job_latest_non_output_line(events: list[dict[str, Any]], *, width: int, ski
             continue
         if skip_save and label == "SAVE":
             continue
-        prefix = f"   {_event_badge(label)} "
-        return _fit_ansi(prefix + _one_line(text, max(12, width - len(_strip_ansi(prefix)))), width)
+        prefix = _compact_outcome_label(label)
+        return f"{_muted(prefix)} {_one_line(text, max(12, width - len(prefix) - 1))}"
     return ""
+
+
+def _compact_outcome_label(label: str) -> str:
+    return {
+        "FIND": "find",
+        "SOURCE": "src",
+        "TEST": "test",
+        "TASK": "task",
+        "ROAD": "road",
+        "VALID": "valid",
+        "LEARN": "learn",
+        "FILE": "file",
+        "SAVE": "out",
+        "FAIL": "fail",
+        "PLAN": "plan",
+        "UPDATE": "note",
+    }.get(label, label.lower())
 
 
 def _defer_status_line(job: dict[str, Any], *, width: int) -> str:

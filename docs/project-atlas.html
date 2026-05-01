@@ -82,7 +82,7 @@ pre { max-height: 540px; overflow: auto; background: #050606; border: 1px solid 
 <div class="shell">
   <aside class="sidebar">
     <div class="logo">NIPUX ATLAS</div>
-    <div class="subtitle">Generated from tracked source on 71729b34.</div>
+    <div class="subtitle">Generated from tracked source on 48c27486.</div>
     <input id="search" class="search" placeholder="filter files, prompts, tools..." autocomplete="off">
     <nav class="nav">
       <a href="#architecture">Architecture</a>
@@ -98,8 +98,8 @@ pre { max-height: 540px; overflow: auto; background: #050606; border: 1px solid 
     </nav>
     <div class="stats">
       <div class="stat"><b>90</b><span>tracked files</span></div>
-      <div class="stat"><b>28,876</b><span>tracked lines mapped</span></div>
-      <div class="stat"><b>1212</b><span>python symbols</span></div>
+      <div class="stat"><b>28,901</b><span>tracked lines mapped</span></div>
+      <div class="stat"><b>1214</b><span>python symbols</span></div>
       <div class="stat"><b>27</b><span>runtime tools</span></div>
     </div>
   </aside>
@@ -803,11 +803,11 @@ fixed tool surface. none">
 <div class="meta"><span>8 symbols</span><span>0 TODOs</span></div>
 <details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> __future__, textwrap, typing, nipux_cli.tui_event_format, nipux_cli.tui_style</p><p><strong>Symbols:</strong> model_update_event_parts, is_summary_event_candidate, latest_durable_outcome_line, recent_model_update_lines, chat_updates_pane_lines, hourly_update_lines, hourly_outcome_summary, _outcome_text</p></details>
 </article>
-<article class="file-card searchable" data-search="nipux_cli/tui_status.py Status and work-pane renderers for the Nipux terminal UI. worker_label, job_display_state, active_operator_messages, right_pane_lines, chat_work_pane_lines, frame_jobs_lines, _job_latest_non_output_line, _defer_status_line, _rank_visible_tasks, _chat_workspace_lines">
-<header><h3>nipux_cli/tui_status.py</h3><span>379 lines</span></header>
+<article class="file-card searchable" data-search="nipux_cli/tui_status.py Status and work-pane renderers for the Nipux terminal UI. worker_label, job_display_state, active_operator_messages, right_pane_lines, chat_work_pane_lines, frame_jobs_lines, _job_compact_work_lines, _job_latest_non_output_piece, _compact_outcome_label, _defer_status_line">
+<header><h3>nipux_cli/tui_status.py</h3><span>404 lines</span></header>
 <p>Status and work-pane renderers for the Nipux terminal UI.</p>
-<div class="meta"><span>15 symbols</span><span>0 TODOs</span></div>
-<details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> __future__, textwrap, typing, nipux_cli.operator_context, nipux_cli.scheduling, nipux_cli.tui_event_format, nipux_cli.tui_events, nipux_cli.tui_outcomes, nipux_cli.tui_layout, nipux_cli.tui_style</p><p><strong>Symbols:</strong> worker_label, job_display_state, active_operator_messages, right_pane_lines, chat_work_pane_lines, frame_jobs_lines, _job_latest_non_output_line, _defer_status_line, _rank_visible_tasks, _chat_workspace_lines</p></details>
+<div class="meta"><span>17 symbols</span><span>0 TODOs</span></div>
+<details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> __future__, textwrap, typing, nipux_cli.operator_context, nipux_cli.scheduling, nipux_cli.tui_event_format, nipux_cli.tui_events, nipux_cli.tui_outcomes, nipux_cli.tui_layout, nipux_cli.tui_style</p><p><strong>Symbols:</strong> worker_label, job_display_state, active_operator_messages, right_pane_lines, chat_work_pane_lines, frame_jobs_lines, _job_compact_work_lines, _job_latest_non_output_piece, _compact_outcome_label, _defer_status_line</p></details>
 </article>
 <article class="file-card searchable" data-search="nipux_cli/tui_style.py Small terminal styling helpers shared by the CLI frame renderers. _fancy_ui, _style, _accent, _muted, _bold, _one_line, _strip_ansi, _fit_ansi, _center_ansi, _themed_lines">
 <header><h3>nipux_cli/tui_style.py</h3><span>145 lines</span></header>
@@ -4937,91 +4937,103 @@ fixed tool surface. none">
 </article>
 <article class="symbol searchable" data-search="nipux_cli/tui_status.py worker_label No docstring. job.get, job_deferred_until, job_provider_blocked, str">
 <h3>worker_label</h3>
-<p><span class="pill">function</span> <span class="pill">nipux_cli/tui_status.py:34</span></p>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/tui_status.py:33</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> job.get, job_deferred_until, job_provider_blocked, str</p>
 </article>
 <article class="symbol searchable" data-search="nipux_cli/tui_status.py job_display_state No docstring. job.get, job_deferred_until, job_provider_blocked, str">
 <h3>job_display_state</h3>
-<p><span class="pill">function</span> <span class="pill">nipux_cli/tui_status.py:47</span></p>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/tui_status.py:46</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> job.get, job_deferred_until, job_provider_blocked, str</p>
 </article>
 <article class="symbol searchable" data-search="nipux_cli/tui_status.py active_operator_messages No docstring. active_prompt_operator_entries, entry.get, isinstance, metadata.get, str">
 <h3>active_operator_messages</h3>
-<p><span class="pill">function</span> <span class="pill">nipux_cli/tui_status.py:58</span></p>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/tui_status.py:57</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> active_prompt_operator_entries, entry.get, isinstance, metadata.get, str</p>
 </article>
 <article class="symbol searchable" data-search="nipux_cli/tui_status.py right_pane_lines No docstring. _bold, _chat_workspace_lines, _defer_status_line, _event_badge, _fit_ansi, _muted, _one_line, active_operator_messages, artifact.get, frame_jobs_lines, get, info_lines.append, info_lines.extend, isinstance, job.get, job_artifacts.get">
 <h3>right_pane_lines</h3>
-<p><span class="pill">function</span> <span class="pill">nipux_cli/tui_status.py:69</span></p>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/tui_status.py:68</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> _bold, _chat_workspace_lines, _defer_status_line, _event_badge, _fit_ansi, _muted, _one_line, active_operator_messages, artifact.get, frame_jobs_lines, get, info_lines.append, info_lines.extend, isinstance, job.get, job_artifacts.get</p>
 </article>
 <article class="symbol searchable" data-search="nipux_cli/tui_status.py chat_work_pane_lines No docstring. _bold, _event_badge, _fit_ansi, _muted, _one_line, _page_indicator, _rank_visible_tasks, _status_badge, experiment.get, experiment_metric_text, job.get, len, lines.append, lines.extend, max, str">
 <h3>chat_work_pane_lines</h3>
-<p><span class="pill">function</span> <span class="pill">nipux_cli/tui_status.py:156</span></p>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/tui_status.py:155</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> _bold, _event_badge, _fit_ansi, _muted, _one_line, _page_indicator, _rank_visible_tasks, _status_badge, experiment.get, experiment_metric_text, job.get, len, lines.append, lines.extend, max, str</p>
 </article>
-<article class="symbol searchable" data-search="nipux_cli/tui_status.py frame_jobs_lines No docstring. _accent, _event_badge, _fit_ansi, _job_latest_non_output_line, _muted, _one_line, _status_badge, bool, counts.get, enumerate, get, int, item.get, job_display_state, latest.get, len">
+<article class="symbol searchable" data-search="nipux_cli/tui_status.py frame_jobs_lines No docstring. _accent, _fit_ansi, _job_compact_work_lines, _muted, _one_line, _status_badge, enumerate, get, item.get, job_display_state, max, min, rendered.append, rendered.extend, str, worker_label">
 <h3>frame_jobs_lines</h3>
-<p><span class="pill">function</span> <span class="pill">nipux_cli/tui_status.py:196</span></p>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/tui_status.py:195</span></p>
 <p>No docstring.</p>
-<p class="calls"><strong>Calls:</strong> _accent, _event_badge, _fit_ansi, _job_latest_non_output_line, _muted, _one_line, _status_badge, bool, counts.get, enumerate, get, int, item.get, job_display_state, latest.get, len</p>
+<p class="calls"><strong>Calls:</strong> _accent, _fit_ansi, _job_compact_work_lines, _muted, _one_line, _status_badge, enumerate, get, item.get, job_display_state, max, min, rendered.append, rendered.extend, str, worker_label</p>
 </article>
-<article class="symbol searchable" data-search="nipux_cli/tui_status.py _job_latest_non_output_line No docstring. _event_badge, _fit_ansi, _one_line, _strip_ansi, len, max, model_update_event_parts, reversed">
-<h3>_job_latest_non_output_line</h3>
-<p><span class="pill">function</span> <span class="pill">nipux_cli/tui_status.py:245</span></p>
+<article class="symbol searchable" data-search="nipux_cli/tui_status.py _job_compact_work_lines No docstring. _fit_ansi, _job_latest_non_output_piece, _muted, _one_line, bool, counts.get, int, latest.get, len, lines.append, max, str">
+<h3>_job_compact_work_lines</h3>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/tui_status.py:232</span></p>
 <p>No docstring.</p>
-<p class="calls"><strong>Calls:</strong> _event_badge, _fit_ansi, _one_line, _strip_ansi, len, max, model_update_event_parts, reversed</p>
+<p class="calls"><strong>Calls:</strong> _fit_ansi, _job_latest_non_output_piece, _muted, _one_line, bool, counts.get, int, latest.get, len, lines.append, max, str</p>
+</article>
+<article class="symbol searchable" data-search="nipux_cli/tui_status.py _job_latest_non_output_piece No docstring. _compact_outcome_label, _muted, _one_line, len, max, model_update_event_parts, reversed">
+<h3>_job_latest_non_output_piece</h3>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/tui_status.py:253</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> _compact_outcome_label, _muted, _one_line, len, max, model_update_event_parts, reversed</p>
+</article>
+<article class="symbol searchable" data-search="nipux_cli/tui_status.py _compact_outcome_label No docstring. get, label.lower">
+<h3>_compact_outcome_label</h3>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/tui_status.py:268</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> get, label.lower</p>
 </article>
 <article class="symbol searchable" data-search="nipux_cli/tui_status.py _defer_status_line No docstring. _fit_ansi, _muted, _one_line, isinstance, job.get, job_deferred_until, max, metadata.get, str, strftime, strip, until.astimezone">
 <h3>_defer_status_line</h3>
-<p><span class="pill">function</span> <span class="pill">nipux_cli/tui_status.py:260</span></p>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/tui_status.py:285</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> _fit_ansi, _muted, _one_line, isinstance, job.get, job_deferred_until, max, metadata.get, str, strftime, strip, until.astimezone</p>
 </article>
 <article class="symbol searchable" data-search="nipux_cli/tui_status.py _rank_visible_tasks No docstring. int, isinstance, sorted, status_order.get, str, task.get">
 <h3>_rank_visible_tasks</h3>
-<p><span class="pill">function</span> <span class="pill">nipux_cli/tui_status.py:273</span></p>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/tui_status.py:298</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> int, isinstance, sorted, status_order.get, str, task.get</p>
 </article>
 <article class="symbol searchable" data-search="nipux_cli/tui_status.py _chat_workspace_lines No docstring. _bold, _context_pressure_line, _current_task_line, _metrics_grid_lines, _muted, _one_line, _page_indicator, _status_badge, goal_lines.append, job.get, len, lines.append, lines.extend, max, str, textwrap.wrap">
 <h3>_chat_workspace_lines</h3>
-<p><span class="pill">function</span> <span class="pill">nipux_cli/tui_status.py:285</span></p>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/tui_status.py:310</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> _bold, _context_pressure_line, _current_task_line, _metrics_grid_lines, _muted, _one_line, _page_indicator, _status_badge, goal_lines.append, job.get, len, lines.append, lines.extend, max, str, textwrap.wrap</p>
 </article>
 <article class="symbol searchable" data-search="nipux_cli/tui_status.py _current_task_line No docstring. _fit_ansi, _muted, _one_line, _rank_visible_tasks, _status_badge, isinstance, job.get, max, metadata.get, str, task.get">
 <h3>_current_task_line</h3>
-<p><span class="pill">function</span> <span class="pill">nipux_cli/tui_status.py:321</span></p>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/tui_status.py:346</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> _fit_ansi, _muted, _one_line, _rank_visible_tasks, _status_badge, isinstance, job.get, max, metadata.get, str, task.get</p>
 </article>
 <article class="symbol searchable" data-search="nipux_cli/tui_status.py _context_pressure_line No docstring. _fit_ansi, _format_compact_count, _muted, _one_line, _safe_int, max, usage.get">
 <h3>_context_pressure_line</h3>
-<p><span class="pill">function</span> <span class="pill">nipux_cli/tui_status.py:339</span></p>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/tui_status.py:364</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> _fit_ansi, _format_compact_count, _muted, _one_line, _safe_int, max, usage.get</p>
 </article>
 <article class="symbol searchable" data-search="nipux_cli/tui_status.py _metrics_grid_lines No docstring. _fit_ansi, _metric_cell, _metric_strip, len, lines.append, max, range">
 <h3>_metrics_grid_lines</h3>
-<p><span class="pill">function</span> <span class="pill">nipux_cli/tui_status.py:355</span></p>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/tui_status.py:380</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> _fit_ansi, _metric_cell, _metric_strip, len, lines.append, max, range</p>
 </article>
 <article class="symbol searchable" data-search="nipux_cli/tui_status.py _metric_cell No docstring. _bold, _fit_ansi, _muted">
 <h3>_metric_cell</h3>
-<p><span class="pill">function</span> <span class="pill">nipux_cli/tui_status.py:370</span></p>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/tui_status.py:395</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> _bold, _fit_ansi, _muted</p>
 </article>
 <article class="symbol searchable" data-search="nipux_cli/tui_status.py _safe_int No docstring. float, int">
 <h3>_safe_int</h3>
-<p><span class="pill">function</span> <span class="pill">nipux_cli/tui_status.py:375</span></p>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/tui_status.py:400</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> float, int</p>
 </article>
@@ -29456,7 +29468,6 @@ from nipux_cli.tui_style import (
     _one_line,
     _page_indicator,
     _status_badge,
-    _strip_ansi,
 )
 
 
@@ -29549,8 +29560,8 @@ def right_pane_lines(
     defer_line = _defer_status_line(job, width=width)
     if defer_line:
         info_lines.append(defer_line)
-    latest_outcome = latest_">
-<summary>nipux_cli/tui_status.py <span>379 lines</span></summary>
+    latest_outcome = latest_durable_outcome_l">
+<summary>nipux_cli/tui_status.py <span>404 lines</span></summary>
 <pre class="source-code"><span class='src-line'><b>   1</b><code>&quot;&quot;&quot;Status and work-pane renderers for the Nipux terminal UI.&quot;&quot;&quot;</code></span>
 <span class='src-line'><b>   2</b><code></code></span>
 <span class='src-line'><b>   3</b><code>from __future__ import annotations</code></span>
@@ -29580,356 +29591,381 @@ def right_pane_lines(
 <span class='src-line'><b>  27</b><code>    _one_line,</code></span>
 <span class='src-line'><b>  28</b><code>    _page_indicator,</code></span>
 <span class='src-line'><b>  29</b><code>    _status_badge,</code></span>
-<span class='src-line'><b>  30</b><code>    _strip_ansi,</code></span>
-<span class='src-line'><b>  31</b><code>)</code></span>
+<span class='src-line'><b>  30</b><code>)</code></span>
+<span class='src-line'><b>  31</b><code></code></span>
 <span class='src-line'><b>  32</b><code></code></span>
-<span class='src-line'><b>  33</b><code></code></span>
-<span class='src-line'><b>  34</b><code>def worker_label(job: dict[str, Any], daemon_running: bool) -&gt; str:</code></span>
-<span class='src-line'><b>  35</b><code>    status = str(job.get(&quot;status&quot;) or &quot;&quot;)</code></span>
-<span class='src-line'><b>  36</b><code>    if job_provider_blocked(job):</code></span>
-<span class='src-line'><b>  37</b><code>        return &quot;blocked&quot;</code></span>
-<span class='src-line'><b>  38</b><code>    if status == &quot;planning&quot;:</code></span>
-<span class='src-line'><b>  39</b><code>        return &quot;waiting&quot;</code></span>
-<span class='src-line'><b>  40</b><code>    if status in {&quot;paused&quot;, &quot;completed&quot;, &quot;cancelled&quot;, &quot;failed&quot;}:</code></span>
-<span class='src-line'><b>  41</b><code>        return status</code></span>
-<span class='src-line'><b>  42</b><code>    if job_deferred_until(job):</code></span>
-<span class='src-line'><b>  43</b><code>        return &quot;waiting&quot;</code></span>
-<span class='src-line'><b>  44</b><code>    return &quot;active&quot; if daemon_running and status in {&quot;running&quot;, &quot;queued&quot;} else &quot;idle&quot;</code></span>
+<span class='src-line'><b>  33</b><code>def worker_label(job: dict[str, Any], daemon_running: bool) -&gt; str:</code></span>
+<span class='src-line'><b>  34</b><code>    status = str(job.get(&quot;status&quot;) or &quot;&quot;)</code></span>
+<span class='src-line'><b>  35</b><code>    if job_provider_blocked(job):</code></span>
+<span class='src-line'><b>  36</b><code>        return &quot;blocked&quot;</code></span>
+<span class='src-line'><b>  37</b><code>    if status == &quot;planning&quot;:</code></span>
+<span class='src-line'><b>  38</b><code>        return &quot;waiting&quot;</code></span>
+<span class='src-line'><b>  39</b><code>    if status in {&quot;paused&quot;, &quot;completed&quot;, &quot;cancelled&quot;, &quot;failed&quot;}:</code></span>
+<span class='src-line'><b>  40</b><code>        return status</code></span>
+<span class='src-line'><b>  41</b><code>    if job_deferred_until(job):</code></span>
+<span class='src-line'><b>  42</b><code>        return &quot;waiting&quot;</code></span>
+<span class='src-line'><b>  43</b><code>    return &quot;active&quot; if daemon_running and status in {&quot;running&quot;, &quot;queued&quot;} else &quot;idle&quot;</code></span>
+<span class='src-line'><b>  44</b><code></code></span>
 <span class='src-line'><b>  45</b><code></code></span>
-<span class='src-line'><b>  46</b><code></code></span>
-<span class='src-line'><b>  47</b><code>def job_display_state(job: dict[str, Any], daemon_running: bool) -&gt; str:</code></span>
-<span class='src-line'><b>  48</b><code>    status = str(job.get(&quot;status&quot;) or &quot;&quot;)</code></span>
-<span class='src-line'><b>  49</b><code>    if job_provider_blocked(job):</code></span>
-<span class='src-line'><b>  50</b><code>        return &quot;blocked&quot;</code></span>
-<span class='src-line'><b>  51</b><code>    if status in {&quot;running&quot;, &quot;queued&quot;}:</code></span>
-<span class='src-line'><b>  52</b><code>        if job_deferred_until(job):</code></span>
-<span class='src-line'><b>  53</b><code>            return &quot;waiting&quot;</code></span>
-<span class='src-line'><b>  54</b><code>        return &quot;advancing&quot; if daemon_running else &quot;open&quot;</code></span>
-<span class='src-line'><b>  55</b><code>    return status or &quot;unknown&quot;</code></span>
+<span class='src-line'><b>  46</b><code>def job_display_state(job: dict[str, Any], daemon_running: bool) -&gt; str:</code></span>
+<span class='src-line'><b>  47</b><code>    status = str(job.get(&quot;status&quot;) or &quot;&quot;)</code></span>
+<span class='src-line'><b>  48</b><code>    if job_provider_blocked(job):</code></span>
+<span class='src-line'><b>  49</b><code>        return &quot;blocked&quot;</code></span>
+<span class='src-line'><b>  50</b><code>    if status in {&quot;running&quot;, &quot;queued&quot;}:</code></span>
+<span class='src-line'><b>  51</b><code>        if job_deferred_until(job):</code></span>
+<span class='src-line'><b>  52</b><code>            return &quot;waiting&quot;</code></span>
+<span class='src-line'><b>  53</b><code>        return &quot;advancing&quot; if daemon_running else &quot;open&quot;</code></span>
+<span class='src-line'><b>  54</b><code>    return status or &quot;unknown&quot;</code></span>
+<span class='src-line'><b>  55</b><code></code></span>
 <span class='src-line'><b>  56</b><code></code></span>
-<span class='src-line'><b>  57</b><code></code></span>
-<span class='src-line'><b>  58</b><code>def active_operator_messages(metadata: dict[str, Any]) -&gt; list[dict[str, Any]]:</code></span>
-<span class='src-line'><b>  59</b><code>    messages = metadata.get(&quot;operator_messages&quot;) if isinstance(metadata.get(&quot;operator_messages&quot;), list) else []</code></span>
-<span class='src-line'><b>  60</b><code>    return [</code></span>
-<span class='src-line'><b>  61</b><code>        entry</code></span>
-<span class='src-line'><b>  62</b><code>        for entry in messages</code></span>
-<span class='src-line'><b>  63</b><code>        if isinstance(entry, dict)</code></span>
-<span class='src-line'><b>  64</b><code>        and entry in active_prompt_operator_entries(messages)</code></span>
-<span class='src-line'><b>  65</b><code>        and str(entry.get(&quot;mode&quot;) or &quot;steer&quot;) in {&quot;steer&quot;, &quot;follow_up&quot;}</code></span>
-<span class='src-line'><b>  66</b><code>    ]</code></span>
+<span class='src-line'><b>  57</b><code>def active_operator_messages(metadata: dict[str, Any]) -&gt; list[dict[str, Any]]:</code></span>
+<span class='src-line'><b>  58</b><code>    messages = metadata.get(&quot;operator_messages&quot;) if isinstance(metadata.get(&quot;operator_messages&quot;), list) else []</code></span>
+<span class='src-line'><b>  59</b><code>    return [</code></span>
+<span class='src-line'><b>  60</b><code>        entry</code></span>
+<span class='src-line'><b>  61</b><code>        for entry in messages</code></span>
+<span class='src-line'><b>  62</b><code>        if isinstance(entry, dict)</code></span>
+<span class='src-line'><b>  63</b><code>        and entry in active_prompt_operator_entries(messages)</code></span>
+<span class='src-line'><b>  64</b><code>        and str(entry.get(&quot;mode&quot;) or &quot;steer&quot;) in {&quot;steer&quot;, &quot;follow_up&quot;}</code></span>
+<span class='src-line'><b>  65</b><code>    ]</code></span>
+<span class='src-line'><b>  66</b><code></code></span>
 <span class='src-line'><b>  67</b><code></code></span>
-<span class='src-line'><b>  68</b><code></code></span>
-<span class='src-line'><b>  69</b><code>def right_pane_lines(</code></span>
-<span class='src-line'><b>  70</b><code>    *,</code></span>
-<span class='src-line'><b>  71</b><code>    job: dict[str, Any],</code></span>
-<span class='src-line'><b>  72</b><code>    jobs: list[dict[str, Any]],</code></span>
-<span class='src-line'><b>  73</b><code>    job_artifacts: dict[str, list[dict[str, Any]]],</code></span>
-<span class='src-line'><b>  74</b><code>    job_summary_events: dict[str, list[dict[str, Any]]],</code></span>
-<span class='src-line'><b>  75</b><code>    job_counts: dict[str, dict[str, Any]],</code></span>
-<span class='src-line'><b>  76</b><code>    job_id: str,</code></span>
-<span class='src-line'><b>  77</b><code>    daemon_running: bool,</code></span>
-<span class='src-line'><b>  78</b><code>    state: str,</code></span>
-<span class='src-line'><b>  79</b><code>    worker: str,</code></span>
-<span class='src-line'><b>  80</b><code>    daemon_text: str,</code></span>
-<span class='src-line'><b>  81</b><code>    model: str,</code></span>
-<span class='src-line'><b>  82</b><code>    goal_text: str,</code></span>
-<span class='src-line'><b>  83</b><code>    latest_text: str,</code></span>
-<span class='src-line'><b>  84</b><code>    metrics: list[tuple[str, Any]],</code></span>
-<span class='src-line'><b>  85</b><code>    events: list[dict[str, Any]],</code></span>
-<span class='src-line'><b>  86</b><code>    token_usage: dict[str, Any],</code></span>
-<span class='src-line'><b>  87</b><code>    context_length: int,</code></span>
-<span class='src-line'><b>  88</b><code>    width: int,</code></span>
-<span class='src-line'><b>  89</b><code>    rows: int,</code></span>
-<span class='src-line'><b>  90</b><code>    right_view: str = &quot;status&quot;,</code></span>
-<span class='src-line'><b>  91</b><code>) -&gt; list[str]:</code></span>
-<span class='src-line'><b>  92</b><code>    del model</code></span>
-<span class='src-line'><b>  93</b><code>    info_lines = _chat_workspace_lines(</code></span>
-<span class='src-line'><b>  94</b><code>        right_view=right_view,</code></span>
-<span class='src-line'><b>  95</b><code>        job=job,</code></span>
-<span class='src-line'><b>  96</b><code>        state=state,</code></span>
-<span class='src-line'><b>  97</b><code>        worker=worker,</code></span>
-<span class='src-line'><b>  98</b><code>        daemon_text=daemon_text,</code></span>
-<span class='src-line'><b>  99</b><code>        goal_text=goal_text,</code></span>
-<span class='src-line'><b> 100</b><code>        latest_text=latest_text,</code></span>
-<span class='src-line'><b> 101</b><code>        metrics=metrics,</code></span>
-<span class='src-line'><b> 102</b><code>        token_usage=token_usage,</code></span>
-<span class='src-line'><b> 103</b><code>        context_length=context_length,</code></span>
-<span class='src-line'><b> 104</b><code>        width=width,</code></span>
-<span class='src-line'><b> 105</b><code>    )</code></span>
-<span class='src-line'><b> 106</b><code>    metadata = job.get(&quot;metadata&quot;) if isinstance(job.get(&quot;metadata&quot;), dict) else {}</code></span>
-<span class='src-line'><b> 107</b><code>    active_operator = active_operator_messages(metadata)</code></span>
-<span class='src-line'><b> 108</b><code>    pending_measurement = (</code></span>
-<span class='src-line'><b> 109</b><code>        metadata.get(&quot;pending_measurement_obligation&quot;)</code></span>
-<span class='src-line'><b> 110</b><code>        if isinstance(metadata.get(&quot;pending_measurement_obligation&quot;), dict)</code></span>
-<span class='src-line'><b> 111</b><code>        else {}</code></span>
-<span class='src-line'><b> 112</b><code>    )</code></span>
-<span class='src-line'><b> 113</b><code>    if active_operator:</code></span>
-<span class='src-line'><b> 114</b><code>        info_lines.append(f&quot;{_muted(&#x27;Operator&#x27;)} {len(active_operator)} active&quot;)</code></span>
-<span class='src-line'><b> 115</b><code>        info_lines.append(f&quot;{_muted(&#x27;Context&#x27;)} {_one_line(active_operator[-1].get(&#x27;message&#x27;) or &#x27;&#x27;, width - 8)}&quot;)</code></span>
-<span class='src-line'><b> 116</b><code>    if pending_measurement:</code></span>
-<span class='src-line'><b> 117</b><code>        info_lines.append(f&quot;{_muted(&#x27;Measure&#x27;)} pending step #{pending_measurement.get(&#x27;source_step_no&#x27;) or &#x27;?&#x27;}&quot;)</code></span>
-<span class='src-line'><b> 118</b><code>    if job_provider_blocked(job):</code></span>
-<span class='src-line'><b> 119</b><code>        info_lines.append(_fit_ansi(f&quot;{_muted(&#x27;Provider&#x27;)} action needed before retrying model calls&quot;, width))</code></span>
-<span class='src-line'><b> 120</b><code>    defer_line = _defer_status_line(job, width=width)</code></span>
-<span class='src-line'><b> 121</b><code>    if defer_line:</code></span>
-<span class='src-line'><b> 122</b><code>        info_lines.append(defer_line)</code></span>
-<span class='src-line'><b> 123</b><code>    latest_outcome = latest_durable_outcome_line(events, width=width)</code></span>
-<span class='src-line'><b> 124</b><code>    if latest_outcome:</code></span>
-<span class='src-line'><b> 125</b><code>        info_lines.append(latest_outcome)</code></span>
-<span class='src-line'><b> 126</b><code>    info_lines.append(&quot;&quot;)</code></span>
-<span class='src-line'><b> 127</b><code>    info_lines.append(_bold(&quot;Jobs&quot;))</code></span>
-<span class='src-line'><b> 128</b><code>    info_lines.extend(</code></span>
-<span class='src-line'><b> 129</b><code>        frame_jobs_lines(</code></span>
-<span class='src-line'><b> 130</b><code>            jobs[:5],</code></span>
-<span class='src-line'><b> 131</b><code>            focused_job_id=job_id,</code></span>
-<span class='src-line'><b> 132</b><code>            daemon_running=daemon_running,</code></span>
-<span class='src-line'><b> 133</b><code>            width=width,</code></span>
-<span class='src-line'><b> 134</b><code>            job_artifacts=job_artifacts,</code></span>
-<span class='src-line'><b> 135</b><code>            job_summary_events=job_summary_events,</code></span>
-<span class='src-line'><b> 136</b><code>            job_counts=job_counts,</code></span>
-<span class='src-line'><b> 137</b><code>            show_outputs=True,</code></span>
-<span class='src-line'><b> 138</b><code>        )</code></span>
-<span class='src-line'><b> 139</b><code>    )</code></span>
-<span class='src-line'><b> 140</b><code>    info_lines.append(&quot;&quot;)</code></span>
-<span class='src-line'><b> 141</b><code>    info_lines.append(_bold(&quot;Recent outcomes&quot;))</code></span>
-<span class='src-line'><b> 142</b><code>    outcome_lines = recent_model_update_lines(events, width=width, limit=max(3, rows - len(info_lines)))</code></span>
-<span class='src-line'><b> 143</b><code>    if outcome_lines:</code></span>
-<span class='src-line'><b> 144</b><code>        info_lines.extend(outcome_lines)</code></span>
-<span class='src-line'><b> 145</b><code>    else:</code></span>
-<span class='src-line'><b> 146</b><code>        current_outputs = job_artifacts.get(job_id) or []</code></span>
-<span class='src-line'><b> 147</b><code>        if current_outputs:</code></span>
-<span class='src-line'><b> 148</b><code>            for artifact in current_outputs[:4]:</code></span>
-<span class='src-line'><b> 149</b><code>                title = _one_line(str(artifact.get(&quot;title&quot;) or artifact.get(&quot;id&quot;) or &quot;output&quot;), max(10, width - 8))</code></span>
-<span class='src-line'><b> 150</b><code>                info_lines.append(_fit_ansi(f&quot;{_event_badge(&#x27;SAVE&#x27;)} {title}&quot;, width))</code></span>
-<span class='src-line'><b> 151</b><code>        else:</code></span>
-<span class='src-line'><b> 152</b><code>            info_lines.append(_muted(&quot;No durable outcomes yet.&quot;))</code></span>
-<span class='src-line'><b> 153</b><code>    return info_lines[:rows]</code></span>
+<span class='src-line'><b>  68</b><code>def right_pane_lines(</code></span>
+<span class='src-line'><b>  69</b><code>    *,</code></span>
+<span class='src-line'><b>  70</b><code>    job: dict[str, Any],</code></span>
+<span class='src-line'><b>  71</b><code>    jobs: list[dict[str, Any]],</code></span>
+<span class='src-line'><b>  72</b><code>    job_artifacts: dict[str, list[dict[str, Any]]],</code></span>
+<span class='src-line'><b>  73</b><code>    job_summary_events: dict[str, list[dict[str, Any]]],</code></span>
+<span class='src-line'><b>  74</b><code>    job_counts: dict[str, dict[str, Any]],</code></span>
+<span class='src-line'><b>  75</b><code>    job_id: str,</code></span>
+<span class='src-line'><b>  76</b><code>    daemon_running: bool,</code></span>
+<span class='src-line'><b>  77</b><code>    state: str,</code></span>
+<span class='src-line'><b>  78</b><code>    worker: str,</code></span>
+<span class='src-line'><b>  79</b><code>    daemon_text: str,</code></span>
+<span class='src-line'><b>  80</b><code>    model: str,</code></span>
+<span class='src-line'><b>  81</b><code>    goal_text: str,</code></span>
+<span class='src-line'><b>  82</b><code>    latest_text: str,</code></span>
+<span class='src-line'><b>  83</b><code>    metrics: list[tuple[str, Any]],</code></span>
+<span class='src-line'><b>  84</b><code>    events: list[dict[str, Any]],</code></span>
+<span class='src-line'><b>  85</b><code>    token_usage: dict[str, Any],</code></span>
+<span class='src-line'><b>  86</b><code>    context_length: int,</code></span>
+<span class='src-line'><b>  87</b><code>    width: int,</code></span>
+<span class='src-line'><b>  88</b><code>    rows: int,</code></span>
+<span class='src-line'><b>  89</b><code>    right_view: str = &quot;status&quot;,</code></span>
+<span class='src-line'><b>  90</b><code>) -&gt; list[str]:</code></span>
+<span class='src-line'><b>  91</b><code>    del model</code></span>
+<span class='src-line'><b>  92</b><code>    info_lines = _chat_workspace_lines(</code></span>
+<span class='src-line'><b>  93</b><code>        right_view=right_view,</code></span>
+<span class='src-line'><b>  94</b><code>        job=job,</code></span>
+<span class='src-line'><b>  95</b><code>        state=state,</code></span>
+<span class='src-line'><b>  96</b><code>        worker=worker,</code></span>
+<span class='src-line'><b>  97</b><code>        daemon_text=daemon_text,</code></span>
+<span class='src-line'><b>  98</b><code>        goal_text=goal_text,</code></span>
+<span class='src-line'><b>  99</b><code>        latest_text=latest_text,</code></span>
+<span class='src-line'><b> 100</b><code>        metrics=metrics,</code></span>
+<span class='src-line'><b> 101</b><code>        token_usage=token_usage,</code></span>
+<span class='src-line'><b> 102</b><code>        context_length=context_length,</code></span>
+<span class='src-line'><b> 103</b><code>        width=width,</code></span>
+<span class='src-line'><b> 104</b><code>    )</code></span>
+<span class='src-line'><b> 105</b><code>    metadata = job.get(&quot;metadata&quot;) if isinstance(job.get(&quot;metadata&quot;), dict) else {}</code></span>
+<span class='src-line'><b> 106</b><code>    active_operator = active_operator_messages(metadata)</code></span>
+<span class='src-line'><b> 107</b><code>    pending_measurement = (</code></span>
+<span class='src-line'><b> 108</b><code>        metadata.get(&quot;pending_measurement_obligation&quot;)</code></span>
+<span class='src-line'><b> 109</b><code>        if isinstance(metadata.get(&quot;pending_measurement_obligation&quot;), dict)</code></span>
+<span class='src-line'><b> 110</b><code>        else {}</code></span>
+<span class='src-line'><b> 111</b><code>    )</code></span>
+<span class='src-line'><b> 112</b><code>    if active_operator:</code></span>
+<span class='src-line'><b> 113</b><code>        info_lines.append(f&quot;{_muted(&#x27;Operator&#x27;)} {len(active_operator)} active&quot;)</code></span>
+<span class='src-line'><b> 114</b><code>        info_lines.append(f&quot;{_muted(&#x27;Context&#x27;)} {_one_line(active_operator[-1].get(&#x27;message&#x27;) or &#x27;&#x27;, width - 8)}&quot;)</code></span>
+<span class='src-line'><b> 115</b><code>    if pending_measurement:</code></span>
+<span class='src-line'><b> 116</b><code>        info_lines.append(f&quot;{_muted(&#x27;Measure&#x27;)} pending step #{pending_measurement.get(&#x27;source_step_no&#x27;) or &#x27;?&#x27;}&quot;)</code></span>
+<span class='src-line'><b> 117</b><code>    if job_provider_blocked(job):</code></span>
+<span class='src-line'><b> 118</b><code>        info_lines.append(_fit_ansi(f&quot;{_muted(&#x27;Provider&#x27;)} action needed before retrying model calls&quot;, width))</code></span>
+<span class='src-line'><b> 119</b><code>    defer_line = _defer_status_line(job, width=width)</code></span>
+<span class='src-line'><b> 120</b><code>    if defer_line:</code></span>
+<span class='src-line'><b> 121</b><code>        info_lines.append(defer_line)</code></span>
+<span class='src-line'><b> 122</b><code>    latest_outcome = latest_durable_outcome_line(events, width=width)</code></span>
+<span class='src-line'><b> 123</b><code>    if latest_outcome:</code></span>
+<span class='src-line'><b> 124</b><code>        info_lines.append(latest_outcome)</code></span>
+<span class='src-line'><b> 125</b><code>    info_lines.append(&quot;&quot;)</code></span>
+<span class='src-line'><b> 126</b><code>    info_lines.append(_bold(&quot;Jobs&quot;))</code></span>
+<span class='src-line'><b> 127</b><code>    info_lines.extend(</code></span>
+<span class='src-line'><b> 128</b><code>        frame_jobs_lines(</code></span>
+<span class='src-line'><b> 129</b><code>            jobs[:5],</code></span>
+<span class='src-line'><b> 130</b><code>            focused_job_id=job_id,</code></span>
+<span class='src-line'><b> 131</b><code>            daemon_running=daemon_running,</code></span>
+<span class='src-line'><b> 132</b><code>            width=width,</code></span>
+<span class='src-line'><b> 133</b><code>            job_artifacts=job_artifacts,</code></span>
+<span class='src-line'><b> 134</b><code>            job_summary_events=job_summary_events,</code></span>
+<span class='src-line'><b> 135</b><code>            job_counts=job_counts,</code></span>
+<span class='src-line'><b> 136</b><code>            show_outputs=True,</code></span>
+<span class='src-line'><b> 137</b><code>        )</code></span>
+<span class='src-line'><b> 138</b><code>    )</code></span>
+<span class='src-line'><b> 139</b><code>    info_lines.append(&quot;&quot;)</code></span>
+<span class='src-line'><b> 140</b><code>    info_lines.append(_bold(&quot;Recent outcomes&quot;))</code></span>
+<span class='src-line'><b> 141</b><code>    outcome_lines = recent_model_update_lines(events, width=width, limit=max(3, rows - len(info_lines)))</code></span>
+<span class='src-line'><b> 142</b><code>    if outcome_lines:</code></span>
+<span class='src-line'><b> 143</b><code>        info_lines.extend(outcome_lines)</code></span>
+<span class='src-line'><b> 144</b><code>    else:</code></span>
+<span class='src-line'><b> 145</b><code>        current_outputs = job_artifacts.get(job_id) or []</code></span>
+<span class='src-line'><b> 146</b><code>        if current_outputs:</code></span>
+<span class='src-line'><b> 147</b><code>            for artifact in current_outputs[:4]:</code></span>
+<span class='src-line'><b> 148</b><code>                title = _one_line(str(artifact.get(&quot;title&quot;) or artifact.get(&quot;id&quot;) or &quot;output&quot;), max(10, width - 8))</code></span>
+<span class='src-line'><b> 149</b><code>                info_lines.append(_fit_ansi(f&quot;{_event_badge(&#x27;SAVE&#x27;)} {title}&quot;, width))</code></span>
+<span class='src-line'><b> 150</b><code>        else:</code></span>
+<span class='src-line'><b> 151</b><code>            info_lines.append(_muted(&quot;No durable outcomes yet.&quot;))</code></span>
+<span class='src-line'><b> 152</b><code>    return info_lines[:rows]</code></span>
+<span class='src-line'><b> 153</b><code></code></span>
 <span class='src-line'><b> 154</b><code></code></span>
-<span class='src-line'><b> 155</b><code></code></span>
-<span class='src-line'><b> 156</b><code>def chat_work_pane_lines(</code></span>
-<span class='src-line'><b> 157</b><code>    *,</code></span>
-<span class='src-line'><b> 158</b><code>    job: dict[str, Any],</code></span>
-<span class='src-line'><b> 159</b><code>    events: list[dict[str, Any]],</code></span>
-<span class='src-line'><b> 160</b><code>    tasks: list[dict[str, Any]],</code></span>
-<span class='src-line'><b> 161</b><code>    experiments: list[dict[str, Any]],</code></span>
-<span class='src-line'><b> 162</b><code>    width: int,</code></span>
-<span class='src-line'><b> 163</b><code>    rows: int,</code></span>
-<span class='src-line'><b> 164</b><code>) -&gt; list[str]:</code></span>
-<span class='src-line'><b> 165</b><code>    lines = [</code></span>
-<span class='src-line'><b> 166</b><code>        f&quot;{_muted(&#x27;Page&#x27;)}   {_page_indicator(&#x27;work&#x27;, CHAT_RIGHT_PAGES)}&quot;,</code></span>
-<span class='src-line'><b> 167</b><code>        f&quot;{_muted(&#x27;Focus&#x27;)}  {_bold(_one_line(job.get(&#x27;title&#x27;) or &#x27;untitled&#x27;, width - 8))}&quot;,</code></span>
-<span class='src-line'><b> 168</b><code>        &quot;&quot;,</code></span>
-<span class='src-line'><b> 169</b><code>        _bold(&quot;Tool / console&quot;),</code></span>
-<span class='src-line'><b> 170</b><code>    ]</code></span>
-<span class='src-line'><b> 171</b><code>    tool_lines = worker_activity_lines(events, width=width, limit=max(4, rows // 2))</code></span>
-<span class='src-line'><b> 172</b><code>    if tool_lines:</code></span>
-<span class='src-line'><b> 173</b><code>        lines.extend(tool_lines)</code></span>
-<span class='src-line'><b> 174</b><code>    else:</code></span>
-<span class='src-line'><b> 175</b><code>        lines.append(_muted(&quot;No recent tool calls.&quot;))</code></span>
-<span class='src-line'><b> 176</b><code>    remaining = max(0, rows - len(lines))</code></span>
-<span class='src-line'><b> 177</b><code>    if remaining &gt; 4:</code></span>
-<span class='src-line'><b> 178</b><code>        lines.append(&quot;&quot;)</code></span>
-<span class='src-line'><b> 179</b><code>        lines.append(_bold(&quot;Tasks&quot;))</code></span>
-<span class='src-line'><b> 180</b><code>        for task in _rank_visible_tasks(tasks)[: max(1, remaining // 2)]:</code></span>
-<span class='src-line'><b> 181</b><code>            status = str(task.get(&quot;status&quot;) or &quot;open&quot;)</code></span>
-<span class='src-line'><b> 182</b><code>            title = _one_line(str(task.get(&quot;title&quot;) or &quot;task&quot;), max(10, width - 15))</code></span>
-<span class='src-line'><b> 183</b><code>            lines.append(_fit_ansi(f&quot;{_status_badge(status)} {title}&quot;, width))</code></span>
-<span class='src-line'><b> 184</b><code>    remaining = max(0, rows - len(lines))</code></span>
-<span class='src-line'><b> 185</b><code>    if remaining &gt; 3 and experiments:</code></span>
-<span class='src-line'><b> 186</b><code>        lines.append(&quot;&quot;)</code></span>
-<span class='src-line'><b> 187</b><code>        lines.append(_bold(&quot;Measurements&quot;))</code></span>
-<span class='src-line'><b> 188</b><code>        for experiment in experiments[-max(1, remaining - 2) :]:</code></span>
-<span class='src-line'><b> 189</b><code>            metric = experiment_metric_text(experiment)</code></span>
-<span class='src-line'><b> 190</b><code>            title = _one_line(str(experiment.get(&quot;title&quot;) or &quot;experiment&quot;), max(10, width - 16))</code></span>
-<span class='src-line'><b> 191</b><code>            suffix = f&quot; {_muted(metric)}&quot; if metric else &quot;&quot;</code></span>
-<span class='src-line'><b> 192</b><code>            lines.append(_fit_ansi(f&quot;{_event_badge(&#x27;TEST&#x27;)} {title}{suffix}&quot;, width))</code></span>
-<span class='src-line'><b> 193</b><code>    return [_fit_ansi(line, width) for line in lines[:rows]]</code></span>
+<span class='src-line'><b> 155</b><code>def chat_work_pane_lines(</code></span>
+<span class='src-line'><b> 156</b><code>    *,</code></span>
+<span class='src-line'><b> 157</b><code>    job: dict[str, Any],</code></span>
+<span class='src-line'><b> 158</b><code>    events: list[dict[str, Any]],</code></span>
+<span class='src-line'><b> 159</b><code>    tasks: list[dict[str, Any]],</code></span>
+<span class='src-line'><b> 160</b><code>    experiments: list[dict[str, Any]],</code></span>
+<span class='src-line'><b> 161</b><code>    width: int,</code></span>
+<span class='src-line'><b> 162</b><code>    rows: int,</code></span>
+<span class='src-line'><b> 163</b><code>) -&gt; list[str]:</code></span>
+<span class='src-line'><b> 164</b><code>    lines = [</code></span>
+<span class='src-line'><b> 165</b><code>        f&quot;{_muted(&#x27;Page&#x27;)}   {_page_indicator(&#x27;work&#x27;, CHAT_RIGHT_PAGES)}&quot;,</code></span>
+<span class='src-line'><b> 166</b><code>        f&quot;{_muted(&#x27;Focus&#x27;)}  {_bold(_one_line(job.get(&#x27;title&#x27;) or &#x27;untitled&#x27;, width - 8))}&quot;,</code></span>
+<span class='src-line'><b> 167</b><code>        &quot;&quot;,</code></span>
+<span class='src-line'><b> 168</b><code>        _bold(&quot;Tool / console&quot;),</code></span>
+<span class='src-line'><b> 169</b><code>    ]</code></span>
+<span class='src-line'><b> 170</b><code>    tool_lines = worker_activity_lines(events, width=width, limit=max(4, rows // 2))</code></span>
+<span class='src-line'><b> 171</b><code>    if tool_lines:</code></span>
+<span class='src-line'><b> 172</b><code>        lines.extend(tool_lines)</code></span>
+<span class='src-line'><b> 173</b><code>    else:</code></span>
+<span class='src-line'><b> 174</b><code>        lines.append(_muted(&quot;No recent tool calls.&quot;))</code></span>
+<span class='src-line'><b> 175</b><code>    remaining = max(0, rows - len(lines))</code></span>
+<span class='src-line'><b> 176</b><code>    if remaining &gt; 4:</code></span>
+<span class='src-line'><b> 177</b><code>        lines.append(&quot;&quot;)</code></span>
+<span class='src-line'><b> 178</b><code>        lines.append(_bold(&quot;Tasks&quot;))</code></span>
+<span class='src-line'><b> 179</b><code>        for task in _rank_visible_tasks(tasks)[: max(1, remaining // 2)]:</code></span>
+<span class='src-line'><b> 180</b><code>            status = str(task.get(&quot;status&quot;) or &quot;open&quot;)</code></span>
+<span class='src-line'><b> 181</b><code>            title = _one_line(str(task.get(&quot;title&quot;) or &quot;task&quot;), max(10, width - 15))</code></span>
+<span class='src-line'><b> 182</b><code>            lines.append(_fit_ansi(f&quot;{_status_badge(status)} {title}&quot;, width))</code></span>
+<span class='src-line'><b> 183</b><code>    remaining = max(0, rows - len(lines))</code></span>
+<span class='src-line'><b> 184</b><code>    if remaining &gt; 3 and experiments:</code></span>
+<span class='src-line'><b> 185</b><code>        lines.append(&quot;&quot;)</code></span>
+<span class='src-line'><b> 186</b><code>        lines.append(_bold(&quot;Measurements&quot;))</code></span>
+<span class='src-line'><b> 187</b><code>        for experiment in experiments[-max(1, remaining - 2) :]:</code></span>
+<span class='src-line'><b> 188</b><code>            metric = experiment_metric_text(experiment)</code></span>
+<span class='src-line'><b> 189</b><code>            title = _one_line(str(experiment.get(&quot;title&quot;) or &quot;experiment&quot;), max(10, width - 16))</code></span>
+<span class='src-line'><b> 190</b><code>            suffix = f&quot; {_muted(metric)}&quot; if metric else &quot;&quot;</code></span>
+<span class='src-line'><b> 191</b><code>            lines.append(_fit_ansi(f&quot;{_event_badge(&#x27;TEST&#x27;)} {title}{suffix}&quot;, width))</code></span>
+<span class='src-line'><b> 192</b><code>    return [_fit_ansi(line, width) for line in lines[:rows]]</code></span>
+<span class='src-line'><b> 193</b><code></code></span>
 <span class='src-line'><b> 194</b><code></code></span>
-<span class='src-line'><b> 195</b><code></code></span>
-<span class='src-line'><b> 196</b><code>def frame_jobs_lines(</code></span>
-<span class='src-line'><b> 197</b><code>    jobs: list[dict[str, Any]],</code></span>
-<span class='src-line'><b> 198</b><code>    *,</code></span>
-<span class='src-line'><b> 199</b><code>    focused_job_id: str,</code></span>
-<span class='src-line'><b> 200</b><code>    daemon_running: bool,</code></span>
-<span class='src-line'><b> 201</b><code>    width: int,</code></span>
-<span class='src-line'><b> 202</b><code>    job_artifacts: dict[str, list[dict[str, Any]]] | None = None,</code></span>
-<span class='src-line'><b> 203</b><code>    job_summary_events: dict[str, list[dict[str, Any]]] | None = None,</code></span>
-<span class='src-line'><b> 204</b><code>    job_counts: dict[str, dict[str, Any]] | None = None,</code></span>
-<span class='src-line'><b> 205</b><code>    show_outputs: bool = False,</code></span>
-<span class='src-line'><b> 206</b><code>) -&gt; list[str]:</code></span>
-<span class='src-line'><b> 207</b><code>    rendered = []</code></span>
-<span class='src-line'><b> 208</b><code>    for index, item in enumerate(jobs[:5], start=1):</code></span>
-<span class='src-line'><b> 209</b><code>        item_id = str(item.get(&quot;id&quot;) or &quot;&quot;)</code></span>
-<span class='src-line'><b> 210</b><code>        marker = _accent(&quot;●&quot;) if item_id == focused_job_id else _muted(&quot;○&quot;)</code></span>
-<span class='src-line'><b> 211</b><code>        title_width = max(14, min(30, width - 34))</code></span>
-<span class='src-line'><b> 212</b><code>        title = _one_line(str(item.get(&quot;title&quot;) or item.get(&quot;id&quot;) or &quot;job&quot;), title_width)</code></span>
-<span class='src-line'><b> 213</b><code>        state = _status_badge(job_display_state(item, daemon_running))</code></span>
-<span class='src-line'><b> 214</b><code>        worker = _status_badge(worker_label(item, daemon_running))</code></span>
-<span class='src-line'><b> 215</b><code>        kind = _one_line(item.get(&quot;kind&quot;) or &quot;&quot;, max(0, width - title_width - 33))</code></span>
-<span class='src-line'><b> 216</b><code>        rendered.append(</code></span>
-<span class='src-line'><b> 217</b><code>            _fit_ansi(</code></span>
-<span class='src-line'><b> 218</b><code>                f&quot;{marker} {index:&lt;2} {_fit_ansi(title, title_width)} &quot;</code></span>
-<span class='src-line'><b> 219</b><code>                f&quot;{_fit_ansi(state, 10)} {_fit_ansi(worker, 10)} {kind}&quot;,</code></span>
-<span class='src-line'><b> 220</b><code>                width,</code></span>
-<span class='src-line'><b> 221</b><code>            )</code></span>
-<span class='src-line'><b> 222</b><code>        )</code></span>
-<span class='src-line'><b> 223</b><code>        outputs = (job_artifacts or {}).get(item_id) or []</code></span>
-<span class='src-line'><b> 224</b><code>        if show_outputs and outputs:</code></span>
-<span class='src-line'><b> 225</b><code>            latest = outputs[0]</code></span>
-<span class='src-line'><b> 226</b><code>            counts = (job_counts or {}).get(item_id) or {}</code></span>
-<span class='src-line'><b> 227</b><code>            output_total = int(counts.get(&quot;artifacts&quot;) or len(outputs))</code></span>
-<span class='src-line'><b> 228</b><code>            count_prefix = f&quot;{_muted(str(output_total) + &#x27;x&#x27;)} &quot; if output_total &gt; 1 else &quot;&quot;</code></span>
-<span class='src-line'><b> 229</b><code>            output_title = _one_line(</code></span>
-<span class='src-line'><b> 230</b><code>                str(latest.get(&quot;title&quot;) or latest.get(&quot;id&quot;) or &quot;saved output&quot;),</code></span>
-<span class='src-line'><b> 231</b><code>                max(8, width - 14 - len(f&quot;{output_total}x &quot; if output_total &gt; 1 else &quot;&quot;)),</code></span>
-<span class='src-line'><b> 232</b><code>            )</code></span>
-<span class='src-line'><b> 233</b><code>            rendered.append(_fit_ansi(f&quot;   {_event_badge(&#x27;SAVE&#x27;)} {count_prefix}{output_title}&quot;, width))</code></span>
-<span class='src-line'><b> 234</b><code>        if show_outputs:</code></span>
-<span class='src-line'><b> 235</b><code>            outcome_line = _job_latest_non_output_line(</code></span>
-<span class='src-line'><b> 236</b><code>                (job_summary_events or {}).get(item_id) or [],</code></span>
-<span class='src-line'><b> 237</b><code>                width=width,</code></span>
-<span class='src-line'><b> 238</b><code>                skip_save=bool(outputs),</code></span>
-<span class='src-line'><b> 239</b><code>            )</code></span>
-<span class='src-line'><b> 240</b><code>            if outcome_line:</code></span>
-<span class='src-line'><b> 241</b><code>                rendered.append(outcome_line)</code></span>
-<span class='src-line'><b> 242</b><code>    return rendered</code></span>
-<span class='src-line'><b> 243</b><code></code></span>
-<span class='src-line'><b> 244</b><code></code></span>
-<span class='src-line'><b> 245</b><code>def _job_latest_non_output_line(events: list[dict[str, Any]], *, width: int, skip_save: bool) -&gt; str:</code></span>
-<span class='src-line'><b> 246</b><code>    for event in reversed(events):</code></span>
-<span class='src-line'><b> 247</b><code>        parsed = model_update_event_parts(event, width=max(width, 120))</code></span>
-<span class='src-line'><b> 248</b><code>        if not parsed:</code></span>
-<span class='src-line'><b> 249</b><code>            continue</code></span>
-<span class='src-line'><b> 250</b><code>        label, text, _clock = parsed</code></span>
-<span class='src-line'><b> 251</b><code>        if label == &quot;DONE&quot;:</code></span>
-<span class='src-line'><b> 252</b><code>            continue</code></span>
-<span class='src-line'><b> 253</b><code>        if skip_save and label == &quot;SAVE&quot;:</code></span>
-<span class='src-line'><b> 254</b><code>            continue</code></span>
-<span class='src-line'><b> 255</b><code>        prefix = f&quot;   {_event_badge(label)} &quot;</code></span>
-<span class='src-line'><b> 256</b><code>        return _fit_ansi(prefix + _one_line(text, max(12, width - len(_strip_ansi(prefix)))), width)</code></span>
-<span class='src-line'><b> 257</b><code>    return &quot;&quot;</code></span>
-<span class='src-line'><b> 258</b><code></code></span>
-<span class='src-line'><b> 259</b><code></code></span>
-<span class='src-line'><b> 260</b><code>def _defer_status_line(job: dict[str, Any], *, width: int) -&gt; str:</code></span>
-<span class='src-line'><b> 261</b><code>    until = job_deferred_until(job)</code></span>
-<span class='src-line'><b> 262</b><code>    if not until:</code></span>
-<span class='src-line'><b> 263</b><code>        return &quot;&quot;</code></span>
-<span class='src-line'><b> 264</b><code>    metadata = job.get(&quot;metadata&quot;) if isinstance(job.get(&quot;metadata&quot;), dict) else {}</code></span>
-<span class='src-line'><b> 265</b><code>    reason = str(metadata.get(&quot;defer_reason&quot;) or metadata.get(&quot;defer_next_action&quot;) or &quot;&quot;).strip()</code></span>
-<span class='src-line'><b> 266</b><code>    time_text = until.astimezone().strftime(&quot;%b %d %H:%M&quot;)</code></span>
-<span class='src-line'><b> 267</b><code>    detail = f&quot;next check {time_text}&quot;</code></span>
-<span class='src-line'><b> 268</b><code>    if reason:</code></span>
-<span class='src-line'><b> 269</b><code>        detail += f&quot; - {reason}&quot;</code></span>
-<span class='src-line'><b> 270</b><code>    return _fit_ansi(f&quot;{_muted(&#x27;Wait&#x27;)}   {_one_line(detail, max(12, width - 7))}&quot;, width)</code></span>
-<span class='src-line'><b> 271</b><code></code></span>
-<span class='src-line'><b> 272</b><code></code></span>
-<span class='src-line'><b> 273</b><code>def _rank_visible_tasks(tasks: list[dict[str, Any]]) -&gt; list[dict[str, Any]]:</code></span>
-<span class='src-line'><b> 274</b><code>    status_order = {&quot;active&quot;: 0, &quot;open&quot;: 1, &quot;blocked&quot;: 2, &quot;validating&quot;: 3, &quot;done&quot;: 4, &quot;skipped&quot;: 5}</code></span>
-<span class='src-line'><b> 275</b><code>    return sorted(</code></span>
-<span class='src-line'><b> 276</b><code>        [task for task in tasks if isinstance(task, dict)],</code></span>
-<span class='src-line'><b> 277</b><code>        key=lambda task: (</code></span>
-<span class='src-line'><b> 278</b><code>            status_order.get(str(task.get(&quot;status&quot;) or &quot;open&quot;), 9),</code></span>
-<span class='src-line'><b> 279</b><code>            -int(task.get(&quot;priority&quot;) or 0),</code></span>
-<span class='src-line'><b> 280</b><code>            str(task.get(&quot;title&quot;) or &quot;&quot;),</code></span>
-<span class='src-line'><b> 281</b><code>        ),</code></span>
-<span class='src-line'><b> 282</b><code>    )</code></span>
+<span class='src-line'><b> 195</b><code>def frame_jobs_lines(</code></span>
+<span class='src-line'><b> 196</b><code>    jobs: list[dict[str, Any]],</code></span>
+<span class='src-line'><b> 197</b><code>    *,</code></span>
+<span class='src-line'><b> 198</b><code>    focused_job_id: str,</code></span>
+<span class='src-line'><b> 199</b><code>    daemon_running: bool,</code></span>
+<span class='src-line'><b> 200</b><code>    width: int,</code></span>
+<span class='src-line'><b> 201</b><code>    job_artifacts: dict[str, list[dict[str, Any]]] | None = None,</code></span>
+<span class='src-line'><b> 202</b><code>    job_summary_events: dict[str, list[dict[str, Any]]] | None = None,</code></span>
+<span class='src-line'><b> 203</b><code>    job_counts: dict[str, dict[str, Any]] | None = None,</code></span>
+<span class='src-line'><b> 204</b><code>    show_outputs: bool = False,</code></span>
+<span class='src-line'><b> 205</b><code>) -&gt; list[str]:</code></span>
+<span class='src-line'><b> 206</b><code>    rendered = []</code></span>
+<span class='src-line'><b> 207</b><code>    for index, item in enumerate(jobs[:5], start=1):</code></span>
+<span class='src-line'><b> 208</b><code>        item_id = str(item.get(&quot;id&quot;) or &quot;&quot;)</code></span>
+<span class='src-line'><b> 209</b><code>        marker = _accent(&quot;●&quot;) if item_id == focused_job_id else _muted(&quot;○&quot;)</code></span>
+<span class='src-line'><b> 210</b><code>        title_width = max(14, min(30, width - 34))</code></span>
+<span class='src-line'><b> 211</b><code>        title = _one_line(str(item.get(&quot;title&quot;) or item.get(&quot;id&quot;) or &quot;job&quot;), title_width)</code></span>
+<span class='src-line'><b> 212</b><code>        state = _status_badge(job_display_state(item, daemon_running))</code></span>
+<span class='src-line'><b> 213</b><code>        worker = _status_badge(worker_label(item, daemon_running))</code></span>
+<span class='src-line'><b> 214</b><code>        kind = _one_line(item.get(&quot;kind&quot;) or &quot;&quot;, max(0, width - title_width - 33))</code></span>
+<span class='src-line'><b> 215</b><code>        rendered.append(</code></span>
+<span class='src-line'><b> 216</b><code>            _fit_ansi(</code></span>
+<span class='src-line'><b> 217</b><code>                f&quot;{marker} {index:&lt;2} {_fit_ansi(title, title_width)} &quot;</code></span>
+<span class='src-line'><b> 218</b><code>                f&quot;{_fit_ansi(state, 10)} {_fit_ansi(worker, 10)} {kind}&quot;,</code></span>
+<span class='src-line'><b> 219</b><code>                width,</code></span>
+<span class='src-line'><b> 220</b><code>            )</code></span>
+<span class='src-line'><b> 221</b><code>        )</code></span>
+<span class='src-line'><b> 222</b><code>        if show_outputs:</code></span>
+<span class='src-line'><b> 223</b><code>            rendered.extend(_job_compact_work_lines(</code></span>
+<span class='src-line'><b> 224</b><code>                outputs=(job_artifacts or {}).get(item_id) or [],</code></span>
+<span class='src-line'><b> 225</b><code>                counts=(job_counts or {}).get(item_id) or {},</code></span>
+<span class='src-line'><b> 226</b><code>                events=(job_summary_events or {}).get(item_id) or [],</code></span>
+<span class='src-line'><b> 227</b><code>                width=width,</code></span>
+<span class='src-line'><b> 228</b><code>            ))</code></span>
+<span class='src-line'><b> 229</b><code>    return rendered</code></span>
+<span class='src-line'><b> 230</b><code></code></span>
+<span class='src-line'><b> 231</b><code></code></span>
+<span class='src-line'><b> 232</b><code>def _job_compact_work_lines(</code></span>
+<span class='src-line'><b> 233</b><code>    *,</code></span>
+<span class='src-line'><b> 234</b><code>    outputs: list[dict[str, Any]],</code></span>
+<span class='src-line'><b> 235</b><code>    counts: dict[str, Any],</code></span>
+<span class='src-line'><b> 236</b><code>    events: list[dict[str, Any]],</code></span>
+<span class='src-line'><b> 237</b><code>    width: int,</code></span>
+<span class='src-line'><b> 238</b><code>) -&gt; list[str]:</code></span>
+<span class='src-line'><b> 239</b><code>    lines: list[str] = []</code></span>
+<span class='src-line'><b> 240</b><code>    if outputs:</code></span>
+<span class='src-line'><b> 241</b><code>        latest = outputs[0]</code></span>
+<span class='src-line'><b> 242</b><code>        output_total = int(counts.get(&quot;artifacts&quot;) or len(outputs))</code></span>
+<span class='src-line'><b> 243</b><code>        count_prefix = f&quot;{output_total}x &quot; if output_total &gt; 1 else &quot;&quot;</code></span>
+<span class='src-line'><b> 244</b><code>        title_budget = max(12, width - 11 - len(count_prefix))</code></span>
+<span class='src-line'><b> 245</b><code>        output_title = _one_line(str(latest.get(&quot;title&quot;) or latest.get(&quot;id&quot;) or &quot;saved output&quot;), title_budget)</code></span>
+<span class='src-line'><b> 246</b><code>        lines.append(_fit_ansi(f&quot;   {_muted(&#x27;out&#x27;)}  {count_prefix}{output_title}&quot;, width))</code></span>
+<span class='src-line'><b> 247</b><code>    outcome = _job_latest_non_output_piece(events, width=max(12, width - 8), skip_save=bool(outputs))</code></span>
+<span class='src-line'><b> 248</b><code>    if outcome:</code></span>
+<span class='src-line'><b> 249</b><code>        lines.append(_fit_ansi(&quot;   &quot; + outcome, width))</code></span>
+<span class='src-line'><b> 250</b><code>    return lines</code></span>
+<span class='src-line'><b> 251</b><code></code></span>
+<span class='src-line'><b> 252</b><code></code></span>
+<span class='src-line'><b> 253</b><code>def _job_latest_non_output_piece(events: list[dict[str, Any]], *, width: int, skip_save: bool) -&gt; str:</code></span>
+<span class='src-line'><b> 254</b><code>    for event in reversed(events):</code></span>
+<span class='src-line'><b> 255</b><code>        parsed = model_update_event_parts(event, width=max(width, 120))</code></span>
+<span class='src-line'><b> 256</b><code>        if not parsed:</code></span>
+<span class='src-line'><b> 257</b><code>            continue</code></span>
+<span class='src-line'><b> 258</b><code>        label, text, _clock = parsed</code></span>
+<span class='src-line'><b> 259</b><code>        if label == &quot;DONE&quot;:</code></span>
+<span class='src-line'><b> 260</b><code>            continue</code></span>
+<span class='src-line'><b> 261</b><code>        if skip_save and label == &quot;SAVE&quot;:</code></span>
+<span class='src-line'><b> 262</b><code>            continue</code></span>
+<span class='src-line'><b> 263</b><code>        prefix = _compact_outcome_label(label)</code></span>
+<span class='src-line'><b> 264</b><code>        return f&quot;{_muted(prefix)} {_one_line(text, max(12, width - len(prefix) - 1))}&quot;</code></span>
+<span class='src-line'><b> 265</b><code>    return &quot;&quot;</code></span>
+<span class='src-line'><b> 266</b><code></code></span>
+<span class='src-line'><b> 267</b><code></code></span>
+<span class='src-line'><b> 268</b><code>def _compact_outcome_label(label: str) -&gt; str:</code></span>
+<span class='src-line'><b> 269</b><code>    return {</code></span>
+<span class='src-line'><b> 270</b><code>        &quot;FIND&quot;: &quot;find&quot;,</code></span>
+<span class='src-line'><b> 271</b><code>        &quot;SOURCE&quot;: &quot;src&quot;,</code></span>
+<span class='src-line'><b> 272</b><code>        &quot;TEST&quot;: &quot;test&quot;,</code></span>
+<span class='src-line'><b> 273</b><code>        &quot;TASK&quot;: &quot;task&quot;,</code></span>
+<span class='src-line'><b> 274</b><code>        &quot;ROAD&quot;: &quot;road&quot;,</code></span>
+<span class='src-line'><b> 275</b><code>        &quot;VALID&quot;: &quot;valid&quot;,</code></span>
+<span class='src-line'><b> 276</b><code>        &quot;LEARN&quot;: &quot;learn&quot;,</code></span>
+<span class='src-line'><b> 277</b><code>        &quot;FILE&quot;: &quot;file&quot;,</code></span>
+<span class='src-line'><b> 278</b><code>        &quot;SAVE&quot;: &quot;out&quot;,</code></span>
+<span class='src-line'><b> 279</b><code>        &quot;FAIL&quot;: &quot;fail&quot;,</code></span>
+<span class='src-line'><b> 280</b><code>        &quot;PLAN&quot;: &quot;plan&quot;,</code></span>
+<span class='src-line'><b> 281</b><code>        &quot;UPDATE&quot;: &quot;note&quot;,</code></span>
+<span class='src-line'><b> 282</b><code>    }.get(label, label.lower())</code></span>
 <span class='src-line'><b> 283</b><code></code></span>
 <span class='src-line'><b> 284</b><code></code></span>
-<span class='src-line'><b> 285</b><code>def _chat_workspace_lines(</code></span>
-<span class='src-line'><b> 286</b><code>    *,</code></span>
-<span class='src-line'><b> 287</b><code>    right_view: str,</code></span>
-<span class='src-line'><b> 288</b><code>    job: dict[str, Any],</code></span>
-<span class='src-line'><b> 289</b><code>    state: str,</code></span>
-<span class='src-line'><b> 290</b><code>    worker: str,</code></span>
-<span class='src-line'><b> 291</b><code>    daemon_text: str,</code></span>
-<span class='src-line'><b> 292</b><code>    goal_text: str,</code></span>
-<span class='src-line'><b> 293</b><code>    latest_text: str,</code></span>
-<span class='src-line'><b> 294</b><code>    metrics: list[tuple[str, Any]],</code></span>
-<span class='src-line'><b> 295</b><code>    token_usage: dict[str, Any],</code></span>
-<span class='src-line'><b> 296</b><code>    context_length: int,</code></span>
-<span class='src-line'><b> 297</b><code>    width: int,</code></span>
-<span class='src-line'><b> 298</b><code>) -&gt; list[str]:</code></span>
-<span class='src-line'><b> 299</b><code>    goal_lines = textwrap.wrap(goal_text, width=max(20, width - 8))[:2] or [&quot;&quot;]</code></span>
-<span class='src-line'><b> 300</b><code>    while len(goal_lines) &lt; 2:</code></span>
-<span class='src-line'><b> 301</b><code>        goal_lines.append(&quot;&quot;)</code></span>
-<span class='src-line'><b> 302</b><code>    title = _one_line(str(job.get(&quot;title&quot;) or &quot;untitled&quot;), max(10, width))</code></span>
-<span class='src-line'><b> 303</b><code>    lines = [</code></span>
-<span class='src-line'><b> 304</b><code>        f&quot;{_muted(&#x27;Page&#x27;)}   {_page_indicator(right_view, CHAT_RIGHT_PAGES)}&quot;,</code></span>
-<span class='src-line'><b> 305</b><code>        _bold(title),</code></span>
-<span class='src-line'><b> 306</b><code>        f&quot;{_status_badge(state)} {_muted(&#x27;worker&#x27;)} {_status_badge(worker)}  {_muted(_one_line(daemon_text, max(8, width - 28)))}&quot;,</code></span>
-<span class='src-line'><b> 307</b><code>        f&quot;{_muted(&#x27;Goal&#x27;)}   {goal_lines[0]}&quot;,</code></span>
-<span class='src-line'><b> 308</b><code>        f&quot;{_muted(&#x27;       &#x27;)}{goal_lines[1]}&quot;,</code></span>
-<span class='src-line'><b> 309</b><code>        f&quot;{_muted(&#x27;Latest&#x27;)} {_one_line(latest_text, width - 8)}&quot;,</code></span>
-<span class='src-line'><b> 310</b><code>    ]</code></span>
-<span class='src-line'><b> 311</b><code>    task_line = _current_task_line(job, width=width)</code></span>
-<span class='src-line'><b> 312</b><code>    if task_line:</code></span>
-<span class='src-line'><b> 313</b><code>        lines.append(task_line)</code></span>
-<span class='src-line'><b> 314</b><code>    context_line = _context_pressure_line(token_usage, context_length=context_length, width=width)</code></span>
-<span class='src-line'><b> 315</b><code>    if context_line:</code></span>
-<span class='src-line'><b> 316</b><code>        lines.append(context_line)</code></span>
-<span class='src-line'><b> 317</b><code>    lines.extend(_metrics_grid_lines(metrics, width=width))</code></span>
-<span class='src-line'><b> 318</b><code>    return lines</code></span>
-<span class='src-line'><b> 319</b><code></code></span>
-<span class='src-line'><b> 320</b><code></code></span>
-<span class='src-line'><b> 321</b><code>def _current_task_line(job: dict[str, Any], *, width: int) -&gt; str:</code></span>
-<span class='src-line'><b> 322</b><code>    metadata = job.get(&quot;metadata&quot;) if isinstance(job.get(&quot;metadata&quot;), dict) else {}</code></span>
-<span class='src-line'><b> 323</b><code>    tasks = metadata.get(&quot;task_queue&quot;) if isinstance(metadata.get(&quot;task_queue&quot;), list) else []</code></span>
-<span class='src-line'><b> 324</b><code>    visible = [</code></span>
-<span class='src-line'><b> 325</b><code>        task</code></span>
-<span class='src-line'><b> 326</b><code>        for task in tasks</code></span>
-<span class='src-line'><b> 327</b><code>        if isinstance(task, dict)</code></span>
-<span class='src-line'><b> 328</b><code>        and str(task.get(&quot;status&quot;) or &quot;open&quot;) in {&quot;active&quot;, &quot;open&quot;, &quot;blocked&quot;}</code></span>
-<span class='src-line'><b> 329</b><code>    ]</code></span>
-<span class='src-line'><b> 330</b><code>    if not visible:</code></span>
-<span class='src-line'><b> 331</b><code>        return &quot;&quot;</code></span>
-<span class='src-line'><b> 332</b><code>    ranked = _rank_visible_tasks(visible)</code></span>
-<span class='src-line'><b> 333</b><code>    task = ranked[0]</code></span>
-<span class='src-line'><b> 334</b><code>    status = str(task.get(&quot;status&quot;) or &quot;open&quot;)</code></span>
-<span class='src-line'><b> 335</b><code>    title = _one_line(str(task.get(&quot;title&quot;) or &quot;task&quot;), max(12, width - 16))</code></span>
-<span class='src-line'><b> 336</b><code>    return _fit_ansi(f&quot;{_muted(&#x27;Task&#x27;)}   {_status_badge(status)} {title}&quot;, width)</code></span>
-<span class='src-line'><b> 337</b><code></code></span>
-<span class='src-line'><b> 338</b><code></code></span>
-<span class='src-line'><b> 339</b><code>def _context_pressure_line(usage: dict[str, Any], *, context_length: int, width: int) -&gt; str:</code></span>
-<span class='src-line'><b> 340</b><code>    latest_prompt = _safe_int(usage.get(&quot;latest_prompt_tokens&quot;))</code></span>
-<span class='src-line'><b> 341</b><code>    context_limit = _safe_int(usage.get(&quot;latest_context_length&quot;)) or context_length</code></span>
-<span class='src-line'><b> 342</b><code>    if latest_prompt &lt;= 0 or context_limit &lt;= 0:</code></span>
-<span class='src-line'><b> 343</b><code>        return &quot;&quot;</code></span>
-<span class='src-line'><b> 344</b><code>    fraction = latest_prompt / max(1, context_limit)</code></span>
-<span class='src-line'><b> 345</b><code>    if fraction &lt; 0.65:</code></span>
-<span class='src-line'><b> 346</b><code>        return &quot;&quot;</code></span>
-<span class='src-line'><b> 347</b><code>    label = &quot;high&quot; if fraction &gt;= 0.85 else &quot;watch&quot; if fraction &gt;= 0.65 else &quot;ok&quot;</code></span>
-<span class='src-line'><b> 348</b><code>    detail = (</code></span>
-<span class='src-line'><b> 349</b><code>        f&quot;{_format_compact_count(latest_prompt)}/{_format_compact_count(context_limit)} &quot;</code></span>
-<span class='src-line'><b> 350</b><code>        f&quot;{fraction:.0%} {label}&quot;</code></span>
-<span class='src-line'><b> 351</b><code>    )</code></span>
-<span class='src-line'><b> 352</b><code>    return _fit_ansi(f&quot;{_muted(&#x27;Context&#x27;)} {_one_line(detail, max(12, width - 8))}&quot;, width)</code></span>
-<span class='src-line'><b> 353</b><code></code></span>
-<span class='src-line'><b> 354</b><code></code></span>
-<span class='src-line'><b> 355</b><code>def _metrics_grid_lines(metrics: list[tuple[str, Any]], *, width: int) -&gt; list[str]:</code></span>
-<span class='src-line'><b> 356</b><code>    wanted = [&quot;actions&quot;, &quot;outputs&quot;, &quot;findings&quot;, &quot;sources&quot;, &quot;tasks&quot;, &quot;experiments&quot;, &quot;memory&quot;]</code></span>
-<span class='src-line'><b> 357</b><code>    lookup = {label: value for label, value in metrics}</code></span>
-<span class='src-line'><b> 358</b><code>    items = [(label, lookup[label]) for label in wanted if label in lookup]</code></span>
-<span class='src-line'><b> 359</b><code>    if width &lt; 40:</code></span>
-<span class='src-line'><b> 360</b><code>        return [_metric_strip(items, width=width)]</code></span>
-<span class='src-line'><b> 361</b><code>    lines: list[str] = []</code></span>
-<span class='src-line'><b> 362</b><code>    col_width = max(16, (width - 2) // 2)</code></span>
-<span class='src-line'><b> 363</b><code>    for index in range(0, len(items), 2):</code></span>
-<span class='src-line'><b> 364</b><code>        left = _metric_cell(items[index], width=col_width)</code></span>
-<span class='src-line'><b> 365</b><code>        right = _metric_cell(items[index + 1], width=col_width) if index + 1 &lt; len(items) else &quot;&quot;</code></span>
-<span class='src-line'><b> 366</b><code>        lines.append(_fit_ansi(left + &quot;  &quot; + right, width))</code></span>
-<span class='src-line'><b> 367</b><code>    return lines</code></span>
-<span class='src-line'><b> 368</b><code></code></span>
-<span class='src-line'><b> 369</b><code></code></span>
-<span class='src-line'><b> 370</b><code>def _metric_cell(item: tuple[str, Any], *, width: int) -&gt; str:</code></span>
-<span class='src-line'><b> 371</b><code>    label, value = item</code></span>
-<span class='src-line'><b> 372</b><code>    return _fit_ansi(f&quot;{_muted(label)} {_bold(value)}&quot;, width)</code></span>
-<span class='src-line'><b> 373</b><code></code></span>
-<span class='src-line'><b> 374</b><code></code></span>
-<span class='src-line'><b> 375</b><code>def _safe_int(value: Any) -&gt; int:</code></span>
-<span class='src-line'><b> 376</b><code>    try:</code></span>
-<span class='src-line'><b> 377</b><code>        return int(float(value))</code></span>
-<span class='src-line'><b> 378</b><code>    except (TypeError, ValueError):</code></span>
-<span class='src-line'><b> 379</b><code>        return 0</code></span></pre>
+<span class='src-line'><b> 285</b><code>def _defer_status_line(job: dict[str, Any], *, width: int) -&gt; str:</code></span>
+<span class='src-line'><b> 286</b><code>    until = job_deferred_until(job)</code></span>
+<span class='src-line'><b> 287</b><code>    if not until:</code></span>
+<span class='src-line'><b> 288</b><code>        return &quot;&quot;</code></span>
+<span class='src-line'><b> 289</b><code>    metadata = job.get(&quot;metadata&quot;) if isinstance(job.get(&quot;metadata&quot;), dict) else {}</code></span>
+<span class='src-line'><b> 290</b><code>    reason = str(metadata.get(&quot;defer_reason&quot;) or metadata.get(&quot;defer_next_action&quot;) or &quot;&quot;).strip()</code></span>
+<span class='src-line'><b> 291</b><code>    time_text = until.astimezone().strftime(&quot;%b %d %H:%M&quot;)</code></span>
+<span class='src-line'><b> 292</b><code>    detail = f&quot;next check {time_text}&quot;</code></span>
+<span class='src-line'><b> 293</b><code>    if reason:</code></span>
+<span class='src-line'><b> 294</b><code>        detail += f&quot; - {reason}&quot;</code></span>
+<span class='src-line'><b> 295</b><code>    return _fit_ansi(f&quot;{_muted(&#x27;Wait&#x27;)}   {_one_line(detail, max(12, width - 7))}&quot;, width)</code></span>
+<span class='src-line'><b> 296</b><code></code></span>
+<span class='src-line'><b> 297</b><code></code></span>
+<span class='src-line'><b> 298</b><code>def _rank_visible_tasks(tasks: list[dict[str, Any]]) -&gt; list[dict[str, Any]]:</code></span>
+<span class='src-line'><b> 299</b><code>    status_order = {&quot;active&quot;: 0, &quot;open&quot;: 1, &quot;blocked&quot;: 2, &quot;validating&quot;: 3, &quot;done&quot;: 4, &quot;skipped&quot;: 5}</code></span>
+<span class='src-line'><b> 300</b><code>    return sorted(</code></span>
+<span class='src-line'><b> 301</b><code>        [task for task in tasks if isinstance(task, dict)],</code></span>
+<span class='src-line'><b> 302</b><code>        key=lambda task: (</code></span>
+<span class='src-line'><b> 303</b><code>            status_order.get(str(task.get(&quot;status&quot;) or &quot;open&quot;), 9),</code></span>
+<span class='src-line'><b> 304</b><code>            -int(task.get(&quot;priority&quot;) or 0),</code></span>
+<span class='src-line'><b> 305</b><code>            str(task.get(&quot;title&quot;) or &quot;&quot;),</code></span>
+<span class='src-line'><b> 306</b><code>        ),</code></span>
+<span class='src-line'><b> 307</b><code>    )</code></span>
+<span class='src-line'><b> 308</b><code></code></span>
+<span class='src-line'><b> 309</b><code></code></span>
+<span class='src-line'><b> 310</b><code>def _chat_workspace_lines(</code></span>
+<span class='src-line'><b> 311</b><code>    *,</code></span>
+<span class='src-line'><b> 312</b><code>    right_view: str,</code></span>
+<span class='src-line'><b> 313</b><code>    job: dict[str, Any],</code></span>
+<span class='src-line'><b> 314</b><code>    state: str,</code></span>
+<span class='src-line'><b> 315</b><code>    worker: str,</code></span>
+<span class='src-line'><b> 316</b><code>    daemon_text: str,</code></span>
+<span class='src-line'><b> 317</b><code>    goal_text: str,</code></span>
+<span class='src-line'><b> 318</b><code>    latest_text: str,</code></span>
+<span class='src-line'><b> 319</b><code>    metrics: list[tuple[str, Any]],</code></span>
+<span class='src-line'><b> 320</b><code>    token_usage: dict[str, Any],</code></span>
+<span class='src-line'><b> 321</b><code>    context_length: int,</code></span>
+<span class='src-line'><b> 322</b><code>    width: int,</code></span>
+<span class='src-line'><b> 323</b><code>) -&gt; list[str]:</code></span>
+<span class='src-line'><b> 324</b><code>    goal_lines = textwrap.wrap(goal_text, width=max(20, width - 8))[:2] or [&quot;&quot;]</code></span>
+<span class='src-line'><b> 325</b><code>    while len(goal_lines) &lt; 2:</code></span>
+<span class='src-line'><b> 326</b><code>        goal_lines.append(&quot;&quot;)</code></span>
+<span class='src-line'><b> 327</b><code>    title = _one_line(str(job.get(&quot;title&quot;) or &quot;untitled&quot;), max(10, width))</code></span>
+<span class='src-line'><b> 328</b><code>    lines = [</code></span>
+<span class='src-line'><b> 329</b><code>        f&quot;{_muted(&#x27;Page&#x27;)}   {_page_indicator(right_view, CHAT_RIGHT_PAGES)}&quot;,</code></span>
+<span class='src-line'><b> 330</b><code>        _bold(title),</code></span>
+<span class='src-line'><b> 331</b><code>        f&quot;{_status_badge(state)} {_muted(&#x27;worker&#x27;)} {_status_badge(worker)}  {_muted(_one_line(daemon_text, max(8, width - 28)))}&quot;,</code></span>
+<span class='src-line'><b> 332</b><code>        f&quot;{_muted(&#x27;Goal&#x27;)}   {goal_lines[0]}&quot;,</code></span>
+<span class='src-line'><b> 333</b><code>        f&quot;{_muted(&#x27;       &#x27;)}{goal_lines[1]}&quot;,</code></span>
+<span class='src-line'><b> 334</b><code>        f&quot;{_muted(&#x27;Latest&#x27;)} {_one_line(latest_text, width - 8)}&quot;,</code></span>
+<span class='src-line'><b> 335</b><code>    ]</code></span>
+<span class='src-line'><b> 336</b><code>    task_line = _current_task_line(job, width=width)</code></span>
+<span class='src-line'><b> 337</b><code>    if task_line:</code></span>
+<span class='src-line'><b> 338</b><code>        lines.append(task_line)</code></span>
+<span class='src-line'><b> 339</b><code>    context_line = _context_pressure_line(token_usage, context_length=context_length, width=width)</code></span>
+<span class='src-line'><b> 340</b><code>    if context_line:</code></span>
+<span class='src-line'><b> 341</b><code>        lines.append(context_line)</code></span>
+<span class='src-line'><b> 342</b><code>    lines.extend(_metrics_grid_lines(metrics, width=width))</code></span>
+<span class='src-line'><b> 343</b><code>    return lines</code></span>
+<span class='src-line'><b> 344</b><code></code></span>
+<span class='src-line'><b> 345</b><code></code></span>
+<span class='src-line'><b> 346</b><code>def _current_task_line(job: dict[str, Any], *, width: int) -&gt; str:</code></span>
+<span class='src-line'><b> 347</b><code>    metadata = job.get(&quot;metadata&quot;) if isinstance(job.get(&quot;metadata&quot;), dict) else {}</code></span>
+<span class='src-line'><b> 348</b><code>    tasks = metadata.get(&quot;task_queue&quot;) if isinstance(metadata.get(&quot;task_queue&quot;), list) else []</code></span>
+<span class='src-line'><b> 349</b><code>    visible = [</code></span>
+<span class='src-line'><b> 350</b><code>        task</code></span>
+<span class='src-line'><b> 351</b><code>        for task in tasks</code></span>
+<span class='src-line'><b> 352</b><code>        if isinstance(task, dict)</code></span>
+<span class='src-line'><b> 353</b><code>        and str(task.get(&quot;status&quot;) or &quot;open&quot;) in {&quot;active&quot;, &quot;open&quot;, &quot;blocked&quot;}</code></span>
+<span class='src-line'><b> 354</b><code>    ]</code></span>
+<span class='src-line'><b> 355</b><code>    if not visible:</code></span>
+<span class='src-line'><b> 356</b><code>        return &quot;&quot;</code></span>
+<span class='src-line'><b> 357</b><code>    ranked = _rank_visible_tasks(visible)</code></span>
+<span class='src-line'><b> 358</b><code>    task = ranked[0]</code></span>
+<span class='src-line'><b> 359</b><code>    status = str(task.get(&quot;status&quot;) or &quot;open&quot;)</code></span>
+<span class='src-line'><b> 360</b><code>    title = _one_line(str(task.get(&quot;title&quot;) or &quot;task&quot;), max(12, width - 16))</code></span>
+<span class='src-line'><b> 361</b><code>    return _fit_ansi(f&quot;{_muted(&#x27;Task&#x27;)}   {_status_badge(status)} {title}&quot;, width)</code></span>
+<span class='src-line'><b> 362</b><code></code></span>
+<span class='src-line'><b> 363</b><code></code></span>
+<span class='src-line'><b> 364</b><code>def _context_pressure_line(usage: dict[str, Any], *, context_length: int, width: int) -&gt; str:</code></span>
+<span class='src-line'><b> 365</b><code>    latest_prompt = _safe_int(usage.get(&quot;latest_prompt_tokens&quot;))</code></span>
+<span class='src-line'><b> 366</b><code>    context_limit = _safe_int(usage.get(&quot;latest_context_length&quot;)) or context_length</code></span>
+<span class='src-line'><b> 367</b><code>    if latest_prompt &lt;= 0 or context_limit &lt;= 0:</code></span>
+<span class='src-line'><b> 368</b><code>        return &quot;&quot;</code></span>
+<span class='src-line'><b> 369</b><code>    fraction = latest_prompt / max(1, context_limit)</code></span>
+<span class='src-line'><b> 370</b><code>    if fraction &lt; 0.65:</code></span>
+<span class='src-line'><b> 371</b><code>        return &quot;&quot;</code></span>
+<span class='src-line'><b> 372</b><code>    label = &quot;high&quot; if fraction &gt;= 0.85 else &quot;watch&quot; if fraction &gt;= 0.65 else &quot;ok&quot;</code></span>
+<span class='src-line'><b> 373</b><code>    detail = (</code></span>
+<span class='src-line'><b> 374</b><code>        f&quot;{_format_compact_count(latest_prompt)}/{_format_compact_count(context_limit)} &quot;</code></span>
+<span class='src-line'><b> 375</b><code>        f&quot;{fraction:.0%} {label}&quot;</code></span>
+<span class='src-line'><b> 376</b><code>    )</code></span>
+<span class='src-line'><b> 377</b><code>    return _fit_ansi(f&quot;{_muted(&#x27;Context&#x27;)} {_one_line(detail, max(12, width - 8))}&quot;, width)</code></span>
+<span class='src-line'><b> 378</b><code></code></span>
+<span class='src-line'><b> 379</b><code></code></span>
+<span class='src-line'><b> 380</b><code>def _metrics_grid_lines(metrics: list[tuple[str, Any]], *, width: int) -&gt; list[str]:</code></span>
+<span class='src-line'><b> 381</b><code>    wanted = [&quot;actions&quot;, &quot;outputs&quot;, &quot;findings&quot;, &quot;sources&quot;, &quot;tasks&quot;, &quot;experiments&quot;, &quot;memory&quot;]</code></span>
+<span class='src-line'><b> 382</b><code>    lookup = {label: value for label, value in metrics}</code></span>
+<span class='src-line'><b> 383</b><code>    items = [(label, lookup[label]) for label in wanted if label in lookup]</code></span>
+<span class='src-line'><b> 384</b><code>    if width &lt; 40:</code></span>
+<span class='src-line'><b> 385</b><code>        return [_metric_strip(items, width=width)]</code></span>
+<span class='src-line'><b> 386</b><code>    lines: list[str] = []</code></span>
+<span class='src-line'><b> 387</b><code>    col_width = max(16, (width - 2) // 2)</code></span>
+<span class='src-line'><b> 388</b><code>    for index in range(0, len(items), 2):</code></span>
+<span class='src-line'><b> 389</b><code>        left = _metric_cell(items[index], width=col_width)</code></span>
+<span class='src-line'><b> 390</b><code>        right = _metric_cell(items[index + 1], width=col_width) if index + 1 &lt; len(items) else &quot;&quot;</code></span>
+<span class='src-line'><b> 391</b><code>        lines.append(_fit_ansi(left + &quot;  &quot; + right, width))</code></span>
+<span class='src-line'><b> 392</b><code>    return lines</code></span>
+<span class='src-line'><b> 393</b><code></code></span>
+<span class='src-line'><b> 394</b><code></code></span>
+<span class='src-line'><b> 395</b><code>def _metric_cell(item: tuple[str, Any], *, width: int) -&gt; str:</code></span>
+<span class='src-line'><b> 396</b><code>    label, value = item</code></span>
+<span class='src-line'><b> 397</b><code>    return _fit_ansi(f&quot;{_muted(label)} {_bold(value)}&quot;, width)</code></span>
+<span class='src-line'><b> 398</b><code></code></span>
+<span class='src-line'><b> 399</b><code></code></span>
+<span class='src-line'><b> 400</b><code>def _safe_int(value: Any) -&gt; int:</code></span>
+<span class='src-line'><b> 401</b><code>    try:</code></span>
+<span class='src-line'><b> 402</b><code>        return int(float(value))</code></span>
+<span class='src-line'><b> 403</b><code>    except (TypeError, ValueError):</code></span>
+<span class='src-line'><b> 404</b><code>        return 0</code></span></pre>
 </details>
 <details class="source-file searchable" data-search="nipux_cli/tui_style.py &quot;&quot;&quot;Small terminal styling helpers shared by the CLI frame renderers.&quot;&quot;&quot;
 
@@ -45562,7 +45598,7 @@ class AntiBotBrowserRegistry:
       <div class="grid"><article class='card warning searchable' data-search='Large modules tests/nipux_cli/test_worker.py (2923 lines), tests/nipux_cli/test_cli.py (2540 lines), nipux_cli/cli.py (2530 lines), nipux_cli/db.py (2407 lines), nipux_cli/worker.py (2348 lines)'><h3>Large modules</h3><p>tests/nipux_cli/test_worker.py (2923 lines), tests/nipux_cli/test_cli.py (2540 lines), nipux_cli/cli.py (2530 lines), nipux_cli/db.py (2407 lines), nipux_cli/worker.py (2348 lines)</p></article>
 <article class='card warning searchable' data-search='Prompt surfaces 12 prompt/instruction-like strings were extracted. Inspect this section after any agent-behavior change.'><h3>Prompt surfaces</h3><p>12 prompt/instruction-like strings were extracted. Inspect this section after any agent-behavior change.</p></article>
 <article class='card warning searchable' data-search='Tool surface 27 tools are exposed to the worker. Review descriptions whenever generic behavior changes.'><h3>Tool surface</h3><p>27 tools are exposed to the worker. Review descriptions whenever generic behavior changes.</p></article>
-<article class='card warning searchable' data-search='Symbol map 1212 symbols were parsed. Large modules are candidates for refactoring once behavior stabilizes.'><h3>Symbol map</h3><p>1212 symbols were parsed. Large modules are candidates for refactoring once behavior stabilizes.</p></article></div>
+<article class='card warning searchable' data-search='Symbol map 1214 symbols were parsed. Large modules are candidates for refactoring once behavior stabilizes.'><h3>Symbol map</h3><p>1214 symbols were parsed. Large modules are candidates for refactoring once behavior stabilizes.</p></article></div>
     </section>
   </main>
 </div>
