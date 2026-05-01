@@ -168,7 +168,7 @@ def slash_suggestion_lines(
     if hidden:
         lines.append(_fit_ansi(_muted(f"+{hidden} more; type to filter"), width))
     else:
-        lines.append(_fit_ansi(_muted("tab fills highlighted command"), width))
+        lines.append(_fit_ansi(_muted("tab fills · ↑↓ cycles"), width))
     return lines
 
 
