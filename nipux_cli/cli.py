@@ -114,6 +114,10 @@ from nipux_cli.planning import (
     initial_task_contract,
 )
 from nipux_cli.scheduling import job_provider_blocked, provider_retry_metadata
+from nipux_cli.service_install import cmd_autostart, cmd_service
+from nipux_cli.service_install import launch_agent_path as _launch_agent_path
+from nipux_cli.service_install import launch_agent_plist as _service_launch_agent_plist
+from nipux_cli.service_install import systemd_service_text as _service_systemd_service_text
 from nipux_cli.templates import program_for_job
 from nipux_cli.tui_commands import (
     FIRST_RUN_ACTIONS,
@@ -154,6 +158,14 @@ _save_config_field = save_config_field
 _config_field_value = config_field_value
 _slash_suggestion_lines = slash_suggestion_lines
 _chat_control_command = chat_control_command
+
+
+def _launch_agent_plist(*, poll_seconds: float, quiet: bool) -> str:
+    return _service_launch_agent_plist(poll_seconds=poll_seconds, quiet=quiet)
+
+
+def _systemd_service_text(*, poll_seconds: float, quiet: bool) -> str:
+    return _service_systemd_service_text(poll_seconds=poll_seconds, quiet=quiet)
 
 
 SHELL_BUILTINS = {"help", "?", "commands", "exit", "quit", ":q", "clear"}
@@ -1827,172 +1839,6 @@ def cmd_stop(args: argparse.Namespace) -> None:
 
     config = load_config()
     _stop_daemon_process(config, wait=args.wait, quiet=False)
-
-
-def _launch_agent_path() -> Path:
-    return Path.home() / "Library" / "LaunchAgents" / "com.nipux.agent.plist"
-
-
-def _launch_agent_plist(*, poll_seconds: float, quiet: bool) -> str:
-    config = load_config()
-    config.ensure_dirs()
-    command = [
-        sys.executable,
-        "-m",
-        "nipux_cli.cli",
-        "daemon",
-        "--poll-seconds",
-        str(poll_seconds),
-    ]
-    command.append("--quiet" if quiet else "--verbose")
-    args_xml = "\n".join(f"        <string>{_xml_escape(part)}</string>" for part in command)
-    log_path = config.runtime.logs_dir / "launchd-daemon.log"
-    return f"""<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-  <dict>
-    <key>Label</key>
-    <string>com.nipux.agent</string>
-    <key>ProgramArguments</key>
-    <array>
-{args_xml}
-    </array>
-    <key>EnvironmentVariables</key>
-    <dict>
-      <key>NIPUX_HOME</key>
-      <string>{_xml_escape(str(config.runtime.home))}</string>
-    </dict>
-    <key>RunAtLoad</key>
-    <true/>
-    <key>KeepAlive</key>
-    <true/>
-    <key>StandardOutPath</key>
-    <string>{_xml_escape(str(log_path))}</string>
-    <key>StandardErrorPath</key>
-    <string>{_xml_escape(str(log_path))}</string>
-    <key>WorkingDirectory</key>
-    <string>{_xml_escape(str(Path.cwd()))}</string>
-  </dict>
-</plist>
-"""
-
-
-def _xml_escape(value: str) -> str:
-    return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-
-
-def cmd_autostart(args: argparse.Namespace) -> None:
-    path = _launch_agent_path()
-    label = "gui/" + str(os.getuid()) + "/com.nipux.agent"
-    if args.action == "status":
-        status = "installed" if path.exists() else "not installed"
-        print(f"autostart: {status}")
-        print(f"plist: {path}")
-        if path.exists():
-            result = subprocess.run(
-                ["launchctl", "print", label], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
-            )
-            print("launchd: loaded" if result.returncode == 0 else "launchd: not loaded")
-        return
-    if args.action == "install":
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(_launch_agent_plist(poll_seconds=args.poll_seconds, quiet=args.quiet), encoding="utf-8")
-        subprocess.run(
-            ["launchctl", "bootout", label], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
-        )
-        result = subprocess.run(["launchctl", "bootstrap", "gui/" + str(os.getuid()), str(path)], check=False)
-        if result.returncode:
-            raise SystemExit(result.returncode)
-        subprocess.run(["launchctl", "enable", label], check=False)
-        print(f"autostart installed: {path}")
-        print("daemon will start at login and launchd will keep it alive")
-        return
-    if args.action == "uninstall":
-        subprocess.run(
-            ["launchctl", "bootout", label], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
-        )
-        if path.exists():
-            path.unlink()
-        print("autostart uninstalled")
-        return
-    raise SystemExit(f"unknown autostart action: {args.action}")
-
-
-def _systemd_service_path() -> Path:
-    return Path.home() / ".config" / "systemd" / "user" / "nipux.service"
-
-
-def _systemd_service_text(*, poll_seconds: float, quiet: bool) -> str:
-    config = load_config()
-    config.ensure_dirs()
-    command = [
-        sys.executable,
-        "-m",
-        "nipux_cli.cli",
-        "daemon",
-        "--poll-seconds",
-        str(poll_seconds),
-    ]
-    command.append("--quiet" if quiet else "--verbose")
-    return "\n".join(
-        [
-            "[Unit]",
-            "Description=Nipux 24/7 autonomous worker",
-            "After=network-online.target",
-            "Wants=network-online.target",
-            "",
-            "[Service]",
-            "Type=simple",
-            f"WorkingDirectory={Path.cwd()}",
-            f"Environment=NIPUX_HOME={config.runtime.home}",
-            f"ExecStart={' '.join(shlex.quote(part) for part in command)}",
-            "Restart=always",
-            "RestartSec=3",
-            "",
-            "[Install]",
-            "WantedBy=default.target",
-            "",
-        ]
-    )
-
-
-def cmd_service(args: argparse.Namespace) -> None:
-    path = _systemd_service_path()
-    systemctl = shutil.which("systemctl")
-    user_cmd = [systemctl, "--user"] if systemctl else None
-    if args.action == "status":
-        print(f"service: {'installed' if path.exists() else 'not installed'}")
-        print(f"unit: {path}")
-        if user_cmd:
-            result = subprocess.run(
-                [*user_cmd, "is-active", "nipux.service"], check=False, capture_output=True, text=True
-            )
-            print(f"systemd: {result.stdout.strip() or result.stderr.strip() or 'unknown'}")
-        else:
-            print("systemd: unavailable on this machine")
-        return
-    if args.action == "install":
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(_systemd_service_text(poll_seconds=args.poll_seconds, quiet=args.quiet), encoding="utf-8")
-        print(f"service file written: {path}")
-        if user_cmd:
-            subprocess.run([*user_cmd, "daemon-reload"], check=False)
-            subprocess.run([*user_cmd, "enable", "--now", "nipux.service"], check=False)
-            print("systemd user service enabled and started")
-        else:
-            print(
-                "systemd not found; copy this service to a Linux server or run: systemctl --user enable --now nipux.service"
-            )
-        return
-    if args.action == "uninstall":
-        if user_cmd:
-            subprocess.run([*user_cmd, "disable", "--now", "nipux.service"], check=False)
-            subprocess.run([*user_cmd, "daemon-reload"], check=False)
-        if path.exists():
-            path.unlink()
-        print("service uninstalled")
-        return
-    raise SystemExit(f"unknown service action: {args.action}")
 
 
 def cmd_browser_dashboard(args: argparse.Namespace) -> None:
