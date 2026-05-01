@@ -180,6 +180,39 @@ def test_daemon_skips_deferred_jobs_until_due(tmp_path):
         db.close()
 
 
+def test_daemon_idle_sleep_wakes_for_deferred_job(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        now = datetime.now(timezone.utc)
+        job_id = db.create_job("Deferred job", title="deferred")
+        db.update_job_status(
+            job_id,
+            "queued",
+            metadata_patch={"defer_until": (now + timedelta(seconds=2)).isoformat()},
+        )
+        daemon = Daemon(config=config, db=db)
+
+        sleep_seconds = daemon.idle_sleep_seconds(poll_seconds=30, now=now)
+
+        assert 1.9 <= sleep_seconds <= 2.1
+    finally:
+        db.close()
+
+
+def test_daemon_idle_sleep_uses_poll_when_no_deferred_jobs(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        db.create_job("Ready job", title="ready")
+        daemon = Daemon(config=config, db=db)
+
+        assert daemon.idle_sleep_seconds(poll_seconds=30) == 30
+        assert daemon.idle_sleep_seconds(poll_seconds=0) == 5.0
+    finally:
+        db.close()
+
+
 def test_daemon_advances_multiple_runnable_jobs_without_focus_starvation(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path, daily_digest_enabled=False))
     db = AgentDB(tmp_path / "state.db")

@@ -19,7 +19,7 @@ from typing import Any
 from nipux_cli.config import AppConfig, load_config
 from nipux_cli.db import AgentDB
 from nipux_cli.digest import write_daily_digest
-from nipux_cli.scheduling import job_is_deferred
+from nipux_cli.scheduling import job_deferred_until, job_is_deferred
 
 
 class DaemonAlreadyRunning(RuntimeError):
@@ -260,6 +260,21 @@ class Daemon:
             return job
         return None
 
+    def idle_sleep_seconds(self, *, poll_seconds: float, now: datetime | None = None) -> float:
+        """Return the next idle sleep, capped by the nearest deferred job wake."""
+
+        fallback = max(5.0, poll_seconds)
+        now = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
+        due_times: list[datetime] = []
+        for job in self.db.list_jobs(statuses=["queued", "running"]):
+            due = job_deferred_until(job, now=now)
+            if due is not None:
+                due_times.append(due)
+        if not due_times:
+            return fallback
+        wait_seconds = min((due - now).total_seconds() for due in due_times)
+        return max(0.5, min(fallback, wait_seconds))
+
     def run_once(self, *, fake: bool = False, verbose: bool = False):
         from nipux_cli.worker import run_one_step
 
@@ -361,7 +376,7 @@ class Daemon:
                             last_state="idle",
                             runtime=current_runtime_fingerprint(),
                         )
-                        idle_sleep = max(5.0, poll_seconds)
+                        idle_sleep = self.idle_sleep_seconds(poll_seconds=poll_seconds)
                         if not quiet:
                             print(f"idle; sleeping {idle_sleep:g}s", flush=True)
                         _sleep_or_stop(idle_sleep, max_iterations, iterations)
