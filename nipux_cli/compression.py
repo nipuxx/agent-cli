@@ -145,6 +145,8 @@ def refresh_memory_index(db: AgentDB, job_id: str, *, max_steps: int = 8, max_ar
         lines.extend(["", "Model usage:"])
         latest_prompt = _compact_count(usage.get("latest_prompt_tokens"))
         latest_total = _compact_count(usage.get("latest_total_tokens"))
+        context_length = _first_positive_int(usage.get("latest_context_length"), usage.get("context_length"))
+        context_fraction = _context_fraction(usage, context_length=context_length)
         lines.append(
             "- "
             + ", ".join(
@@ -158,6 +160,13 @@ def refresh_memory_index(db: AgentDB, job_id: str, *, max_steps: int = 8, max_ar
                 ]
             )
         )
+        if context_fraction >= 0.65:
+            lines.append(
+                "- context_pressure "
+                f"latest_context={latest_prompt}"
+                + (f"/{_compact_count(context_length)}" if context_length else "")
+                + f" ({context_fraction:.0%}); prefer compact ledgers, artifacts, and decisions over raw history."
+            )
 
     return db.upsert_memory(
         job_id=job_id,
@@ -196,3 +205,28 @@ def _compact_count(value: object) -> str:
     if number >= 1_000:
         return f"{number / 1_000:.1f}K"
     return str(number)
+
+
+def _context_fraction(usage: dict, *, context_length: int) -> float:
+    raw_fraction = usage.get("latest_context_fraction") or usage.get("context_fraction")
+    try:
+        fraction = float(raw_fraction)
+    except (TypeError, ValueError):
+        fraction = 0.0
+    if fraction > 0:
+        return fraction
+    latest_prompt = _first_positive_int(usage.get("latest_prompt_tokens"), usage.get("prompt_tokens"))
+    if context_length <= 0 or latest_prompt <= 0:
+        return 0.0
+    return latest_prompt / context_length
+
+
+def _first_positive_int(*values: object) -> int:
+    for value in values:
+        try:
+            number = int(float(value or 0))
+        except (TypeError, ValueError):
+            continue
+        if number > 0:
+            return number
+    return 0

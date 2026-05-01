@@ -2211,6 +2211,8 @@ class AgentDB:
             "latest_prompt_tokens": 0,
             "latest_completion_tokens": 0,
             "latest_total_tokens": 0,
+            "latest_context_length": 0,
+            "latest_context_fraction": 0.0,
             "latest_at": "",
             "has_cost": False,
         }
@@ -2237,6 +2239,8 @@ class AgentDB:
             totals["latest_prompt_tokens"] = prompt
             totals["latest_completion_tokens"] = completion
             totals["latest_total_tokens"] = total
+            totals["latest_context_length"] = _as_int(usage.get("context_length"))
+            totals["latest_context_fraction"] = _as_float(usage.get("context_fraction")) or 0.0
             totals["latest_at"] = str(row["created_at"] or "")
         return totals
 

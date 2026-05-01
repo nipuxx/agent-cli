@@ -51,6 +51,8 @@ def test_refresh_memory_index_includes_durable_progress_ledgers(tmp_path):
                     "completion_tokens": 300,
                     "total_tokens": 1500,
                     "estimated": True,
+                    "context_length": 1600,
+                    "context_fraction": 0.75,
                 }
             },
         )
@@ -72,5 +74,7 @@ def test_refresh_memory_index_includes_durable_progress_ledgers(tmp_path):
         assert "Model usage:" in memory
         assert "total_tokens=1.5K" in memory
         assert "estimated_calls=1" in memory
+        assert "context_pressure" in memory
+        assert "latest_context=1.2K/1.6K" in memory
     finally:
         db.close()

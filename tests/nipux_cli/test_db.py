@@ -93,7 +93,16 @@ def test_job_token_usage_aggregates_message_usage(tmp_path):
             job_id,
             event_type="loop",
             title="message_end",
-            metadata={"usage": {"prompt_tokens": 150, "completion_tokens": 50, "total_tokens": 200, "estimated": True}},
+            metadata={
+                "usage": {
+                    "prompt_tokens": 150,
+                    "completion_tokens": 50,
+                    "total_tokens": 200,
+                    "estimated": True,
+                    "context_length": 1000,
+                    "context_fraction": 0.15,
+                }
+            },
         )
 
         usage = db.job_token_usage(job_id)
@@ -107,6 +116,8 @@ def test_job_token_usage_aggregates_message_usage(tmp_path):
         assert usage["estimated_calls"] == 1
         assert usage["reasoning_tokens"] == 3
         assert usage["cached_tokens"] == 10
+        assert usage["latest_context_length"] == 1000
+        assert usage["latest_context_fraction"] == 0.15
     finally:
         db.close()
 
