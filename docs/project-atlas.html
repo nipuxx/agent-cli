@@ -82,7 +82,7 @@ pre { max-height: 540px; overflow: auto; background: #050606; border: 1px solid 
 <div class="shell">
   <aside class="sidebar">
     <div class="logo">NIPUX ATLAS</div>
-    <div class="subtitle">Generated from tracked source on 515b603c.</div>
+    <div class="subtitle">Generated from tracked source on 49c49bd2.</div>
     <input id="search" class="search" placeholder="filter files, prompts, tools..." autocomplete="off">
     <nav class="nav">
       <a href="#architecture">Architecture</a>
@@ -98,8 +98,8 @@ pre { max-height: 540px; overflow: auto; background: #050606; border: 1px solid 
     </nav>
     <div class="stats">
       <div class="stat"><b>62</b><span>tracked files</span></div>
-      <div class="stat"><b>25,529</b><span>tracked lines mapped</span></div>
-      <div class="stat"><b>1052</b><span>python symbols</span></div>
+      <div class="stat"><b>25,394</b><span>tracked lines mapped</span></div>
+      <div class="stat"><b>1050</b><span>python symbols</span></div>
       <div class="stat"><b>27</b><span>runtime tools</span></div>
     </div>
   </aside>
@@ -126,11 +126,6 @@ pre { max-height: 540px; overflow: auto; background: #050606; border: 1px solid 
 <header><h3>prompt_label</h3><span>nipux_cli/chat_tui.py:101</span></header>
 <p class="muted">Context: <code>assignment</code> · 1 chars</p>
 <pre><code>❯</code></pre>
-</article>
-<article class="prompt searchable" data-search="nipux_cli/cli.py inline string You are Nipux, the chat model that controls a generic long-running agent workspace. You know the visible CLI state, focused job, job list, task queue, artifacts, memory, metrics, and recent activity. Answer directly from the visible job state. Do not claim hidden chain-of-thought. If the operator asks for work to be done, explain the concrete job/control action Nipux will take or how to run it from the Jobs/Status panel. If the operator asks where saved work is, explain that artifacts and history are visible from the Jobs/Status panel or direct CLI commands. Do not start replies with an introduction. Keep replies concise and useful.">
-<header><h3>inline string</h3><span>nipux_cli/cli.py:3988</span></header>
-<p class="muted">Context: <code>inline</code> · 640 chars</p>
-<pre><code>You are Nipux, the chat model that controls a generic long-running agent workspace. You know the visible CLI state, focused job, job list, task queue, artifacts, memory, metrics, and recent activity. Answer directly from the visible job state. Do not claim hidden chain-of-thought. If the operator asks for work to be done, explain the concrete job/control action Nipux will take or how to run it from the Jobs/Status panel. If the operator asks where saved work is, explain that artifacts and history are visible from the Jobs/Status panel or direct CLI commands. Do not start replies with an introduction. Keep replies concise and useful.</code></pre>
 </article>
 <article class="prompt searchable" data-search="nipux_cli/first_run_tui.py prompt_label ❯">
 <header><h3>prompt_label</h3><span>nipux_cli/first_run_tui.py:54</span></header>
@@ -540,9 +535,9 @@ fixed tool surface. none">
 <details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> __future__, typing, nipux_cli.first_run_tui, nipux_cli.settings, nipux_cli.tui_commands, nipux_cli.tui_events, nipux_cli.tui_layout, nipux_cli.tui_status, nipux_cli.tui_style</p><p><strong>Symbols:</strong> build_chat_frame, _metadata_records, _step_count, _step_line, _daemon_state_line</p></details>
 </article>
 <article class="file-card searchable" data-search="nipux_cli/cli.py Thin CLI for the Nipux agent runtime. _db, cmd_init, cmd_create, _create_job, cmd_jobs, cmd_focus, cmd_rename, cmd_delete, cmd_chat, cmd_home">
-<header><h3>nipux_cli/cli.py</h3><span>4574 lines</span></header>
+<header><h3>nipux_cli/cli.py</h3><span>4439 lines</span></header>
 <p>Thin CLI for the Nipux agent runtime.</p>
-<div class="meta"><span>163 symbols</span><span>0 TODOs</span></div>
+<div class="meta"><span>161 symbols</span><span>0 TODOs</span></div>
 <details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> __future__, argparse, json, os, select, shlex, shutil, signal, subprocess, sys, termios, threading</p><p><strong>Symbols:</strong> _db, cmd_init, cmd_create, _create_job, cmd_jobs, cmd_focus, cmd_rename, cmd_delete, cmd_chat, cmd_home</p></details>
 </article>
 <article class="file-card searchable" data-search="nipux_cli/compression.py Deterministic rolling memory summaries for long-running jobs. _clip_text, refresh_memory_index, _metadata_list, _rank_tasks, _compact_count">
@@ -1971,81 +1966,69 @@ fixed tool surface. none">
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> OpenAIChatLLM, _build_chat_messages, _db, complete, db.close, db.get_job</p>
 </article>
-<article class="symbol searchable" data-search="nipux_cli/cli.py _build_chat_messages No docstring. _clean_step_summary, _clip_chat_context, _event_line, active_prompt_operator_entries, artifact.get, db.list_artifacts, db.list_steps, db.list_timeline_events, entry.get, enumerate, isinstance, job.get, join, metadata.get, roadmap.get, step.get">
-<h3>_build_chat_messages</h3>
-<p><span class="pill">function</span> <span class="pill">nipux_cli/cli.py:3893</span></p>
-<p>No docstring.</p>
-<p class="calls"><strong>Calls:</strong> _clean_step_summary, _clip_chat_context, _event_line, active_prompt_operator_entries, artifact.get, db.list_artifacts, db.list_steps, db.list_timeline_events, entry.get, enumerate, isinstance, job.get, join, metadata.get, roadmap.get, step.get</p>
-</article>
-<article class="symbol searchable" data-search="nipux_cli/cli.py _clip_chat_context No docstring. len, max, rstrip, str">
-<h3>_clip_chat_context</h3>
-<p><span class="pill">function</span> <span class="pill">nipux_cli/cli.py:4020</span></p>
-<p>No docstring.</p>
-<p class="calls"><strong>Calls:</strong> len, max, rstrip, str</p>
-</article>
 <article class="symbol searchable" data-search="nipux_cli/cli.py cmd_shell No docstring. _install_readline_history, _print_shell_header, _print_shell_status, _run_shell_line, _shell_prompt, input, print">
 <h3>cmd_shell</h3>
-<p><span class="pill">function</span> <span class="pill">nipux_cli/cli.py:4028</span></p>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/cli.py:3893</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> _install_readline_history, _print_shell_header, _print_shell_status, _run_shell_line, _shell_prompt, input, print</p>
 </article>
 <article class="symbol searchable" data-search="nipux_cli/cli.py _print_shell_header No docstring. _rule, _shell_summary, print">
 <h3>_print_shell_header</h3>
-<p><span class="pill">function</span> <span class="pill">nipux_cli/cli.py:4047</span></p>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/cli.py:3912</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> _rule, _shell_summary, print</p>
 </article>
 <article class="symbol searchable" data-search="nipux_cli/cli.py _shell_summary No docstring. _db, _default_job_id, _job_display_state, _worker_label, bool, daemon_lock_status, db.close, db.get_job">
 <h3>_shell_summary</h3>
-<p><span class="pill">function</span> <span class="pill">nipux_cli/cli.py:4056</span></p>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/cli.py:3921</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> _db, _default_job_id, _job_display_state, _worker_label, bool, daemon_lock_status, db.close, db.get_job</p>
 </article>
 <article class="symbol searchable" data-search="nipux_cli/cli.py _shell_prompt No docstring. _db, _default_job_id, _worker_label, bool, daemon_lock_status, db.close, db.get_job, job.get, load_config, str, strip">
 <h3>_shell_prompt</h3>
-<p><span class="pill">function</span> <span class="pill">nipux_cli/cli.py:4073</span></p>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/cli.py:3938</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> _db, _default_job_id, _worker_label, bool, daemon_lock_status, db.close, db.get_job, job.get, load_config, str, strip</p>
 </article>
 <article class="symbol searchable" data-search="nipux_cli/cli.py _install_readline_history No docstring. atexit.register, config.ensure_dirs, load_config, readline.read_history_file">
 <h3>_install_readline_history</h3>
-<p><span class="pill">function</span> <span class="pill">nipux_cli/cli.py:4090</span></p>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/cli.py:3955</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> atexit.register, config.ensure_dirs, load_config, readline.read_history_file</p>
 </article>
 <article class="symbol searchable" data-search="nipux_cli/cli.py _print_shell_status No docstring. _db, _terminal_width, collect_dashboard_state, db.close, print, render_dashboard">
 <h3>_print_shell_status</h3>
-<p><span class="pill">function</span> <span class="pill">nipux_cli/cli.py:4106</span></p>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/cli.py:3971</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> _db, _terminal_width, collect_dashboard_state, db.close, print, render_dashboard</p>
 </article>
 <article class="symbol searchable" data-search="nipux_cli/cli.py _print_shell_help No docstring. _rule, print">
 <h3>_print_shell_help</h3>
-<p><span class="pill">function</span> <span class="pill">nipux_cli/cli.py:4116</span></p>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/cli.py:3981</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> _rule, print</p>
 </article>
 <article class="symbol searchable" data-search="nipux_cli/cli.py _run_shell_line No docstring. _print_shell_help, _steer_default_job, build_parser, isinstance, join, len, line.strip, lower, natural_command_for, parsed.func, parser.parse_args, print, shlex.split">
 <h3>_run_shell_line</h3>
-<p><span class="pill">function</span> <span class="pill">nipux_cli/cli.py:4184</span></p>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/cli.py:4049</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> _print_shell_help, _steer_default_job, build_parser, isinstance, join, len, line.strip, lower, natural_command_for, parsed.func, parser.parse_args, print, shlex.split</p>
 </article>
 <article class="symbol searchable" data-search="nipux_cli/cli.py _steer_default_job No docstring. _db, _default_job_id, db.append_operator_message, db.close, db.get_job, print">
 <h3>_steer_default_job</h3>
-<p><span class="pill">function</span> <span class="pill">nipux_cli/cli.py:4230</span></p>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/cli.py:4095</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> _db, _default_job_id, db.append_operator_message, db.close, db.get_job, print</p>
 </article>
 <article class="symbol searchable" data-search="nipux_cli/cli.py build_parser No docstring. activity.add_argument, activity.set_defaults, argparse.ArgumentParser, artifact.add_argument, artifact.set_defaults, artifacts.add_argument, artifacts.set_defaults, autostart.add_argument, autostart.set_defaults, browser_dashboard.add_argument, browser_dashboard.set_defaults, cancel.add_argument, cancel.set_defaults, chat.add_argument, chat.set_defaults, create.add_argument">
 <h3>build_parser</h3>
-<p><span class="pill">function</span> <span class="pill">nipux_cli/cli.py:4245</span></p>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/cli.py:4110</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> activity.add_argument, activity.set_defaults, argparse.ArgumentParser, artifact.add_argument, artifact.set_defaults, artifacts.add_argument, artifacts.set_defaults, autostart.add_argument, autostart.set_defaults, browser_dashboard.add_argument, browser_dashboard.set_defaults, ...</p>
 </article>
 <article class="symbol searchable" data-search="nipux_cli/cli.py main No docstring. argparse.Namespace, args.func, build_parser, cmd_home, parser.parse_args">
 <h3>main</h3>
-<p><span class="pill">function</span> <span class="pill">nipux_cli/cli.py:4563</span></p>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/cli.py:4428</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> argparse.Namespace, args.func, build_parser, cmd_home, parser.parse_args</p>
 </article>
@@ -9384,6 +9367,7 @@ from nipux_cli.chat_intent import (
     message_requests_immediate_run as _message_requests_immediate_run,
     natural_command_for,
 )
+from nipux_cli.chat_context import build_chat_messages as _build_chat_messages
 from nipux_cli.chat_tui import build_chat_frame as _build_chat_tui_frame
 from nipux_cli.config import (
     DEFAULT_BASE_URL,
@@ -9404,7 +9388,6 @@ from nipux_cli.first_run_tui import (
     first_run_columns as _first_run_columns,
 )
 from nipux_cli.frame_snapshot import load_frame_snapshot
-from nipux_cli.operator_context import active_prompt_operator_entries
 from nipux_cli.planning import (
     format_initial_plan,
     initial_plan_for_objective,
@@ -9507,9 +9490,8 @@ SHELL_COMMAND_NAMES = {
     &quot;run&quot;,
     &quot;work&quot;,
     &quot;steer&quot;,
-    &quot;say&quot;,
-    &quot;">
-<summary>nipux_cli/cli.py <span>4574 lines</span></summary>
+    &quot;sa">
+<summary>nipux_cli/cli.py <span>4439 lines</span></summary>
 <pre class="source-code"><span class='src-line'><b>   1</b><code>&quot;&quot;&quot;Thin CLI for the Nipux agent runtime.&quot;&quot;&quot;</code></span>
 <span class='src-line'><b>   2</b><code></code></span>
 <span class='src-line'><b>   3</b><code>from __future__ import annotations</code></span>
@@ -9542,27 +9524,27 @@ SHELL_COMMAND_NAMES = {
 <span class='src-line'><b>  30</b><code>    message_requests_immediate_run as _message_requests_immediate_run,</code></span>
 <span class='src-line'><b>  31</b><code>    natural_command_for,</code></span>
 <span class='src-line'><b>  32</b><code>)</code></span>
-<span class='src-line'><b>  33</b><code>from nipux_cli.chat_tui import build_chat_frame as _build_chat_tui_frame</code></span>
-<span class='src-line'><b>  34</b><code>from nipux_cli.config import (</code></span>
-<span class='src-line'><b>  35</b><code>    DEFAULT_BASE_URL,</code></span>
-<span class='src-line'><b>  36</b><code>    DEFAULT_API_KEY_ENV,</code></span>
-<span class='src-line'><b>  37</b><code>    DEFAULT_CONTEXT_LENGTH,</code></span>
-<span class='src-line'><b>  38</b><code>    DEFAULT_MODEL,</code></span>
-<span class='src-line'><b>  39</b><code>    DEFAULT_OPENROUTER_MODEL,</code></span>
-<span class='src-line'><b>  40</b><code>    default_config_yaml,</code></span>
-<span class='src-line'><b>  41</b><code>    load_config,</code></span>
-<span class='src-line'><b>  42</b><code>)</code></span>
-<span class='src-line'><b>  43</b><code>from nipux_cli.daemon import Daemon, DaemonAlreadyRunning, daemon_lock_status, read_daemon_events</code></span>
-<span class='src-line'><b>  44</b><code>from nipux_cli.dashboard import collect_dashboard_state, render_dashboard, render_overview</code></span>
-<span class='src-line'><b>  45</b><code>from nipux_cli.db import AgentDB</code></span>
-<span class='src-line'><b>  46</b><code>from nipux_cli.digest import render_job_digest, write_daily_digest</code></span>
-<span class='src-line'><b>  47</b><code>from nipux_cli.doctor import run_doctor</code></span>
-<span class='src-line'><b>  48</b><code>from nipux_cli.first_run_tui import (</code></span>
-<span class='src-line'><b>  49</b><code>    build_first_run_frame as _build_first_run_tui_frame,</code></span>
-<span class='src-line'><b>  50</b><code>    first_run_columns as _first_run_columns,</code></span>
-<span class='src-line'><b>  51</b><code>)</code></span>
-<span class='src-line'><b>  52</b><code>from nipux_cli.frame_snapshot import load_frame_snapshot</code></span>
-<span class='src-line'><b>  53</b><code>from nipux_cli.operator_context import active_prompt_operator_entries</code></span>
+<span class='src-line'><b>  33</b><code>from nipux_cli.chat_context import build_chat_messages as _build_chat_messages</code></span>
+<span class='src-line'><b>  34</b><code>from nipux_cli.chat_tui import build_chat_frame as _build_chat_tui_frame</code></span>
+<span class='src-line'><b>  35</b><code>from nipux_cli.config import (</code></span>
+<span class='src-line'><b>  36</b><code>    DEFAULT_BASE_URL,</code></span>
+<span class='src-line'><b>  37</b><code>    DEFAULT_API_KEY_ENV,</code></span>
+<span class='src-line'><b>  38</b><code>    DEFAULT_CONTEXT_LENGTH,</code></span>
+<span class='src-line'><b>  39</b><code>    DEFAULT_MODEL,</code></span>
+<span class='src-line'><b>  40</b><code>    DEFAULT_OPENROUTER_MODEL,</code></span>
+<span class='src-line'><b>  41</b><code>    default_config_yaml,</code></span>
+<span class='src-line'><b>  42</b><code>    load_config,</code></span>
+<span class='src-line'><b>  43</b><code>)</code></span>
+<span class='src-line'><b>  44</b><code>from nipux_cli.daemon import Daemon, DaemonAlreadyRunning, daemon_lock_status, read_daemon_events</code></span>
+<span class='src-line'><b>  45</b><code>from nipux_cli.dashboard import collect_dashboard_state, render_dashboard, render_overview</code></span>
+<span class='src-line'><b>  46</b><code>from nipux_cli.db import AgentDB</code></span>
+<span class='src-line'><b>  47</b><code>from nipux_cli.digest import render_job_digest, write_daily_digest</code></span>
+<span class='src-line'><b>  48</b><code>from nipux_cli.doctor import run_doctor</code></span>
+<span class='src-line'><b>  49</b><code>from nipux_cli.first_run_tui import (</code></span>
+<span class='src-line'><b>  50</b><code>    build_first_run_frame as _build_first_run_tui_frame,</code></span>
+<span class='src-line'><b>  51</b><code>    first_run_columns as _first_run_columns,</code></span>
+<span class='src-line'><b>  52</b><code>)</code></span>
+<span class='src-line'><b>  53</b><code>from nipux_cli.frame_snapshot import load_frame_snapshot</code></span>
 <span class='src-line'><b>  54</b><code>from nipux_cli.planning import (</code></span>
 <span class='src-line'><b>  55</b><code>    format_initial_plan,</code></span>
 <span class='src-line'><b>  56</b><code>    initial_plan_for_objective,</code></span>
@@ -13402,688 +13384,553 @@ SHELL_COMMAND_NAMES = {
 <span class='src-line'><b>3890</b><code>    return OpenAIChatLLM(config.model).complete(messages=messages)</code></span>
 <span class='src-line'><b>3891</b><code></code></span>
 <span class='src-line'><b>3892</b><code></code></span>
-<span class='src-line'><b>3893</b><code>def _build_chat_messages(db: AgentDB, job: dict[str, Any], message: str) -&gt; list[dict[str, str]]:</code></span>
-<span class='src-line'><b>3894</b><code>    steps = db.list_steps(job_id=job[&quot;id&quot;])[-10:]</code></span>
-<span class='src-line'><b>3895</b><code>    artifacts = db.list_artifacts(job[&quot;id&quot;], limit=5)</code></span>
-<span class='src-line'><b>3896</b><code>    timeline_events = db.list_timeline_events(job[&quot;id&quot;], limit=18)</code></span>
-<span class='src-line'><b>3897</b><code>    metadata = job.get(&quot;metadata&quot;) if isinstance(job.get(&quot;metadata&quot;), dict) else {}</code></span>
-<span class='src-line'><b>3898</b><code>    operator_messages = metadata.get(&quot;operator_messages&quot;) if isinstance(metadata.get(&quot;operator_messages&quot;), list) else []</code></span>
-<span class='src-line'><b>3899</b><code>    agent_updates = metadata.get(&quot;agent_updates&quot;) if isinstance(metadata.get(&quot;agent_updates&quot;), list) else []</code></span>
-<span class='src-line'><b>3900</b><code>    lessons = metadata.get(&quot;lessons&quot;) if isinstance(metadata.get(&quot;lessons&quot;), list) else []</code></span>
-<span class='src-line'><b>3901</b><code>    findings = metadata.get(&quot;finding_ledger&quot;) if isinstance(metadata.get(&quot;finding_ledger&quot;), list) else []</code></span>
-<span class='src-line'><b>3902</b><code>    sources = metadata.get(&quot;source_ledger&quot;) if isinstance(metadata.get(&quot;source_ledger&quot;), list) else []</code></span>
-<span class='src-line'><b>3903</b><code>    tasks = metadata.get(&quot;task_queue&quot;) if isinstance(metadata.get(&quot;task_queue&quot;), list) else []</code></span>
-<span class='src-line'><b>3904</b><code>    experiments = metadata.get(&quot;experiment_ledger&quot;) if isinstance(metadata.get(&quot;experiment_ledger&quot;), list) else []</code></span>
-<span class='src-line'><b>3905</b><code>    roadmap = metadata.get(&quot;roadmap&quot;) if isinstance(metadata.get(&quot;roadmap&quot;), dict) else {}</code></span>
-<span class='src-line'><b>3906</b><code>    step_lines = &quot;\n&quot;.join(</code></span>
-<span class='src-line'><b>3907</b><code>        f&quot;- #{step[&#x27;step_no&#x27;]} {step[&#x27;status&#x27;]} {step.get(&#x27;tool_name&#x27;) or step[&#x27;kind&#x27;]}: {_clean_step_summary(step.get(&#x27;summary&#x27;) or step.get(&#x27;error&#x27;) or &#x27;&#x27;)}&quot;</code></span>
-<span class='src-line'><b>3908</b><code>        for step in steps</code></span>
-<span class='src-line'><b>3909</b><code>    )</code></span>
-<span class='src-line'><b>3910</b><code>    artifact_lines = &quot;\n&quot;.join(</code></span>
-<span class='src-line'><b>3911</b><code>        f&quot;- #{index} {artifact.get(&#x27;title&#x27;) or artifact[&#x27;id&#x27;]}: {artifact.get(&#x27;summary&#x27;) or &#x27;&#x27;} &quot;</code></span>
-<span class='src-line'><b>3912</b><code>        f&quot;(view with /artifact {index})&quot;</code></span>
-<span class='src-line'><b>3913</b><code>        for index, artifact in enumerate(artifacts, start=1)</code></span>
-<span class='src-line'><b>3914</b><code>    )</code></span>
-<span class='src-line'><b>3915</b><code>    steering_lines = &quot;\n&quot;.join(</code></span>
-<span class='src-line'><b>3916</b><code>        f&quot;- {entry.get(&#x27;source&#x27;, &#x27;operator&#x27;)} {entry.get(&#x27;mode&#x27;, &#x27;steer&#x27;)}: {entry.get(&#x27;message&#x27;, &#x27;&#x27;)}&quot;</code></span>
-<span class='src-line'><b>3917</b><code>        for entry in active_prompt_operator_entries(operator_messages)[-6:]</code></span>
-<span class='src-line'><b>3918</b><code>        if isinstance(entry, dict)</code></span>
-<span class='src-line'><b>3919</b><code>    )</code></span>
-<span class='src-line'><b>3920</b><code>    update_lines = &quot;\n&quot;.join(</code></span>
-<span class='src-line'><b>3921</b><code>        f&quot;- {entry.get(&#x27;category&#x27;, &#x27;progress&#x27;)}: {entry.get(&#x27;message&#x27;, &#x27;&#x27;)}&quot;</code></span>
-<span class='src-line'><b>3922</b><code>        for entry in agent_updates[-5:]</code></span>
-<span class='src-line'><b>3923</b><code>        if isinstance(entry, dict)</code></span>
-<span class='src-line'><b>3924</b><code>    )</code></span>
-<span class='src-line'><b>3925</b><code>    lesson_lines = &quot;\n&quot;.join(</code></span>
-<span class='src-line'><b>3926</b><code>        f&quot;- {entry.get(&#x27;category&#x27;, &#x27;memory&#x27;)}: {entry.get(&#x27;lesson&#x27;, &#x27;&#x27;)}&quot;</code></span>
-<span class='src-line'><b>3927</b><code>        for entry in lessons[-8:]</code></span>
-<span class='src-line'><b>3928</b><code>        if isinstance(entry, dict)</code></span>
-<span class='src-line'><b>3929</b><code>    )</code></span>
-<span class='src-line'><b>3930</b><code>    finding_lines = &quot;\n&quot;.join(</code></span>
-<span class='src-line'><b>3931</b><code>        f&quot;- {entry.get(&#x27;name&#x27;)}: {entry.get(&#x27;category&#x27;) or &#x27;&#x27;} {entry.get(&#x27;location&#x27;) or &#x27;&#x27;} score={entry.get(&#x27;score&#x27;)}&quot;</code></span>
-<span class='src-line'><b>3932</b><code>        for entry in findings[-8:]</code></span>
-<span class='src-line'><b>3933</b><code>        if isinstance(entry, dict)</code></span>
-<span class='src-line'><b>3934</b><code>    )</code></span>
-<span class='src-line'><b>3935</b><code>    task_lines = &quot;\n&quot;.join(</code></span>
-<span class='src-line'><b>3936</b><code>        f&quot;- {entry.get(&#x27;status&#x27;) or &#x27;open&#x27;} p={entry.get(&#x27;priority&#x27;) or 0}: {entry.get(&#x27;title&#x27;)}&quot;</code></span>
-<span class='src-line'><b>3937</b><code>        for entry in tasks[-10:]</code></span>
-<span class='src-line'><b>3938</b><code>        if isinstance(entry, dict)</code></span>
-<span class='src-line'><b>3939</b><code>    )</code></span>
-<span class='src-line'><b>3940</b><code>    milestone_lines = &quot;&quot;</code></span>
-<span class='src-line'><b>3941</b><code>    if roadmap:</code></span>
-<span class='src-line'><b>3942</b><code>        milestones = roadmap.get(&quot;milestones&quot;) if isinstance(roadmap.get(&quot;milestones&quot;), list) else []</code></span>
-<span class='src-line'><b>3943</b><code>        milestone_lines = &quot;\n&quot;.join(</code></span>
-<span class='src-line'><b>3944</b><code>            (</code></span>
-<span class='src-line'><b>3945</b><code>                f&quot;- {entry.get(&#x27;status&#x27;) or &#x27;planned&#x27;} validation={entry.get(&#x27;validation_status&#x27;) or &#x27;not_started&#x27;} &quot;</code></span>
-<span class='src-line'><b>3946</b><code>                f&quot;p={entry.get(&#x27;priority&#x27;) or 0}: {entry.get(&#x27;title&#x27;)}&quot;</code></span>
-<span class='src-line'><b>3947</b><code>            )</code></span>
-<span class='src-line'><b>3948</b><code>            for entry in milestones[-8:]</code></span>
-<span class='src-line'><b>3949</b><code>            if isinstance(entry, dict)</code></span>
-<span class='src-line'><b>3950</b><code>        )</code></span>
-<span class='src-line'><b>3951</b><code>        roadmap_header = (</code></span>
-<span class='src-line'><b>3952</b><code>            f&quot;{roadmap.get(&#x27;status&#x27;) or &#x27;planned&#x27;}: {roadmap.get(&#x27;title&#x27;) or &#x27;Roadmap&#x27;}&quot;</code></span>
-<span class='src-line'><b>3953</b><code>            + (f&quot; current={roadmap.get(&#x27;current_milestone&#x27;)}&quot; if roadmap.get(&quot;current_milestone&quot;) else &quot;&quot;)</code></span>
-<span class='src-line'><b>3954</b><code>        )</code></span>
-<span class='src-line'><b>3955</b><code>        milestone_lines = f&quot;{roadmap_header}\n{milestone_lines}&quot;.strip()</code></span>
-<span class='src-line'><b>3956</b><code>    experiment_lines = &quot;\n&quot;.join(</code></span>
-<span class='src-line'><b>3957</b><code>        (</code></span>
-<span class='src-line'><b>3958</b><code>            f&quot;- {entry.get(&#x27;status&#x27;) or &#x27;planned&#x27;}: {entry.get(&#x27;title&#x27;)}&quot;</code></span>
-<span class='src-line'><b>3959</b><code>            f&quot; {entry.get(&#x27;metric_name&#x27;) or &#x27;metric&#x27;}={entry.get(&#x27;metric_value&#x27;)}{entry.get(&#x27;metric_unit&#x27;) or &#x27;&#x27;}&quot;</code></span>
-<span class='src-line'><b>3960</b><code>            f&quot;{&#x27; best&#x27; if entry.get(&#x27;best_observed&#x27;) else &#x27;&#x27;}&quot;</code></span>
-<span class='src-line'><b>3961</b><code>        )</code></span>
-<span class='src-line'><b>3962</b><code>        if entry.get(&quot;metric_value&quot;) is not None</code></span>
-<span class='src-line'><b>3963</b><code>        else f&quot;- {entry.get(&#x27;status&#x27;) or &#x27;planned&#x27;}: {entry.get(&#x27;title&#x27;)}&quot;</code></span>
-<span class='src-line'><b>3964</b><code>        for entry in experiments[-10:]</code></span>
-<span class='src-line'><b>3965</b><code>        if isinstance(entry, dict)</code></span>
-<span class='src-line'><b>3966</b><code>    )</code></span>
-<span class='src-line'><b>3967</b><code>    source_lines = &quot;\n&quot;.join(</code></span>
-<span class='src-line'><b>3968</b><code>        f&quot;- {entry.get(&#x27;source&#x27;)}: score={entry.get(&#x27;usefulness_score&#x27;)} findings={entry.get(&#x27;yield_count&#x27;) or 0} outcome={entry.get(&#x27;last_outcome&#x27;) or &#x27;&#x27;}&quot;</code></span>
-<span class='src-line'><b>3969</b><code>        for entry in sources[-8:]</code></span>
-<span class='src-line'><b>3970</b><code>        if isinstance(entry, dict)</code></span>
-<span class='src-line'><b>3971</b><code>    )</code></span>
-<span class='src-line'><b>3972</b><code>    timeline_lines = &quot;\n&quot;.join(_event_line(event, chars=700, full=False) for event in timeline_events[-12:])</code></span>
-<span class='src-line'><b>3973</b><code>    step_lines = _clip_chat_context(step_lines, 1_800)</code></span>
-<span class='src-line'><b>3974</b><code>    artifact_lines = _clip_chat_context(artifact_lines, 1_200)</code></span>
-<span class='src-line'><b>3975</b><code>    finding_lines = _clip_chat_context(finding_lines, 1_200)</code></span>
-<span class='src-line'><b>3976</b><code>    task_lines = _clip_chat_context(task_lines, 1_300)</code></span>
-<span class='src-line'><b>3977</b><code>    milestone_lines = _clip_chat_context(milestone_lines, 1_200)</code></span>
-<span class='src-line'><b>3978</b><code>    experiment_lines = _clip_chat_context(experiment_lines, 1_300)</code></span>
-<span class='src-line'><b>3979</b><code>    source_lines = _clip_chat_context(source_lines, 1_100)</code></span>
-<span class='src-line'><b>3980</b><code>    lesson_lines = _clip_chat_context(lesson_lines, 1_000)</code></span>
-<span class='src-line'><b>3981</b><code>    steering_lines = _clip_chat_context(steering_lines, 1_200)</code></span>
-<span class='src-line'><b>3982</b><code>    update_lines = _clip_chat_context(update_lines, 1_200)</code></span>
-<span class='src-line'><b>3983</b><code>    timeline_lines = _clip_chat_context(timeline_lines, 1_800)</code></span>
-<span class='src-line'><b>3984</b><code>    return [</code></span>
-<span class='src-line'><b>3985</b><code>        {</code></span>
-<span class='src-line'><b>3986</b><code>            &quot;role&quot;: &quot;system&quot;,</code></span>
-<span class='src-line'><b>3987</b><code>            &quot;content&quot;: (</code></span>
-<span class='src-line'><b>3988</b><code>                &quot;You are Nipux, the chat model that controls a generic long-running agent workspace. &quot;</code></span>
-<span class='src-line'><b>3989</b><code>                &quot;You know the visible CLI state, focused job, job list, task queue, artifacts, memory, metrics, and recent activity. &quot;</code></span>
-<span class='src-line'><b>3990</b><code>                &quot;Answer directly from the visible job state. Do not claim hidden chain-of-thought. &quot;</code></span>
-<span class='src-line'><b>3991</b><code>                &quot;If the operator asks for work to be done, explain the concrete job/control action Nipux will take or how to run it from the Jobs/Status panel. &quot;</code></span>
-<span class='src-line'><b>3992</b><code>                &quot;If the operator asks where saved work is, explain that artifacts and history are visible from the Jobs/Status panel or direct CLI commands. &quot;</code></span>
-<span class='src-line'><b>3993</b><code>                &quot;Do not start replies with an introduction. Keep replies concise and useful.&quot;</code></span>
-<span class='src-line'><b>3994</b><code>            ),</code></span>
-<span class='src-line'><b>3995</b><code>        },</code></span>
-<span class='src-line'><b>3996</b><code>        {</code></span>
-<span class='src-line'><b>3997</b><code>            &quot;role&quot;: &quot;user&quot;,</code></span>
-<span class='src-line'><b>3998</b><code>            &quot;content&quot;: (</code></span>
-<span class='src-line'><b>3999</b><code>                f&quot;Job title: {job[&#x27;title&#x27;]}\n&quot;</code></span>
-<span class='src-line'><b>4000</b><code>                f&quot;Job status: {job[&#x27;status&#x27;]}\n&quot;</code></span>
-<span class='src-line'><b>4001</b><code>                f&quot;Kind: {job[&#x27;kind&#x27;]}\n&quot;</code></span>
-<span class='src-line'><b>4002</b><code>                f&quot;Objective: {job[&#x27;objective&#x27;]}\n\n&quot;</code></span>
-<span class='src-line'><b>4003</b><code>                f&quot;Recent tool calls:\n{step_lines or &#x27;None yet.&#x27;}\n\n&quot;</code></span>
-<span class='src-line'><b>4004</b><code>                f&quot;Latest artifacts:\n{artifact_lines or &#x27;None yet.&#x27;}\n\n&quot;</code></span>
-<span class='src-line'><b>4005</b><code>                f&quot;Finding ledger:\n{finding_lines or &#x27;None yet.&#x27;}\n\n&quot;</code></span>
-<span class='src-line'><b>4006</b><code>                f&quot;Task queue:\n{task_lines or &#x27;None yet.&#x27;}\n\n&quot;</code></span>
-<span class='src-line'><b>4007</b><code>                f&quot;Roadmap:\n{milestone_lines or &#x27;None yet.&#x27;}\n\n&quot;</code></span>
-<span class='src-line'><b>4008</b><code>                f&quot;Experiment ledger:\n{experiment_lines or &#x27;None yet.&#x27;}\n\n&quot;</code></span>
-<span class='src-line'><b>4009</b><code>                f&quot;Source ledger:\n{source_lines or &#x27;None yet.&#x27;}\n\n&quot;</code></span>
-<span class='src-line'><b>4010</b><code>                f&quot;Lessons learned:\n{lesson_lines or &#x27;None yet.&#x27;}\n\n&quot;</code></span>
-<span class='src-line'><b>4011</b><code>                f&quot;Recent operator steering:\n{steering_lines or &#x27;None.&#x27;}\n\n&quot;</code></span>
-<span class='src-line'><b>4012</b><code>                f&quot;Recent agent notes:\n{update_lines or &#x27;None.&#x27;}\n\n&quot;</code></span>
-<span class='src-line'><b>4013</b><code>                f&quot;Recent visible timeline:\n{timeline_lines or &#x27;None.&#x27;}\n\n&quot;</code></span>
-<span class='src-line'><b>4014</b><code>                f&quot;Operator message:\n{message}&quot;</code></span>
-<span class='src-line'><b>4015</b><code>            ),</code></span>
-<span class='src-line'><b>4016</b><code>        },</code></span>
-<span class='src-line'><b>4017</b><code>    ]</code></span>
-<span class='src-line'><b>4018</b><code></code></span>
-<span class='src-line'><b>4019</b><code></code></span>
-<span class='src-line'><b>4020</b><code>def _clip_chat_context(value: str, limit: int) -&gt; str:</code></span>
-<span class='src-line'><b>4021</b><code>    text = str(value or &quot;&quot;)</code></span>
-<span class='src-line'><b>4022</b><code>    if len(text) &lt;= limit:</code></span>
-<span class='src-line'><b>4023</b><code>        return text</code></span>
-<span class='src-line'><b>4024</b><code>    marker = f&quot;\n... clipped {len(text) - limit} chars from this visible state section ...&quot;</code></span>
-<span class='src-line'><b>4025</b><code>    return text[: max(0, limit - len(marker))].rstrip() + marker</code></span>
-<span class='src-line'><b>4026</b><code></code></span>
-<span class='src-line'><b>4027</b><code></code></span>
-<span class='src-line'><b>4028</b><code>def cmd_shell(args: argparse.Namespace) -&gt; None:</code></span>
-<span class='src-line'><b>4029</b><code>    _install_readline_history()</code></span>
-<span class='src-line'><b>4030</b><code>    _print_shell_header()</code></span>
-<span class='src-line'><b>4031</b><code>    print()</code></span>
-<span class='src-line'><b>4032</b><code>    if args.status:</code></span>
-<span class='src-line'><b>4033</b><code>        _print_shell_status(limit=args.limit, chars=args.chars)</code></span>
-<span class='src-line'><b>4034</b><code>    while True:</code></span>
-<span class='src-line'><b>4035</b><code>        try:</code></span>
-<span class='src-line'><b>4036</b><code>            line = input(_shell_prompt())</code></span>
-<span class='src-line'><b>4037</b><code>        except EOFError:</code></span>
-<span class='src-line'><b>4038</b><code>            print()</code></span>
-<span class='src-line'><b>4039</b><code>            return</code></span>
-<span class='src-line'><b>4040</b><code>        except KeyboardInterrupt:</code></span>
-<span class='src-line'><b>4041</b><code>            print()</code></span>
-<span class='src-line'><b>4042</b><code>            continue</code></span>
-<span class='src-line'><b>4043</b><code>        if not _run_shell_line(line):</code></span>
-<span class='src-line'><b>4044</b><code>            return</code></span>
-<span class='src-line'><b>4045</b><code></code></span>
-<span class='src-line'><b>4046</b><code></code></span>
-<span class='src-line'><b>4047</b><code>def _print_shell_header() -&gt; None:</code></span>
-<span class='src-line'><b>4048</b><code>    print(NIPUX_BANNER)</code></span>
-<span class='src-line'><b>4049</b><code>    print(_rule(&quot;=&quot;))</code></span>
-<span class='src-line'><b>4050</b><code>    print(_shell_summary())</code></span>
-<span class='src-line'><b>4051</b><code>    print(&quot;Type &#x27;chat&#x27; to talk, &#x27;history&#x27; or &#x27;artifacts&#x27; to inspect output, or plain text to steer.&quot;)</code></span>
-<span class='src-line'><b>4052</b><code>    print(&quot;Trace output is observable state and tool I/O, not hidden chain-of-thought.&quot;)</code></span>
-<span class='src-line'><b>4053</b><code>    print(_rule(&quot;=&quot;))</code></span>
-<span class='src-line'><b>4054</b><code></code></span>
-<span class='src-line'><b>4055</b><code></code></span>
-<span class='src-line'><b>4056</b><code>def _shell_summary() -&gt; str:</code></span>
-<span class='src-line'><b>4057</b><code>    db, config = _db()</code></span>
-<span class='src-line'><b>4058</b><code>    try:</code></span>
-<span class='src-line'><b>4059</b><code>        daemon = daemon_lock_status(config.runtime.home / &quot;agentd.lock&quot;)</code></span>
-<span class='src-line'><b>4060</b><code>        job_id = _default_job_id(db)</code></span>
-<span class='src-line'><b>4061</b><code>        if not job_id:</code></span>
-<span class='src-line'><b>4062</b><code>            focus = &quot;no jobs&quot;</code></span>
-<span class='src-line'><b>4063</b><code>        else:</code></span>
-<span class='src-line'><b>4064</b><code>            job = db.get_job(job_id)</code></span>
-<span class='src-line'><b>4065</b><code>            state = _job_display_state(job, bool(daemon[&quot;running&quot;]))</code></span>
-<span class='src-line'><b>4066</b><code>            focus = f&quot;{job[&#x27;title&#x27;]} [job {state} | worker {_worker_label(job, bool(daemon[&#x27;running&#x27;]))}]&quot;</code></span>
-<span class='src-line'><b>4067</b><code>        daemon_text = &quot;running&quot; if daemon[&quot;running&quot;] else &quot;stopped&quot;</code></span>
-<span class='src-line'><b>4068</b><code>        return f&quot;daemon: {daemon_text} | model: {config.model.model} | focus: {focus}&quot;</code></span>
-<span class='src-line'><b>4069</b><code>    finally:</code></span>
-<span class='src-line'><b>4070</b><code>        db.close()</code></span>
-<span class='src-line'><b>4071</b><code></code></span>
-<span class='src-line'><b>4072</b><code></code></span>
-<span class='src-line'><b>4073</b><code>def _shell_prompt() -&gt; str:</code></span>
-<span class='src-line'><b>4074</b><code>    db, _ = _db()</code></span>
-<span class='src-line'><b>4075</b><code>    try:</code></span>
-<span class='src-line'><b>4076</b><code>        job_id = _default_job_id(db)</code></span>
-<span class='src-line'><b>4077</b><code>        if not job_id:</code></span>
-<span class='src-line'><b>4078</b><code>            return &quot;nipux&gt; &quot;</code></span>
-<span class='src-line'><b>4079</b><code>        job = db.get_job(job_id)</code></span>
-<span class='src-line'><b>4080</b><code>        title = str(job.get(&quot;title&quot;) or job_id).strip()[:22]</code></span>
-<span class='src-line'><b>4081</b><code>        daemon = daemon_lock_status(load_config().runtime.home / &quot;agentd.lock&quot;)</code></span>
-<span class='src-line'><b>4082</b><code>        worker = _worker_label(job, bool(daemon[&quot;running&quot;]))</code></span>
-<span class='src-line'><b>4083</b><code>        return f&quot;nipux[{title}:{worker}]&gt; &quot;</code></span>
-<span class='src-line'><b>4084</b><code>    except Exception:</code></span>
-<span class='src-line'><b>4085</b><code>        return &quot;nipux&gt; &quot;</code></span>
-<span class='src-line'><b>4086</b><code>    finally:</code></span>
-<span class='src-line'><b>4087</b><code>        db.close()</code></span>
-<span class='src-line'><b>4088</b><code></code></span>
-<span class='src-line'><b>4089</b><code></code></span>
-<span class='src-line'><b>4090</b><code>def _install_readline_history() -&gt; None:</code></span>
-<span class='src-line'><b>4091</b><code>    try:</code></span>
-<span class='src-line'><b>4092</b><code>        import atexit</code></span>
-<span class='src-line'><b>4093</b><code>        import readline</code></span>
-<span class='src-line'><b>4094</b><code>    except ImportError:</code></span>
-<span class='src-line'><b>4095</b><code>        return</code></span>
-<span class='src-line'><b>4096</b><code>    config = load_config()</code></span>
-<span class='src-line'><b>4097</b><code>    config.ensure_dirs()</code></span>
-<span class='src-line'><b>4098</b><code>    history_path = config.runtime.home / &quot;shell_history&quot;</code></span>
-<span class='src-line'><b>4099</b><code>    try:</code></span>
-<span class='src-line'><b>4100</b><code>        readline.read_history_file(history_path)</code></span>
-<span class='src-line'><b>4101</b><code>    except OSError:</code></span>
-<span class='src-line'><b>4102</b><code>        pass</code></span>
-<span class='src-line'><b>4103</b><code>    atexit.register(readline.write_history_file, history_path)</code></span>
-<span class='src-line'><b>4104</b><code></code></span>
-<span class='src-line'><b>4105</b><code></code></span>
-<span class='src-line'><b>4106</b><code>def _print_shell_status(*, limit: int, chars: int) -&gt; None:</code></span>
-<span class='src-line'><b>4107</b><code>    db, config = _db()</code></span>
-<span class='src-line'><b>4108</b><code>    try:</code></span>
-<span class='src-line'><b>4109</b><code>        state = collect_dashboard_state(db, config, limit=limit)</code></span>
-<span class='src-line'><b>4110</b><code>        print(render_dashboard(state, width=_terminal_width(), chars=chars), end=&quot;&quot;)</code></span>
-<span class='src-line'><b>4111</b><code>        print()</code></span>
-<span class='src-line'><b>4112</b><code>    finally:</code></span>
-<span class='src-line'><b>4113</b><code>        db.close()</code></span>
+<span class='src-line'><b>3893</b><code>def cmd_shell(args: argparse.Namespace) -&gt; None:</code></span>
+<span class='src-line'><b>3894</b><code>    _install_readline_history()</code></span>
+<span class='src-line'><b>3895</b><code>    _print_shell_header()</code></span>
+<span class='src-line'><b>3896</b><code>    print()</code></span>
+<span class='src-line'><b>3897</b><code>    if args.status:</code></span>
+<span class='src-line'><b>3898</b><code>        _print_shell_status(limit=args.limit, chars=args.chars)</code></span>
+<span class='src-line'><b>3899</b><code>    while True:</code></span>
+<span class='src-line'><b>3900</b><code>        try:</code></span>
+<span class='src-line'><b>3901</b><code>            line = input(_shell_prompt())</code></span>
+<span class='src-line'><b>3902</b><code>        except EOFError:</code></span>
+<span class='src-line'><b>3903</b><code>            print()</code></span>
+<span class='src-line'><b>3904</b><code>            return</code></span>
+<span class='src-line'><b>3905</b><code>        except KeyboardInterrupt:</code></span>
+<span class='src-line'><b>3906</b><code>            print()</code></span>
+<span class='src-line'><b>3907</b><code>            continue</code></span>
+<span class='src-line'><b>3908</b><code>        if not _run_shell_line(line):</code></span>
+<span class='src-line'><b>3909</b><code>            return</code></span>
+<span class='src-line'><b>3910</b><code></code></span>
+<span class='src-line'><b>3911</b><code></code></span>
+<span class='src-line'><b>3912</b><code>def _print_shell_header() -&gt; None:</code></span>
+<span class='src-line'><b>3913</b><code>    print(NIPUX_BANNER)</code></span>
+<span class='src-line'><b>3914</b><code>    print(_rule(&quot;=&quot;))</code></span>
+<span class='src-line'><b>3915</b><code>    print(_shell_summary())</code></span>
+<span class='src-line'><b>3916</b><code>    print(&quot;Type &#x27;chat&#x27; to talk, &#x27;history&#x27; or &#x27;artifacts&#x27; to inspect output, or plain text to steer.&quot;)</code></span>
+<span class='src-line'><b>3917</b><code>    print(&quot;Trace output is observable state and tool I/O, not hidden chain-of-thought.&quot;)</code></span>
+<span class='src-line'><b>3918</b><code>    print(_rule(&quot;=&quot;))</code></span>
+<span class='src-line'><b>3919</b><code></code></span>
+<span class='src-line'><b>3920</b><code></code></span>
+<span class='src-line'><b>3921</b><code>def _shell_summary() -&gt; str:</code></span>
+<span class='src-line'><b>3922</b><code>    db, config = _db()</code></span>
+<span class='src-line'><b>3923</b><code>    try:</code></span>
+<span class='src-line'><b>3924</b><code>        daemon = daemon_lock_status(config.runtime.home / &quot;agentd.lock&quot;)</code></span>
+<span class='src-line'><b>3925</b><code>        job_id = _default_job_id(db)</code></span>
+<span class='src-line'><b>3926</b><code>        if not job_id:</code></span>
+<span class='src-line'><b>3927</b><code>            focus = &quot;no jobs&quot;</code></span>
+<span class='src-line'><b>3928</b><code>        else:</code></span>
+<span class='src-line'><b>3929</b><code>            job = db.get_job(job_id)</code></span>
+<span class='src-line'><b>3930</b><code>            state = _job_display_state(job, bool(daemon[&quot;running&quot;]))</code></span>
+<span class='src-line'><b>3931</b><code>            focus = f&quot;{job[&#x27;title&#x27;]} [job {state} | worker {_worker_label(job, bool(daemon[&#x27;running&#x27;]))}]&quot;</code></span>
+<span class='src-line'><b>3932</b><code>        daemon_text = &quot;running&quot; if daemon[&quot;running&quot;] else &quot;stopped&quot;</code></span>
+<span class='src-line'><b>3933</b><code>        return f&quot;daemon: {daemon_text} | model: {config.model.model} | focus: {focus}&quot;</code></span>
+<span class='src-line'><b>3934</b><code>    finally:</code></span>
+<span class='src-line'><b>3935</b><code>        db.close()</code></span>
+<span class='src-line'><b>3936</b><code></code></span>
+<span class='src-line'><b>3937</b><code></code></span>
+<span class='src-line'><b>3938</b><code>def _shell_prompt() -&gt; str:</code></span>
+<span class='src-line'><b>3939</b><code>    db, _ = _db()</code></span>
+<span class='src-line'><b>3940</b><code>    try:</code></span>
+<span class='src-line'><b>3941</b><code>        job_id = _default_job_id(db)</code></span>
+<span class='src-line'><b>3942</b><code>        if not job_id:</code></span>
+<span class='src-line'><b>3943</b><code>            return &quot;nipux&gt; &quot;</code></span>
+<span class='src-line'><b>3944</b><code>        job = db.get_job(job_id)</code></span>
+<span class='src-line'><b>3945</b><code>        title = str(job.get(&quot;title&quot;) or job_id).strip()[:22]</code></span>
+<span class='src-line'><b>3946</b><code>        daemon = daemon_lock_status(load_config().runtime.home / &quot;agentd.lock&quot;)</code></span>
+<span class='src-line'><b>3947</b><code>        worker = _worker_label(job, bool(daemon[&quot;running&quot;]))</code></span>
+<span class='src-line'><b>3948</b><code>        return f&quot;nipux[{title}:{worker}]&gt; &quot;</code></span>
+<span class='src-line'><b>3949</b><code>    except Exception:</code></span>
+<span class='src-line'><b>3950</b><code>        return &quot;nipux&gt; &quot;</code></span>
+<span class='src-line'><b>3951</b><code>    finally:</code></span>
+<span class='src-line'><b>3952</b><code>        db.close()</code></span>
+<span class='src-line'><b>3953</b><code></code></span>
+<span class='src-line'><b>3954</b><code></code></span>
+<span class='src-line'><b>3955</b><code>def _install_readline_history() -&gt; None:</code></span>
+<span class='src-line'><b>3956</b><code>    try:</code></span>
+<span class='src-line'><b>3957</b><code>        import atexit</code></span>
+<span class='src-line'><b>3958</b><code>        import readline</code></span>
+<span class='src-line'><b>3959</b><code>    except ImportError:</code></span>
+<span class='src-line'><b>3960</b><code>        return</code></span>
+<span class='src-line'><b>3961</b><code>    config = load_config()</code></span>
+<span class='src-line'><b>3962</b><code>    config.ensure_dirs()</code></span>
+<span class='src-line'><b>3963</b><code>    history_path = config.runtime.home / &quot;shell_history&quot;</code></span>
+<span class='src-line'><b>3964</b><code>    try:</code></span>
+<span class='src-line'><b>3965</b><code>        readline.read_history_file(history_path)</code></span>
+<span class='src-line'><b>3966</b><code>    except OSError:</code></span>
+<span class='src-line'><b>3967</b><code>        pass</code></span>
+<span class='src-line'><b>3968</b><code>    atexit.register(readline.write_history_file, history_path)</code></span>
+<span class='src-line'><b>3969</b><code></code></span>
+<span class='src-line'><b>3970</b><code></code></span>
+<span class='src-line'><b>3971</b><code>def _print_shell_status(*, limit: int, chars: int) -&gt; None:</code></span>
+<span class='src-line'><b>3972</b><code>    db, config = _db()</code></span>
+<span class='src-line'><b>3973</b><code>    try:</code></span>
+<span class='src-line'><b>3974</b><code>        state = collect_dashboard_state(db, config, limit=limit)</code></span>
+<span class='src-line'><b>3975</b><code>        print(render_dashboard(state, width=_terminal_width(), chars=chars), end=&quot;&quot;)</code></span>
+<span class='src-line'><b>3976</b><code>        print()</code></span>
+<span class='src-line'><b>3977</b><code>    finally:</code></span>
+<span class='src-line'><b>3978</b><code>        db.close()</code></span>
+<span class='src-line'><b>3979</b><code></code></span>
+<span class='src-line'><b>3980</b><code></code></span>
+<span class='src-line'><b>3981</b><code>def _print_shell_help() -&gt; None:</code></span>
+<span class='src-line'><b>3982</b><code>    print(NIPUX_BANNER)</code></span>
+<span class='src-line'><b>3983</b><code>    print(_rule(&quot;=&quot;))</code></span>
+<span class='src-line'><b>3984</b><code>    print(&quot;Jobs&quot;)</code></span>
+<span class='src-line'><b>3985</b><code>    for command in (</code></span>
+<span class='src-line'><b>3986</b><code>        &#x27;create &quot;objective&quot; --title TITLE&#x27;,</code></span>
+<span class='src-line'><b>3987</b><code>        &quot;ls&quot;,</code></span>
+<span class='src-line'><b>3988</b><code>        &quot;focus [JOB_TITLE]&quot;,</code></span>
+<span class='src-line'><b>3989</b><code>        &quot;rename JOB_TITLE --title NEW_TITLE&quot;,</code></span>
+<span class='src-line'><b>3990</b><code>        &quot;delete JOB_TITLE&quot;,</code></span>
+<span class='src-line'><b>3991</b><code>        &quot;chat [JOB_TITLE]&quot;,</code></span>
+<span class='src-line'><b>3992</b><code>        &quot;steer [--job JOB_TITLE] MESSAGE&quot;,</code></span>
+<span class='src-line'><b>3993</b><code>        &quot;pause [JOB_TITLE] [note...]&quot;,</code></span>
+<span class='src-line'><b>3994</b><code>        &quot;resume [JOB_TITLE]&quot;,</code></span>
+<span class='src-line'><b>3995</b><code>        &quot;cancel [JOB_TITLE] [note...]&quot;,</code></span>
+<span class='src-line'><b>3996</b><code>    ):</code></span>
+<span class='src-line'><b>3997</b><code>        print(f&quot;  {command}&quot;)</code></span>
+<span class='src-line'><b>3998</b><code>    print()</code></span>
+<span class='src-line'><b>3999</b><code>    print(&quot;Inspect&quot;)</code></span>
+<span class='src-line'><b>4000</b><code>    for command in (</code></span>
+<span class='src-line'><b>4001</b><code>        &quot;status [JOB_TITLE]&quot;,</code></span>
+<span class='src-line'><b>4002</b><code>        &quot;health&quot;,</code></span>
+<span class='src-line'><b>4003</b><code>        &quot;history [JOB_TITLE]&quot;,</code></span>
+<span class='src-line'><b>4004</b><code>        &quot;events [JOB_TITLE] [--follow] [--json]&quot;,</code></span>
+<span class='src-line'><b>4005</b><code>        &quot;activity [JOB_TITLE] [--follow]&quot;,</code></span>
+<span class='src-line'><b>4006</b><code>        &quot;updates [JOB_TITLE]&quot;,</code></span>
+<span class='src-line'><b>4007</b><code>        &quot;outputs [JOB_TITLE] --verbose&quot;,</code></span>
+<span class='src-line'><b>4008</b><code>        &quot;findings [JOB_TITLE]&quot;,</code></span>
+<span class='src-line'><b>4009</b><code>        &quot;tasks [JOB_TITLE]&quot;,</code></span>
+<span class='src-line'><b>4010</b><code>        &quot;roadmap [JOB_TITLE]&quot;,</code></span>
+<span class='src-line'><b>4011</b><code>        &quot;experiments [JOB_TITLE]&quot;,</code></span>
+<span class='src-line'><b>4012</b><code>        &quot;sources [JOB_TITLE]&quot;,</code></span>
+<span class='src-line'><b>4013</b><code>        &quot;memory [JOB_TITLE]&quot;,</code></span>
+<span class='src-line'><b>4014</b><code>        &quot;metrics [JOB_TITLE]&quot;,</code></span>
+<span class='src-line'><b>4015</b><code>        &quot;usage [JOB_TITLE]&quot;,</code></span>
+<span class='src-line'><b>4016</b><code>        &quot;artifacts [JOB_TITLE]&quot;,</code></span>
+<span class='src-line'><b>4017</b><code>        &quot;artifact QUERY_OR_TITLE&quot;,</code></span>
+<span class='src-line'><b>4018</b><code>        &quot;lessons [JOB_TITLE]&quot;,</code></span>
+<span class='src-line'><b>4019</b><code>    ):</code></span>
+<span class='src-line'><b>4020</b><code>        print(f&quot;  {command}&quot;)</code></span>
+<span class='src-line'><b>4021</b><code>    print()</code></span>
+<span class='src-line'><b>4022</b><code>    print(&quot;Worker&quot;)</code></span>
+<span class='src-line'><b>4023</b><code>    for command in (</code></span>
+<span class='src-line'><b>4024</b><code>        &quot;work [JOB_TITLE] --steps N [--verbose]&quot;,</code></span>
+<span class='src-line'><b>4025</b><code>        &quot;run [JOB_TITLE] --poll-seconds N&quot;,</code></span>
+<span class='src-line'><b>4026</b><code>        &quot;start --poll-seconds N&quot;,</code></span>
+<span class='src-line'><b>4027</b><code>        &quot;restart --poll-seconds N&quot;,</code></span>
+<span class='src-line'><b>4028</b><code>        &quot;stop  # daemon&quot;,</code></span>
+<span class='src-line'><b>4029</b><code>        &quot;stop [JOB_TITLE]  # pause job&quot;,</code></span>
+<span class='src-line'><b>4030</b><code>    ):</code></span>
+<span class='src-line'><b>4031</b><code>        print(f&quot;  {command}&quot;)</code></span>
+<span class='src-line'><b>4032</b><code>    print()</code></span>
+<span class='src-line'><b>4033</b><code>    print(&quot;System&quot;)</code></span>
+<span class='src-line'><b>4034</b><code>    for command in (</code></span>
+<span class='src-line'><b>4035</b><code>        &quot;learn [--job JOB_TITLE] LESSON&quot;,</code></span>
+<span class='src-line'><b>4036</b><code>        &quot;digest JOB_TITLE&quot;,</code></span>
+<span class='src-line'><b>4037</b><code>        &quot;daily-digest&quot;,</code></span>
+<span class='src-line'><b>4038</b><code>        &quot;service install|status|uninstall&quot;,</code></span>
+<span class='src-line'><b>4039</b><code>        &quot;autostart install|status|uninstall&quot;,</code></span>
+<span class='src-line'><b>4040</b><code>        &quot;dashboard [JOB_TITLE] --no-follow&quot;,</code></span>
+<span class='src-line'><b>4041</b><code>        &quot;doctor --check-model&quot;,</code></span>
+<span class='src-line'><b>4042</b><code>        &quot;browser-dashboard --port 4848&quot;,</code></span>
+<span class='src-line'><b>4043</b><code>        &quot;help&quot;,</code></span>
+<span class='src-line'><b>4044</b><code>        &quot;exit&quot;,</code></span>
+<span class='src-line'><b>4045</b><code>    ):</code></span>
+<span class='src-line'><b>4046</b><code>        print(f&quot;  {command}&quot;)</code></span>
+<span class='src-line'><b>4047</b><code></code></span>
+<span class='src-line'><b>4048</b><code></code></span>
+<span class='src-line'><b>4049</b><code>def _run_shell_line(line: str) -&gt; bool:</code></span>
+<span class='src-line'><b>4050</b><code>    line = line.strip()</code></span>
+<span class='src-line'><b>4051</b><code>    if not line:</code></span>
+<span class='src-line'><b>4052</b><code>        return True</code></span>
+<span class='src-line'><b>4053</b><code>    if line in {&quot;exit&quot;, &quot;quit&quot;, &quot;:q&quot;}:</code></span>
+<span class='src-line'><b>4054</b><code>        return False</code></span>
+<span class='src-line'><b>4055</b><code>    if line in {&quot;help&quot;, &quot;?&quot;, &quot;commands&quot;}:</code></span>
+<span class='src-line'><b>4056</b><code>        _print_shell_help()</code></span>
+<span class='src-line'><b>4057</b><code>        return True</code></span>
+<span class='src-line'><b>4058</b><code>    if line == &quot;clear&quot;:</code></span>
+<span class='src-line'><b>4059</b><code>        print(&quot;\033[2J\033[H&quot;, end=&quot;&quot;)</code></span>
+<span class='src-line'><b>4060</b><code>        return True</code></span>
+<span class='src-line'><b>4061</b><code>    try:</code></span>
+<span class='src-line'><b>4062</b><code>        tokens = shlex.split(line)</code></span>
+<span class='src-line'><b>4063</b><code>    except ValueError as exc:</code></span>
+<span class='src-line'><b>4064</b><code>        print(f&quot;parse error: {exc}&quot;)</code></span>
+<span class='src-line'><b>4065</b><code>        return True</code></span>
+<span class='src-line'><b>4066</b><code>    if tokens and tokens[0] == &quot;nipux&quot;:</code></span>
+<span class='src-line'><b>4067</b><code>        tokens = tokens[1:]</code></span>
+<span class='src-line'><b>4068</b><code>    if not tokens:</code></span>
+<span class='src-line'><b>4069</b><code>        return True</code></span>
+<span class='src-line'><b>4070</b><code>    natural = natural_command_for(&quot; &quot;.join(tokens))</code></span>
+<span class='src-line'><b>4071</b><code>    if natural:</code></span>
+<span class='src-line'><b>4072</b><code>        tokens = [natural]</code></span>
+<span class='src-line'><b>4073</b><code>    if tokens[0] == &quot;ls&quot;:</code></span>
+<span class='src-line'><b>4074</b><code>        tokens[0] = &quot;jobs&quot;</code></span>
+<span class='src-line'><b>4075</b><code>    if tokens[0] == &quot;focus&quot; and len(tokens) &gt; 1 and tokens[1].lower() in {&quot;on&quot;, &quot;more&quot;, &quot;only&quot;}:</code></span>
+<span class='src-line'><b>4076</b><code>        _steer_default_job(line)</code></span>
+<span class='src-line'><b>4077</b><code>        return True</code></span>
+<span class='src-line'><b>4078</b><code>    if tokens[0] not in SHELL_COMMAND_NAMES and tokens[0] not in SHELL_BUILTINS:</code></span>
+<span class='src-line'><b>4079</b><code>        _steer_default_job(line)</code></span>
+<span class='src-line'><b>4080</b><code>        return True</code></span>
+<span class='src-line'><b>4081</b><code>    try:</code></span>
+<span class='src-line'><b>4082</b><code>        parser = build_parser()</code></span>
+<span class='src-line'><b>4083</b><code>        parsed = parser.parse_args(tokens)</code></span>
+<span class='src-line'><b>4084</b><code>        if parsed.func is cmd_shell:</code></span>
+<span class='src-line'><b>4085</b><code>            print(&quot;already in nipux shell&quot;)</code></span>
+<span class='src-line'><b>4086</b><code>            return True</code></span>
+<span class='src-line'><b>4087</b><code>        parsed.func(parsed)</code></span>
+<span class='src-line'><b>4088</b><code>    except SystemExit as exc:</code></span>
+<span class='src-line'><b>4089</b><code>        code = exc.code if isinstance(exc.code, int) else 1</code></span>
+<span class='src-line'><b>4090</b><code>        if code:</code></span>
+<span class='src-line'><b>4091</b><code>            print(f&quot;command exited with status {code}&quot;)</code></span>
+<span class='src-line'><b>4092</b><code>    return True</code></span>
+<span class='src-line'><b>4093</b><code></code></span>
+<span class='src-line'><b>4094</b><code></code></span>
+<span class='src-line'><b>4095</b><code>def _steer_default_job(message: str) -&gt; None:</code></span>
+<span class='src-line'><b>4096</b><code>    db, _ = _db()</code></span>
+<span class='src-line'><b>4097</b><code>    try:</code></span>
+<span class='src-line'><b>4098</b><code>        job_id = _default_job_id(db)</code></span>
+<span class='src-line'><b>4099</b><code>        if not job_id:</code></span>
+<span class='src-line'><b>4100</b><code>            print(&#x27;No focused job. Create one first, or run: create &quot;objective&quot;&#x27;)</code></span>
+<span class='src-line'><b>4101</b><code>            return</code></span>
+<span class='src-line'><b>4102</b><code>        job = db.get_job(job_id)</code></span>
+<span class='src-line'><b>4103</b><code>        entry = db.append_operator_message(job_id, message, source=&quot;shell&quot;)</code></span>
+<span class='src-line'><b>4104</b><code>        print(f&quot;waiting for {job[&#x27;title&#x27;]}: {entry[&#x27;message&#x27;]}&quot;)</code></span>
+<span class='src-line'><b>4105</b><code>        print(&quot;Waiting for the next worker step.&quot;)</code></span>
+<span class='src-line'><b>4106</b><code>    finally:</code></span>
+<span class='src-line'><b>4107</b><code>        db.close()</code></span>
+<span class='src-line'><b>4108</b><code></code></span>
+<span class='src-line'><b>4109</b><code></code></span>
+<span class='src-line'><b>4110</b><code>def build_parser() -&gt; argparse.ArgumentParser:</code></span>
+<span class='src-line'><b>4111</b><code>    parser = argparse.ArgumentParser(prog=&quot;nipux&quot;)</code></span>
+<span class='src-line'><b>4112</b><code>    parser.add_argument(&quot;--version&quot;, action=&quot;version&quot;, version=f&quot;nipux {__version__}&quot;)</code></span>
+<span class='src-line'><b>4113</b><code>    sub = parser.add_subparsers(dest=&quot;command&quot;, required=True)</code></span>
 <span class='src-line'><b>4114</b><code></code></span>
-<span class='src-line'><b>4115</b><code></code></span>
-<span class='src-line'><b>4116</b><code>def _print_shell_help() -&gt; None:</code></span>
-<span class='src-line'><b>4117</b><code>    print(NIPUX_BANNER)</code></span>
-<span class='src-line'><b>4118</b><code>    print(_rule(&quot;=&quot;))</code></span>
-<span class='src-line'><b>4119</b><code>    print(&quot;Jobs&quot;)</code></span>
-<span class='src-line'><b>4120</b><code>    for command in (</code></span>
-<span class='src-line'><b>4121</b><code>        &#x27;create &quot;objective&quot; --title TITLE&#x27;,</code></span>
-<span class='src-line'><b>4122</b><code>        &quot;ls&quot;,</code></span>
-<span class='src-line'><b>4123</b><code>        &quot;focus [JOB_TITLE]&quot;,</code></span>
-<span class='src-line'><b>4124</b><code>        &quot;rename JOB_TITLE --title NEW_TITLE&quot;,</code></span>
-<span class='src-line'><b>4125</b><code>        &quot;delete JOB_TITLE&quot;,</code></span>
-<span class='src-line'><b>4126</b><code>        &quot;chat [JOB_TITLE]&quot;,</code></span>
-<span class='src-line'><b>4127</b><code>        &quot;steer [--job JOB_TITLE] MESSAGE&quot;,</code></span>
-<span class='src-line'><b>4128</b><code>        &quot;pause [JOB_TITLE] [note...]&quot;,</code></span>
-<span class='src-line'><b>4129</b><code>        &quot;resume [JOB_TITLE]&quot;,</code></span>
-<span class='src-line'><b>4130</b><code>        &quot;cancel [JOB_TITLE] [note...]&quot;,</code></span>
-<span class='src-line'><b>4131</b><code>    ):</code></span>
-<span class='src-line'><b>4132</b><code>        print(f&quot;  {command}&quot;)</code></span>
-<span class='src-line'><b>4133</b><code>    print()</code></span>
-<span class='src-line'><b>4134</b><code>    print(&quot;Inspect&quot;)</code></span>
-<span class='src-line'><b>4135</b><code>    for command in (</code></span>
-<span class='src-line'><b>4136</b><code>        &quot;status [JOB_TITLE]&quot;,</code></span>
-<span class='src-line'><b>4137</b><code>        &quot;health&quot;,</code></span>
-<span class='src-line'><b>4138</b><code>        &quot;history [JOB_TITLE]&quot;,</code></span>
-<span class='src-line'><b>4139</b><code>        &quot;events [JOB_TITLE] [--follow] [--json]&quot;,</code></span>
-<span class='src-line'><b>4140</b><code>        &quot;activity [JOB_TITLE] [--follow]&quot;,</code></span>
-<span class='src-line'><b>4141</b><code>        &quot;updates [JOB_TITLE]&quot;,</code></span>
-<span class='src-line'><b>4142</b><code>        &quot;outputs [JOB_TITLE] --verbose&quot;,</code></span>
-<span class='src-line'><b>4143</b><code>        &quot;findings [JOB_TITLE]&quot;,</code></span>
-<span class='src-line'><b>4144</b><code>        &quot;tasks [JOB_TITLE]&quot;,</code></span>
-<span class='src-line'><b>4145</b><code>        &quot;roadmap [JOB_TITLE]&quot;,</code></span>
-<span class='src-line'><b>4146</b><code>        &quot;experiments [JOB_TITLE]&quot;,</code></span>
-<span class='src-line'><b>4147</b><code>        &quot;sources [JOB_TITLE]&quot;,</code></span>
-<span class='src-line'><b>4148</b><code>        &quot;memory [JOB_TITLE]&quot;,</code></span>
-<span class='src-line'><b>4149</b><code>        &quot;metrics [JOB_TITLE]&quot;,</code></span>
-<span class='src-line'><b>4150</b><code>        &quot;usage [JOB_TITLE]&quot;,</code></span>
-<span class='src-line'><b>4151</b><code>        &quot;artifacts [JOB_TITLE]&quot;,</code></span>
-<span class='src-line'><b>4152</b><code>        &quot;artifact QUERY_OR_TITLE&quot;,</code></span>
-<span class='src-line'><b>4153</b><code>        &quot;lessons [JOB_TITLE]&quot;,</code></span>
-<span class='src-line'><b>4154</b><code>    ):</code></span>
-<span class='src-line'><b>4155</b><code>        print(f&quot;  {command}&quot;)</code></span>
-<span class='src-line'><b>4156</b><code>    print()</code></span>
-<span class='src-line'><b>4157</b><code>    print(&quot;Worker&quot;)</code></span>
-<span class='src-line'><b>4158</b><code>    for command in (</code></span>
-<span class='src-line'><b>4159</b><code>        &quot;work [JOB_TITLE] --steps N [--verbose]&quot;,</code></span>
-<span class='src-line'><b>4160</b><code>        &quot;run [JOB_TITLE] --poll-seconds N&quot;,</code></span>
-<span class='src-line'><b>4161</b><code>        &quot;start --poll-seconds N&quot;,</code></span>
-<span class='src-line'><b>4162</b><code>        &quot;restart --poll-seconds N&quot;,</code></span>
-<span class='src-line'><b>4163</b><code>        &quot;stop  # daemon&quot;,</code></span>
-<span class='src-line'><b>4164</b><code>        &quot;stop [JOB_TITLE]  # pause job&quot;,</code></span>
-<span class='src-line'><b>4165</b><code>    ):</code></span>
-<span class='src-line'><b>4166</b><code>        print(f&quot;  {command}&quot;)</code></span>
-<span class='src-line'><b>4167</b><code>    print()</code></span>
-<span class='src-line'><b>4168</b><code>    print(&quot;System&quot;)</code></span>
-<span class='src-line'><b>4169</b><code>    for command in (</code></span>
-<span class='src-line'><b>4170</b><code>        &quot;learn [--job JOB_TITLE] LESSON&quot;,</code></span>
-<span class='src-line'><b>4171</b><code>        &quot;digest JOB_TITLE&quot;,</code></span>
-<span class='src-line'><b>4172</b><code>        &quot;daily-digest&quot;,</code></span>
-<span class='src-line'><b>4173</b><code>        &quot;service install|status|uninstall&quot;,</code></span>
-<span class='src-line'><b>4174</b><code>        &quot;autostart install|status|uninstall&quot;,</code></span>
-<span class='src-line'><b>4175</b><code>        &quot;dashboard [JOB_TITLE] --no-follow&quot;,</code></span>
-<span class='src-line'><b>4176</b><code>        &quot;doctor --check-model&quot;,</code></span>
-<span class='src-line'><b>4177</b><code>        &quot;browser-dashboard --port 4848&quot;,</code></span>
-<span class='src-line'><b>4178</b><code>        &quot;help&quot;,</code></span>
-<span class='src-line'><b>4179</b><code>        &quot;exit&quot;,</code></span>
-<span class='src-line'><b>4180</b><code>    ):</code></span>
-<span class='src-line'><b>4181</b><code>        print(f&quot;  {command}&quot;)</code></span>
-<span class='src-line'><b>4182</b><code></code></span>
-<span class='src-line'><b>4183</b><code></code></span>
-<span class='src-line'><b>4184</b><code>def _run_shell_line(line: str) -&gt; bool:</code></span>
-<span class='src-line'><b>4185</b><code>    line = line.strip()</code></span>
-<span class='src-line'><b>4186</b><code>    if not line:</code></span>
-<span class='src-line'><b>4187</b><code>        return True</code></span>
-<span class='src-line'><b>4188</b><code>    if line in {&quot;exit&quot;, &quot;quit&quot;, &quot;:q&quot;}:</code></span>
-<span class='src-line'><b>4189</b><code>        return False</code></span>
-<span class='src-line'><b>4190</b><code>    if line in {&quot;help&quot;, &quot;?&quot;, &quot;commands&quot;}:</code></span>
-<span class='src-line'><b>4191</b><code>        _print_shell_help()</code></span>
-<span class='src-line'><b>4192</b><code>        return True</code></span>
-<span class='src-line'><b>4193</b><code>    if line == &quot;clear&quot;:</code></span>
-<span class='src-line'><b>4194</b><code>        print(&quot;\033[2J\033[H&quot;, end=&quot;&quot;)</code></span>
-<span class='src-line'><b>4195</b><code>        return True</code></span>
-<span class='src-line'><b>4196</b><code>    try:</code></span>
-<span class='src-line'><b>4197</b><code>        tokens = shlex.split(line)</code></span>
-<span class='src-line'><b>4198</b><code>    except ValueError as exc:</code></span>
-<span class='src-line'><b>4199</b><code>        print(f&quot;parse error: {exc}&quot;)</code></span>
-<span class='src-line'><b>4200</b><code>        return True</code></span>
-<span class='src-line'><b>4201</b><code>    if tokens and tokens[0] == &quot;nipux&quot;:</code></span>
-<span class='src-line'><b>4202</b><code>        tokens = tokens[1:]</code></span>
-<span class='src-line'><b>4203</b><code>    if not tokens:</code></span>
-<span class='src-line'><b>4204</b><code>        return True</code></span>
-<span class='src-line'><b>4205</b><code>    natural = natural_command_for(&quot; &quot;.join(tokens))</code></span>
-<span class='src-line'><b>4206</b><code>    if natural:</code></span>
-<span class='src-line'><b>4207</b><code>        tokens = [natural]</code></span>
-<span class='src-line'><b>4208</b><code>    if tokens[0] == &quot;ls&quot;:</code></span>
-<span class='src-line'><b>4209</b><code>        tokens[0] = &quot;jobs&quot;</code></span>
-<span class='src-line'><b>4210</b><code>    if tokens[0] == &quot;focus&quot; and len(tokens) &gt; 1 and tokens[1].lower() in {&quot;on&quot;, &quot;more&quot;, &quot;only&quot;}:</code></span>
-<span class='src-line'><b>4211</b><code>        _steer_default_job(line)</code></span>
-<span class='src-line'><b>4212</b><code>        return True</code></span>
-<span class='src-line'><b>4213</b><code>    if tokens[0] not in SHELL_COMMAND_NAMES and tokens[0] not in SHELL_BUILTINS:</code></span>
-<span class='src-line'><b>4214</b><code>        _steer_default_job(line)</code></span>
-<span class='src-line'><b>4215</b><code>        return True</code></span>
-<span class='src-line'><b>4216</b><code>    try:</code></span>
-<span class='src-line'><b>4217</b><code>        parser = build_parser()</code></span>
-<span class='src-line'><b>4218</b><code>        parsed = parser.parse_args(tokens)</code></span>
-<span class='src-line'><b>4219</b><code>        if parsed.func is cmd_shell:</code></span>
-<span class='src-line'><b>4220</b><code>            print(&quot;already in nipux shell&quot;)</code></span>
-<span class='src-line'><b>4221</b><code>            return True</code></span>
-<span class='src-line'><b>4222</b><code>        parsed.func(parsed)</code></span>
-<span class='src-line'><b>4223</b><code>    except SystemExit as exc:</code></span>
-<span class='src-line'><b>4224</b><code>        code = exc.code if isinstance(exc.code, int) else 1</code></span>
-<span class='src-line'><b>4225</b><code>        if code:</code></span>
-<span class='src-line'><b>4226</b><code>            print(f&quot;command exited with status {code}&quot;)</code></span>
-<span class='src-line'><b>4227</b><code>    return True</code></span>
+<span class='src-line'><b>4115</b><code>    init = sub.add_parser(&quot;init&quot;)</code></span>
+<span class='src-line'><b>4116</b><code>    init.add_argument(&quot;--path&quot;)</code></span>
+<span class='src-line'><b>4117</b><code>    init.add_argument(&quot;--force&quot;, action=&quot;store_true&quot;)</code></span>
+<span class='src-line'><b>4118</b><code>    init.add_argument(&quot;--openrouter&quot;, action=&quot;store_true&quot;, help=&quot;Write an OpenRouter config that reads OPENROUTER_API_KEY&quot;)</code></span>
+<span class='src-line'><b>4119</b><code>    init.add_argument(&quot;--model&quot;, help=&quot;Model name to write into config.yaml&quot;)</code></span>
+<span class='src-line'><b>4120</b><code>    init.add_argument(&quot;--base-url&quot;, help=&quot;OpenAI-compatible API base URL&quot;)</code></span>
+<span class='src-line'><b>4121</b><code>    init.add_argument(&quot;--api-key-env&quot;, help=&quot;Environment variable that stores the API key&quot;)</code></span>
+<span class='src-line'><b>4122</b><code>    init.add_argument(&quot;--context-length&quot;, type=int, default=DEFAULT_CONTEXT_LENGTH)</code></span>
+<span class='src-line'><b>4123</b><code>    init.set_defaults(func=cmd_init)</code></span>
+<span class='src-line'><b>4124</b><code></code></span>
+<span class='src-line'><b>4125</b><code>    create = sub.add_parser(&quot;create&quot;)</code></span>
+<span class='src-line'><b>4126</b><code>    create.add_argument(&quot;objective&quot;)</code></span>
+<span class='src-line'><b>4127</b><code>    create.add_argument(&quot;--title&quot;)</code></span>
+<span class='src-line'><b>4128</b><code>    create.add_argument(&quot;--kind&quot;, default=&quot;generic&quot;)</code></span>
+<span class='src-line'><b>4129</b><code>    create.add_argument(&quot;--cadence&quot;)</code></span>
+<span class='src-line'><b>4130</b><code>    create.set_defaults(func=cmd_create)</code></span>
+<span class='src-line'><b>4131</b><code></code></span>
+<span class='src-line'><b>4132</b><code>    jobs = sub.add_parser(&quot;jobs&quot;)</code></span>
+<span class='src-line'><b>4133</b><code>    jobs.set_defaults(func=cmd_jobs)</code></span>
+<span class='src-line'><b>4134</b><code></code></span>
+<span class='src-line'><b>4135</b><code>    ls_cmd = sub.add_parser(&quot;ls&quot;)</code></span>
+<span class='src-line'><b>4136</b><code>    ls_cmd.set_defaults(func=cmd_jobs)</code></span>
+<span class='src-line'><b>4137</b><code></code></span>
+<span class='src-line'><b>4138</b><code>    focus = sub.add_parser(&quot;focus&quot;)</code></span>
+<span class='src-line'><b>4139</b><code>    focus.add_argument(&quot;query&quot;, nargs=&quot;*&quot;)</code></span>
+<span class='src-line'><b>4140</b><code>    focus.set_defaults(func=cmd_focus)</code></span>
+<span class='src-line'><b>4141</b><code></code></span>
+<span class='src-line'><b>4142</b><code>    rename = sub.add_parser(&quot;rename&quot;)</code></span>
+<span class='src-line'><b>4143</b><code>    rename.add_argument(&quot;job_id&quot;, nargs=&quot;*&quot;)</code></span>
+<span class='src-line'><b>4144</b><code>    rename.add_argument(&quot;--title&quot;, nargs=&quot;+&quot;, required=True)</code></span>
+<span class='src-line'><b>4145</b><code>    rename.set_defaults(func=cmd_rename)</code></span>
+<span class='src-line'><b>4146</b><code></code></span>
+<span class='src-line'><b>4147</b><code>    delete = sub.add_parser(&quot;delete&quot;, aliases=[&quot;rm&quot;])</code></span>
+<span class='src-line'><b>4148</b><code>    delete.add_argument(&quot;job_id&quot;, nargs=&quot;*&quot;)</code></span>
+<span class='src-line'><b>4149</b><code>    delete.add_argument(&quot;--keep-files&quot;, action=&quot;store_true&quot;)</code></span>
+<span class='src-line'><b>4150</b><code>    delete.set_defaults(func=cmd_delete)</code></span>
+<span class='src-line'><b>4151</b><code></code></span>
+<span class='src-line'><b>4152</b><code>    chat = sub.add_parser(&quot;chat&quot;)</code></span>
+<span class='src-line'><b>4153</b><code>    chat.add_argument(&quot;job_id&quot;, nargs=&quot;*&quot;)</code></span>
+<span class='src-line'><b>4154</b><code>    chat.add_argument(&quot;--history-limit&quot;, type=int, default=12)</code></span>
+<span class='src-line'><b>4155</b><code>    chat.add_argument(&quot;--no-history&quot;, action=&quot;store_true&quot;)</code></span>
+<span class='src-line'><b>4156</b><code>    chat.set_defaults(func=cmd_chat)</code></span>
+<span class='src-line'><b>4157</b><code></code></span>
+<span class='src-line'><b>4158</b><code>    shell = sub.add_parser(&quot;shell&quot;)</code></span>
+<span class='src-line'><b>4159</b><code>    shell.add_argument(&quot;--status&quot;, action=&quot;store_true&quot;, help=&quot;Render the full dashboard when the shell opens&quot;)</code></span>
+<span class='src-line'><b>4160</b><code>    shell.add_argument(&quot;--no-status&quot;, action=&quot;store_true&quot;, help=argparse.SUPPRESS)</code></span>
+<span class='src-line'><b>4161</b><code>    shell.add_argument(&quot;--limit&quot;, type=int, default=8)</code></span>
+<span class='src-line'><b>4162</b><code>    shell.add_argument(&quot;--chars&quot;, type=int, default=180)</code></span>
+<span class='src-line'><b>4163</b><code>    shell.set_defaults(func=cmd_shell)</code></span>
+<span class='src-line'><b>4164</b><code></code></span>
+<span class='src-line'><b>4165</b><code>    steer = sub.add_parser(&quot;steer&quot;, aliases=[&quot;say&quot;])</code></span>
+<span class='src-line'><b>4166</b><code>    steer.add_argument(&quot;--job&quot;, dest=&quot;job_id&quot;)</code></span>
+<span class='src-line'><b>4167</b><code>    steer.add_argument(&quot;message&quot;, nargs=&quot;+&quot;)</code></span>
+<span class='src-line'><b>4168</b><code>    steer.set_defaults(func=cmd_steer)</code></span>
+<span class='src-line'><b>4169</b><code></code></span>
+<span class='src-line'><b>4170</b><code>    pause = sub.add_parser(&quot;pause&quot;)</code></span>
+<span class='src-line'><b>4171</b><code>    pause.add_argument(&quot;parts&quot;, nargs=&quot;*&quot;, help=&quot;Optional job title/id followed by an optional note&quot;)</code></span>
+<span class='src-line'><b>4172</b><code>    pause.set_defaults(func=cmd_pause)</code></span>
+<span class='src-line'><b>4173</b><code></code></span>
+<span class='src-line'><b>4174</b><code>    resume = sub.add_parser(&quot;resume&quot;)</code></span>
+<span class='src-line'><b>4175</b><code>    resume.add_argument(&quot;job_id&quot;, nargs=&quot;*&quot;)</code></span>
+<span class='src-line'><b>4176</b><code>    resume.set_defaults(func=cmd_resume)</code></span>
+<span class='src-line'><b>4177</b><code></code></span>
+<span class='src-line'><b>4178</b><code>    cancel = sub.add_parser(&quot;cancel&quot;)</code></span>
+<span class='src-line'><b>4179</b><code>    cancel.add_argument(&quot;parts&quot;, nargs=&quot;*&quot;, help=&quot;Optional job title/id followed by an optional note&quot;)</code></span>
+<span class='src-line'><b>4180</b><code>    cancel.set_defaults(func=cmd_cancel)</code></span>
+<span class='src-line'><b>4181</b><code></code></span>
+<span class='src-line'><b>4182</b><code>    status = sub.add_parser(&quot;status&quot;)</code></span>
+<span class='src-line'><b>4183</b><code>    status.add_argument(&quot;job_id&quot;, nargs=&quot;*&quot;)</code></span>
+<span class='src-line'><b>4184</b><code>    status.add_argument(&quot;--limit&quot;, type=int, default=8)</code></span>
+<span class='src-line'><b>4185</b><code>    status.add_argument(&quot;--chars&quot;, type=int, default=180)</code></span>
+<span class='src-line'><b>4186</b><code>    status.add_argument(&quot;--full&quot;, action=&quot;store_true&quot;, help=&quot;Render the full dashboard&quot;)</code></span>
+<span class='src-line'><b>4187</b><code>    status.add_argument(&quot;--json&quot;, action=&quot;store_true&quot;)</code></span>
+<span class='src-line'><b>4188</b><code>    status.set_defaults(func=cmd_status)</code></span>
+<span class='src-line'><b>4189</b><code></code></span>
+<span class='src-line'><b>4190</b><code>    health = sub.add_parser(&quot;health&quot;)</code></span>
+<span class='src-line'><b>4191</b><code>    health.add_argument(&quot;--limit&quot;, type=int, default=8)</code></span>
+<span class='src-line'><b>4192</b><code>    health.add_argument(&quot;--chars&quot;, type=int, default=180)</code></span>
+<span class='src-line'><b>4193</b><code>    health.set_defaults(func=cmd_health)</code></span>
+<span class='src-line'><b>4194</b><code></code></span>
+<span class='src-line'><b>4195</b><code>    history = sub.add_parser(&quot;history&quot;)</code></span>
+<span class='src-line'><b>4196</b><code>    history.add_argument(&quot;job_id&quot;, nargs=&quot;*&quot;)</code></span>
+<span class='src-line'><b>4197</b><code>    history.add_argument(&quot;--limit&quot;, type=int, default=80)</code></span>
+<span class='src-line'><b>4198</b><code>    history.add_argument(&quot;--chars&quot;, type=int, default=260)</code></span>
+<span class='src-line'><b>4199</b><code>    history.add_argument(&quot;--full&quot;, action=&quot;store_true&quot;)</code></span>
+<span class='src-line'><b>4200</b><code>    history.add_argument(&quot;--json&quot;, action=&quot;store_true&quot;)</code></span>
+<span class='src-line'><b>4201</b><code>    history.set_defaults(func=cmd_history)</code></span>
+<span class='src-line'><b>4202</b><code></code></span>
+<span class='src-line'><b>4203</b><code>    events = sub.add_parser(&quot;events&quot;)</code></span>
+<span class='src-line'><b>4204</b><code>    events.add_argument(&quot;job_id&quot;, nargs=&quot;*&quot;)</code></span>
+<span class='src-line'><b>4205</b><code>    events.add_argument(&quot;--limit&quot;, type=int, default=80)</code></span>
+<span class='src-line'><b>4206</b><code>    events.add_argument(&quot;--chars&quot;, type=int, default=260)</code></span>
+<span class='src-line'><b>4207</b><code>    events.add_argument(&quot;--full&quot;, action=&quot;store_true&quot;)</code></span>
+<span class='src-line'><b>4208</b><code>    events.add_argument(&quot;--follow&quot;, action=&quot;store_true&quot;)</code></span>
+<span class='src-line'><b>4209</b><code>    events.add_argument(&quot;--interval&quot;, type=float, default=2.0)</code></span>
+<span class='src-line'><b>4210</b><code>    events.add_argument(&quot;--json&quot;, action=&quot;store_true&quot;)</code></span>
+<span class='src-line'><b>4211</b><code>    events.set_defaults(func=cmd_events)</code></span>
+<span class='src-line'><b>4212</b><code></code></span>
+<span class='src-line'><b>4213</b><code>    dashboard = sub.add_parser(&quot;dashboard&quot;, aliases=[&quot;dash&quot;])</code></span>
+<span class='src-line'><b>4214</b><code>    dashboard.add_argument(&quot;job_id&quot;, nargs=&quot;*&quot;)</code></span>
+<span class='src-line'><b>4215</b><code>    dashboard.add_argument(&quot;--interval&quot;, type=float, default=2.0)</code></span>
+<span class='src-line'><b>4216</b><code>    dashboard.add_argument(&quot;--limit&quot;, type=int, default=12)</code></span>
+<span class='src-line'><b>4217</b><code>    dashboard.add_argument(&quot;--chars&quot;, type=int, default=260)</code></span>
+<span class='src-line'><b>4218</b><code>    dashboard.add_argument(&quot;--no-follow&quot;, dest=&quot;follow&quot;, action=&quot;store_false&quot;)</code></span>
+<span class='src-line'><b>4219</b><code>    dashboard.add_argument(&quot;--no-clear&quot;, dest=&quot;clear&quot;, action=&quot;store_false&quot;)</code></span>
+<span class='src-line'><b>4220</b><code>    dashboard.set_defaults(func=cmd_dashboard, follow=True, clear=True)</code></span>
+<span class='src-line'><b>4221</b><code></code></span>
+<span class='src-line'><b>4222</b><code>    start = sub.add_parser(&quot;start&quot;)</code></span>
+<span class='src-line'><b>4223</b><code>    start.add_argument(&quot;--poll-seconds&quot;, type=float, default=0.0)</code></span>
+<span class='src-line'><b>4224</b><code>    start.add_argument(&quot;--fake&quot;, action=&quot;store_true&quot;, help=&quot;Use deterministic fake model responses&quot;)</code></span>
+<span class='src-line'><b>4225</b><code>    start.add_argument(&quot;--quiet&quot;, action=&quot;store_true&quot;, help=&quot;Write fewer daemon log lines&quot;)</code></span>
+<span class='src-line'><b>4226</b><code>    start.add_argument(&quot;--log-file&quot;)</code></span>
+<span class='src-line'><b>4227</b><code>    start.set_defaults(func=cmd_start)</code></span>
 <span class='src-line'><b>4228</b><code></code></span>
-<span class='src-line'><b>4229</b><code></code></span>
-<span class='src-line'><b>4230</b><code>def _steer_default_job(message: str) -&gt; None:</code></span>
-<span class='src-line'><b>4231</b><code>    db, _ = _db()</code></span>
-<span class='src-line'><b>4232</b><code>    try:</code></span>
-<span class='src-line'><b>4233</b><code>        job_id = _default_job_id(db)</code></span>
-<span class='src-line'><b>4234</b><code>        if not job_id:</code></span>
-<span class='src-line'><b>4235</b><code>            print(&#x27;No focused job. Create one first, or run: create &quot;objective&quot;&#x27;)</code></span>
-<span class='src-line'><b>4236</b><code>            return</code></span>
-<span class='src-line'><b>4237</b><code>        job = db.get_job(job_id)</code></span>
-<span class='src-line'><b>4238</b><code>        entry = db.append_operator_message(job_id, message, source=&quot;shell&quot;)</code></span>
-<span class='src-line'><b>4239</b><code>        print(f&quot;waiting for {job[&#x27;title&#x27;]}: {entry[&#x27;message&#x27;]}&quot;)</code></span>
-<span class='src-line'><b>4240</b><code>        print(&quot;Waiting for the next worker step.&quot;)</code></span>
-<span class='src-line'><b>4241</b><code>    finally:</code></span>
-<span class='src-line'><b>4242</b><code>        db.close()</code></span>
-<span class='src-line'><b>4243</b><code></code></span>
-<span class='src-line'><b>4244</b><code></code></span>
-<span class='src-line'><b>4245</b><code>def build_parser() -&gt; argparse.ArgumentParser:</code></span>
-<span class='src-line'><b>4246</b><code>    parser = argparse.ArgumentParser(prog=&quot;nipux&quot;)</code></span>
-<span class='src-line'><b>4247</b><code>    parser.add_argument(&quot;--version&quot;, action=&quot;version&quot;, version=f&quot;nipux {__version__}&quot;)</code></span>
-<span class='src-line'><b>4248</b><code>    sub = parser.add_subparsers(dest=&quot;command&quot;, required=True)</code></span>
-<span class='src-line'><b>4249</b><code></code></span>
-<span class='src-line'><b>4250</b><code>    init = sub.add_parser(&quot;init&quot;)</code></span>
-<span class='src-line'><b>4251</b><code>    init.add_argument(&quot;--path&quot;)</code></span>
-<span class='src-line'><b>4252</b><code>    init.add_argument(&quot;--force&quot;, action=&quot;store_true&quot;)</code></span>
-<span class='src-line'><b>4253</b><code>    init.add_argument(&quot;--openrouter&quot;, action=&quot;store_true&quot;, help=&quot;Write an OpenRouter config that reads OPENROUTER_API_KEY&quot;)</code></span>
-<span class='src-line'><b>4254</b><code>    init.add_argument(&quot;--model&quot;, help=&quot;Model name to write into config.yaml&quot;)</code></span>
-<span class='src-line'><b>4255</b><code>    init.add_argument(&quot;--base-url&quot;, help=&quot;OpenAI-compatible API base URL&quot;)</code></span>
-<span class='src-line'><b>4256</b><code>    init.add_argument(&quot;--api-key-env&quot;, help=&quot;Environment variable that stores the API key&quot;)</code></span>
-<span class='src-line'><b>4257</b><code>    init.add_argument(&quot;--context-length&quot;, type=int, default=DEFAULT_CONTEXT_LENGTH)</code></span>
-<span class='src-line'><b>4258</b><code>    init.set_defaults(func=cmd_init)</code></span>
-<span class='src-line'><b>4259</b><code></code></span>
-<span class='src-line'><b>4260</b><code>    create = sub.add_parser(&quot;create&quot;)</code></span>
-<span class='src-line'><b>4261</b><code>    create.add_argument(&quot;objective&quot;)</code></span>
-<span class='src-line'><b>4262</b><code>    create.add_argument(&quot;--title&quot;)</code></span>
-<span class='src-line'><b>4263</b><code>    create.add_argument(&quot;--kind&quot;, default=&quot;generic&quot;)</code></span>
-<span class='src-line'><b>4264</b><code>    create.add_argument(&quot;--cadence&quot;)</code></span>
-<span class='src-line'><b>4265</b><code>    create.set_defaults(func=cmd_create)</code></span>
-<span class='src-line'><b>4266</b><code></code></span>
-<span class='src-line'><b>4267</b><code>    jobs = sub.add_parser(&quot;jobs&quot;)</code></span>
-<span class='src-line'><b>4268</b><code>    jobs.set_defaults(func=cmd_jobs)</code></span>
-<span class='src-line'><b>4269</b><code></code></span>
-<span class='src-line'><b>4270</b><code>    ls_cmd = sub.add_parser(&quot;ls&quot;)</code></span>
-<span class='src-line'><b>4271</b><code>    ls_cmd.set_defaults(func=cmd_jobs)</code></span>
-<span class='src-line'><b>4272</b><code></code></span>
-<span class='src-line'><b>4273</b><code>    focus = sub.add_parser(&quot;focus&quot;)</code></span>
-<span class='src-line'><b>4274</b><code>    focus.add_argument(&quot;query&quot;, nargs=&quot;*&quot;)</code></span>
-<span class='src-line'><b>4275</b><code>    focus.set_defaults(func=cmd_focus)</code></span>
-<span class='src-line'><b>4276</b><code></code></span>
-<span class='src-line'><b>4277</b><code>    rename = sub.add_parser(&quot;rename&quot;)</code></span>
-<span class='src-line'><b>4278</b><code>    rename.add_argument(&quot;job_id&quot;, nargs=&quot;*&quot;)</code></span>
-<span class='src-line'><b>4279</b><code>    rename.add_argument(&quot;--title&quot;, nargs=&quot;+&quot;, required=True)</code></span>
-<span class='src-line'><b>4280</b><code>    rename.set_defaults(func=cmd_rename)</code></span>
-<span class='src-line'><b>4281</b><code></code></span>
-<span class='src-line'><b>4282</b><code>    delete = sub.add_parser(&quot;delete&quot;, aliases=[&quot;rm&quot;])</code></span>
-<span class='src-line'><b>4283</b><code>    delete.add_argument(&quot;job_id&quot;, nargs=&quot;*&quot;)</code></span>
-<span class='src-line'><b>4284</b><code>    delete.add_argument(&quot;--keep-files&quot;, action=&quot;store_true&quot;)</code></span>
-<span class='src-line'><b>4285</b><code>    delete.set_defaults(func=cmd_delete)</code></span>
+<span class='src-line'><b>4229</b><code>    stop = sub.add_parser(&quot;stop&quot;)</code></span>
+<span class='src-line'><b>4230</b><code>    stop.add_argument(&quot;job_id&quot;, nargs=&quot;*&quot;, help=&quot;Optional job title/id to pause instead of stopping the daemon&quot;)</code></span>
+<span class='src-line'><b>4231</b><code>    stop.add_argument(&quot;--wait&quot;, type=float, default=5.0)</code></span>
+<span class='src-line'><b>4232</b><code>    stop.set_defaults(func=cmd_stop)</code></span>
+<span class='src-line'><b>4233</b><code></code></span>
+<span class='src-line'><b>4234</b><code>    restart = sub.add_parser(&quot;restart&quot;)</code></span>
+<span class='src-line'><b>4235</b><code>    restart.add_argument(&quot;--poll-seconds&quot;, type=float, default=0.0)</code></span>
+<span class='src-line'><b>4236</b><code>    restart.add_argument(&quot;--wait&quot;, type=float, default=5.0)</code></span>
+<span class='src-line'><b>4237</b><code>    restart.add_argument(&quot;--fake&quot;, action=&quot;store_true&quot;, help=&quot;Use deterministic fake model responses&quot;)</code></span>
+<span class='src-line'><b>4238</b><code>    restart.add_argument(&quot;--quiet&quot;, action=&quot;store_true&quot;, help=&quot;Write fewer daemon log lines&quot;)</code></span>
+<span class='src-line'><b>4239</b><code>    restart.add_argument(&quot;--log-file&quot;)</code></span>
+<span class='src-line'><b>4240</b><code>    restart.set_defaults(func=cmd_restart)</code></span>
+<span class='src-line'><b>4241</b><code></code></span>
+<span class='src-line'><b>4242</b><code>    browser_dashboard = sub.add_parser(&quot;browser-dashboard&quot;)</code></span>
+<span class='src-line'><b>4243</b><code>    browser_dashboard.add_argument(&quot;--port&quot;, type=int, default=4848)</code></span>
+<span class='src-line'><b>4244</b><code>    browser_dashboard.add_argument(&quot;--foreground&quot;, action=&quot;store_true&quot;)</code></span>
+<span class='src-line'><b>4245</b><code>    browser_dashboard.add_argument(&quot;--stop&quot;, action=&quot;store_true&quot;)</code></span>
+<span class='src-line'><b>4246</b><code>    browser_dashboard.add_argument(&quot;--log-file&quot;)</code></span>
+<span class='src-line'><b>4247</b><code>    browser_dashboard.set_defaults(func=cmd_browser_dashboard)</code></span>
+<span class='src-line'><b>4248</b><code></code></span>
+<span class='src-line'><b>4249</b><code>    autostart = sub.add_parser(&quot;autostart&quot;)</code></span>
+<span class='src-line'><b>4250</b><code>    autostart.add_argument(&quot;action&quot;, choices=[&quot;install&quot;, &quot;status&quot;, &quot;uninstall&quot;])</code></span>
+<span class='src-line'><b>4251</b><code>    autostart.add_argument(&quot;--poll-seconds&quot;, type=float, default=5.0)</code></span>
+<span class='src-line'><b>4252</b><code>    autostart.add_argument(&quot;--quiet&quot;, action=&quot;store_true&quot;)</code></span>
+<span class='src-line'><b>4253</b><code>    autostart.set_defaults(func=cmd_autostart)</code></span>
+<span class='src-line'><b>4254</b><code></code></span>
+<span class='src-line'><b>4255</b><code>    service = sub.add_parser(&quot;service&quot;)</code></span>
+<span class='src-line'><b>4256</b><code>    service.add_argument(&quot;action&quot;, choices=[&quot;install&quot;, &quot;status&quot;, &quot;uninstall&quot;])</code></span>
+<span class='src-line'><b>4257</b><code>    service.add_argument(&quot;--poll-seconds&quot;, type=float, default=0.0)</code></span>
+<span class='src-line'><b>4258</b><code>    service.add_argument(&quot;--quiet&quot;, action=&quot;store_true&quot;)</code></span>
+<span class='src-line'><b>4259</b><code>    service.set_defaults(func=cmd_service)</code></span>
+<span class='src-line'><b>4260</b><code></code></span>
+<span class='src-line'><b>4261</b><code>    artifacts = sub.add_parser(&quot;artifacts&quot;)</code></span>
+<span class='src-line'><b>4262</b><code>    artifacts.add_argument(&quot;job_id&quot;, nargs=&quot;*&quot;)</code></span>
+<span class='src-line'><b>4263</b><code>    artifacts.add_argument(&quot;--limit&quot;, type=int, default=25)</code></span>
+<span class='src-line'><b>4264</b><code>    artifacts.add_argument(&quot;--chars&quot;, type=int, default=220)</code></span>
+<span class='src-line'><b>4265</b><code>    artifacts.add_argument(&quot;--paths&quot;, action=&quot;store_true&quot;, help=&quot;Show full artifact paths&quot;)</code></span>
+<span class='src-line'><b>4266</b><code>    artifacts.set_defaults(func=cmd_artifacts)</code></span>
+<span class='src-line'><b>4267</b><code></code></span>
+<span class='src-line'><b>4268</b><code>    artifact = sub.add_parser(&quot;artifact&quot;)</code></span>
+<span class='src-line'><b>4269</b><code>    artifact.add_argument(&quot;artifact_id_or_path&quot;, nargs=&quot;+&quot;)</code></span>
+<span class='src-line'><b>4270</b><code>    artifact.add_argument(&quot;--job&quot;, dest=&quot;job_id&quot;)</code></span>
+<span class='src-line'><b>4271</b><code>    artifact.add_argument(&quot;--chars&quot;, type=int, default=12000)</code></span>
+<span class='src-line'><b>4272</b><code>    artifact.set_defaults(func=cmd_artifact)</code></span>
+<span class='src-line'><b>4273</b><code></code></span>
+<span class='src-line'><b>4274</b><code>    lessons = sub.add_parser(&quot;lessons&quot;)</code></span>
+<span class='src-line'><b>4275</b><code>    lessons.add_argument(&quot;job_id&quot;, nargs=&quot;*&quot;)</code></span>
+<span class='src-line'><b>4276</b><code>    lessons.add_argument(&quot;--limit&quot;, type=int, default=25)</code></span>
+<span class='src-line'><b>4277</b><code>    lessons.add_argument(&quot;--chars&quot;, type=int, default=220)</code></span>
+<span class='src-line'><b>4278</b><code>    lessons.set_defaults(func=cmd_lessons)</code></span>
+<span class='src-line'><b>4279</b><code></code></span>
+<span class='src-line'><b>4280</b><code>    learn = sub.add_parser(&quot;learn&quot;)</code></span>
+<span class='src-line'><b>4281</b><code>    learn.add_argument(&quot;--job&quot;, dest=&quot;job_id&quot;)</code></span>
+<span class='src-line'><b>4282</b><code>    learn.add_argument(&quot;--category&quot;, default=&quot;operator_preference&quot;)</code></span>
+<span class='src-line'><b>4283</b><code>    learn.add_argument(&quot;--chars&quot;, type=int, default=220)</code></span>
+<span class='src-line'><b>4284</b><code>    learn.add_argument(&quot;lesson&quot;, nargs=&quot;+&quot;)</code></span>
+<span class='src-line'><b>4285</b><code>    learn.set_defaults(func=cmd_learn)</code></span>
 <span class='src-line'><b>4286</b><code></code></span>
-<span class='src-line'><b>4287</b><code>    chat = sub.add_parser(&quot;chat&quot;)</code></span>
-<span class='src-line'><b>4288</b><code>    chat.add_argument(&quot;job_id&quot;, nargs=&quot;*&quot;)</code></span>
-<span class='src-line'><b>4289</b><code>    chat.add_argument(&quot;--history-limit&quot;, type=int, default=12)</code></span>
-<span class='src-line'><b>4290</b><code>    chat.add_argument(&quot;--no-history&quot;, action=&quot;store_true&quot;)</code></span>
-<span class='src-line'><b>4291</b><code>    chat.set_defaults(func=cmd_chat)</code></span>
-<span class='src-line'><b>4292</b><code></code></span>
-<span class='src-line'><b>4293</b><code>    shell = sub.add_parser(&quot;shell&quot;)</code></span>
-<span class='src-line'><b>4294</b><code>    shell.add_argument(&quot;--status&quot;, action=&quot;store_true&quot;, help=&quot;Render the full dashboard when the shell opens&quot;)</code></span>
-<span class='src-line'><b>4295</b><code>    shell.add_argument(&quot;--no-status&quot;, action=&quot;store_true&quot;, help=argparse.SUPPRESS)</code></span>
-<span class='src-line'><b>4296</b><code>    shell.add_argument(&quot;--limit&quot;, type=int, default=8)</code></span>
-<span class='src-line'><b>4297</b><code>    shell.add_argument(&quot;--chars&quot;, type=int, default=180)</code></span>
-<span class='src-line'><b>4298</b><code>    shell.set_defaults(func=cmd_shell)</code></span>
-<span class='src-line'><b>4299</b><code></code></span>
-<span class='src-line'><b>4300</b><code>    steer = sub.add_parser(&quot;steer&quot;, aliases=[&quot;say&quot;])</code></span>
-<span class='src-line'><b>4301</b><code>    steer.add_argument(&quot;--job&quot;, dest=&quot;job_id&quot;)</code></span>
-<span class='src-line'><b>4302</b><code>    steer.add_argument(&quot;message&quot;, nargs=&quot;+&quot;)</code></span>
-<span class='src-line'><b>4303</b><code>    steer.set_defaults(func=cmd_steer)</code></span>
-<span class='src-line'><b>4304</b><code></code></span>
-<span class='src-line'><b>4305</b><code>    pause = sub.add_parser(&quot;pause&quot;)</code></span>
-<span class='src-line'><b>4306</b><code>    pause.add_argument(&quot;parts&quot;, nargs=&quot;*&quot;, help=&quot;Optional job title/id followed by an optional note&quot;)</code></span>
-<span class='src-line'><b>4307</b><code>    pause.set_defaults(func=cmd_pause)</code></span>
-<span class='src-line'><b>4308</b><code></code></span>
-<span class='src-line'><b>4309</b><code>    resume = sub.add_parser(&quot;resume&quot;)</code></span>
-<span class='src-line'><b>4310</b><code>    resume.add_argument(&quot;job_id&quot;, nargs=&quot;*&quot;)</code></span>
-<span class='src-line'><b>4311</b><code>    resume.set_defaults(func=cmd_resume)</code></span>
-<span class='src-line'><b>4312</b><code></code></span>
-<span class='src-line'><b>4313</b><code>    cancel = sub.add_parser(&quot;cancel&quot;)</code></span>
-<span class='src-line'><b>4314</b><code>    cancel.add_argument(&quot;parts&quot;, nargs=&quot;*&quot;, help=&quot;Optional job title/id followed by an optional note&quot;)</code></span>
-<span class='src-line'><b>4315</b><code>    cancel.set_defaults(func=cmd_cancel)</code></span>
-<span class='src-line'><b>4316</b><code></code></span>
-<span class='src-line'><b>4317</b><code>    status = sub.add_parser(&quot;status&quot;)</code></span>
-<span class='src-line'><b>4318</b><code>    status.add_argument(&quot;job_id&quot;, nargs=&quot;*&quot;)</code></span>
-<span class='src-line'><b>4319</b><code>    status.add_argument(&quot;--limit&quot;, type=int, default=8)</code></span>
-<span class='src-line'><b>4320</b><code>    status.add_argument(&quot;--chars&quot;, type=int, default=180)</code></span>
-<span class='src-line'><b>4321</b><code>    status.add_argument(&quot;--full&quot;, action=&quot;store_true&quot;, help=&quot;Render the full dashboard&quot;)</code></span>
-<span class='src-line'><b>4322</b><code>    status.add_argument(&quot;--json&quot;, action=&quot;store_true&quot;)</code></span>
-<span class='src-line'><b>4323</b><code>    status.set_defaults(func=cmd_status)</code></span>
+<span class='src-line'><b>4287</b><code>    findings = sub.add_parser(&quot;findings&quot;)</code></span>
+<span class='src-line'><b>4288</b><code>    findings.add_argument(&quot;job_id&quot;, nargs=&quot;*&quot;)</code></span>
+<span class='src-line'><b>4289</b><code>    findings.add_argument(&quot;--limit&quot;, type=int, default=25)</code></span>
+<span class='src-line'><b>4290</b><code>    findings.add_argument(&quot;--chars&quot;, type=int, default=220)</code></span>
+<span class='src-line'><b>4291</b><code>    findings.add_argument(&quot;--json&quot;, action=&quot;store_true&quot;)</code></span>
+<span class='src-line'><b>4292</b><code>    findings.set_defaults(func=cmd_findings)</code></span>
+<span class='src-line'><b>4293</b><code></code></span>
+<span class='src-line'><b>4294</b><code>    tasks = sub.add_parser(&quot;tasks&quot;)</code></span>
+<span class='src-line'><b>4295</b><code>    tasks.add_argument(&quot;job_id&quot;, nargs=&quot;*&quot;)</code></span>
+<span class='src-line'><b>4296</b><code>    tasks.add_argument(&quot;--limit&quot;, type=int, default=25)</code></span>
+<span class='src-line'><b>4297</b><code>    tasks.add_argument(&quot;--chars&quot;, type=int, default=220)</code></span>
+<span class='src-line'><b>4298</b><code>    tasks.add_argument(&quot;--status&quot;, nargs=&quot;+&quot;)</code></span>
+<span class='src-line'><b>4299</b><code>    tasks.add_argument(&quot;--json&quot;, action=&quot;store_true&quot;)</code></span>
+<span class='src-line'><b>4300</b><code>    tasks.set_defaults(func=cmd_tasks)</code></span>
+<span class='src-line'><b>4301</b><code></code></span>
+<span class='src-line'><b>4302</b><code>    roadmap = sub.add_parser(&quot;roadmap&quot;)</code></span>
+<span class='src-line'><b>4303</b><code>    roadmap.add_argument(&quot;job_id&quot;, nargs=&quot;*&quot;)</code></span>
+<span class='src-line'><b>4304</b><code>    roadmap.add_argument(&quot;--limit&quot;, type=int, default=25)</code></span>
+<span class='src-line'><b>4305</b><code>    roadmap.add_argument(&quot;--features&quot;, type=int, default=3)</code></span>
+<span class='src-line'><b>4306</b><code>    roadmap.add_argument(&quot;--chars&quot;, type=int, default=220)</code></span>
+<span class='src-line'><b>4307</b><code>    roadmap.add_argument(&quot;--json&quot;, action=&quot;store_true&quot;)</code></span>
+<span class='src-line'><b>4308</b><code>    roadmap.set_defaults(func=cmd_roadmap)</code></span>
+<span class='src-line'><b>4309</b><code></code></span>
+<span class='src-line'><b>4310</b><code>    experiments = sub.add_parser(&quot;experiments&quot;)</code></span>
+<span class='src-line'><b>4311</b><code>    experiments.add_argument(&quot;job_id&quot;, nargs=&quot;*&quot;)</code></span>
+<span class='src-line'><b>4312</b><code>    experiments.add_argument(&quot;--limit&quot;, type=int, default=25)</code></span>
+<span class='src-line'><b>4313</b><code>    experiments.add_argument(&quot;--chars&quot;, type=int, default=220)</code></span>
+<span class='src-line'><b>4314</b><code>    experiments.add_argument(&quot;--status&quot;, nargs=&quot;+&quot;)</code></span>
+<span class='src-line'><b>4315</b><code>    experiments.add_argument(&quot;--json&quot;, action=&quot;store_true&quot;)</code></span>
+<span class='src-line'><b>4316</b><code>    experiments.set_defaults(func=cmd_experiments)</code></span>
+<span class='src-line'><b>4317</b><code></code></span>
+<span class='src-line'><b>4318</b><code>    sources = sub.add_parser(&quot;sources&quot;)</code></span>
+<span class='src-line'><b>4319</b><code>    sources.add_argument(&quot;job_id&quot;, nargs=&quot;*&quot;)</code></span>
+<span class='src-line'><b>4320</b><code>    sources.add_argument(&quot;--limit&quot;, type=int, default=25)</code></span>
+<span class='src-line'><b>4321</b><code>    sources.add_argument(&quot;--chars&quot;, type=int, default=220)</code></span>
+<span class='src-line'><b>4322</b><code>    sources.add_argument(&quot;--json&quot;, action=&quot;store_true&quot;)</code></span>
+<span class='src-line'><b>4323</b><code>    sources.set_defaults(func=cmd_sources)</code></span>
 <span class='src-line'><b>4324</b><code></code></span>
-<span class='src-line'><b>4325</b><code>    health = sub.add_parser(&quot;health&quot;)</code></span>
-<span class='src-line'><b>4326</b><code>    health.add_argument(&quot;--limit&quot;, type=int, default=8)</code></span>
-<span class='src-line'><b>4327</b><code>    health.add_argument(&quot;--chars&quot;, type=int, default=180)</code></span>
-<span class='src-line'><b>4328</b><code>    health.set_defaults(func=cmd_health)</code></span>
-<span class='src-line'><b>4329</b><code></code></span>
-<span class='src-line'><b>4330</b><code>    history = sub.add_parser(&quot;history&quot;)</code></span>
-<span class='src-line'><b>4331</b><code>    history.add_argument(&quot;job_id&quot;, nargs=&quot;*&quot;)</code></span>
-<span class='src-line'><b>4332</b><code>    history.add_argument(&quot;--limit&quot;, type=int, default=80)</code></span>
-<span class='src-line'><b>4333</b><code>    history.add_argument(&quot;--chars&quot;, type=int, default=260)</code></span>
-<span class='src-line'><b>4334</b><code>    history.add_argument(&quot;--full&quot;, action=&quot;store_true&quot;)</code></span>
-<span class='src-line'><b>4335</b><code>    history.add_argument(&quot;--json&quot;, action=&quot;store_true&quot;)</code></span>
-<span class='src-line'><b>4336</b><code>    history.set_defaults(func=cmd_history)</code></span>
-<span class='src-line'><b>4337</b><code></code></span>
-<span class='src-line'><b>4338</b><code>    events = sub.add_parser(&quot;events&quot;)</code></span>
-<span class='src-line'><b>4339</b><code>    events.add_argument(&quot;job_id&quot;, nargs=&quot;*&quot;)</code></span>
-<span class='src-line'><b>4340</b><code>    events.add_argument(&quot;--limit&quot;, type=int, default=80)</code></span>
-<span class='src-line'><b>4341</b><code>    events.add_argument(&quot;--chars&quot;, type=int, default=260)</code></span>
-<span class='src-line'><b>4342</b><code>    events.add_argument(&quot;--full&quot;, action=&quot;store_true&quot;)</code></span>
-<span class='src-line'><b>4343</b><code>    events.add_argument(&quot;--follow&quot;, action=&quot;store_true&quot;)</code></span>
-<span class='src-line'><b>4344</b><code>    events.add_argument(&quot;--interval&quot;, type=float, default=2.0)</code></span>
-<span class='src-line'><b>4345</b><code>    events.add_argument(&quot;--json&quot;, action=&quot;store_true&quot;)</code></span>
-<span class='src-line'><b>4346</b><code>    events.set_defaults(func=cmd_events)</code></span>
+<span class='src-line'><b>4325</b><code>    memory = sub.add_parser(&quot;memory&quot;)</code></span>
+<span class='src-line'><b>4326</b><code>    memory.add_argument(&quot;job_id&quot;, nargs=&quot;*&quot;)</code></span>
+<span class='src-line'><b>4327</b><code>    memory.add_argument(&quot;--limit&quot;, type=int, default=10)</code></span>
+<span class='src-line'><b>4328</b><code>    memory.add_argument(&quot;--chars&quot;, type=int, default=260)</code></span>
+<span class='src-line'><b>4329</b><code>    memory.set_defaults(func=cmd_memory)</code></span>
+<span class='src-line'><b>4330</b><code></code></span>
+<span class='src-line'><b>4331</b><code>    metrics = sub.add_parser(&quot;metrics&quot;)</code></span>
+<span class='src-line'><b>4332</b><code>    metrics.add_argument(&quot;job_id&quot;, nargs=&quot;*&quot;)</code></span>
+<span class='src-line'><b>4333</b><code>    metrics.add_argument(&quot;--chars&quot;, type=int, default=220)</code></span>
+<span class='src-line'><b>4334</b><code>    metrics.set_defaults(func=cmd_metrics)</code></span>
+<span class='src-line'><b>4335</b><code></code></span>
+<span class='src-line'><b>4336</b><code>    usage = sub.add_parser(&quot;usage&quot;)</code></span>
+<span class='src-line'><b>4337</b><code>    usage.add_argument(&quot;job_id&quot;, nargs=&quot;*&quot;)</code></span>
+<span class='src-line'><b>4338</b><code>    usage.add_argument(&quot;--json&quot;, action=&quot;store_true&quot;)</code></span>
+<span class='src-line'><b>4339</b><code>    usage.set_defaults(func=cmd_usage)</code></span>
+<span class='src-line'><b>4340</b><code></code></span>
+<span class='src-line'><b>4341</b><code>    logs = sub.add_parser(&quot;logs&quot;, aliases=[&quot;outputs&quot;, &quot;output&quot;])</code></span>
+<span class='src-line'><b>4342</b><code>    logs.add_argument(&quot;job_id&quot;, nargs=&quot;*&quot;)</code></span>
+<span class='src-line'><b>4343</b><code>    logs.add_argument(&quot;--limit&quot;, type=int, default=25)</code></span>
+<span class='src-line'><b>4344</b><code>    logs.add_argument(&quot;--verbose&quot;, action=&quot;store_true&quot;)</code></span>
+<span class='src-line'><b>4345</b><code>    logs.add_argument(&quot;--chars&quot;, type=int, default=4000)</code></span>
+<span class='src-line'><b>4346</b><code>    logs.set_defaults(func=cmd_logs)</code></span>
 <span class='src-line'><b>4347</b><code></code></span>
-<span class='src-line'><b>4348</b><code>    dashboard = sub.add_parser(&quot;dashboard&quot;, aliases=[&quot;dash&quot;])</code></span>
-<span class='src-line'><b>4349</b><code>    dashboard.add_argument(&quot;job_id&quot;, nargs=&quot;*&quot;)</code></span>
-<span class='src-line'><b>4350</b><code>    dashboard.add_argument(&quot;--interval&quot;, type=float, default=2.0)</code></span>
-<span class='src-line'><b>4351</b><code>    dashboard.add_argument(&quot;--limit&quot;, type=int, default=12)</code></span>
-<span class='src-line'><b>4352</b><code>    dashboard.add_argument(&quot;--chars&quot;, type=int, default=260)</code></span>
-<span class='src-line'><b>4353</b><code>    dashboard.add_argument(&quot;--no-follow&quot;, dest=&quot;follow&quot;, action=&quot;store_false&quot;)</code></span>
-<span class='src-line'><b>4354</b><code>    dashboard.add_argument(&quot;--no-clear&quot;, dest=&quot;clear&quot;, action=&quot;store_false&quot;)</code></span>
-<span class='src-line'><b>4355</b><code>    dashboard.set_defaults(func=cmd_dashboard, follow=True, clear=True)</code></span>
-<span class='src-line'><b>4356</b><code></code></span>
-<span class='src-line'><b>4357</b><code>    start = sub.add_parser(&quot;start&quot;)</code></span>
-<span class='src-line'><b>4358</b><code>    start.add_argument(&quot;--poll-seconds&quot;, type=float, default=0.0)</code></span>
-<span class='src-line'><b>4359</b><code>    start.add_argument(&quot;--fake&quot;, action=&quot;store_true&quot;, help=&quot;Use deterministic fake model responses&quot;)</code></span>
-<span class='src-line'><b>4360</b><code>    start.add_argument(&quot;--quiet&quot;, action=&quot;store_true&quot;, help=&quot;Write fewer daemon log lines&quot;)</code></span>
-<span class='src-line'><b>4361</b><code>    start.add_argument(&quot;--log-file&quot;)</code></span>
-<span class='src-line'><b>4362</b><code>    start.set_defaults(func=cmd_start)</code></span>
-<span class='src-line'><b>4363</b><code></code></span>
-<span class='src-line'><b>4364</b><code>    stop = sub.add_parser(&quot;stop&quot;)</code></span>
-<span class='src-line'><b>4365</b><code>    stop.add_argument(&quot;job_id&quot;, nargs=&quot;*&quot;, help=&quot;Optional job title/id to pause instead of stopping the daemon&quot;)</code></span>
-<span class='src-line'><b>4366</b><code>    stop.add_argument(&quot;--wait&quot;, type=float, default=5.0)</code></span>
-<span class='src-line'><b>4367</b><code>    stop.set_defaults(func=cmd_stop)</code></span>
-<span class='src-line'><b>4368</b><code></code></span>
-<span class='src-line'><b>4369</b><code>    restart = sub.add_parser(&quot;restart&quot;)</code></span>
-<span class='src-line'><b>4370</b><code>    restart.add_argument(&quot;--poll-seconds&quot;, type=float, default=0.0)</code></span>
-<span class='src-line'><b>4371</b><code>    restart.add_argument(&quot;--wait&quot;, type=float, default=5.0)</code></span>
-<span class='src-line'><b>4372</b><code>    restart.add_argument(&quot;--fake&quot;, action=&quot;store_true&quot;, help=&quot;Use deterministic fake model responses&quot;)</code></span>
-<span class='src-line'><b>4373</b><code>    restart.add_argument(&quot;--quiet&quot;, action=&quot;store_true&quot;, help=&quot;Write fewer daemon log lines&quot;)</code></span>
-<span class='src-line'><b>4374</b><code>    restart.add_argument(&quot;--log-file&quot;)</code></span>
-<span class='src-line'><b>4375</b><code>    restart.set_defaults(func=cmd_restart)</code></span>
-<span class='src-line'><b>4376</b><code></code></span>
-<span class='src-line'><b>4377</b><code>    browser_dashboard = sub.add_parser(&quot;browser-dashboard&quot;)</code></span>
-<span class='src-line'><b>4378</b><code>    browser_dashboard.add_argument(&quot;--port&quot;, type=int, default=4848)</code></span>
-<span class='src-line'><b>4379</b><code>    browser_dashboard.add_argument(&quot;--foreground&quot;, action=&quot;store_true&quot;)</code></span>
-<span class='src-line'><b>4380</b><code>    browser_dashboard.add_argument(&quot;--stop&quot;, action=&quot;store_true&quot;)</code></span>
-<span class='src-line'><b>4381</b><code>    browser_dashboard.add_argument(&quot;--log-file&quot;)</code></span>
-<span class='src-line'><b>4382</b><code>    browser_dashboard.set_defaults(func=cmd_browser_dashboard)</code></span>
-<span class='src-line'><b>4383</b><code></code></span>
-<span class='src-line'><b>4384</b><code>    autostart = sub.add_parser(&quot;autostart&quot;)</code></span>
-<span class='src-line'><b>4385</b><code>    autostart.add_argument(&quot;action&quot;, choices=[&quot;install&quot;, &quot;status&quot;, &quot;uninstall&quot;])</code></span>
-<span class='src-line'><b>4386</b><code>    autostart.add_argument(&quot;--poll-seconds&quot;, type=float, default=5.0)</code></span>
-<span class='src-line'><b>4387</b><code>    autostart.add_argument(&quot;--quiet&quot;, action=&quot;store_true&quot;)</code></span>
-<span class='src-line'><b>4388</b><code>    autostart.set_defaults(func=cmd_autostart)</code></span>
-<span class='src-line'><b>4389</b><code></code></span>
-<span class='src-line'><b>4390</b><code>    service = sub.add_parser(&quot;service&quot;)</code></span>
-<span class='src-line'><b>4391</b><code>    service.add_argument(&quot;action&quot;, choices=[&quot;install&quot;, &quot;status&quot;, &quot;uninstall&quot;])</code></span>
-<span class='src-line'><b>4392</b><code>    service.add_argument(&quot;--poll-seconds&quot;, type=float, default=0.0)</code></span>
-<span class='src-line'><b>4393</b><code>    service.add_argument(&quot;--quiet&quot;, action=&quot;store_true&quot;)</code></span>
-<span class='src-line'><b>4394</b><code>    service.set_defaults(func=cmd_service)</code></span>
-<span class='src-line'><b>4395</b><code></code></span>
-<span class='src-line'><b>4396</b><code>    artifacts = sub.add_parser(&quot;artifacts&quot;)</code></span>
-<span class='src-line'><b>4397</b><code>    artifacts.add_argument(&quot;job_id&quot;, nargs=&quot;*&quot;)</code></span>
-<span class='src-line'><b>4398</b><code>    artifacts.add_argument(&quot;--limit&quot;, type=int, default=25)</code></span>
-<span class='src-line'><b>4399</b><code>    artifacts.add_argument(&quot;--chars&quot;, type=int, default=220)</code></span>
-<span class='src-line'><b>4400</b><code>    artifacts.add_argument(&quot;--paths&quot;, action=&quot;store_true&quot;, help=&quot;Show full artifact paths&quot;)</code></span>
-<span class='src-line'><b>4401</b><code>    artifacts.set_defaults(func=cmd_artifacts)</code></span>
-<span class='src-line'><b>4402</b><code></code></span>
-<span class='src-line'><b>4403</b><code>    artifact = sub.add_parser(&quot;artifact&quot;)</code></span>
-<span class='src-line'><b>4404</b><code>    artifact.add_argument(&quot;artifact_id_or_path&quot;, nargs=&quot;+&quot;)</code></span>
-<span class='src-line'><b>4405</b><code>    artifact.add_argument(&quot;--job&quot;, dest=&quot;job_id&quot;)</code></span>
-<span class='src-line'><b>4406</b><code>    artifact.add_argument(&quot;--chars&quot;, type=int, default=12000)</code></span>
-<span class='src-line'><b>4407</b><code>    artifact.set_defaults(func=cmd_artifact)</code></span>
+<span class='src-line'><b>4348</b><code>    activity = sub.add_parser(&quot;activity&quot;, aliases=[&quot;feed&quot;, &quot;tail&quot;])</code></span>
+<span class='src-line'><b>4349</b><code>    activity.add_argument(&quot;job_id&quot;, nargs=&quot;*&quot;)</code></span>
+<span class='src-line'><b>4350</b><code>    activity.add_argument(&quot;--limit&quot;, type=int, default=20)</code></span>
+<span class='src-line'><b>4351</b><code>    activity.add_argument(&quot;--chars&quot;, type=int, default=180)</code></span>
+<span class='src-line'><b>4352</b><code>    activity.add_argument(&quot;--follow&quot;, action=&quot;store_true&quot;)</code></span>
+<span class='src-line'><b>4353</b><code>    activity.add_argument(&quot;--interval&quot;, type=float, default=2.0)</code></span>
+<span class='src-line'><b>4354</b><code>    activity.add_argument(&quot;--verbose&quot;, action=&quot;store_true&quot;)</code></span>
+<span class='src-line'><b>4355</b><code>    activity.add_argument(&quot;--paths&quot;, action=&quot;store_true&quot;, help=&quot;Show full artifact paths&quot;)</code></span>
+<span class='src-line'><b>4356</b><code>    activity.set_defaults(func=cmd_activity)</code></span>
+<span class='src-line'><b>4357</b><code></code></span>
+<span class='src-line'><b>4358</b><code>    updates = sub.add_parser(&quot;updates&quot;, aliases=[&quot;update&quot;, &quot;outcomes&quot;, &quot;outcome&quot;])</code></span>
+<span class='src-line'><b>4359</b><code>    updates.add_argument(&quot;job_id&quot;, nargs=&quot;*&quot;)</code></span>
+<span class='src-line'><b>4360</b><code>    updates.add_argument(&quot;--limit&quot;, type=int, default=5)</code></span>
+<span class='src-line'><b>4361</b><code>    updates.add_argument(&quot;--chars&quot;, type=int, default=180)</code></span>
+<span class='src-line'><b>4362</b><code>    updates.add_argument(&quot;--paths&quot;, action=&quot;store_true&quot;, help=&quot;Show full artifact paths&quot;)</code></span>
+<span class='src-line'><b>4363</b><code>    updates.set_defaults(func=cmd_updates)</code></span>
+<span class='src-line'><b>4364</b><code></code></span>
+<span class='src-line'><b>4365</b><code>    watch = sub.add_parser(&quot;watch&quot;)</code></span>
+<span class='src-line'><b>4366</b><code>    watch.add_argument(&quot;job_id&quot;, nargs=&quot;+&quot;)</code></span>
+<span class='src-line'><b>4367</b><code>    watch.add_argument(&quot;--interval&quot;, type=float, default=2.0)</code></span>
+<span class='src-line'><b>4368</b><code>    watch.add_argument(&quot;--limit&quot;, type=int, default=20)</code></span>
+<span class='src-line'><b>4369</b><code>    watch.add_argument(&quot;--verbose&quot;, action=&quot;store_true&quot;)</code></span>
+<span class='src-line'><b>4370</b><code>    watch.add_argument(&quot;--chars&quot;, type=int, default=4000)</code></span>
+<span class='src-line'><b>4371</b><code>    watch.add_argument(&quot;--no-follow&quot;, dest=&quot;follow&quot;, action=&quot;store_false&quot;)</code></span>
+<span class='src-line'><b>4372</b><code>    watch.set_defaults(func=cmd_watch, follow=True)</code></span>
+<span class='src-line'><b>4373</b><code></code></span>
+<span class='src-line'><b>4374</b><code>    run_one = sub.add_parser(&quot;run-one&quot;)</code></span>
+<span class='src-line'><b>4375</b><code>    run_one.add_argument(&quot;job_id&quot;, nargs=&quot;+&quot;)</code></span>
+<span class='src-line'><b>4376</b><code>    run_one.add_argument(&quot;--fake&quot;, action=&quot;store_true&quot;, help=&quot;Use a deterministic fake model response&quot;)</code></span>
+<span class='src-line'><b>4377</b><code>    run_one.set_defaults(func=cmd_run_one)</code></span>
+<span class='src-line'><b>4378</b><code></code></span>
+<span class='src-line'><b>4379</b><code>    work = sub.add_parser(&quot;work&quot;)</code></span>
+<span class='src-line'><b>4380</b><code>    work.add_argument(&quot;job_id&quot;, nargs=&quot;*&quot;)</code></span>
+<span class='src-line'><b>4381</b><code>    work.add_argument(&quot;--steps&quot;, type=int, default=5)</code></span>
+<span class='src-line'><b>4382</b><code>    work.add_argument(&quot;--poll-seconds&quot;, type=float, default=0.5)</code></span>
+<span class='src-line'><b>4383</b><code>    work.add_argument(&quot;--fake&quot;, action=&quot;store_true&quot;, help=&quot;Use deterministic fake model responses&quot;)</code></span>
+<span class='src-line'><b>4384</b><code>    work.add_argument(&quot;--verbose&quot;, action=&quot;store_true&quot;, help=&quot;Print step inputs and outputs&quot;)</code></span>
+<span class='src-line'><b>4385</b><code>    work.add_argument(&quot;--dashboard&quot;, action=&quot;store_true&quot;, help=&quot;Render a dashboard snapshot after each step&quot;)</code></span>
+<span class='src-line'><b>4386</b><code>    work.add_argument(&quot;--limit&quot;, type=int, default=12)</code></span>
+<span class='src-line'><b>4387</b><code>    work.add_argument(&quot;--chars&quot;, type=int, default=4000)</code></span>
+<span class='src-line'><b>4388</b><code>    work.add_argument(&quot;--continue-on-error&quot;, action=&quot;store_true&quot;)</code></span>
+<span class='src-line'><b>4389</b><code>    work.set_defaults(func=cmd_work)</code></span>
+<span class='src-line'><b>4390</b><code></code></span>
+<span class='src-line'><b>4391</b><code>    run = sub.add_parser(&quot;run&quot;)</code></span>
+<span class='src-line'><b>4392</b><code>    run.add_argument(&quot;job_id&quot;, nargs=&quot;*&quot;)</code></span>
+<span class='src-line'><b>4393</b><code>    run.add_argument(&quot;--poll-seconds&quot;, type=float, default=0.0)</code></span>
+<span class='src-line'><b>4394</b><code>    run.add_argument(&quot;--interval&quot;, type=float, default=2.0)</code></span>
+<span class='src-line'><b>4395</b><code>    run.add_argument(&quot;--limit&quot;, type=int, default=20)</code></span>
+<span class='src-line'><b>4396</b><code>    run.add_argument(&quot;--chars&quot;, type=int, default=180)</code></span>
+<span class='src-line'><b>4397</b><code>    run.add_argument(&quot;--verbose&quot;, action=&quot;store_true&quot;)</code></span>
+<span class='src-line'><b>4398</b><code>    run.add_argument(&quot;--paths&quot;, action=&quot;store_true&quot;)</code></span>
+<span class='src-line'><b>4399</b><code>    run.add_argument(&quot;--fake&quot;, action=&quot;store_true&quot;, help=&quot;Use deterministic fake model responses&quot;)</code></span>
+<span class='src-line'><b>4400</b><code>    run.add_argument(&quot;--quiet&quot;, action=&quot;store_true&quot;, help=&quot;Write fewer daemon log lines&quot;)</code></span>
+<span class='src-line'><b>4401</b><code>    run.add_argument(&quot;--log-file&quot;)</code></span>
+<span class='src-line'><b>4402</b><code>    run.add_argument(&quot;--no-follow&quot;, action=&quot;store_true&quot;, help=&quot;Start daemon and return without tailing activity&quot;)</code></span>
+<span class='src-line'><b>4403</b><code>    run.set_defaults(func=cmd_run)</code></span>
+<span class='src-line'><b>4404</b><code></code></span>
+<span class='src-line'><b>4405</b><code>    digest = sub.add_parser(&quot;digest&quot;)</code></span>
+<span class='src-line'><b>4406</b><code>    digest.add_argument(&quot;job_id&quot;, nargs=&quot;+&quot;)</code></span>
+<span class='src-line'><b>4407</b><code>    digest.set_defaults(func=cmd_digest)</code></span>
 <span class='src-line'><b>4408</b><code></code></span>
-<span class='src-line'><b>4409</b><code>    lessons = sub.add_parser(&quot;lessons&quot;)</code></span>
-<span class='src-line'><b>4410</b><code>    lessons.add_argument(&quot;job_id&quot;, nargs=&quot;*&quot;)</code></span>
-<span class='src-line'><b>4411</b><code>    lessons.add_argument(&quot;--limit&quot;, type=int, default=25)</code></span>
-<span class='src-line'><b>4412</b><code>    lessons.add_argument(&quot;--chars&quot;, type=int, default=220)</code></span>
-<span class='src-line'><b>4413</b><code>    lessons.set_defaults(func=cmd_lessons)</code></span>
-<span class='src-line'><b>4414</b><code></code></span>
-<span class='src-line'><b>4415</b><code>    learn = sub.add_parser(&quot;learn&quot;)</code></span>
-<span class='src-line'><b>4416</b><code>    learn.add_argument(&quot;--job&quot;, dest=&quot;job_id&quot;)</code></span>
-<span class='src-line'><b>4417</b><code>    learn.add_argument(&quot;--category&quot;, default=&quot;operator_preference&quot;)</code></span>
-<span class='src-line'><b>4418</b><code>    learn.add_argument(&quot;--chars&quot;, type=int, default=220)</code></span>
-<span class='src-line'><b>4419</b><code>    learn.add_argument(&quot;lesson&quot;, nargs=&quot;+&quot;)</code></span>
-<span class='src-line'><b>4420</b><code>    learn.set_defaults(func=cmd_learn)</code></span>
-<span class='src-line'><b>4421</b><code></code></span>
-<span class='src-line'><b>4422</b><code>    findings = sub.add_parser(&quot;findings&quot;)</code></span>
-<span class='src-line'><b>4423</b><code>    findings.add_argument(&quot;job_id&quot;, nargs=&quot;*&quot;)</code></span>
-<span class='src-line'><b>4424</b><code>    findings.add_argument(&quot;--limit&quot;, type=int, default=25)</code></span>
-<span class='src-line'><b>4425</b><code>    findings.add_argument(&quot;--chars&quot;, type=int, default=220)</code></span>
-<span class='src-line'><b>4426</b><code>    findings.add_argument(&quot;--json&quot;, action=&quot;store_true&quot;)</code></span>
-<span class='src-line'><b>4427</b><code>    findings.set_defaults(func=cmd_findings)</code></span>
-<span class='src-line'><b>4428</b><code></code></span>
-<span class='src-line'><b>4429</b><code>    tasks = sub.add_parser(&quot;tasks&quot;)</code></span>
-<span class='src-line'><b>4430</b><code>    tasks.add_argument(&quot;job_id&quot;, nargs=&quot;*&quot;)</code></span>
-<span class='src-line'><b>4431</b><code>    tasks.add_argument(&quot;--limit&quot;, type=int, default=25)</code></span>
-<span class='src-line'><b>4432</b><code>    tasks.add_argument(&quot;--chars&quot;, type=int, default=220)</code></span>
-<span class='src-line'><b>4433</b><code>    tasks.add_argument(&quot;--status&quot;, nargs=&quot;+&quot;)</code></span>
-<span class='src-line'><b>4434</b><code>    tasks.add_argument(&quot;--json&quot;, action=&quot;store_true&quot;)</code></span>
-<span class='src-line'><b>4435</b><code>    tasks.set_defaults(func=cmd_tasks)</code></span>
+<span class='src-line'><b>4409</b><code>    daily_digest = sub.add_parser(&quot;daily-digest&quot;)</code></span>
+<span class='src-line'><b>4410</b><code>    daily_digest.add_argument(&quot;--day&quot;, help=&quot;YYYY-MM-DD. Defaults to today.&quot;)</code></span>
+<span class='src-line'><b>4411</b><code>    daily_digest.set_defaults(func=cmd_daily_digest)</code></span>
+<span class='src-line'><b>4412</b><code></code></span>
+<span class='src-line'><b>4413</b><code>    daemon = sub.add_parser(&quot;daemon&quot;)</code></span>
+<span class='src-line'><b>4414</b><code>    daemon.add_argument(&quot;--once&quot;, action=&quot;store_true&quot;, help=&quot;Run at most one job step and exit&quot;)</code></span>
+<span class='src-line'><b>4415</b><code>    daemon.add_argument(&quot;--fake&quot;, action=&quot;store_true&quot;, help=&quot;Use deterministic fake model responses&quot;)</code></span>
+<span class='src-line'><b>4416</b><code>    daemon.add_argument(&quot;--poll-seconds&quot;, type=float, default=0.0)</code></span>
+<span class='src-line'><b>4417</b><code>    daemon.add_argument(&quot;--quiet&quot;, action=&quot;store_true&quot;, help=&quot;Do not print foreground progress lines&quot;)</code></span>
+<span class='src-line'><b>4418</b><code>    daemon.add_argument(&quot;--verbose&quot;, action=&quot;store_true&quot;, help=&quot;Print model-visible job state and step results&quot;)</code></span>
+<span class='src-line'><b>4419</b><code>    daemon.set_defaults(func=cmd_daemon)</code></span>
+<span class='src-line'><b>4420</b><code></code></span>
+<span class='src-line'><b>4421</b><code>    doctor = sub.add_parser(&quot;doctor&quot;)</code></span>
+<span class='src-line'><b>4422</b><code>    doctor.add_argument(&quot;--check-model&quot;, action=&quot;store_true&quot;, help=&quot;Also call the local model /models endpoint&quot;)</code></span>
+<span class='src-line'><b>4423</b><code>    doctor.set_defaults(func=cmd_doctor)</code></span>
+<span class='src-line'><b>4424</b><code></code></span>
+<span class='src-line'><b>4425</b><code>    return parser</code></span>
+<span class='src-line'><b>4426</b><code></code></span>
+<span class='src-line'><b>4427</b><code></code></span>
+<span class='src-line'><b>4428</b><code>def main(argv: list[str] | None = None) -&gt; None:</code></span>
+<span class='src-line'><b>4429</b><code>    argv = sys.argv[1:] if argv is None else argv</code></span>
+<span class='src-line'><b>4430</b><code>    if not argv:</code></span>
+<span class='src-line'><b>4431</b><code>        cmd_home(argparse.Namespace(history_limit=12))</code></span>
+<span class='src-line'><b>4432</b><code>        return</code></span>
+<span class='src-line'><b>4433</b><code>    parser = build_parser()</code></span>
+<span class='src-line'><b>4434</b><code>    args = parser.parse_args(argv)</code></span>
+<span class='src-line'><b>4435</b><code>    args.func(args)</code></span>
 <span class='src-line'><b>4436</b><code></code></span>
-<span class='src-line'><b>4437</b><code>    roadmap = sub.add_parser(&quot;roadmap&quot;)</code></span>
-<span class='src-line'><b>4438</b><code>    roadmap.add_argument(&quot;job_id&quot;, nargs=&quot;*&quot;)</code></span>
-<span class='src-line'><b>4439</b><code>    roadmap.add_argument(&quot;--limit&quot;, type=int, default=25)</code></span>
-<span class='src-line'><b>4440</b><code>    roadmap.add_argument(&quot;--features&quot;, type=int, default=3)</code></span>
-<span class='src-line'><b>4441</b><code>    roadmap.add_argument(&quot;--chars&quot;, type=int, default=220)</code></span>
-<span class='src-line'><b>4442</b><code>    roadmap.add_argument(&quot;--json&quot;, action=&quot;store_true&quot;)</code></span>
-<span class='src-line'><b>4443</b><code>    roadmap.set_defaults(func=cmd_roadmap)</code></span>
-<span class='src-line'><b>4444</b><code></code></span>
-<span class='src-line'><b>4445</b><code>    experiments = sub.add_parser(&quot;experiments&quot;)</code></span>
-<span class='src-line'><b>4446</b><code>    experiments.add_argument(&quot;job_id&quot;, nargs=&quot;*&quot;)</code></span>
-<span class='src-line'><b>4447</b><code>    experiments.add_argument(&quot;--limit&quot;, type=int, default=25)</code></span>
-<span class='src-line'><b>4448</b><code>    experiments.add_argument(&quot;--chars&quot;, type=int, default=220)</code></span>
-<span class='src-line'><b>4449</b><code>    experiments.add_argument(&quot;--status&quot;, nargs=&quot;+&quot;)</code></span>
-<span class='src-line'><b>4450</b><code>    experiments.add_argument(&quot;--json&quot;, action=&quot;store_true&quot;)</code></span>
-<span class='src-line'><b>4451</b><code>    experiments.set_defaults(func=cmd_experiments)</code></span>
-<span class='src-line'><b>4452</b><code></code></span>
-<span class='src-line'><b>4453</b><code>    sources = sub.add_parser(&quot;sources&quot;)</code></span>
-<span class='src-line'><b>4454</b><code>    sources.add_argument(&quot;job_id&quot;, nargs=&quot;*&quot;)</code></span>
-<span class='src-line'><b>4455</b><code>    sources.add_argument(&quot;--limit&quot;, type=int, default=25)</code></span>
-<span class='src-line'><b>4456</b><code>    sources.add_argument(&quot;--chars&quot;, type=int, default=220)</code></span>
-<span class='src-line'><b>4457</b><code>    sources.add_argument(&quot;--json&quot;, action=&quot;store_true&quot;)</code></span>
-<span class='src-line'><b>4458</b><code>    sources.set_defaults(func=cmd_sources)</code></span>
-<span class='src-line'><b>4459</b><code></code></span>
-<span class='src-line'><b>4460</b><code>    memory = sub.add_parser(&quot;memory&quot;)</code></span>
-<span class='src-line'><b>4461</b><code>    memory.add_argument(&quot;job_id&quot;, nargs=&quot;*&quot;)</code></span>
-<span class='src-line'><b>4462</b><code>    memory.add_argument(&quot;--limit&quot;, type=int, default=10)</code></span>
-<span class='src-line'><b>4463</b><code>    memory.add_argument(&quot;--chars&quot;, type=int, default=260)</code></span>
-<span class='src-line'><b>4464</b><code>    memory.set_defaults(func=cmd_memory)</code></span>
-<span class='src-line'><b>4465</b><code></code></span>
-<span class='src-line'><b>4466</b><code>    metrics = sub.add_parser(&quot;metrics&quot;)</code></span>
-<span class='src-line'><b>4467</b><code>    metrics.add_argument(&quot;job_id&quot;, nargs=&quot;*&quot;)</code></span>
-<span class='src-line'><b>4468</b><code>    metrics.add_argument(&quot;--chars&quot;, type=int, default=220)</code></span>
-<span class='src-line'><b>4469</b><code>    metrics.set_defaults(func=cmd_metrics)</code></span>
-<span class='src-line'><b>4470</b><code></code></span>
-<span class='src-line'><b>4471</b><code>    usage = sub.add_parser(&quot;usage&quot;)</code></span>
-<span class='src-line'><b>4472</b><code>    usage.add_argument(&quot;job_id&quot;, nargs=&quot;*&quot;)</code></span>
-<span class='src-line'><b>4473</b><code>    usage.add_argument(&quot;--json&quot;, action=&quot;store_true&quot;)</code></span>
-<span class='src-line'><b>4474</b><code>    usage.set_defaults(func=cmd_usage)</code></span>
-<span class='src-line'><b>4475</b><code></code></span>
-<span class='src-line'><b>4476</b><code>    logs = sub.add_parser(&quot;logs&quot;, aliases=[&quot;outputs&quot;, &quot;output&quot;])</code></span>
-<span class='src-line'><b>4477</b><code>    logs.add_argument(&quot;job_id&quot;, nargs=&quot;*&quot;)</code></span>
-<span class='src-line'><b>4478</b><code>    logs.add_argument(&quot;--limit&quot;, type=int, default=25)</code></span>
-<span class='src-line'><b>4479</b><code>    logs.add_argument(&quot;--verbose&quot;, action=&quot;store_true&quot;)</code></span>
-<span class='src-line'><b>4480</b><code>    logs.add_argument(&quot;--chars&quot;, type=int, default=4000)</code></span>
-<span class='src-line'><b>4481</b><code>    logs.set_defaults(func=cmd_logs)</code></span>
-<span class='src-line'><b>4482</b><code></code></span>
-<span class='src-line'><b>4483</b><code>    activity = sub.add_parser(&quot;activity&quot;, aliases=[&quot;feed&quot;, &quot;tail&quot;])</code></span>
-<span class='src-line'><b>4484</b><code>    activity.add_argument(&quot;job_id&quot;, nargs=&quot;*&quot;)</code></span>
-<span class='src-line'><b>4485</b><code>    activity.add_argument(&quot;--limit&quot;, type=int, default=20)</code></span>
-<span class='src-line'><b>4486</b><code>    activity.add_argument(&quot;--chars&quot;, type=int, default=180)</code></span>
-<span class='src-line'><b>4487</b><code>    activity.add_argument(&quot;--follow&quot;, action=&quot;store_true&quot;)</code></span>
-<span class='src-line'><b>4488</b><code>    activity.add_argument(&quot;--interval&quot;, type=float, default=2.0)</code></span>
-<span class='src-line'><b>4489</b><code>    activity.add_argument(&quot;--verbose&quot;, action=&quot;store_true&quot;)</code></span>
-<span class='src-line'><b>4490</b><code>    activity.add_argument(&quot;--paths&quot;, action=&quot;store_true&quot;, help=&quot;Show full artifact paths&quot;)</code></span>
-<span class='src-line'><b>4491</b><code>    activity.set_defaults(func=cmd_activity)</code></span>
-<span class='src-line'><b>4492</b><code></code></span>
-<span class='src-line'><b>4493</b><code>    updates = sub.add_parser(&quot;updates&quot;, aliases=[&quot;update&quot;, &quot;outcomes&quot;, &quot;outcome&quot;])</code></span>
-<span class='src-line'><b>4494</b><code>    updates.add_argument(&quot;job_id&quot;, nargs=&quot;*&quot;)</code></span>
-<span class='src-line'><b>4495</b><code>    updates.add_argument(&quot;--limit&quot;, type=int, default=5)</code></span>
-<span class='src-line'><b>4496</b><code>    updates.add_argument(&quot;--chars&quot;, type=int, default=180)</code></span>
-<span class='src-line'><b>4497</b><code>    updates.add_argument(&quot;--paths&quot;, action=&quot;store_true&quot;, help=&quot;Show full artifact paths&quot;)</code></span>
-<span class='src-line'><b>4498</b><code>    updates.set_defaults(func=cmd_updates)</code></span>
-<span class='src-line'><b>4499</b><code></code></span>
-<span class='src-line'><b>4500</b><code>    watch = sub.add_parser(&quot;watch&quot;)</code></span>
-<span class='src-line'><b>4501</b><code>    watch.add_argument(&quot;job_id&quot;, nargs=&quot;+&quot;)</code></span>
-<span class='src-line'><b>4502</b><code>    watch.add_argument(&quot;--interval&quot;, type=float, default=2.0)</code></span>
-<span class='src-line'><b>4503</b><code>    watch.add_argument(&quot;--limit&quot;, type=int, default=20)</code></span>
-<span class='src-line'><b>4504</b><code>    watch.add_argument(&quot;--verbose&quot;, action=&quot;store_true&quot;)</code></span>
-<span class='src-line'><b>4505</b><code>    watch.add_argument(&quot;--chars&quot;, type=int, default=4000)</code></span>
-<span class='src-line'><b>4506</b><code>    watch.add_argument(&quot;--no-follow&quot;, dest=&quot;follow&quot;, action=&quot;store_false&quot;)</code></span>
-<span class='src-line'><b>4507</b><code>    watch.set_defaults(func=cmd_watch, follow=True)</code></span>
-<span class='src-line'><b>4508</b><code></code></span>
-<span class='src-line'><b>4509</b><code>    run_one = sub.add_parser(&quot;run-one&quot;)</code></span>
-<span class='src-line'><b>4510</b><code>    run_one.add_argument(&quot;job_id&quot;, nargs=&quot;+&quot;)</code></span>
-<span class='src-line'><b>4511</b><code>    run_one.add_argument(&quot;--fake&quot;, action=&quot;store_true&quot;, help=&quot;Use a deterministic fake model response&quot;)</code></span>
-<span class='src-line'><b>4512</b><code>    run_one.set_defaults(func=cmd_run_one)</code></span>
-<span class='src-line'><b>4513</b><code></code></span>
-<span class='src-line'><b>4514</b><code>    work = sub.add_parser(&quot;work&quot;)</code></span>
-<span class='src-line'><b>4515</b><code>    work.add_argument(&quot;job_id&quot;, nargs=&quot;*&quot;)</code></span>
-<span class='src-line'><b>4516</b><code>    work.add_argument(&quot;--steps&quot;, type=int, default=5)</code></span>
-<span class='src-line'><b>4517</b><code>    work.add_argument(&quot;--poll-seconds&quot;, type=float, default=0.5)</code></span>
-<span class='src-line'><b>4518</b><code>    work.add_argument(&quot;--fake&quot;, action=&quot;store_true&quot;, help=&quot;Use deterministic fake model responses&quot;)</code></span>
-<span class='src-line'><b>4519</b><code>    work.add_argument(&quot;--verbose&quot;, action=&quot;store_true&quot;, help=&quot;Print step inputs and outputs&quot;)</code></span>
-<span class='src-line'><b>4520</b><code>    work.add_argument(&quot;--dashboard&quot;, action=&quot;store_true&quot;, help=&quot;Render a dashboard snapshot after each step&quot;)</code></span>
-<span class='src-line'><b>4521</b><code>    work.add_argument(&quot;--limit&quot;, type=int, default=12)</code></span>
-<span class='src-line'><b>4522</b><code>    work.add_argument(&quot;--chars&quot;, type=int, default=4000)</code></span>
-<span class='src-line'><b>4523</b><code>    work.add_argument(&quot;--continue-on-error&quot;, action=&quot;store_true&quot;)</code></span>
-<span class='src-line'><b>4524</b><code>    work.set_defaults(func=cmd_work)</code></span>
-<span class='src-line'><b>4525</b><code></code></span>
-<span class='src-line'><b>4526</b><code>    run = sub.add_parser(&quot;run&quot;)</code></span>
-<span class='src-line'><b>4527</b><code>    run.add_argument(&quot;job_id&quot;, nargs=&quot;*&quot;)</code></span>
-<span class='src-line'><b>4528</b><code>    run.add_argument(&quot;--poll-seconds&quot;, type=float, default=0.0)</code></span>
-<span class='src-line'><b>4529</b><code>    run.add_argument(&quot;--interval&quot;, type=float, default=2.0)</code></span>
-<span class='src-line'><b>4530</b><code>    run.add_argument(&quot;--limit&quot;, type=int, default=20)</code></span>
-<span class='src-line'><b>4531</b><code>    run.add_argument(&quot;--chars&quot;, type=int, default=180)</code></span>
-<span class='src-line'><b>4532</b><code>    run.add_argument(&quot;--verbose&quot;, action=&quot;store_true&quot;)</code></span>
-<span class='src-line'><b>4533</b><code>    run.add_argument(&quot;--paths&quot;, action=&quot;store_true&quot;)</code></span>
-<span class='src-line'><b>4534</b><code>    run.add_argument(&quot;--fake&quot;, action=&quot;store_true&quot;, help=&quot;Use deterministic fake model responses&quot;)</code></span>
-<span class='src-line'><b>4535</b><code>    run.add_argument(&quot;--quiet&quot;, action=&quot;store_true&quot;, help=&quot;Write fewer daemon log lines&quot;)</code></span>
-<span class='src-line'><b>4536</b><code>    run.add_argument(&quot;--log-file&quot;)</code></span>
-<span class='src-line'><b>4537</b><code>    run.add_argument(&quot;--no-follow&quot;, action=&quot;store_true&quot;, help=&quot;Start daemon and return without tailing activity&quot;)</code></span>
-<span class='src-line'><b>4538</b><code>    run.set_defaults(func=cmd_run)</code></span>
-<span class='src-line'><b>4539</b><code></code></span>
-<span class='src-line'><b>4540</b><code>    digest = sub.add_parser(&quot;digest&quot;)</code></span>
-<span class='src-line'><b>4541</b><code>    digest.add_argument(&quot;job_id&quot;, nargs=&quot;+&quot;)</code></span>
-<span class='src-line'><b>4542</b><code>    digest.set_defaults(func=cmd_digest)</code></span>
-<span class='src-line'><b>4543</b><code></code></span>
-<span class='src-line'><b>4544</b><code>    daily_digest = sub.add_parser(&quot;daily-digest&quot;)</code></span>
-<span class='src-line'><b>4545</b><code>    daily_digest.add_argument(&quot;--day&quot;, help=&quot;YYYY-MM-DD. Defaults to today.&quot;)</code></span>
-<span class='src-line'><b>4546</b><code>    daily_digest.set_defaults(func=cmd_daily_digest)</code></span>
-<span class='src-line'><b>4547</b><code></code></span>
-<span class='src-line'><b>4548</b><code>    daemon = sub.add_parser(&quot;daemon&quot;)</code></span>
-<span class='src-line'><b>4549</b><code>    daemon.add_argument(&quot;--once&quot;, action=&quot;store_true&quot;, help=&quot;Run at most one job step and exit&quot;)</code></span>
-<span class='src-line'><b>4550</b><code>    daemon.add_argument(&quot;--fake&quot;, action=&quot;store_true&quot;, help=&quot;Use deterministic fake model responses&quot;)</code></span>
-<span class='src-line'><b>4551</b><code>    daemon.add_argument(&quot;--poll-seconds&quot;, type=float, default=0.0)</code></span>
-<span class='src-line'><b>4552</b><code>    daemon.add_argument(&quot;--quiet&quot;, action=&quot;store_true&quot;, help=&quot;Do not print foreground progress lines&quot;)</code></span>
-<span class='src-line'><b>4553</b><code>    daemon.add_argument(&quot;--verbose&quot;, action=&quot;store_true&quot;, help=&quot;Print model-visible job state and step results&quot;)</code></span>
-<span class='src-line'><b>4554</b><code>    daemon.set_defaults(func=cmd_daemon)</code></span>
-<span class='src-line'><b>4555</b><code></code></span>
-<span class='src-line'><b>4556</b><code>    doctor = sub.add_parser(&quot;doctor&quot;)</code></span>
-<span class='src-line'><b>4557</b><code>    doctor.add_argument(&quot;--check-model&quot;, action=&quot;store_true&quot;, help=&quot;Also call the local model /models endpoint&quot;)</code></span>
-<span class='src-line'><b>4558</b><code>    doctor.set_defaults(func=cmd_doctor)</code></span>
-<span class='src-line'><b>4559</b><code></code></span>
-<span class='src-line'><b>4560</b><code>    return parser</code></span>
-<span class='src-line'><b>4561</b><code></code></span>
-<span class='src-line'><b>4562</b><code></code></span>
-<span class='src-line'><b>4563</b><code>def main(argv: list[str] | None = None) -&gt; None:</code></span>
-<span class='src-line'><b>4564</b><code>    argv = sys.argv[1:] if argv is None else argv</code></span>
-<span class='src-line'><b>4565</b><code>    if not argv:</code></span>
-<span class='src-line'><b>4566</b><code>        cmd_home(argparse.Namespace(history_limit=12))</code></span>
-<span class='src-line'><b>4567</b><code>        return</code></span>
-<span class='src-line'><b>4568</b><code>    parser = build_parser()</code></span>
-<span class='src-line'><b>4569</b><code>    args = parser.parse_args(argv)</code></span>
-<span class='src-line'><b>4570</b><code>    args.func(args)</code></span>
-<span class='src-line'><b>4571</b><code></code></span>
-<span class='src-line'><b>4572</b><code></code></span>
-<span class='src-line'><b>4573</b><code>if __name__ == &quot;__main__&quot;:</code></span>
-<span class='src-line'><b>4574</b><code>    main()</code></span></pre>
+<span class='src-line'><b>4437</b><code></code></span>
+<span class='src-line'><b>4438</b><code>if __name__ == &quot;__main__&quot;:</code></span>
+<span class='src-line'><b>4439</b><code>    main()</code></span></pre>
 </details>
 <details class="source-file searchable" data-search="nipux_cli/compression.py &quot;&quot;&quot;Deterministic rolling memory summaries for long-running jobs.&quot;&quot;&quot;
 
@@ -38412,10 +38259,10 @@ class AntiBotBrowserRegistry:
 
     <section id="risks" class="section">
       <header><div><div class="kicker">Audit cues</div><h2>Review Points</h2></div><span class="muted">Generated signals for where to inspect next.</span></header>
-      <div class="grid"><article class='card warning searchable' data-search='Large modules nipux_cli/cli.py (4574 lines), nipux_cli/worker.py (3266 lines), tests/nipux_cli/test_worker.py (2611 lines), nipux_cli/db.py (2396 lines), tests/nipux_cli/test_cli.py (1987 lines)'><h3>Large modules</h3><p>nipux_cli/cli.py (4574 lines), nipux_cli/worker.py (3266 lines), tests/nipux_cli/test_worker.py (2611 lines), nipux_cli/db.py (2396 lines), tests/nipux_cli/test_cli.py (1987 lines)</p></article>
-<article class='card warning searchable' data-search='Prompt surfaces 12 prompt/instruction-like strings were extracted. Inspect this section after any agent-behavior change.'><h3>Prompt surfaces</h3><p>12 prompt/instruction-like strings were extracted. Inspect this section after any agent-behavior change.</p></article>
+      <div class="grid"><article class='card warning searchable' data-search='Large modules nipux_cli/cli.py (4439 lines), nipux_cli/worker.py (3266 lines), tests/nipux_cli/test_worker.py (2611 lines), nipux_cli/db.py (2396 lines), tests/nipux_cli/test_cli.py (1987 lines)'><h3>Large modules</h3><p>nipux_cli/cli.py (4439 lines), nipux_cli/worker.py (3266 lines), tests/nipux_cli/test_worker.py (2611 lines), nipux_cli/db.py (2396 lines), tests/nipux_cli/test_cli.py (1987 lines)</p></article>
+<article class='card warning searchable' data-search='Prompt surfaces 11 prompt/instruction-like strings were extracted. Inspect this section after any agent-behavior change.'><h3>Prompt surfaces</h3><p>11 prompt/instruction-like strings were extracted. Inspect this section after any agent-behavior change.</p></article>
 <article class='card warning searchable' data-search='Tool surface 27 tools are exposed to the worker. Review descriptions whenever generic behavior changes.'><h3>Tool surface</h3><p>27 tools are exposed to the worker. Review descriptions whenever generic behavior changes.</p></article>
-<article class='card warning searchable' data-search='Symbol map 1052 symbols were parsed. Large modules are candidates for refactoring once behavior stabilizes.'><h3>Symbol map</h3><p>1052 symbols were parsed. Large modules are candidates for refactoring once behavior stabilizes.</p></article></div>
+<article class='card warning searchable' data-search='Symbol map 1050 symbols were parsed. Large modules are candidates for refactoring once behavior stabilizes.'><h3>Symbol map</h3><p>1050 symbols were parsed. Large modules are candidates for refactoring once behavior stabilizes.</p></article></div>
     </section>
   </main>
 </div>
