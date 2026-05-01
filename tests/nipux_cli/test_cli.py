@@ -1119,7 +1119,8 @@ def test_chat_pane_marks_hidden_overflow():
 
     lines = chat_pane_lines(events, [], width=48, rows=4)
 
-    assert "chat lines hidden" in lines[0]
+    assert "word0 word1" in lines[0]
+    assert "more lines in /history" in lines[-1]
     assert len(lines) == 4
 
 

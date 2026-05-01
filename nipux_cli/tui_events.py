@@ -143,16 +143,35 @@ def chat_pane_lines(events: list[dict[str, Any]], notices: list[str], *, width: 
             items.append(("NIPUX", notice, ""))
     if not items:
         return chat_empty_state_lines(width=width, rows=rows)
-    output_rows: list[str] = []
-    for label, body, clock in items[-max(4, rows) :]:
-        append_chat_output(output_rows, label, body, clock=clock, width=width)
+    rendered_items = [_chat_item_lines(label, body, clock=clock, width=width) for label, body, clock in items[-max(4, rows) :]]
+    output_rows = [line for block in rendered_items for line in block]
     if len(output_rows) <= rows:
         return output_rows
     if rows <= 1:
         return output_rows[-rows:]
-    hidden = len(output_rows) - rows + 1
-    marker = _fit_ansi(_muted(f"... {hidden} chat lines hidden; use /history for full text."), width)
-    return [marker, *output_rows[-(rows - 1) :]]
+    newest = rendered_items[-1]
+    if len(newest) >= rows:
+        visible = newest[: rows - 1]
+        hidden = len(newest) - len(visible)
+        marker = _fit_ansi(_muted(f"... {hidden} more lines in /history."), width)
+        return [*visible, marker]
+    visible_blocks: list[list[str]] = [newest]
+    used = len(newest)
+    hidden_lines = 0
+    for block in reversed(rendered_items[:-1]):
+        if used + len(block) + 1 <= rows:
+            visible_blocks.insert(0, block)
+            used += len(block)
+        else:
+            hidden_lines += len(block)
+    marker = _fit_ansi(_muted(f"... {hidden_lines} older chat lines hidden; /history shows all."), width)
+    return [marker, *[line for block in visible_blocks for line in block]][:rows]
+
+
+def _chat_item_lines(label: str, body: Any, *, clock: str, width: int) -> list[str]:
+    lines: list[str] = []
+    append_chat_output(lines, label, body, clock=clock, width=width)
+    return lines
 
 
 def chat_empty_state_lines(*, width: int, rows: int) -> list[str]:
