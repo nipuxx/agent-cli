@@ -35,6 +35,19 @@ def test_refresh_memory_index_includes_durable_progress_ledgers(tmp_path):
                 },
             },
         )
+        db.append_event(
+            job_id,
+            event_type="loop",
+            title="message_end",
+            metadata={
+                "usage": {
+                    "prompt_tokens": 1200,
+                    "completion_tokens": 300,
+                    "total_tokens": 1500,
+                    "estimated": True,
+                }
+            },
+        )
 
         refresh_memory_index(db, job_id)
 
@@ -48,5 +61,8 @@ def test_refresh_memory_index_includes_durable_progress_ledgers(tmp_path):
         assert "Citation density check" in memory
         assert "Teacher traces improve tool use" in memory
         assert "Research paper roadmap" in memory
+        assert "Model usage:" in memory
+        assert "total_tokens=1.5K" in memory
+        assert "estimated_calls=1" in memory
     finally:
         db.close()

@@ -124,6 +124,25 @@ def refresh_memory_index(db: AgentDB, job_id: str, *, max_steps: int = 8, max_ar
             f"current={_clip_text(roadmap.get('current_milestone') or '', 120)}"
         )
 
+    usage = db.job_token_usage(job_id)
+    if int(usage.get("calls") or 0) > 0:
+        lines.extend(["", "Model usage:"])
+        latest_prompt = _compact_count(usage.get("latest_prompt_tokens"))
+        latest_total = _compact_count(usage.get("latest_total_tokens"))
+        lines.append(
+            "- "
+            + ", ".join(
+                [
+                    f"calls={usage.get('calls') or 0}",
+                    f"total_tokens={_compact_count(usage.get('total_tokens'))}",
+                    f"output_tokens={_compact_count(usage.get('completion_tokens'))}",
+                    f"latest_context={latest_prompt}",
+                    f"latest_total={latest_total}",
+                    f"estimated_calls={usage.get('estimated_calls') or 0}",
+                ]
+            )
+        )
+
     return db.upsert_memory(
         job_id=job_id,
         key="rolling_state",
@@ -149,3 +168,15 @@ def _rank_tasks(tasks: list[dict]) -> list[dict]:
             str(task.get("title") or ""),
         ),
     )
+
+
+def _compact_count(value: object) -> str:
+    try:
+        number = int(float(value or 0))
+    except (TypeError, ValueError):
+        number = 0
+    if number >= 1_000_000:
+        return f"{number / 1_000_000:.1f}M"
+    if number >= 1_000:
+        return f"{number / 1_000:.1f}K"
+    return str(number)

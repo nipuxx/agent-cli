@@ -82,7 +82,7 @@ pre { max-height: 540px; overflow: auto; background: #050606; border: 1px solid 
 <div class="shell">
   <aside class="sidebar">
     <div class="logo">NIPUX ATLAS</div>
-    <div class="subtitle">Generated from tracked source on 00a71d1c.</div>
+    <div class="subtitle">Generated from tracked source on 04a476a4.</div>
     <input id="search" class="search" placeholder="filter files, prompts, tools..." autocomplete="off">
     <nav class="nav">
       <a href="#architecture">Architecture</a>
@@ -97,9 +97,9 @@ pre { max-height: 540px; overflow: auto; background: #050606; border: 1px solid 
       <a href="#risks">Review Points</a>
     </nav>
     <div class="stats">
-      <div class="stat"><b>55</b><span>tracked files</span></div>
-      <div class="stat"><b>24,706</b><span>tracked lines mapped</span></div>
-      <div class="stat"><b>1020</b><span>python symbols</span></div>
+      <div class="stat"><b>56</b><span>tracked files</span></div>
+      <div class="stat"><b>24,896</b><span>tracked lines mapped</span></div>
+      <div class="stat"><b>1033</b><span>python symbols</span></div>
       <div class="stat"><b>27</b><span>runtime tools</span></div>
     </div>
   </aside>
@@ -465,7 +465,7 @@ have incorporated or intentionally superseded a steer/follow_up message.
     </section>
 
     <section id="files" class="section">
-      <header><div><div class="kicker">Source index</div><h2>Important Files</h2></div><span class="muted">48 Python modules plus docs/config files.</span></header>
+      <header><div><div class="kicker">Source index</div><h2>Important Files</h2></div><span class="muted">49 Python modules plus docs/config files.</span></header>
       <div class="grid"><article class="file-card searchable" data-search="AGENTS.md This repo is a focused long-running worker, not a broad assistant distribution. none">
 <header><h3>AGENTS.md</h3><span>32 lines</span></header>
 <p>This repo is a focused long-running worker, not a broad assistant distribution.</p>
@@ -523,11 +523,11 @@ fixed tool surface. none">
 <div class="meta"><span>184 symbols</span><span>0 TODOs</span></div>
 <details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> __future__, argparse, json, os, re, select, shlex, shutil, signal, subprocess, sys, termios</p><p><strong>Symbols:</strong> _db, cmd_init, cmd_create, _create_job, cmd_jobs, cmd_focus, cmd_rename, cmd_delete, cmd_chat, cmd_home</p></details>
 </article>
-<article class="file-card searchable" data-search="nipux_cli/compression.py Deterministic rolling memory summaries for long-running jobs. _clip_text, refresh_memory_index, _metadata_list, _rank_tasks">
-<header><h3>nipux_cli/compression.py</h3><span>151 lines</span></header>
+<article class="file-card searchable" data-search="nipux_cli/compression.py Deterministic rolling memory summaries for long-running jobs. _clip_text, refresh_memory_index, _metadata_list, _rank_tasks, _compact_count">
+<header><h3>nipux_cli/compression.py</h3><span>182 lines</span></header>
 <p>Deterministic rolling memory summaries for long-running jobs.</p>
-<div class="meta"><span>4 symbols</span><span>0 TODOs</span></div>
-<details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> __future__, nipux_cli.db, nipux_cli.operator_context</p><p><strong>Symbols:</strong> _clip_text, refresh_memory_index, _metadata_list, _rank_tasks</p></details>
+<div class="meta"><span>5 symbols</span><span>0 TODOs</span></div>
+<details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> __future__, nipux_cli.db, nipux_cli.operator_context</p><p><strong>Symbols:</strong> _clip_text, refresh_memory_index, _metadata_list, _rank_tasks, _compact_count</p></details>
 </article>
 <article class="file-card searchable" data-search="nipux_cli/config.py Configuration for the Nipux long-running agent runtime. get_agent_home, load_env_file, ModelConfig, api_key, RuntimeConfig, state_db_path, jobs_dir, logs_dir, digests_dir, EmailConfig">
 <header><h3>nipux_cli/config.py</h3><span>189 lines</span></header>
@@ -594,6 +594,12 @@ fixed tool surface. none">
 <p>Shared scheduling helpers for deferred long-running work.</p>
 <div class="meta"><span>2 symbols</span><span>0 TODOs</span></div>
 <details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> __future__, datetime, typing</p><p><strong>Symbols:</strong> job_deferred_until, job_is_deferred</p></details>
+</article>
+<article class="file-card searchable" data-search="nipux_cli/settings.py Inline config editing helpers for Nipux slash commands. config_field_value, save_config_field, inline_setting_notice, edit_target_label, edit_target_hint, edit_target_masks_input, _config_path, _load_config_yaml, _save_config_yaml, _save_env_secret">
+<header><h3>nipux_cli/settings.py</h3><span>143 lines</span></header>
+<p>Inline config editing helpers for Nipux slash commands.</p>
+<div class="meta"><span>12 symbols</span><span>0 TODOs</span></div>
+<details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> __future__, os, pathlib, typing, yaml, nipux_cli.config, nipux_cli.tui_commands</p><p><strong>Symbols:</strong> config_field_value, save_config_field, inline_setting_notice, edit_target_label, edit_target_hint, edit_target_masks_input, _config_path, _load_config_yaml, _save_config_yaml, _save_env_secret</p></details>
 </article>
 <article class="file-card searchable" data-search="nipux_cli/source_quality.py Source quality checks for web and browser tools. anti_bot_reason">
 <header><h3>nipux_cli/source_quality.py</h3><span>32 lines</span></header>
@@ -704,7 +710,7 @@ fixed tool surface. none">
 <details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> types, nipux_cli.cli, nipux_cli.doctor</p><p><strong>Symbols:</strong> _config, test_remote_model_preflight_blocks_rejected_auth, fake_doctor, test_remote_model_preflight_skips_fake_runs, fake_doctor, test_remote_model_preflight_does_not_block_local_endpoints, fake_doctor, test_start_does_not_spawn_daemon_when_model_preflight_fails, fake_ready, fake_popen</p></details>
 </article>
 <article class="file-card searchable" data-search="tests/nipux_cli/test_compression.py No module docstring. test_refresh_memory_index_includes_durable_progress_ledgers">
-<header><h3>tests/nipux_cli/test_compression.py</h3><span>52 lines</span></header>
+<header><h3>tests/nipux_cli/test_compression.py</h3><span>68 lines</span></header>
 <p>No module docstring.</p>
 <div class="meta"><span>1 symbols</span><span>0 TODOs</span></div>
 <details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> nipux_cli.compression, nipux_cli.db</p><p><strong>Symbols:</strong> test_refresh_memory_index_includes_durable_progress_ledgers</p></details>
@@ -2063,23 +2069,29 @@ fixed tool surface. none">
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> join, len, max, rstrip, split, str</p>
 </article>
-<article class="symbol searchable" data-search="nipux_cli/compression.py refresh_memory_index Write a compact, artifact-referenced job memory entry. This is deliberately deterministic. A local model can later improve the prose, but the daemon should always have a cheap c... _clip_text, _metadata_list, _rank_tasks, active_prompt_operator_entries, artifact.get, db.get_job, db.list_artifacts, db.list_steps, db.upsert_memory, entry.get, experiment.get, finding.get, isinstance, job.get, join, len">
+<article class="symbol searchable" data-search="nipux_cli/compression.py refresh_memory_index Write a compact, artifact-referenced job memory entry. This is deliberately deterministic. A local model can later improve the prose, but the daemon should always have a cheap c... _clip_text, _compact_count, _metadata_list, _rank_tasks, active_prompt_operator_entries, artifact.get, db.get_job, db.job_token_usage, db.list_artifacts, db.list_steps, db.upsert_memory, entry.get, experiment.get, finding.get, int, isinstance">
 <h3>refresh_memory_index</h3>
 <p><span class="pill">function</span> <span class="pill">nipux_cli/compression.py:16</span></p>
 <p>Write a compact, artifact-referenced job memory entry. This is deliberately deterministic. A local model can later improve the prose, but the daemon should always have a cheap c...</p>
-<p class="calls"><strong>Calls:</strong> _clip_text, _metadata_list, _rank_tasks, active_prompt_operator_entries, artifact.get, db.get_job, db.list_artifacts, db.list_steps, db.upsert_memory, entry.get, experiment.get, finding.get, isinstance, job.get, join, len</p>
+<p class="calls"><strong>Calls:</strong> _clip_text, _compact_count, _metadata_list, _rank_tasks, active_prompt_operator_entries, artifact.get, db.get_job, db.job_token_usage, db.list_artifacts, db.list_steps, db.upsert_memory, entry.get, experiment.get, finding.get, int, isinstance</p>
 </article>
 <article class="symbol searchable" data-search="nipux_cli/compression.py _metadata_list No docstring. isinstance, metadata.get">
 <h3>_metadata_list</h3>
-<p><span class="pill">function</span> <span class="pill">nipux_cli/compression.py:135</span></p>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/compression.py:154</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> isinstance, metadata.get</p>
 </article>
 <article class="symbol searchable" data-search="nipux_cli/compression.py _rank_tasks No docstring. int, sorted, status_rank.get, str, task.get">
 <h3>_rank_tasks</h3>
-<p><span class="pill">function</span> <span class="pill">nipux_cli/compression.py:142</span></p>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/compression.py:161</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> int, sorted, status_rank.get, str, task.get</p>
+</article>
+<article class="symbol searchable" data-search="nipux_cli/compression.py _compact_count No docstring. float, int, str">
+<h3>_compact_count</h3>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/compression.py:173</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> float, int, str</p>
 </article>
 <article class="symbol searchable" data-search="nipux_cli/config.py get_agent_home Return the Nipux agent home directory. Path, Path.home, expanduser, os.environ.get, strip">
 <h3>get_agent_home</h3>
@@ -3418,6 +3430,78 @@ fixed tool surface. none">
 <p><span class="pill">function</span> <span class="pill">nipux_cli/scheduling.py:25</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> job_deferred_until</p>
+</article>
+<article class="symbol searchable" data-search="nipux_cli/settings.py config_field_value No docstring. load_config, str, values.get">
+<h3>config_field_value</h3>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/settings.py:15</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> load_config, str, values.get</p>
+</article>
+<article class="symbol searchable" data-search="nipux_cli/settings.py save_config_field No docstring. _coerce_config_value, _load_config_yaml, _save_config_yaml, data.setdefault, field.split, isinstance">
+<h3>save_config_field</h3>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/settings.py:32</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> _coerce_config_value, _load_config_yaml, _save_config_yaml, data.setdefault, field.split, isinstance</p>
+</article>
+<article class="symbol searchable" data-search="nipux_cli/settings.py inline_setting_notice No docstring. _save_env_secret, _short_path, get_agent_home, load_config, raw_value.strip, save_config_field">
+<h3>inline_setting_notice</h3>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/settings.py:45</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> _save_env_secret, _short_path, get_agent_home, load_config, raw_value.strip, save_config_field</p>
+</article>
+<article class="symbol searchable" data-search="nipux_cli/settings.py edit_target_label No docstring. none">
+<h3>edit_target_label</h3>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/settings.py:61</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> none</p>
+</article>
+<article class="symbol searchable" data-search="nipux_cli/settings.py edit_target_hint No docstring. config_field_value, load_config">
+<h3>edit_target_hint</h3>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/settings.py:67</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> config_field_value, load_config</p>
+</article>
+<article class="symbol searchable" data-search="nipux_cli/settings.py edit_target_masks_input No docstring. none">
+<h3>edit_target_masks_input</h3>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/settings.py:76</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> none</p>
+</article>
+<article class="symbol searchable" data-search="nipux_cli/settings.py _config_path No docstring. get_agent_home">
+<h3>_config_path</h3>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/settings.py:80</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> get_agent_home</p>
+</article>
+<article class="symbol searchable" data-search="nipux_cli/settings.py _load_config_yaml No docstring. _config_path, default_config_yaml, isinstance, path.exists, path.read_text, yaml.safe_load">
+<h3>_load_config_yaml</h3>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/settings.py:84</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> _config_path, default_config_yaml, isinstance, path.exists, path.read_text, yaml.safe_load</p>
+</article>
+<article class="symbol searchable" data-search="nipux_cli/settings.py _save_config_yaml No docstring. _config_path, path.parent.mkdir, path.write_text, yaml.safe_dump">
+<h3>_save_config_yaml</h3>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/settings.py:93</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> _config_path, path.parent.mkdir, path.write_text, yaml.safe_dump</p>
+</article>
+<article class="symbol searchable" data-search="nipux_cli/settings.py _save_env_secret No docstring. current.strip, env_path.chmod, env_path.exists, env_path.parent.mkdir, env_path.read_text, env_path.write_text, existing.items, get_agent_home, join, key.strip, raw.split, raw.strip, splitlines, startswith">
+<h3>_save_env_secret</h3>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/settings.py:99</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> current.strip, env_path.chmod, env_path.exists, env_path.parent.mkdir, env_path.read_text, env_path.write_text, existing.items, get_agent_home, join, key.strip, raw.split, raw.strip, splitlines, startswith</p>
+</article>
+<article class="symbol searchable" data-search="nipux_cli/settings.py _coerce_config_value No docstring. Path, SETTINGS_FIELD_TYPES.get, ValueError, expanduser, float, int, raw_value.strip, str, value.lower">
+<h3>_coerce_config_value</h3>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/settings.py:116</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> Path, SETTINGS_FIELD_TYPES.get, ValueError, expanduser, float, int, raw_value.strip, str, value.lower</p>
+</article>
+<article class="symbol searchable" data-search="nipux_cli/settings.py _short_path No docstring. Path.home, len, max, str, text.startswith">
+<h3>_short_path</h3>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/settings.py:135</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> Path.home, len, max, str, text.startswith</p>
 </article>
 <article class="symbol searchable" data-search="nipux_cli/source_quality.py anti_bot_reason Return a short reason if text looks like an anti-bot interstitial. join, lower">
 <h3>anti_bot_reason</h3>
@@ -5609,11 +5693,11 @@ fixed tool surface. none">
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> AssertionError</p>
 </article>
-<article class="symbol searchable" data-search="tests/nipux_cli/test_compression.py test_refresh_memory_index_includes_durable_progress_ledgers No docstring. AgentDB, db.close, db.create_job, db.list_memory, refresh_memory_index">
+<article class="symbol searchable" data-search="tests/nipux_cli/test_compression.py test_refresh_memory_index_includes_durable_progress_ledgers No docstring. AgentDB, db.append_event, db.close, db.create_job, db.list_memory, refresh_memory_index">
 <h3>test_refresh_memory_index_includes_durable_progress_ledgers</h3>
 <p><span class="pill">function</span> <span class="pill">tests/nipux_cli/test_compression.py:5</span></p>
 <p>No docstring.</p>
-<p class="calls"><strong>Calls:</strong> AgentDB, db.close, db.create_job, db.list_memory, refresh_memory_index</p>
+<p class="calls"><strong>Calls:</strong> AgentDB, db.append_event, db.close, db.create_job, db.list_memory, refresh_memory_index</p>
 </article>
 <article class="symbol searchable" data-search="tests/nipux_cli/test_config.py test_load_config_defaults_to_qwen_openrouter No docstring. load_config, monkeypatch.setenv, str">
 <h3>test_load_config_defaults_to_qwen_openrouter</h3>
@@ -13928,7 +14012,7 @@ def refresh_memory_index(db: AgentDB, job_id: str, *, max_steps: int = 8, max_ar
         metric = &quot;&quot;
         if experiment.get(&quot;metric_value&quot;) not in (None, &quot;&quot;):
             m">
-<summary>nipux_cli/compression.py <span>151 lines</span></summary>
+<summary>nipux_cli/compression.py <span>182 lines</span></summary>
 <pre class="source-code"><span class='src-line'><b>   1</b><code>&quot;&quot;&quot;Deterministic rolling memory summaries for long-running jobs.&quot;&quot;&quot;</code></span>
 <span class='src-line'><b>   2</b><code></code></span>
 <span class='src-line'><b>   3</b><code>from __future__ import annotations</code></span>
@@ -14055,31 +14139,62 @@ def refresh_memory_index(db: AgentDB, job_id: str, *, max_steps: int = 8, max_ar
 <span class='src-line'><b> 124</b><code>            f&quot;current={_clip_text(roadmap.get(&#x27;current_milestone&#x27;) or &#x27;&#x27;, 120)}&quot;</code></span>
 <span class='src-line'><b> 125</b><code>        )</code></span>
 <span class='src-line'><b> 126</b><code></code></span>
-<span class='src-line'><b> 127</b><code>    return db.upsert_memory(</code></span>
-<span class='src-line'><b> 128</b><code>        job_id=job_id,</code></span>
-<span class='src-line'><b> 129</b><code>        key=&quot;rolling_state&quot;,</code></span>
-<span class='src-line'><b> 130</b><code>        summary=&quot;\n&quot;.join(lines).strip(),</code></span>
-<span class='src-line'><b> 131</b><code>        artifact_refs=artifact_refs,</code></span>
-<span class='src-line'><b> 132</b><code>    )</code></span>
-<span class='src-line'><b> 133</b><code></code></span>
-<span class='src-line'><b> 134</b><code></code></span>
-<span class='src-line'><b> 135</b><code>def _metadata_list(metadata: dict, key: str) -&gt; list[dict]:</code></span>
-<span class='src-line'><b> 136</b><code>    values = metadata.get(key)</code></span>
-<span class='src-line'><b> 137</b><code>    if not isinstance(values, list):</code></span>
-<span class='src-line'><b> 138</b><code>        return []</code></span>
-<span class='src-line'><b> 139</b><code>    return [value for value in values if isinstance(value, dict)]</code></span>
-<span class='src-line'><b> 140</b><code></code></span>
-<span class='src-line'><b> 141</b><code></code></span>
-<span class='src-line'><b> 142</b><code>def _rank_tasks(tasks: list[dict]) -&gt; list[dict]:</code></span>
-<span class='src-line'><b> 143</b><code>    status_rank = {&quot;active&quot;: 0, &quot;open&quot;: 1, &quot;blocked&quot;: 2, &quot;validating&quot;: 3, &quot;done&quot;: 4, &quot;skipped&quot;: 5}</code></span>
-<span class='src-line'><b> 144</b><code>    return sorted(</code></span>
-<span class='src-line'><b> 145</b><code>        tasks,</code></span>
-<span class='src-line'><b> 146</b><code>        key=lambda task: (</code></span>
-<span class='src-line'><b> 147</b><code>            status_rank.get(str(task.get(&quot;status&quot;) or &quot;open&quot;), 9),</code></span>
-<span class='src-line'><b> 148</b><code>            -int(task.get(&quot;priority&quot;) or 0),</code></span>
-<span class='src-line'><b> 149</b><code>            str(task.get(&quot;title&quot;) or &quot;&quot;),</code></span>
-<span class='src-line'><b> 150</b><code>        ),</code></span>
-<span class='src-line'><b> 151</b><code>    )</code></span></pre>
+<span class='src-line'><b> 127</b><code>    usage = db.job_token_usage(job_id)</code></span>
+<span class='src-line'><b> 128</b><code>    if int(usage.get(&quot;calls&quot;) or 0) &gt; 0:</code></span>
+<span class='src-line'><b> 129</b><code>        lines.extend([&quot;&quot;, &quot;Model usage:&quot;])</code></span>
+<span class='src-line'><b> 130</b><code>        latest_prompt = _compact_count(usage.get(&quot;latest_prompt_tokens&quot;))</code></span>
+<span class='src-line'><b> 131</b><code>        latest_total = _compact_count(usage.get(&quot;latest_total_tokens&quot;))</code></span>
+<span class='src-line'><b> 132</b><code>        lines.append(</code></span>
+<span class='src-line'><b> 133</b><code>            &quot;- &quot;</code></span>
+<span class='src-line'><b> 134</b><code>            + &quot;, &quot;.join(</code></span>
+<span class='src-line'><b> 135</b><code>                [</code></span>
+<span class='src-line'><b> 136</b><code>                    f&quot;calls={usage.get(&#x27;calls&#x27;) or 0}&quot;,</code></span>
+<span class='src-line'><b> 137</b><code>                    f&quot;total_tokens={_compact_count(usage.get(&#x27;total_tokens&#x27;))}&quot;,</code></span>
+<span class='src-line'><b> 138</b><code>                    f&quot;output_tokens={_compact_count(usage.get(&#x27;completion_tokens&#x27;))}&quot;,</code></span>
+<span class='src-line'><b> 139</b><code>                    f&quot;latest_context={latest_prompt}&quot;,</code></span>
+<span class='src-line'><b> 140</b><code>                    f&quot;latest_total={latest_total}&quot;,</code></span>
+<span class='src-line'><b> 141</b><code>                    f&quot;estimated_calls={usage.get(&#x27;estimated_calls&#x27;) or 0}&quot;,</code></span>
+<span class='src-line'><b> 142</b><code>                ]</code></span>
+<span class='src-line'><b> 143</b><code>            )</code></span>
+<span class='src-line'><b> 144</b><code>        )</code></span>
+<span class='src-line'><b> 145</b><code></code></span>
+<span class='src-line'><b> 146</b><code>    return db.upsert_memory(</code></span>
+<span class='src-line'><b> 147</b><code>        job_id=job_id,</code></span>
+<span class='src-line'><b> 148</b><code>        key=&quot;rolling_state&quot;,</code></span>
+<span class='src-line'><b> 149</b><code>        summary=&quot;\n&quot;.join(lines).strip(),</code></span>
+<span class='src-line'><b> 150</b><code>        artifact_refs=artifact_refs,</code></span>
+<span class='src-line'><b> 151</b><code>    )</code></span>
+<span class='src-line'><b> 152</b><code></code></span>
+<span class='src-line'><b> 153</b><code></code></span>
+<span class='src-line'><b> 154</b><code>def _metadata_list(metadata: dict, key: str) -&gt; list[dict]:</code></span>
+<span class='src-line'><b> 155</b><code>    values = metadata.get(key)</code></span>
+<span class='src-line'><b> 156</b><code>    if not isinstance(values, list):</code></span>
+<span class='src-line'><b> 157</b><code>        return []</code></span>
+<span class='src-line'><b> 158</b><code>    return [value for value in values if isinstance(value, dict)]</code></span>
+<span class='src-line'><b> 159</b><code></code></span>
+<span class='src-line'><b> 160</b><code></code></span>
+<span class='src-line'><b> 161</b><code>def _rank_tasks(tasks: list[dict]) -&gt; list[dict]:</code></span>
+<span class='src-line'><b> 162</b><code>    status_rank = {&quot;active&quot;: 0, &quot;open&quot;: 1, &quot;blocked&quot;: 2, &quot;validating&quot;: 3, &quot;done&quot;: 4, &quot;skipped&quot;: 5}</code></span>
+<span class='src-line'><b> 163</b><code>    return sorted(</code></span>
+<span class='src-line'><b> 164</b><code>        tasks,</code></span>
+<span class='src-line'><b> 165</b><code>        key=lambda task: (</code></span>
+<span class='src-line'><b> 166</b><code>            status_rank.get(str(task.get(&quot;status&quot;) or &quot;open&quot;), 9),</code></span>
+<span class='src-line'><b> 167</b><code>            -int(task.get(&quot;priority&quot;) or 0),</code></span>
+<span class='src-line'><b> 168</b><code>            str(task.get(&quot;title&quot;) or &quot;&quot;),</code></span>
+<span class='src-line'><b> 169</b><code>        ),</code></span>
+<span class='src-line'><b> 170</b><code>    )</code></span>
+<span class='src-line'><b> 171</b><code></code></span>
+<span class='src-line'><b> 172</b><code></code></span>
+<span class='src-line'><b> 173</b><code>def _compact_count(value: object) -&gt; str:</code></span>
+<span class='src-line'><b> 174</b><code>    try:</code></span>
+<span class='src-line'><b> 175</b><code>        number = int(float(value or 0))</code></span>
+<span class='src-line'><b> 176</b><code>    except (TypeError, ValueError):</code></span>
+<span class='src-line'><b> 177</b><code>        number = 0</code></span>
+<span class='src-line'><b> 178</b><code>    if number &gt;= 1_000_000:</code></span>
+<span class='src-line'><b> 179</b><code>        return f&quot;{number / 1_000_000:.1f}M&quot;</code></span>
+<span class='src-line'><b> 180</b><code>    if number &gt;= 1_000:</code></span>
+<span class='src-line'><b> 181</b><code>        return f&quot;{number / 1_000:.1f}K&quot;</code></span>
+<span class='src-line'><b> 182</b><code>    return str(number)</code></span></pre>
 </details>
 <details class="source-file searchable" data-search="nipux_cli/config.py &quot;&quot;&quot;Configuration for the Nipux long-running agent runtime.&quot;&quot;&quot;
 
@@ -19987,6 +20102,263 @@ def job_is_deferred(job: dict[str, Any], *, now: datetime | None = None) -&gt; b
 <span class='src-line'><b>  24</b><code></code></span>
 <span class='src-line'><b>  25</b><code>def job_is_deferred(job: dict[str, Any], *, now: datetime | None = None) -&gt; bool:</code></span>
 <span class='src-line'><b>  26</b><code>    return job_deferred_until(job, now=now) is not None</code></span></pre>
+</details>
+<details class="source-file searchable" data-search="nipux_cli/settings.py &quot;&quot;&quot;Inline config editing helpers for Nipux slash commands.&quot;&quot;&quot;
+
+from __future__ import annotations
+
+import os
+from pathlib import Path
+from typing import Any
+
+import yaml
+
+from nipux_cli.config import default_config_yaml, get_agent_home, load_config
+from nipux_cli.tui_commands import SETTINGS_FIELD_TYPES
+
+
+def config_field_value(field: str, config: Any | None = None) -&gt; Any:
+    config = load_config() if config is None else config
+    values = {
+        &quot;model.name&quot;: config.model.model,
+        &quot;model.base_url&quot;: config.model.base_url,
+        &quot;model.api_key_env&quot;: config.model.api_key_env,
+        &quot;model.context_length&quot;: config.model.context_length,
+        &quot;model.request_timeout_seconds&quot;: config.model.request_timeout_seconds,
+        &quot;runtime.home&quot;: str(config.runtime.home),
+        &quot;runtime.max_step_seconds&quot;: config.runtime.max_step_seconds,
+        &quot;runtime.artifact_inline_char_limit&quot;: config.runtime.artifact_inline_char_limit,
+        &quot;runtime.daily_digest_enabled&quot;: config.runtime.daily_digest_enabled,
+        &quot;runtime.daily_digest_time&quot;: config.runtime.daily_digest_time,
+    }
+    return values.get(field, &quot;&quot;)
+
+
+def save_config_field(field: str, raw_value: str) -&gt; Any:
+    value = _coerce_config_value(field, raw_value)
+    data = _load_config_yaml()
+    section, key = field.split(&quot;.&quot;, 1)
+    target = data.setdefault(section, {})
+    if not isinstance(target, dict):
+        target = {}
+        data[section] = target
+    target[key] = value
+    _save_config_yaml(data)
+    return value
+
+
+def inline_setting_notice(field: str, raw_value: str) -&gt; str:
+    value = raw_value.strip()
+    if not value:
+        return f&quot;kept {field}&quot;
+    if field == &quot;secret:model.api_key&quot;:
+        config = load_config()
+        name = config.model.api_key_env
+        _save_env_secret(name, value)
+        return f&quot;saved {name} in {_short_path(get_agent_home() / &#x27;.env&#x27;)}&quot;
+    try:
+        saved = save_config_field(field, value)
+    except ValueError as exc:
+        return f&quot;{field}: {exc}&quot;
+    return f&quot;saved {field} = {saved}&quot;
+
+
+def edit_target_label(field: str) -&gt; str:
+    if field == &quot;secret:model.api_key&quot;:
+        return &quot;API key&quot;
+    return field
+
+
+def edit_target_hint(field: str, config: Any | None = None) -&gt; str:
+    config = config or load_config()
+    if field == &quot;secret:model.api_key&quot;:
+        state = &quot;set&quot; if config.model.api_key else &quot;missing&quot;
+        return f&quot;Editing API key ({state}). Enter saves, Esc cancels. Input is hidden.&quot;
+    current = config_field_value(field, config)
+    return f&quot;Editing {field}. Current: {current}. Enter saves, Esc cancels, empty keeps current.&quot;
+
+
+def edit_target_masks_input(field: str | None) -&gt; bool:
+    return field == &quot;secret:model.api_key&quot;
+
+
+def _config_path() -&gt; Path:
+    return get_agent_home() / &quot;config.yaml&quot;
+
+
+def _load_config_yaml() -&gt; dict[str, Any]:
+    path = _config_path()
+    if not path.exists():
+        loaded = yaml.safe_load(default_config_yaml()) or {}
+        return loaded if isinstance(loaded, dict) else {}
+    loaded = yaml.safe_load(path.read_text(encoding=&quot;utf-8&quot;)) or {}
+    return loaded if isinstance(loaded, dict) else {}
+
+
+def _save_config_yaml(data: dict[str, Any]) -&gt; None:
+    path = _config_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(yaml.safe_dump(data, sort_keys=False), encoding=&quot;utf-8&quot;)
+
+
+def _save_env_secret(name: str, value: str) -&gt; None:
+    env_path = get_agent_home() / &quot;.env&quot;
+    env_path.parent.mkdir(parents=True, exist_ok=True)
+    existing: dict[str, str] = {}
+    if env_path.exists():
+        for raw in env_path.read_text(encoding=&quot;utf-8&quot;, errors=&quot;ignore&quot;).splitlines():
+            if &quot;=&quot; not in raw or raw.strip().startswith(&quot;#&quot;):
+                continue
+            key, current = raw.split(&quot;=&quot;, 1)
+            if key.strip():
+                existing[key.strip()] = current.strip()
+    existing[name] = value
+    env_path.write_text(&quot;\n&quot;.join(f&quot;{key}={current}&quot; for key, current in existing.items()) + &quot;\n&quot;, encoding=&quot;utf-8&quot;)
+    env_path.chmo">
+<summary>nipux_cli/settings.py <span>143 lines</span></summary>
+<pre class="source-code"><span class='src-line'><b>   1</b><code>&quot;&quot;&quot;Inline config editing helpers for Nipux slash commands.&quot;&quot;&quot;</code></span>
+<span class='src-line'><b>   2</b><code></code></span>
+<span class='src-line'><b>   3</b><code>from __future__ import annotations</code></span>
+<span class='src-line'><b>   4</b><code></code></span>
+<span class='src-line'><b>   5</b><code>import os</code></span>
+<span class='src-line'><b>   6</b><code>from pathlib import Path</code></span>
+<span class='src-line'><b>   7</b><code>from typing import Any</code></span>
+<span class='src-line'><b>   8</b><code></code></span>
+<span class='src-line'><b>   9</b><code>import yaml</code></span>
+<span class='src-line'><b>  10</b><code></code></span>
+<span class='src-line'><b>  11</b><code>from nipux_cli.config import default_config_yaml, get_agent_home, load_config</code></span>
+<span class='src-line'><b>  12</b><code>from nipux_cli.tui_commands import SETTINGS_FIELD_TYPES</code></span>
+<span class='src-line'><b>  13</b><code></code></span>
+<span class='src-line'><b>  14</b><code></code></span>
+<span class='src-line'><b>  15</b><code>def config_field_value(field: str, config: Any | None = None) -&gt; Any:</code></span>
+<span class='src-line'><b>  16</b><code>    config = load_config() if config is None else config</code></span>
+<span class='src-line'><b>  17</b><code>    values = {</code></span>
+<span class='src-line'><b>  18</b><code>        &quot;model.name&quot;: config.model.model,</code></span>
+<span class='src-line'><b>  19</b><code>        &quot;model.base_url&quot;: config.model.base_url,</code></span>
+<span class='src-line'><b>  20</b><code>        &quot;model.api_key_env&quot;: config.model.api_key_env,</code></span>
+<span class='src-line'><b>  21</b><code>        &quot;model.context_length&quot;: config.model.context_length,</code></span>
+<span class='src-line'><b>  22</b><code>        &quot;model.request_timeout_seconds&quot;: config.model.request_timeout_seconds,</code></span>
+<span class='src-line'><b>  23</b><code>        &quot;runtime.home&quot;: str(config.runtime.home),</code></span>
+<span class='src-line'><b>  24</b><code>        &quot;runtime.max_step_seconds&quot;: config.runtime.max_step_seconds,</code></span>
+<span class='src-line'><b>  25</b><code>        &quot;runtime.artifact_inline_char_limit&quot;: config.runtime.artifact_inline_char_limit,</code></span>
+<span class='src-line'><b>  26</b><code>        &quot;runtime.daily_digest_enabled&quot;: config.runtime.daily_digest_enabled,</code></span>
+<span class='src-line'><b>  27</b><code>        &quot;runtime.daily_digest_time&quot;: config.runtime.daily_digest_time,</code></span>
+<span class='src-line'><b>  28</b><code>    }</code></span>
+<span class='src-line'><b>  29</b><code>    return values.get(field, &quot;&quot;)</code></span>
+<span class='src-line'><b>  30</b><code></code></span>
+<span class='src-line'><b>  31</b><code></code></span>
+<span class='src-line'><b>  32</b><code>def save_config_field(field: str, raw_value: str) -&gt; Any:</code></span>
+<span class='src-line'><b>  33</b><code>    value = _coerce_config_value(field, raw_value)</code></span>
+<span class='src-line'><b>  34</b><code>    data = _load_config_yaml()</code></span>
+<span class='src-line'><b>  35</b><code>    section, key = field.split(&quot;.&quot;, 1)</code></span>
+<span class='src-line'><b>  36</b><code>    target = data.setdefault(section, {})</code></span>
+<span class='src-line'><b>  37</b><code>    if not isinstance(target, dict):</code></span>
+<span class='src-line'><b>  38</b><code>        target = {}</code></span>
+<span class='src-line'><b>  39</b><code>        data[section] = target</code></span>
+<span class='src-line'><b>  40</b><code>    target[key] = value</code></span>
+<span class='src-line'><b>  41</b><code>    _save_config_yaml(data)</code></span>
+<span class='src-line'><b>  42</b><code>    return value</code></span>
+<span class='src-line'><b>  43</b><code></code></span>
+<span class='src-line'><b>  44</b><code></code></span>
+<span class='src-line'><b>  45</b><code>def inline_setting_notice(field: str, raw_value: str) -&gt; str:</code></span>
+<span class='src-line'><b>  46</b><code>    value = raw_value.strip()</code></span>
+<span class='src-line'><b>  47</b><code>    if not value:</code></span>
+<span class='src-line'><b>  48</b><code>        return f&quot;kept {field}&quot;</code></span>
+<span class='src-line'><b>  49</b><code>    if field == &quot;secret:model.api_key&quot;:</code></span>
+<span class='src-line'><b>  50</b><code>        config = load_config()</code></span>
+<span class='src-line'><b>  51</b><code>        name = config.model.api_key_env</code></span>
+<span class='src-line'><b>  52</b><code>        _save_env_secret(name, value)</code></span>
+<span class='src-line'><b>  53</b><code>        return f&quot;saved {name} in {_short_path(get_agent_home() / &#x27;.env&#x27;)}&quot;</code></span>
+<span class='src-line'><b>  54</b><code>    try:</code></span>
+<span class='src-line'><b>  55</b><code>        saved = save_config_field(field, value)</code></span>
+<span class='src-line'><b>  56</b><code>    except ValueError as exc:</code></span>
+<span class='src-line'><b>  57</b><code>        return f&quot;{field}: {exc}&quot;</code></span>
+<span class='src-line'><b>  58</b><code>    return f&quot;saved {field} = {saved}&quot;</code></span>
+<span class='src-line'><b>  59</b><code></code></span>
+<span class='src-line'><b>  60</b><code></code></span>
+<span class='src-line'><b>  61</b><code>def edit_target_label(field: str) -&gt; str:</code></span>
+<span class='src-line'><b>  62</b><code>    if field == &quot;secret:model.api_key&quot;:</code></span>
+<span class='src-line'><b>  63</b><code>        return &quot;API key&quot;</code></span>
+<span class='src-line'><b>  64</b><code>    return field</code></span>
+<span class='src-line'><b>  65</b><code></code></span>
+<span class='src-line'><b>  66</b><code></code></span>
+<span class='src-line'><b>  67</b><code>def edit_target_hint(field: str, config: Any | None = None) -&gt; str:</code></span>
+<span class='src-line'><b>  68</b><code>    config = config or load_config()</code></span>
+<span class='src-line'><b>  69</b><code>    if field == &quot;secret:model.api_key&quot;:</code></span>
+<span class='src-line'><b>  70</b><code>        state = &quot;set&quot; if config.model.api_key else &quot;missing&quot;</code></span>
+<span class='src-line'><b>  71</b><code>        return f&quot;Editing API key ({state}). Enter saves, Esc cancels. Input is hidden.&quot;</code></span>
+<span class='src-line'><b>  72</b><code>    current = config_field_value(field, config)</code></span>
+<span class='src-line'><b>  73</b><code>    return f&quot;Editing {field}. Current: {current}. Enter saves, Esc cancels, empty keeps current.&quot;</code></span>
+<span class='src-line'><b>  74</b><code></code></span>
+<span class='src-line'><b>  75</b><code></code></span>
+<span class='src-line'><b>  76</b><code>def edit_target_masks_input(field: str | None) -&gt; bool:</code></span>
+<span class='src-line'><b>  77</b><code>    return field == &quot;secret:model.api_key&quot;</code></span>
+<span class='src-line'><b>  78</b><code></code></span>
+<span class='src-line'><b>  79</b><code></code></span>
+<span class='src-line'><b>  80</b><code>def _config_path() -&gt; Path:</code></span>
+<span class='src-line'><b>  81</b><code>    return get_agent_home() / &quot;config.yaml&quot;</code></span>
+<span class='src-line'><b>  82</b><code></code></span>
+<span class='src-line'><b>  83</b><code></code></span>
+<span class='src-line'><b>  84</b><code>def _load_config_yaml() -&gt; dict[str, Any]:</code></span>
+<span class='src-line'><b>  85</b><code>    path = _config_path()</code></span>
+<span class='src-line'><b>  86</b><code>    if not path.exists():</code></span>
+<span class='src-line'><b>  87</b><code>        loaded = yaml.safe_load(default_config_yaml()) or {}</code></span>
+<span class='src-line'><b>  88</b><code>        return loaded if isinstance(loaded, dict) else {}</code></span>
+<span class='src-line'><b>  89</b><code>    loaded = yaml.safe_load(path.read_text(encoding=&quot;utf-8&quot;)) or {}</code></span>
+<span class='src-line'><b>  90</b><code>    return loaded if isinstance(loaded, dict) else {}</code></span>
+<span class='src-line'><b>  91</b><code></code></span>
+<span class='src-line'><b>  92</b><code></code></span>
+<span class='src-line'><b>  93</b><code>def _save_config_yaml(data: dict[str, Any]) -&gt; None:</code></span>
+<span class='src-line'><b>  94</b><code>    path = _config_path()</code></span>
+<span class='src-line'><b>  95</b><code>    path.parent.mkdir(parents=True, exist_ok=True)</code></span>
+<span class='src-line'><b>  96</b><code>    path.write_text(yaml.safe_dump(data, sort_keys=False), encoding=&quot;utf-8&quot;)</code></span>
+<span class='src-line'><b>  97</b><code></code></span>
+<span class='src-line'><b>  98</b><code></code></span>
+<span class='src-line'><b>  99</b><code>def _save_env_secret(name: str, value: str) -&gt; None:</code></span>
+<span class='src-line'><b> 100</b><code>    env_path = get_agent_home() / &quot;.env&quot;</code></span>
+<span class='src-line'><b> 101</b><code>    env_path.parent.mkdir(parents=True, exist_ok=True)</code></span>
+<span class='src-line'><b> 102</b><code>    existing: dict[str, str] = {}</code></span>
+<span class='src-line'><b> 103</b><code>    if env_path.exists():</code></span>
+<span class='src-line'><b> 104</b><code>        for raw in env_path.read_text(encoding=&quot;utf-8&quot;, errors=&quot;ignore&quot;).splitlines():</code></span>
+<span class='src-line'><b> 105</b><code>            if &quot;=&quot; not in raw or raw.strip().startswith(&quot;#&quot;):</code></span>
+<span class='src-line'><b> 106</b><code>                continue</code></span>
+<span class='src-line'><b> 107</b><code>            key, current = raw.split(&quot;=&quot;, 1)</code></span>
+<span class='src-line'><b> 108</b><code>            if key.strip():</code></span>
+<span class='src-line'><b> 109</b><code>                existing[key.strip()] = current.strip()</code></span>
+<span class='src-line'><b> 110</b><code>    existing[name] = value</code></span>
+<span class='src-line'><b> 111</b><code>    env_path.write_text(&quot;\n&quot;.join(f&quot;{key}={current}&quot; for key, current in existing.items()) + &quot;\n&quot;, encoding=&quot;utf-8&quot;)</code></span>
+<span class='src-line'><b> 112</b><code>    env_path.chmod(0o600)</code></span>
+<span class='src-line'><b> 113</b><code>    os.environ[name] = value</code></span>
+<span class='src-line'><b> 114</b><code></code></span>
+<span class='src-line'><b> 115</b><code></code></span>
+<span class='src-line'><b> 116</b><code>def _coerce_config_value(field: str, raw_value: str) -&gt; Any:</code></span>
+<span class='src-line'><b> 117</b><code>    kind = SETTINGS_FIELD_TYPES.get(field, &quot;str&quot;)</code></span>
+<span class='src-line'><b> 118</b><code>    value = raw_value.strip()</code></span>
+<span class='src-line'><b> 119</b><code>    if kind == &quot;int&quot;:</code></span>
+<span class='src-line'><b> 120</b><code>        return int(value)</code></span>
+<span class='src-line'><b> 121</b><code>    if kind == &quot;float&quot;:</code></span>
+<span class='src-line'><b> 122</b><code>        return float(value)</code></span>
+<span class='src-line'><b> 123</b><code>    if kind == &quot;bool&quot;:</code></span>
+<span class='src-line'><b> 124</b><code>        lowered = value.lower()</code></span>
+<span class='src-line'><b> 125</b><code>        if lowered in {&quot;1&quot;, &quot;true&quot;, &quot;yes&quot;, &quot;on&quot;}:</code></span>
+<span class='src-line'><b> 126</b><code>            return True</code></span>
+<span class='src-line'><b> 127</b><code>        if lowered in {&quot;0&quot;, &quot;false&quot;, &quot;no&quot;, &quot;off&quot;}:</code></span>
+<span class='src-line'><b> 128</b><code>            return False</code></span>
+<span class='src-line'><b> 129</b><code>        raise ValueError(&quot;use true or false&quot;)</code></span>
+<span class='src-line'><b> 130</b><code>    if kind == &quot;path&quot;:</code></span>
+<span class='src-line'><b> 131</b><code>        return str(Path(value).expanduser())</code></span>
+<span class='src-line'><b> 132</b><code>    return value</code></span>
+<span class='src-line'><b> 133</b><code></code></span>
+<span class='src-line'><b> 134</b><code></code></span>
+<span class='src-line'><b> 135</b><code>def _short_path(path: Path | str, *, max_width: int = 80) -&gt; str:</code></span>
+<span class='src-line'><b> 136</b><code>    text = str(path)</code></span>
+<span class='src-line'><b> 137</b><code>    home = str(Path.home())</code></span>
+<span class='src-line'><b> 138</b><code>    if text.startswith(home + os.sep):</code></span>
+<span class='src-line'><b> 139</b><code>        text = &quot;~&quot; + text[len(home) :]</code></span>
+<span class='src-line'><b> 140</b><code>    if len(text) &lt;= max_width:</code></span>
+<span class='src-line'><b> 141</b><code>        return text</code></span>
+<span class='src-line'><b> 142</b><code>    keep = max(12, max_width - 4)</code></span>
+<span class='src-line'><b> 143</b><code>    return &quot;...&quot; + text[-keep:]</code></span></pre>
 </details>
 <details class="source-file searchable" data-search="nipux_cli/source_quality.py &quot;&quot;&quot;Source quality checks for web and browser tools.&quot;&quot;&quot;
 
@@ -30669,6 +31041,19 @@ def test_refresh_memory_index_includes_durable_progress_ledgers(tmp_path):
                 },
             },
         )
+        db.append_event(
+            job_id,
+            event_type=&quot;loop&quot;,
+            title=&quot;message_end&quot;,
+            metadata={
+                &quot;usage&quot;: {
+                    &quot;prompt_tokens&quot;: 1200,
+                    &quot;completion_tokens&quot;: 300,
+                    &quot;total_tokens&quot;: 1500,
+                    &quot;estimated&quot;: True,
+                }
+            },
+        )
 
         refresh_memory_index(db, job_id)
 
@@ -30682,9 +31067,12 @@ def test_refresh_memory_index_includes_durable_progress_ledgers(tmp_path):
         assert &quot;Citation density check&quot; in memory
         assert &quot;Teacher traces improve tool use&quot; in memory
         assert &quot;Research paper roadmap&quot; in memory
+        assert &quot;Model usage:&quot; in memory
+        assert &quot;total_tokens=1.5K&quot; in memory
+        assert &quot;estimated_calls=1&quot; in memory
     finally:
         db.close()">
-<summary>tests/nipux_cli/test_compression.py <span>52 lines</span></summary>
+<summary>tests/nipux_cli/test_compression.py <span>68 lines</span></summary>
 <pre class="source-code"><span class='src-line'><b>   1</b><code>from nipux_cli.compression import refresh_memory_index</code></span>
 <span class='src-line'><b>   2</b><code>from nipux_cli.db import AgentDB</code></span>
 <span class='src-line'><b>   3</b><code></code></span>
@@ -30722,21 +31110,37 @@ def test_refresh_memory_index_includes_durable_progress_ledgers(tmp_path):
 <span class='src-line'><b>  35</b><code>                },</code></span>
 <span class='src-line'><b>  36</b><code>            },</code></span>
 <span class='src-line'><b>  37</b><code>        )</code></span>
-<span class='src-line'><b>  38</b><code></code></span>
-<span class='src-line'><b>  39</b><code>        refresh_memory_index(db, job_id)</code></span>
-<span class='src-line'><b>  40</b><code></code></span>
-<span class='src-line'><b>  41</b><code>        memory = db.list_memory(job_id)[0][&quot;summary&quot;]</code></span>
-<span class='src-line'><b>  42</b><code>        assert &quot;Durable progress ledgers:&quot; in memory</code></span>
-<span class='src-line'><b>  43</b><code>        assert &quot;tasks=1&quot; in memory</code></span>
-<span class='src-line'><b>  44</b><code>        assert &quot;findings=1&quot; in memory</code></span>
-<span class='src-line'><b>  45</b><code>        assert &quot;sources=1&quot; in memory</code></span>
-<span class='src-line'><b>  46</b><code>        assert &quot;experiments=1&quot; in memory</code></span>
-<span class='src-line'><b>  47</b><code>        assert &quot;Draft evidence-backed section&quot; in memory</code></span>
-<span class='src-line'><b>  48</b><code>        assert &quot;Citation density check&quot; in memory</code></span>
-<span class='src-line'><b>  49</b><code>        assert &quot;Teacher traces improve tool use&quot; in memory</code></span>
-<span class='src-line'><b>  50</b><code>        assert &quot;Research paper roadmap&quot; in memory</code></span>
-<span class='src-line'><b>  51</b><code>    finally:</code></span>
-<span class='src-line'><b>  52</b><code>        db.close()</code></span></pre>
+<span class='src-line'><b>  38</b><code>        db.append_event(</code></span>
+<span class='src-line'><b>  39</b><code>            job_id,</code></span>
+<span class='src-line'><b>  40</b><code>            event_type=&quot;loop&quot;,</code></span>
+<span class='src-line'><b>  41</b><code>            title=&quot;message_end&quot;,</code></span>
+<span class='src-line'><b>  42</b><code>            metadata={</code></span>
+<span class='src-line'><b>  43</b><code>                &quot;usage&quot;: {</code></span>
+<span class='src-line'><b>  44</b><code>                    &quot;prompt_tokens&quot;: 1200,</code></span>
+<span class='src-line'><b>  45</b><code>                    &quot;completion_tokens&quot;: 300,</code></span>
+<span class='src-line'><b>  46</b><code>                    &quot;total_tokens&quot;: 1500,</code></span>
+<span class='src-line'><b>  47</b><code>                    &quot;estimated&quot;: True,</code></span>
+<span class='src-line'><b>  48</b><code>                }</code></span>
+<span class='src-line'><b>  49</b><code>            },</code></span>
+<span class='src-line'><b>  50</b><code>        )</code></span>
+<span class='src-line'><b>  51</b><code></code></span>
+<span class='src-line'><b>  52</b><code>        refresh_memory_index(db, job_id)</code></span>
+<span class='src-line'><b>  53</b><code></code></span>
+<span class='src-line'><b>  54</b><code>        memory = db.list_memory(job_id)[0][&quot;summary&quot;]</code></span>
+<span class='src-line'><b>  55</b><code>        assert &quot;Durable progress ledgers:&quot; in memory</code></span>
+<span class='src-line'><b>  56</b><code>        assert &quot;tasks=1&quot; in memory</code></span>
+<span class='src-line'><b>  57</b><code>        assert &quot;findings=1&quot; in memory</code></span>
+<span class='src-line'><b>  58</b><code>        assert &quot;sources=1&quot; in memory</code></span>
+<span class='src-line'><b>  59</b><code>        assert &quot;experiments=1&quot; in memory</code></span>
+<span class='src-line'><b>  60</b><code>        assert &quot;Draft evidence-backed section&quot; in memory</code></span>
+<span class='src-line'><b>  61</b><code>        assert &quot;Citation density check&quot; in memory</code></span>
+<span class='src-line'><b>  62</b><code>        assert &quot;Teacher traces improve tool use&quot; in memory</code></span>
+<span class='src-line'><b>  63</b><code>        assert &quot;Research paper roadmap&quot; in memory</code></span>
+<span class='src-line'><b>  64</b><code>        assert &quot;Model usage:&quot; in memory</code></span>
+<span class='src-line'><b>  65</b><code>        assert &quot;total_tokens=1.5K&quot; in memory</code></span>
+<span class='src-line'><b>  66</b><code>        assert &quot;estimated_calls=1&quot; in memory</code></span>
+<span class='src-line'><b>  67</b><code>    finally:</code></span>
+<span class='src-line'><b>  68</b><code>        db.close()</code></span></pre>
 </details>
 <details class="source-file searchable" data-search="tests/nipux_cli/test_config.py from pathlib import Path
 
@@ -36549,7 +36953,7 @@ class AntiBotBrowserRegistry:
 <h3>tests/nipux_cli/test_cli_model_preflight.py</h3><p><strong>4</strong> tests · 61 lines</p>
 <p class="muted">test_remote_model_preflight_blocks_rejected_auth, test_remote_model_preflight_skips_fake_runs, test_remote_model_preflight_does_not_block_local_endpoints, test_start_does_not_spawn_daemon_when_model_preflight_fails</p></article>
 <article class="test-card searchable" data-search="tests/nipux_cli/test_compression.py test_refresh_memory_index_includes_durable_progress_ledgers">
-<h3>tests/nipux_cli/test_compression.py</h3><p><strong>1</strong> tests · 52 lines</p>
+<h3>tests/nipux_cli/test_compression.py</h3><p><strong>1</strong> tests · 68 lines</p>
 <p class="muted">test_refresh_memory_index_includes_durable_progress_ledgers</p></article>
 <article class="test-card searchable" data-search="tests/nipux_cli/test_config.py test_load_config_defaults_to_qwen_openrouter test_load_config_from_yaml test_load_config_reads_local_env_file test_default_config_yaml_allows_provider_template_without_secret test_config_example_matches_default_provider">
 <h3>tests/nipux_cli/test_config.py</h3><p><strong>5</strong> tests · 95 lines</p>
@@ -36603,7 +37007,7 @@ class AntiBotBrowserRegistry:
       <div class="grid"><article class='card warning searchable' data-search='Large modules nipux_cli/cli.py (5129 lines), nipux_cli/worker.py (3247 lines), tests/nipux_cli/test_worker.py (2588 lines), nipux_cli/db.py (2396 lines), tests/nipux_cli/test_cli.py (1832 lines)'><h3>Large modules</h3><p>nipux_cli/cli.py (5129 lines), nipux_cli/worker.py (3247 lines), tests/nipux_cli/test_worker.py (2588 lines), nipux_cli/db.py (2396 lines), tests/nipux_cli/test_cli.py (1832 lines)</p></article>
 <article class='card warning searchable' data-search='Prompt surfaces 12 prompt/instruction-like strings were extracted. Inspect this section after any agent-behavior change.'><h3>Prompt surfaces</h3><p>12 prompt/instruction-like strings were extracted. Inspect this section after any agent-behavior change.</p></article>
 <article class='card warning searchable' data-search='Tool surface 27 tools are exposed to the worker. Review descriptions whenever generic behavior changes.'><h3>Tool surface</h3><p>27 tools are exposed to the worker. Review descriptions whenever generic behavior changes.</p></article>
-<article class='card warning searchable' data-search='Symbol map 1020 symbols were parsed. Large modules are candidates for refactoring once behavior stabilizes.'><h3>Symbol map</h3><p>1020 symbols were parsed. Large modules are candidates for refactoring once behavior stabilizes.</p></article></div>
+<article class='card warning searchable' data-search='Symbol map 1033 symbols were parsed. Large modules are candidates for refactoring once behavior stabilizes.'><h3>Symbol map</h3><p>1033 symbols were parsed. Large modules are candidates for refactoring once behavior stabilizes.</p></article></div>
     </section>
   </main>
 </div>
