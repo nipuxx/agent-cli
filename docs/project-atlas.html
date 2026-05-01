@@ -82,7 +82,7 @@ pre { max-height: 540px; overflow: auto; background: #050606; border: 1px solid 
 <div class="shell">
   <aside class="sidebar">
     <div class="logo">NIPUX ATLAS</div>
-    <div class="subtitle">Generated from tracked source on 7515bf66.</div>
+    <div class="subtitle">Generated from tracked source on c225a605.</div>
     <input id="search" class="search" placeholder="filter files, prompts, tools..." autocomplete="off">
     <nav class="nav">
       <a href="#architecture">Architecture</a>
@@ -98,8 +98,8 @@ pre { max-height: 540px; overflow: auto; background: #050606; border: 1px solid 
     </nav>
     <div class="stats">
       <div class="stat"><b>67</b><span>tracked files</span></div>
-      <div class="stat"><b>25,852</b><span>tracked lines mapped</span></div>
-      <div class="stat"><b>1071</b><span>python symbols</span></div>
+      <div class="stat"><b>26,122</b><span>tracked lines mapped</span></div>
+      <div class="stat"><b>1080</b><span>python symbols</span></div>
       <div class="stat"><b>27</b><span>runtime tools</span></div>
     </div>
   </aside>
@@ -635,11 +635,11 @@ fixed tool surface. none">
 <div class="meta"><span>6 symbols</span><span>0 TODOs</span></div>
 <details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> __future__, re, typing</p><p><strong>Symbols:</strong> operator_entry_is_active, operator_entry_is_prompt_relevant, active_prompt_operator_entries, inactive_prompt_operator_ids, _conversation_only, _actionable</p></details>
 </article>
-<article class="file-card searchable" data-search="nipux_cli/planning.py Generic initial planning primitives for long-running jobs. initial_plan_for_objective, initial_task_contract, initial_roadmap_for_objective, format_initial_plan">
-<header><h3>nipux_cli/planning.py</h3><span>123 lines</span></header>
+<article class="file-card searchable" data-search="nipux_cli/planning.py Generic initial planning primitives for long-running jobs. objective_profiles, initial_plan_for_objective, initial_task_contract, initial_roadmap_for_objective, _initial_summary_for_profiles, _initial_tasks_for_profiles, _initial_questions_for_profiles, _primary_execution_contract, format_initial_plan">
+<header><h3>nipux_cli/planning.py</h3><span>358 lines</span></header>
 <p>Generic initial planning primitives for long-running jobs.</p>
-<div class="meta"><span>4 symbols</span><span>0 TODOs</span></div>
-<details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> __future__, typing</p><p><strong>Symbols:</strong> initial_plan_for_objective, initial_task_contract, initial_roadmap_for_objective, format_initial_plan</p></details>
+<div class="meta"><span>9 symbols</span><span>0 TODOs</span></div>
+<details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> __future__, re, typing</p><p><strong>Symbols:</strong> objective_profiles, initial_plan_for_objective, initial_task_contract, initial_roadmap_for_objective, _initial_summary_for_profiles, _initial_tasks_for_profiles, _initial_questions_for_profiles, _primary_execution_contract, format_initial_plan</p></details>
 </article>
 <article class="file-card searchable" data-search="nipux_cli/progress.py Generic progress summaries for long-running jobs. ProgressCheckpoint, build_progress_checkpoint, ledger_counts, recent_progress_bits, _metadata_list, _clip_text, _as_int">
 <header><h3>nipux_cli/progress.py</h3><span>130 lines</span></header>
@@ -845,11 +845,11 @@ fixed tool surface. none">
 <div class="meta"><span>4 symbols</span><span>0 TODOs</span></div>
 <details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> nipux_cli.operator_context</p><p><strong>Symbols:</strong> _entry, test_conversation_only_operator_messages_do_not_enter_worker_prompt, test_actionable_operator_messages_remain_worker_constraints, test_inactive_prompt_operator_ids_returns_only_conversation_active_messages</p></details>
 </article>
-<article class="file-card searchable" data-search="tests/nipux_cli/test_planning.py No module docstring. test_initial_task_contracts_are_generic_and_complete, test_initial_roadmap_uses_valid_generic_contracts">
-<header><h3>tests/nipux_cli/test_planning.py</h3><span>32 lines</span></header>
+<article class="file-card searchable" data-search="tests/nipux_cli/test_planning.py No module docstring. test_initial_task_contracts_are_generic_and_complete, test_initial_roadmap_uses_valid_generic_contracts, test_initial_plan_adapts_to_measurable_objectives, test_initial_plan_adapts_to_deliverable_objectives, test_initial_plan_adapts_to_monitoring_objectives, test_objective_profiles_stay_generic">
+<header><h3>tests/nipux_cli/test_planning.py</h3><span>67 lines</span></header>
 <p>No module docstring.</p>
-<div class="meta"><span>2 symbols</span><span>0 TODOs</span></div>
-<details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> nipux_cli.planning</p><p><strong>Symbols:</strong> test_initial_task_contracts_are_generic_and_complete, test_initial_roadmap_uses_valid_generic_contracts</p></details>
+<div class="meta"><span>6 symbols</span><span>0 TODOs</span></div>
+<details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> nipux_cli.planning</p><p><strong>Symbols:</strong> test_initial_task_contracts_are_generic_and_complete, test_initial_roadmap_uses_valid_generic_contracts, test_initial_plan_adapts_to_measurable_objectives, test_initial_plan_adapts_to_deliverable_objectives, test_initial_plan_adapts_to_monitoring_objectives, test_objective_profiles_stay_generic</p></details>
 </article>
 <article class="file-card searchable" data-search="tests/nipux_cli/test_progress.py No module docstring. test_progress_checkpoint_reports_deltas_and_recent_durable_work, test_progress_checkpoint_for_saved_output_is_concise, test_progress_checkpoint_without_delta_is_activity_not_progress, test_progress_helpers_ignore_malformed_metadata">
 <header><h3>tests/nipux_cli/test_progress.py</h3><span>87 lines</span></header>
@@ -3489,27 +3489,57 @@ fixed tool surface. none">
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> _conversation_only, any, join, message.split, pattern.search</p>
 </article>
-<article class="symbol searchable" data-search="nipux_cli/planning.py initial_plan_for_objective No docstring. join, objective.split">
+<article class="symbol searchable" data-search="nipux_cli/planning.py objective_profiles Infer generic work profiles from an objective without binding to a domain. _PROFILE_PRIORITY.get, _PROFILE_TERMS.items, len, objective.lower, re.findall, scores.append, scores.sort, set">
+<h3>objective_profiles</h3>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/planning.py:91</span></p>
+<p>Infer generic work profiles from an objective without binding to a domain.</p>
+<p class="calls"><strong>Calls:</strong> _PROFILE_PRIORITY.get, _PROFILE_TERMS.items, len, objective.lower, re.findall, scores.append, scores.sort, set</p>
+</article>
+<article class="symbol searchable" data-search="nipux_cli/planning.py initial_plan_for_objective No docstring. _initial_questions_for_profiles, _initial_summary_for_profiles, _initial_tasks_for_profiles, join, objective.split, objective_profiles">
 <h3>initial_plan_for_objective</h3>
-<p><span class="pill">function</span> <span class="pill">nipux_cli/planning.py:8</span></p>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/planning.py:107</span></p>
 <p>No docstring.</p>
-<p class="calls"><strong>Calls:</strong> join, objective.split</p>
+<p class="calls"><strong>Calls:</strong> _initial_questions_for_profiles, _initial_summary_for_profiles, _initial_tasks_for_profiles, join, objective.split, objective_profiles</p>
 </article>
-<article class="symbol searchable" data-search="nipux_cli/planning.py initial_task_contract No docstring. task_title.lower">
+<article class="symbol searchable" data-search="nipux_cli/planning.py initial_task_contract No docstring. any, task_title.lower">
 <h3>initial_task_contract</h3>
-<p><span class="pill">function</span> <span class="pill">nipux_cli/planning.py:28</span></p>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/planning.py:123</span></p>
 <p>No docstring.</p>
-<p class="calls"><strong>Calls:</strong> task_title.lower</p>
+<p class="calls"><strong>Calls:</strong> any, task_title.lower</p>
 </article>
-<article class="symbol searchable" data-search="nipux_cli/planning.py initial_roadmap_for_objective No docstring. none">
+<article class="symbol searchable" data-search="nipux_cli/planning.py initial_roadmap_for_objective No docstring. _primary_execution_contract, join, objective_profiles">
 <h3>initial_roadmap_for_objective</h3>
-<p><span class="pill">function</span> <span class="pill">nipux_cli/planning.py:66</span></p>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/planning.py:196</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> _primary_execution_contract, join, objective_profiles</p>
+</article>
+<article class="symbol searchable" data-search="nipux_cli/planning.py _initial_summary_for_profiles No docstring. none">
+<h3>_initial_summary_for_profiles</h3>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/planning.py:251</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> none</p>
+</article>
+<article class="symbol searchable" data-search="nipux_cli/planning.py _initial_tasks_for_profiles No docstring. tasks.append, tasks.extend">
+<h3>_initial_tasks_for_profiles</h3>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/planning.py:266</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> tasks.append, tasks.extend</p>
+</article>
+<article class="symbol searchable" data-search="nipux_cli/planning.py _initial_questions_for_profiles No docstring. questions.append, questions.insert">
+<h3>_initial_questions_for_profiles</h3>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/planning.py:313</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> questions.append, questions.insert</p>
+</article>
+<article class="symbol searchable" data-search="nipux_cli/planning.py _primary_execution_contract No docstring. none">
+<h3>_primary_execution_contract</h3>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/planning.py:333</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> none</p>
 </article>
 <article class="symbol searchable" data-search="nipux_cli/planning.py format_initial_plan No docstring. isinstance, join, lines.append, lines.extend, plan.get, str">
 <h3>format_initial_plan</h3>
-<p><span class="pill">function</span> <span class="pill">nipux_cli/planning.py:112</span></p>
+<p><span class="pill">function</span> <span class="pill">nipux_cli/planning.py:347</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> isinstance, join, lines.append, lines.extend, plan.get, str</p>
 </article>
@@ -6458,6 +6488,30 @@ fixed tool surface. none">
 <p><span class="pill">function</span> <span class="pill">tests/nipux_cli/test_planning.py:19</span></p>
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> initial_roadmap_for_objective</p>
+</article>
+<article class="symbol searchable" data-search="tests/nipux_cli/test_planning.py test_initial_plan_adapts_to_measurable_objectives No docstring. any, initial_plan_for_objective, initial_task_contract, question.lower, title.lower">
+<h3>test_initial_plan_adapts_to_measurable_objectives</h3>
+<p><span class="pill">function</span> <span class="pill">tests/nipux_cli/test_planning.py:35</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> any, initial_plan_for_objective, initial_task_contract, question.lower, title.lower</p>
+</article>
+<article class="symbol searchable" data-search="tests/nipux_cli/test_planning.py test_initial_plan_adapts_to_deliverable_objectives No docstring. any, initial_plan_for_objective, initial_task_contract, title.lower">
+<h3>test_initial_plan_adapts_to_deliverable_objectives</h3>
+<p><span class="pill">function</span> <span class="pill">tests/nipux_cli/test_planning.py:45</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> any, initial_plan_for_objective, initial_task_contract, title.lower</p>
+</article>
+<article class="symbol searchable" data-search="tests/nipux_cli/test_planning.py test_initial_plan_adapts_to_monitoring_objectives No docstring. any, initial_plan_for_objective, initial_task_contract, question.lower">
+<h3>test_initial_plan_adapts_to_monitoring_objectives</h3>
+<p><span class="pill">function</span> <span class="pill">tests/nipux_cli/test_planning.py:54</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> any, initial_plan_for_objective, initial_task_contract, question.lower</p>
+</article>
+<article class="symbol searchable" data-search="tests/nipux_cli/test_planning.py test_objective_profiles_stay_generic No docstring. all, objective_profiles">
+<h3>test_objective_profiles_stay_generic</h3>
+<p><span class="pill">function</span> <span class="pill">tests/nipux_cli/test_planning.py:63</span></p>
+<p>No docstring.</p>
+<p class="calls"><strong>Calls:</strong> all, objective_profiles</p>
 </article>
 <article class="symbol searchable" data-search="tests/nipux_cli/test_progress.py test_progress_checkpoint_reports_deltas_and_recent_durable_work No docstring. build_progress_checkpoint">
 <h3>test_progress_checkpoint_reports_deltas_and_recent_durable_work</h3>
@@ -20849,206 +20903,500 @@ def _actionable(message: str) -&gt; bool:
 
 from __future__ import annotations
 
+import re
 from typing import Any
+
+
+_PROFILE_TERMS: dict[str, set[str]] = {
+    &quot;measured&quot;: {
+        &quot;accelerate&quot;,
+        &quot;benchmark&quot;,
+        &quot;compare&quot;,
+        &quot;decrease&quot;,
+        &quot;faster&quot;,
+        &quot;improve&quot;,
+        &quot;increase&quot;,
+        &quot;latency&quot;,
+        &quot;measure&quot;,
+        &quot;metric&quot;,
+        &quot;optimize&quot;,
+        &quot;performance&quot;,
+        &quot;reduce&quot;,
+        &quot;score&quot;,
+        &quot;speed&quot;,
+        &quot;test&quot;,
+        &quot;throughput&quot;,
+    },
+    &quot;deliverable&quot;: {
+        &quot;article&quot;,
+        &quot;deck&quot;,
+        &quot;doc&quot;,
+        &quot;document&quot;,
+        &quot;draft&quot;,
+        &quot;guide&quot;,
+        &quot;memo&quot;,
+        &quot;outline&quot;,
+        &quot;paper&quot;,
+        &quot;presentation&quot;,
+        &quot;report&quot;,
+        &quot;spec&quot;,
+        &quot;write&quot;,
+    },
+    &quot;monitor&quot;: {
+        &quot;alert&quot;,
+        &quot;check&quot;,
+        &quot;observe&quot;,
+        &quot;periodic&quot;,
+        &quot;reporting&quot;,
+        &quot;track&quot;,
+        &quot;watch&quot;,
+        &quot;monitor&quot;,
+    },
+    &quot;implementation&quot;: {
+        &quot;automate&quot;,
+        &quot;build&quot;,
+        &quot;change&quot;,
+        &quot;code&quot;,
+        &quot;debug&quot;,
+        &quot;deploy&quot;,
+        &quot;fix&quot;,
+        &quot;implement&quot;,
+        &quot;install&quot;,
+        &quot;repair&quot;,
+        &quot;run&quot;,
+        &quot;setup&quot;,
+    },
+    &quot;research&quot;: {
+        &quot;analyze&quot;,
+        &quot;compare&quot;,
+        &quot;explore&quot;,
+        &quot;find&quot;,
+        &quot;investigate&quot;,
+        &quot;learn&quot;,
+        &quot;map&quot;,
+        &quot;research&quot;,
+        &quot;review&quot;,
+        &quot;summarize&quot;,
+        &quot;survey&quot;,
+    },
+}
+_PROFILE_PRIORITY = {
+    &quot;measured&quot;: 0,
+    &quot;monitor&quot;: 1,
+    &quot;implementation&quot;: 2,
+    &quot;deliverable&quot;: 3,
+    &quot;research&quot;: 4,
+}
+
+
+def objective_profiles(objective: str) -&gt; list[str]:
+    &quot;&quot;&quot;Infer generic work profiles from an objective without binding to a domain.&quot;&quot;&quot;
+
+    tokens = set(re.findall(r&quot;[a-z][a-z0-9_-]+&quot;, objective.lower()))
+    scores: list[tuple[int, str]] = []
+    for profile, terms in _PROFILE_TERMS.items():
+        score = len(tokens &amp; terms)
+        if score:
+            scores.append((score, profile))
+    if not scores:
+        return [&quot;general&quot;]
+    scores.sort(key=lambda item: (-item[0], _PROFILE_PRIORITY.get(item[1], 99), item[1]))
+    profiles = [profile for _score, profile in scores[:2]]
+    return profiles or [&quot;general&quot;]
 
 
 def initial_plan_for_objective(objective: str) -&gt; dict[str, Any]:
     objective_text = &quot; &quot;.join(objective.split())
+    profiles = objective_profiles(objective_text)
+    tasks = _initial_tasks_for_profiles(profiles)
+    questions = _initial_questions_for_profiles(profiles)
     return {
         &quot;status&quot;: &quot;needs_operator_review&quot;,
-        &quot;summary&quot;: &quot;I will turn this objective into a durable long-running job before starting tool work.&quot;,
-        &quot;tasks&quot;: [
-            &quot;Clarify the exact success criteria and constraints.&quot;,
-            &quot;Map the first research or execution branches.&quot;,
-            &quot;Collect evidence and save outputs as files.&quot;,
-            &quot;Reflect on what worked, update memory, and continue with the next branch.&quot;,
-        ],
-        &quot;questions&quot;: [
-            &quot;What result would make this job successful?&quot;,
-            &quot;Are there sources, actions, or approaches I should avoid?&quot;,
-            &quot;Should this run aggressively in the background or wait for review between branches?&quot;,
-        ],
+        &quot;summary&quot;: _initial_summary_for_profiles(profiles),
+        &quot;profile&quot;: profiles[0],
+        &quot;profiles&quot;: profiles,
+        &quot;tasks&quot;: tasks,
+        &quot;questions&quot;: questions,
         &quot;objective&quot;: objective_text,
     }
 
 
 def initial_task_contract(task_title: str) -&gt; dict[str, str]:
     lowered = task_title.lower()
-    if &quot;clarify&quot; in lowered or &quot;criteria&quot; in lowered or &quot;constraint&quot; in lowered:
+    if any(word in lowered for word in (&quot;baseline&quot;, &quot;benchmark&quot;, &quot;compare&quot;, &quot;experiment&quot;, &quot;measure&quot;, &quot;metric&quot;, &quot;test&quot;)):
         return {
-            &quot;output_contract&quot;: &quot;decision&quot;,
-            &quot;acceptance_criteria&quot;: &quot;Success criteria, constraints, and first branches are explicit.&quot;,
-            &quot;evidence_needed&quot;: &quot;Operator context, durable notes, or an updated roadmap/task queue.&quot;,
-            &quot;stall_behavior&quot;: &quot;Ask for the missing constraint or record a decision with the best current assumption.&quot;,
+            &quot;output_contract&quot;: &quot;experiment&quot;,
+            &quot;acceptance_criteria&quot;: &quot;A baseline, result, comparison, or explicit blocked measurement is recorded.&quot;,
+            &quot;evidence_needed&quot;: &quot;Experiment record with metric, environment or inputs, result direction, and next action.&quot;,
+            &quot;stall_behavior&quot;: &quot;Record why measurement is blocked and create the smallest follow-up task that can obtain it.&quot;,
         }
-    if &quot;map&quot; in lowered or &quot;research&quot; in lowered or &quot;branch&quot; in lowered:
+    if any(word in lowered for word in (&quot;draft&quot;, &quot;deliverable&quot;, &quot;document&quot;, &quot;paper&quot;, &quot;report&quot;, &quot;write&quot;)):
         return {
-            &quot;output_contract&quot;: &quot;research&quot;,
-            &quot;acceptance_criteria&quot;: &quot;At least one viable branch is selected and low-value branches are avoided.&quot;,
-            &quot;evidence_needed&quot;: &quot;Source notes, branch rationale, source ledger entries, or saved research output.&quot;,
-            &quot;stall_behavior&quot;: &quot;Record a low-yield lesson and pivot to a different branch.&quot;,
+            &quot;output_contract&quot;: &quot;report&quot;,
+            &quot;acceptance_criteria&quot;: &quot;A durable draft, report, or deliverable section is saved with its evidence status.&quot;,
+            &quot;evidence_needed&quot;: &quot;Saved output plus cited evidence, assumptions, gaps, or review notes.&quot;,
+            &quot;stall_behavior&quot;: &quot;Save the partial output, record the gap, and create the next evidence or revision task.&quot;,
         }
-    if &quot;collect&quot; in lowered or &quot;evidence&quot; in lowered or &quot;save&quot; in lowered or &quot;output&quot; in lowered:
-        return {
-            &quot;output_contract&quot;: &quot;artifact&quot;,
-            &quot;acceptance_criteria&quot;: &quot;A durable output is saved and linked to the task or ledger.&quot;,
-            &quot;evidence_needed&quot;: &quot;Artifact, file output, finding record, source record, or experiment record.&quot;,
-            &quot;stall_behavior&quot;: &quot;Record what evidence is missing and create the next evidence-producing task.&quot;,
-        }
-    if &quot;reflect&quot; in lowered or &quot;memory&quot; in lowered or &quot;continue&quot; in lowered:
-        return {
-            &quot;output_contract&quot;: &quot;monitor&quot;,
-            &quot;acceptance_criteria&quot;: &quot;Progress is evaluated from durable deltas and the next branch is chosen.&quot;,
-            &quot;evidence_needed&quot;: &quot;Reflection, lesson, task update, roadmap validation, or experiment comparison.&quot;,
-            &quot;stall_behavior&quot;: &quot;Record a blocker or pivot when no durable delta was produced.&quot;,
-        }
-    return {
-        &quot;output_contract&quot;: &quot;action&quot;,
-        &quot;acceptance_criteria&quot;: &quot;The task produces an observable durable change.&quot;,
-        &quot;evidence_needed&quot;: &quot;Tool result plus artifact, ledger, task, roadmap, or experiment update.&quot;,
-        &quot;stall_behavior&quot;: &quot;Record a blocker and open a smaller follow-up task.&quot;,
-    }
-
-
-def initial_roadmap_for_objective(*, title: str, objective: str) -&gt; dict[str, Any]:
-    return {
-        &quot;title&quot;: title,
-        &quot;status&quot;: &quot;planned&quot;,
-        &quot;objective&quot;: objective,
-        &quot;scope&quot;: &quot;Initial roadmap generated from the objective. Refine this as evidence and operator context arrive.&quot;,
-        &quot;current_milestone&quot;: &quot;Clarify and frame the work&quot;,
-        &quot;validation_contract&quot;: (
-            &quot;Each milestone needs observable evidence that its acceptance criteria were met, &quot;
-            &quot;or a recorded blocker plus follow-up tasks.&quot;
-        ),
-        &quot;milestones&quot;: [
-            {
-                &quot;title&quot;: &quot;Clarify and frame the work&quot;,
-                &quot;status">
-<summary>nipux_cli/planning.py <span>123 lines</span></summary>
+    if any(word in lowered for word in (&quot;validate&quot;, &quot;review&quot;, &quot;decide&quot;, &quot;criteria&quot;, &quot;c">
+<summary>nipux_cli/planning.py <span>358 lines</span></summary>
 <pre class="source-code"><span class='src-line'><b>   1</b><code>&quot;&quot;&quot;Generic initial planning primitives for long-running jobs.&quot;&quot;&quot;</code></span>
 <span class='src-line'><b>   2</b><code></code></span>
 <span class='src-line'><b>   3</b><code>from __future__ import annotations</code></span>
 <span class='src-line'><b>   4</b><code></code></span>
-<span class='src-line'><b>   5</b><code>from typing import Any</code></span>
-<span class='src-line'><b>   6</b><code></code></span>
+<span class='src-line'><b>   5</b><code>import re</code></span>
+<span class='src-line'><b>   6</b><code>from typing import Any</code></span>
 <span class='src-line'><b>   7</b><code></code></span>
-<span class='src-line'><b>   8</b><code>def initial_plan_for_objective(objective: str) -&gt; dict[str, Any]:</code></span>
-<span class='src-line'><b>   9</b><code>    objective_text = &quot; &quot;.join(objective.split())</code></span>
-<span class='src-line'><b>  10</b><code>    return {</code></span>
-<span class='src-line'><b>  11</b><code>        &quot;status&quot;: &quot;needs_operator_review&quot;,</code></span>
-<span class='src-line'><b>  12</b><code>        &quot;summary&quot;: &quot;I will turn this objective into a durable long-running job before starting tool work.&quot;,</code></span>
-<span class='src-line'><b>  13</b><code>        &quot;tasks&quot;: [</code></span>
-<span class='src-line'><b>  14</b><code>            &quot;Clarify the exact success criteria and constraints.&quot;,</code></span>
-<span class='src-line'><b>  15</b><code>            &quot;Map the first research or execution branches.&quot;,</code></span>
-<span class='src-line'><b>  16</b><code>            &quot;Collect evidence and save outputs as files.&quot;,</code></span>
-<span class='src-line'><b>  17</b><code>            &quot;Reflect on what worked, update memory, and continue with the next branch.&quot;,</code></span>
-<span class='src-line'><b>  18</b><code>        ],</code></span>
-<span class='src-line'><b>  19</b><code>        &quot;questions&quot;: [</code></span>
-<span class='src-line'><b>  20</b><code>            &quot;What result would make this job successful?&quot;,</code></span>
-<span class='src-line'><b>  21</b><code>            &quot;Are there sources, actions, or approaches I should avoid?&quot;,</code></span>
-<span class='src-line'><b>  22</b><code>            &quot;Should this run aggressively in the background or wait for review between branches?&quot;,</code></span>
-<span class='src-line'><b>  23</b><code>        ],</code></span>
-<span class='src-line'><b>  24</b><code>        &quot;objective&quot;: objective_text,</code></span>
-<span class='src-line'><b>  25</b><code>    }</code></span>
-<span class='src-line'><b>  26</b><code></code></span>
-<span class='src-line'><b>  27</b><code></code></span>
-<span class='src-line'><b>  28</b><code>def initial_task_contract(task_title: str) -&gt; dict[str, str]:</code></span>
-<span class='src-line'><b>  29</b><code>    lowered = task_title.lower()</code></span>
-<span class='src-line'><b>  30</b><code>    if &quot;clarify&quot; in lowered or &quot;criteria&quot; in lowered or &quot;constraint&quot; in lowered:</code></span>
-<span class='src-line'><b>  31</b><code>        return {</code></span>
-<span class='src-line'><b>  32</b><code>            &quot;output_contract&quot;: &quot;decision&quot;,</code></span>
-<span class='src-line'><b>  33</b><code>            &quot;acceptance_criteria&quot;: &quot;Success criteria, constraints, and first branches are explicit.&quot;,</code></span>
-<span class='src-line'><b>  34</b><code>            &quot;evidence_needed&quot;: &quot;Operator context, durable notes, or an updated roadmap/task queue.&quot;,</code></span>
-<span class='src-line'><b>  35</b><code>            &quot;stall_behavior&quot;: &quot;Ask for the missing constraint or record a decision with the best current assumption.&quot;,</code></span>
-<span class='src-line'><b>  36</b><code>        }</code></span>
-<span class='src-line'><b>  37</b><code>    if &quot;map&quot; in lowered or &quot;research&quot; in lowered or &quot;branch&quot; in lowered:</code></span>
-<span class='src-line'><b>  38</b><code>        return {</code></span>
-<span class='src-line'><b>  39</b><code>            &quot;output_contract&quot;: &quot;research&quot;,</code></span>
-<span class='src-line'><b>  40</b><code>            &quot;acceptance_criteria&quot;: &quot;At least one viable branch is selected and low-value branches are avoided.&quot;,</code></span>
-<span class='src-line'><b>  41</b><code>            &quot;evidence_needed&quot;: &quot;Source notes, branch rationale, source ledger entries, or saved research output.&quot;,</code></span>
-<span class='src-line'><b>  42</b><code>            &quot;stall_behavior&quot;: &quot;Record a low-yield lesson and pivot to a different branch.&quot;,</code></span>
-<span class='src-line'><b>  43</b><code>        }</code></span>
-<span class='src-line'><b>  44</b><code>    if &quot;collect&quot; in lowered or &quot;evidence&quot; in lowered or &quot;save&quot; in lowered or &quot;output&quot; in lowered:</code></span>
-<span class='src-line'><b>  45</b><code>        return {</code></span>
-<span class='src-line'><b>  46</b><code>            &quot;output_contract&quot;: &quot;artifact&quot;,</code></span>
-<span class='src-line'><b>  47</b><code>            &quot;acceptance_criteria&quot;: &quot;A durable output is saved and linked to the task or ledger.&quot;,</code></span>
-<span class='src-line'><b>  48</b><code>            &quot;evidence_needed&quot;: &quot;Artifact, file output, finding record, source record, or experiment record.&quot;,</code></span>
-<span class='src-line'><b>  49</b><code>            &quot;stall_behavior&quot;: &quot;Record what evidence is missing and create the next evidence-producing task.&quot;,</code></span>
-<span class='src-line'><b>  50</b><code>        }</code></span>
-<span class='src-line'><b>  51</b><code>    if &quot;reflect&quot; in lowered or &quot;memory&quot; in lowered or &quot;continue&quot; in lowered:</code></span>
-<span class='src-line'><b>  52</b><code>        return {</code></span>
-<span class='src-line'><b>  53</b><code>            &quot;output_contract&quot;: &quot;monitor&quot;,</code></span>
-<span class='src-line'><b>  54</b><code>            &quot;acceptance_criteria&quot;: &quot;Progress is evaluated from durable deltas and the next branch is chosen.&quot;,</code></span>
-<span class='src-line'><b>  55</b><code>            &quot;evidence_needed&quot;: &quot;Reflection, lesson, task update, roadmap validation, or experiment comparison.&quot;,</code></span>
-<span class='src-line'><b>  56</b><code>            &quot;stall_behavior&quot;: &quot;Record a blocker or pivot when no durable delta was produced.&quot;,</code></span>
-<span class='src-line'><b>  57</b><code>        }</code></span>
-<span class='src-line'><b>  58</b><code>    return {</code></span>
-<span class='src-line'><b>  59</b><code>        &quot;output_contract&quot;: &quot;action&quot;,</code></span>
-<span class='src-line'><b>  60</b><code>        &quot;acceptance_criteria&quot;: &quot;The task produces an observable durable change.&quot;,</code></span>
-<span class='src-line'><b>  61</b><code>        &quot;evidence_needed&quot;: &quot;Tool result plus artifact, ledger, task, roadmap, or experiment update.&quot;,</code></span>
-<span class='src-line'><b>  62</b><code>        &quot;stall_behavior&quot;: &quot;Record a blocker and open a smaller follow-up task.&quot;,</code></span>
-<span class='src-line'><b>  63</b><code>    }</code></span>
-<span class='src-line'><b>  64</b><code></code></span>
-<span class='src-line'><b>  65</b><code></code></span>
-<span class='src-line'><b>  66</b><code>def initial_roadmap_for_objective(*, title: str, objective: str) -&gt; dict[str, Any]:</code></span>
-<span class='src-line'><b>  67</b><code>    return {</code></span>
-<span class='src-line'><b>  68</b><code>        &quot;title&quot;: title,</code></span>
-<span class='src-line'><b>  69</b><code>        &quot;status&quot;: &quot;planned&quot;,</code></span>
-<span class='src-line'><b>  70</b><code>        &quot;objective&quot;: objective,</code></span>
-<span class='src-line'><b>  71</b><code>        &quot;scope&quot;: &quot;Initial roadmap generated from the objective. Refine this as evidence and operator context arrive.&quot;,</code></span>
-<span class='src-line'><b>  72</b><code>        &quot;current_milestone&quot;: &quot;Clarify and frame the work&quot;,</code></span>
-<span class='src-line'><b>  73</b><code>        &quot;validation_contract&quot;: (</code></span>
-<span class='src-line'><b>  74</b><code>            &quot;Each milestone needs observable evidence that its acceptance criteria were met, &quot;</code></span>
-<span class='src-line'><b>  75</b><code>            &quot;or a recorded blocker plus follow-up tasks.&quot;</code></span>
-<span class='src-line'><b>  76</b><code>        ),</code></span>
-<span class='src-line'><b>  77</b><code>        &quot;milestones&quot;: [</code></span>
-<span class='src-line'><b>  78</b><code>            {</code></span>
-<span class='src-line'><b>  79</b><code>                &quot;title&quot;: &quot;Clarify and frame the work&quot;,</code></span>
-<span class='src-line'><b>  80</b><code>                &quot;status&quot;: &quot;planned&quot;,</code></span>
-<span class='src-line'><b>  81</b><code>                &quot;priority&quot;: 10,</code></span>
-<span class='src-line'><b>  82</b><code>                &quot;goal&quot;: &quot;Turn the objective into concrete success criteria and constraints.&quot;,</code></span>
-<span class='src-line'><b>  83</b><code>                &quot;acceptance_criteria&quot;: &quot;Success criteria and first branches are explicit.&quot;,</code></span>
-<span class='src-line'><b>  84</b><code>                &quot;evidence_needed&quot;: &quot;Operator context, planning notes, or a recorded task queue.&quot;,</code></span>
-<span class='src-line'><b>  85</b><code>                &quot;features&quot;: [{&quot;title&quot;: &quot;Capture success criteria&quot;, &quot;status&quot;: &quot;planned&quot;, &quot;output_contract&quot;: &quot;decision&quot;}],</code></span>
-<span class='src-line'><b>  86</b><code>            },</code></span>
-<span class='src-line'><b>  87</b><code>            {</code></span>
-<span class='src-line'><b>  88</b><code>                &quot;title&quot;: &quot;Execute first durable branches&quot;,</code></span>
-<span class='src-line'><b>  89</b><code>                &quot;status&quot;: &quot;planned&quot;,</code></span>
-<span class='src-line'><b>  90</b><code>                &quot;priority&quot;: 8,</code></span>
-<span class='src-line'><b>  91</b><code>                &quot;goal&quot;: &quot;Produce artifacts, findings, actions, or measurements that advance the objective.&quot;,</code></span>
-<span class='src-line'><b>  92</b><code>                &quot;acceptance_criteria&quot;: &quot;At least one branch produces durable evidence.&quot;,</code></span>
-<span class='src-line'><b>  93</b><code>                &quot;evidence_needed&quot;: &quot;Saved outputs plus ledger updates.&quot;,</code></span>
-<span class='src-line'><b>  94</b><code>                &quot;features&quot;: [</code></span>
-<span class='src-line'><b>  95</b><code>                    {&quot;title&quot;: &quot;Run the first evidence-producing branch&quot;, &quot;status&quot;: &quot;planned&quot;, &quot;output_contract&quot;: &quot;artifact&quot;}</code></span>
-<span class='src-line'><b>  96</b><code>                ],</code></span>
-<span class='src-line'><b>  97</b><code>            },</code></span>
-<span class='src-line'><b>  98</b><code>            {</code></span>
-<span class='src-line'><b>  99</b><code>                &quot;title&quot;: &quot;Validate and continue&quot;,</code></span>
-<span class='src-line'><b> 100</b><code>                &quot;status&quot;: &quot;planned&quot;,</code></span>
-<span class='src-line'><b> 101</b><code>                &quot;priority&quot;: 6,</code></span>
-<span class='src-line'><b> 102</b><code>                &quot;goal&quot;: &quot;Check results against acceptance criteria and create follow-up work.&quot;,</code></span>
-<span class='src-line'><b> 103</b><code>                &quot;acceptance_criteria&quot;: &quot;Validation is passed, failed, or blocked with a next action.&quot;,</code></span>
-<span class='src-line'><b> 104</b><code>                &quot;evidence_needed&quot;: &quot;record_milestone_validation entry and follow-up tasks if needed.&quot;,</code></span>
-<span class='src-line'><b> 105</b><code>                &quot;features&quot;: [{&quot;title&quot;: &quot;Validate the checkpoint&quot;, &quot;status&quot;: &quot;planned&quot;, &quot;output_contract&quot;: &quot;decision&quot;}],</code></span>
-<span class='src-line'><b> 106</b><code>            },</code></span>
-<span class='src-line'><b> 107</b><code>        ],</code></span>
-<span class='src-line'><b> 108</b><code>        &quot;metadata&quot;: {&quot;phase&quot;: &quot;initial_plan&quot;},</code></span>
-<span class='src-line'><b> 109</b><code>    }</code></span>
-<span class='src-line'><b> 110</b><code></code></span>
-<span class='src-line'><b> 111</b><code></code></span>
-<span class='src-line'><b> 112</b><code>def format_initial_plan(plan: dict[str, Any]) -&gt; str:</code></span>
-<span class='src-line'><b> 113</b><code>    tasks = plan.get(&quot;tasks&quot;) if isinstance(plan.get(&quot;tasks&quot;), list) else []</code></span>
-<span class='src-line'><b> 114</b><code>    questions = plan.get(&quot;questions&quot;) if isinstance(plan.get(&quot;questions&quot;), list) else []</code></span>
-<span class='src-line'><b> 115</b><code>    lines = [str(plan.get(&quot;summary&quot;) or &quot;Initial plan created.&quot;)]</code></span>
-<span class='src-line'><b> 116</b><code>    if tasks:</code></span>
-<span class='src-line'><b> 117</b><code>        lines.append(&quot;Plan:&quot;)</code></span>
-<span class='src-line'><b> 118</b><code>        lines.extend(f&quot;- {task}&quot; for task in tasks)</code></span>
-<span class='src-line'><b> 119</b><code>    if questions:</code></span>
-<span class='src-line'><b> 120</b><code>        lines.append(&quot;Questions:&quot;)</code></span>
-<span class='src-line'><b> 121</b><code>        lines.extend(f&quot;- {question}&quot; for question in questions)</code></span>
-<span class='src-line'><b> 122</b><code>    lines.append(&quot;Reply with answers, or use the right-side Run control when this plan is good enough to start.&quot;)</code></span>
-<span class='src-line'><b> 123</b><code>    return &quot;\n&quot;.join(lines)</code></span></pre>
+<span class='src-line'><b>   8</b><code></code></span>
+<span class='src-line'><b>   9</b><code>_PROFILE_TERMS: dict[str, set[str]] = {</code></span>
+<span class='src-line'><b>  10</b><code>    &quot;measured&quot;: {</code></span>
+<span class='src-line'><b>  11</b><code>        &quot;accelerate&quot;,</code></span>
+<span class='src-line'><b>  12</b><code>        &quot;benchmark&quot;,</code></span>
+<span class='src-line'><b>  13</b><code>        &quot;compare&quot;,</code></span>
+<span class='src-line'><b>  14</b><code>        &quot;decrease&quot;,</code></span>
+<span class='src-line'><b>  15</b><code>        &quot;faster&quot;,</code></span>
+<span class='src-line'><b>  16</b><code>        &quot;improve&quot;,</code></span>
+<span class='src-line'><b>  17</b><code>        &quot;increase&quot;,</code></span>
+<span class='src-line'><b>  18</b><code>        &quot;latency&quot;,</code></span>
+<span class='src-line'><b>  19</b><code>        &quot;measure&quot;,</code></span>
+<span class='src-line'><b>  20</b><code>        &quot;metric&quot;,</code></span>
+<span class='src-line'><b>  21</b><code>        &quot;optimize&quot;,</code></span>
+<span class='src-line'><b>  22</b><code>        &quot;performance&quot;,</code></span>
+<span class='src-line'><b>  23</b><code>        &quot;reduce&quot;,</code></span>
+<span class='src-line'><b>  24</b><code>        &quot;score&quot;,</code></span>
+<span class='src-line'><b>  25</b><code>        &quot;speed&quot;,</code></span>
+<span class='src-line'><b>  26</b><code>        &quot;test&quot;,</code></span>
+<span class='src-line'><b>  27</b><code>        &quot;throughput&quot;,</code></span>
+<span class='src-line'><b>  28</b><code>    },</code></span>
+<span class='src-line'><b>  29</b><code>    &quot;deliverable&quot;: {</code></span>
+<span class='src-line'><b>  30</b><code>        &quot;article&quot;,</code></span>
+<span class='src-line'><b>  31</b><code>        &quot;deck&quot;,</code></span>
+<span class='src-line'><b>  32</b><code>        &quot;doc&quot;,</code></span>
+<span class='src-line'><b>  33</b><code>        &quot;document&quot;,</code></span>
+<span class='src-line'><b>  34</b><code>        &quot;draft&quot;,</code></span>
+<span class='src-line'><b>  35</b><code>        &quot;guide&quot;,</code></span>
+<span class='src-line'><b>  36</b><code>        &quot;memo&quot;,</code></span>
+<span class='src-line'><b>  37</b><code>        &quot;outline&quot;,</code></span>
+<span class='src-line'><b>  38</b><code>        &quot;paper&quot;,</code></span>
+<span class='src-line'><b>  39</b><code>        &quot;presentation&quot;,</code></span>
+<span class='src-line'><b>  40</b><code>        &quot;report&quot;,</code></span>
+<span class='src-line'><b>  41</b><code>        &quot;spec&quot;,</code></span>
+<span class='src-line'><b>  42</b><code>        &quot;write&quot;,</code></span>
+<span class='src-line'><b>  43</b><code>    },</code></span>
+<span class='src-line'><b>  44</b><code>    &quot;monitor&quot;: {</code></span>
+<span class='src-line'><b>  45</b><code>        &quot;alert&quot;,</code></span>
+<span class='src-line'><b>  46</b><code>        &quot;check&quot;,</code></span>
+<span class='src-line'><b>  47</b><code>        &quot;observe&quot;,</code></span>
+<span class='src-line'><b>  48</b><code>        &quot;periodic&quot;,</code></span>
+<span class='src-line'><b>  49</b><code>        &quot;reporting&quot;,</code></span>
+<span class='src-line'><b>  50</b><code>        &quot;track&quot;,</code></span>
+<span class='src-line'><b>  51</b><code>        &quot;watch&quot;,</code></span>
+<span class='src-line'><b>  52</b><code>        &quot;monitor&quot;,</code></span>
+<span class='src-line'><b>  53</b><code>    },</code></span>
+<span class='src-line'><b>  54</b><code>    &quot;implementation&quot;: {</code></span>
+<span class='src-line'><b>  55</b><code>        &quot;automate&quot;,</code></span>
+<span class='src-line'><b>  56</b><code>        &quot;build&quot;,</code></span>
+<span class='src-line'><b>  57</b><code>        &quot;change&quot;,</code></span>
+<span class='src-line'><b>  58</b><code>        &quot;code&quot;,</code></span>
+<span class='src-line'><b>  59</b><code>        &quot;debug&quot;,</code></span>
+<span class='src-line'><b>  60</b><code>        &quot;deploy&quot;,</code></span>
+<span class='src-line'><b>  61</b><code>        &quot;fix&quot;,</code></span>
+<span class='src-line'><b>  62</b><code>        &quot;implement&quot;,</code></span>
+<span class='src-line'><b>  63</b><code>        &quot;install&quot;,</code></span>
+<span class='src-line'><b>  64</b><code>        &quot;repair&quot;,</code></span>
+<span class='src-line'><b>  65</b><code>        &quot;run&quot;,</code></span>
+<span class='src-line'><b>  66</b><code>        &quot;setup&quot;,</code></span>
+<span class='src-line'><b>  67</b><code>    },</code></span>
+<span class='src-line'><b>  68</b><code>    &quot;research&quot;: {</code></span>
+<span class='src-line'><b>  69</b><code>        &quot;analyze&quot;,</code></span>
+<span class='src-line'><b>  70</b><code>        &quot;compare&quot;,</code></span>
+<span class='src-line'><b>  71</b><code>        &quot;explore&quot;,</code></span>
+<span class='src-line'><b>  72</b><code>        &quot;find&quot;,</code></span>
+<span class='src-line'><b>  73</b><code>        &quot;investigate&quot;,</code></span>
+<span class='src-line'><b>  74</b><code>        &quot;learn&quot;,</code></span>
+<span class='src-line'><b>  75</b><code>        &quot;map&quot;,</code></span>
+<span class='src-line'><b>  76</b><code>        &quot;research&quot;,</code></span>
+<span class='src-line'><b>  77</b><code>        &quot;review&quot;,</code></span>
+<span class='src-line'><b>  78</b><code>        &quot;summarize&quot;,</code></span>
+<span class='src-line'><b>  79</b><code>        &quot;survey&quot;,</code></span>
+<span class='src-line'><b>  80</b><code>    },</code></span>
+<span class='src-line'><b>  81</b><code>}</code></span>
+<span class='src-line'><b>  82</b><code>_PROFILE_PRIORITY = {</code></span>
+<span class='src-line'><b>  83</b><code>    &quot;measured&quot;: 0,</code></span>
+<span class='src-line'><b>  84</b><code>    &quot;monitor&quot;: 1,</code></span>
+<span class='src-line'><b>  85</b><code>    &quot;implementation&quot;: 2,</code></span>
+<span class='src-line'><b>  86</b><code>    &quot;deliverable&quot;: 3,</code></span>
+<span class='src-line'><b>  87</b><code>    &quot;research&quot;: 4,</code></span>
+<span class='src-line'><b>  88</b><code>}</code></span>
+<span class='src-line'><b>  89</b><code></code></span>
+<span class='src-line'><b>  90</b><code></code></span>
+<span class='src-line'><b>  91</b><code>def objective_profiles(objective: str) -&gt; list[str]:</code></span>
+<span class='src-line'><b>  92</b><code>    &quot;&quot;&quot;Infer generic work profiles from an objective without binding to a domain.&quot;&quot;&quot;</code></span>
+<span class='src-line'><b>  93</b><code></code></span>
+<span class='src-line'><b>  94</b><code>    tokens = set(re.findall(r&quot;[a-z][a-z0-9_-]+&quot;, objective.lower()))</code></span>
+<span class='src-line'><b>  95</b><code>    scores: list[tuple[int, str]] = []</code></span>
+<span class='src-line'><b>  96</b><code>    for profile, terms in _PROFILE_TERMS.items():</code></span>
+<span class='src-line'><b>  97</b><code>        score = len(tokens &amp; terms)</code></span>
+<span class='src-line'><b>  98</b><code>        if score:</code></span>
+<span class='src-line'><b>  99</b><code>            scores.append((score, profile))</code></span>
+<span class='src-line'><b> 100</b><code>    if not scores:</code></span>
+<span class='src-line'><b> 101</b><code>        return [&quot;general&quot;]</code></span>
+<span class='src-line'><b> 102</b><code>    scores.sort(key=lambda item: (-item[0], _PROFILE_PRIORITY.get(item[1], 99), item[1]))</code></span>
+<span class='src-line'><b> 103</b><code>    profiles = [profile for _score, profile in scores[:2]]</code></span>
+<span class='src-line'><b> 104</b><code>    return profiles or [&quot;general&quot;]</code></span>
+<span class='src-line'><b> 105</b><code></code></span>
+<span class='src-line'><b> 106</b><code></code></span>
+<span class='src-line'><b> 107</b><code>def initial_plan_for_objective(objective: str) -&gt; dict[str, Any]:</code></span>
+<span class='src-line'><b> 108</b><code>    objective_text = &quot; &quot;.join(objective.split())</code></span>
+<span class='src-line'><b> 109</b><code>    profiles = objective_profiles(objective_text)</code></span>
+<span class='src-line'><b> 110</b><code>    tasks = _initial_tasks_for_profiles(profiles)</code></span>
+<span class='src-line'><b> 111</b><code>    questions = _initial_questions_for_profiles(profiles)</code></span>
+<span class='src-line'><b> 112</b><code>    return {</code></span>
+<span class='src-line'><b> 113</b><code>        &quot;status&quot;: &quot;needs_operator_review&quot;,</code></span>
+<span class='src-line'><b> 114</b><code>        &quot;summary&quot;: _initial_summary_for_profiles(profiles),</code></span>
+<span class='src-line'><b> 115</b><code>        &quot;profile&quot;: profiles[0],</code></span>
+<span class='src-line'><b> 116</b><code>        &quot;profiles&quot;: profiles,</code></span>
+<span class='src-line'><b> 117</b><code>        &quot;tasks&quot;: tasks,</code></span>
+<span class='src-line'><b> 118</b><code>        &quot;questions&quot;: questions,</code></span>
+<span class='src-line'><b> 119</b><code>        &quot;objective&quot;: objective_text,</code></span>
+<span class='src-line'><b> 120</b><code>    }</code></span>
+<span class='src-line'><b> 121</b><code></code></span>
+<span class='src-line'><b> 122</b><code></code></span>
+<span class='src-line'><b> 123</b><code>def initial_task_contract(task_title: str) -&gt; dict[str, str]:</code></span>
+<span class='src-line'><b> 124</b><code>    lowered = task_title.lower()</code></span>
+<span class='src-line'><b> 125</b><code>    if any(word in lowered for word in (&quot;baseline&quot;, &quot;benchmark&quot;, &quot;compare&quot;, &quot;experiment&quot;, &quot;measure&quot;, &quot;metric&quot;, &quot;test&quot;)):</code></span>
+<span class='src-line'><b> 126</b><code>        return {</code></span>
+<span class='src-line'><b> 127</b><code>            &quot;output_contract&quot;: &quot;experiment&quot;,</code></span>
+<span class='src-line'><b> 128</b><code>            &quot;acceptance_criteria&quot;: &quot;A baseline, result, comparison, or explicit blocked measurement is recorded.&quot;,</code></span>
+<span class='src-line'><b> 129</b><code>            &quot;evidence_needed&quot;: &quot;Experiment record with metric, environment or inputs, result direction, and next action.&quot;,</code></span>
+<span class='src-line'><b> 130</b><code>            &quot;stall_behavior&quot;: &quot;Record why measurement is blocked and create the smallest follow-up task that can obtain it.&quot;,</code></span>
+<span class='src-line'><b> 131</b><code>        }</code></span>
+<span class='src-line'><b> 132</b><code>    if any(word in lowered for word in (&quot;draft&quot;, &quot;deliverable&quot;, &quot;document&quot;, &quot;paper&quot;, &quot;report&quot;, &quot;write&quot;)):</code></span>
+<span class='src-line'><b> 133</b><code>        return {</code></span>
+<span class='src-line'><b> 134</b><code>            &quot;output_contract&quot;: &quot;report&quot;,</code></span>
+<span class='src-line'><b> 135</b><code>            &quot;acceptance_criteria&quot;: &quot;A durable draft, report, or deliverable section is saved with its evidence status.&quot;,</code></span>
+<span class='src-line'><b> 136</b><code>            &quot;evidence_needed&quot;: &quot;Saved output plus cited evidence, assumptions, gaps, or review notes.&quot;,</code></span>
+<span class='src-line'><b> 137</b><code>            &quot;stall_behavior&quot;: &quot;Save the partial output, record the gap, and create the next evidence or revision task.&quot;,</code></span>
+<span class='src-line'><b> 138</b><code>        }</code></span>
+<span class='src-line'><b> 139</b><code>    if any(word in lowered for word in (&quot;validate&quot;, &quot;review&quot;, &quot;decide&quot;, &quot;criteria&quot;, &quot;constraint&quot;, &quot;success&quot;)):</code></span>
+<span class='src-line'><b> 140</b><code>        return {</code></span>
+<span class='src-line'><b> 141</b><code>            &quot;output_contract&quot;: &quot;decision&quot;,</code></span>
+<span class='src-line'><b> 142</b><code>            &quot;acceptance_criteria&quot;: &quot;The decision, validation result, or success criteria are explicit.&quot;,</code></span>
+<span class='src-line'><b> 143</b><code>            &quot;evidence_needed&quot;: &quot;Operator context, durable notes, milestone validation, or task/roadmap updates.&quot;,</code></span>
+<span class='src-line'><b> 144</b><code>            &quot;stall_behavior&quot;: &quot;Ask for the missing constraint or record a reversible assumption and continue.&quot;,</code></span>
+<span class='src-line'><b> 145</b><code>        }</code></span>
+<span class='src-line'><b> 146</b><code>    if any(word in lowered for word in (&quot;monitor&quot;, &quot;watch&quot;, &quot;track&quot;, &quot;check&quot;, &quot;observe&quot;)):</code></span>
+<span class='src-line'><b> 147</b><code>        return {</code></span>
+<span class='src-line'><b> 148</b><code>            &quot;output_contract&quot;: &quot;monitor&quot;,</code></span>
+<span class='src-line'><b> 149</b><code>            &quot;acceptance_criteria&quot;: &quot;A check cadence, signal, state change, or next observation time is recorded.&quot;,</code></span>
+<span class='src-line'><b> 150</b><code>            &quot;evidence_needed&quot;: &quot;Monitor result, status update, deferred follow-up, or recorded blocker.&quot;,</code></span>
+<span class='src-line'><b> 151</b><code>            &quot;stall_behavior&quot;: &quot;Defer the job until the next useful check or pivot to a diagnostic task.&quot;,</code></span>
+<span class='src-line'><b> 152</b><code>        }</code></span>
+<span class='src-line'><b> 153</b><code>    if any(word in lowered for word in (&quot;act&quot;, &quot;apply&quot;, &quot;build&quot;, &quot;change&quot;, &quot;deploy&quot;, &quot;fix&quot;, &quot;implement&quot;, &quot;install&quot;, &quot;run&quot;)):</code></span>
+<span class='src-line'><b> 154</b><code>        return {</code></span>
+<span class='src-line'><b> 155</b><code>            &quot;output_contract&quot;: &quot;action&quot;,</code></span>
+<span class='src-line'><b> 156</b><code>            &quot;acceptance_criteria&quot;: &quot;The action produces an observable durable change or a clear blocker.&quot;,</code></span>
+<span class='src-line'><b> 157</b><code>            &quot;evidence_needed&quot;: &quot;Tool result plus file, artifact, ledger, task, roadmap, or experiment update.&quot;,</code></span>
+<span class='src-line'><b> 158</b><code>            &quot;stall_behavior&quot;: &quot;Record the blocker and open a smaller follow-up action.&quot;,</code></span>
+<span class='src-line'><b> 159</b><code>        }</code></span>
+<span class='src-line'><b> 160</b><code>    if &quot;clarify&quot; in lowered or &quot;criteria&quot; in lowered or &quot;constraint&quot; in lowered:</code></span>
+<span class='src-line'><b> 161</b><code>        return {</code></span>
+<span class='src-line'><b> 162</b><code>            &quot;output_contract&quot;: &quot;decision&quot;,</code></span>
+<span class='src-line'><b> 163</b><code>            &quot;acceptance_criteria&quot;: &quot;Success criteria, constraints, and first branches are explicit.&quot;,</code></span>
+<span class='src-line'><b> 164</b><code>            &quot;evidence_needed&quot;: &quot;Operator context, durable notes, or an updated roadmap/task queue.&quot;,</code></span>
+<span class='src-line'><b> 165</b><code>            &quot;stall_behavior&quot;: &quot;Ask for the missing constraint or record a decision with the best current assumption.&quot;,</code></span>
+<span class='src-line'><b> 166</b><code>        }</code></span>
+<span class='src-line'><b> 167</b><code>    if &quot;map&quot; in lowered or &quot;research&quot; in lowered or &quot;branch&quot; in lowered:</code></span>
+<span class='src-line'><b> 168</b><code>        return {</code></span>
+<span class='src-line'><b> 169</b><code>            &quot;output_contract&quot;: &quot;research&quot;,</code></span>
+<span class='src-line'><b> 170</b><code>            &quot;acceptance_criteria&quot;: &quot;At least one viable branch is selected and low-value branches are avoided.&quot;,</code></span>
+<span class='src-line'><b> 171</b><code>            &quot;evidence_needed&quot;: &quot;Source notes, branch rationale, source ledger entries, or saved research output.&quot;,</code></span>
+<span class='src-line'><b> 172</b><code>            &quot;stall_behavior&quot;: &quot;Record a low-yield lesson and pivot to a different branch.&quot;,</code></span>
+<span class='src-line'><b> 173</b><code>        }</code></span>
+<span class='src-line'><b> 174</b><code>    if &quot;collect&quot; in lowered or &quot;evidence&quot; in lowered or &quot;save&quot; in lowered or &quot;output&quot; in lowered:</code></span>
+<span class='src-line'><b> 175</b><code>        return {</code></span>
+<span class='src-line'><b> 176</b><code>            &quot;output_contract&quot;: &quot;artifact&quot;,</code></span>
+<span class='src-line'><b> 177</b><code>            &quot;acceptance_criteria&quot;: &quot;A durable output is saved and linked to the task or ledger.&quot;,</code></span>
+<span class='src-line'><b> 178</b><code>            &quot;evidence_needed&quot;: &quot;Artifact, file output, finding record, source record, or experiment record.&quot;,</code></span>
+<span class='src-line'><b> 179</b><code>            &quot;stall_behavior&quot;: &quot;Record what evidence is missing and create the next evidence-producing task.&quot;,</code></span>
+<span class='src-line'><b> 180</b><code>        }</code></span>
+<span class='src-line'><b> 181</b><code>    if &quot;reflect&quot; in lowered or &quot;memory&quot; in lowered or &quot;continue&quot; in lowered:</code></span>
+<span class='src-line'><b> 182</b><code>        return {</code></span>
+<span class='src-line'><b> 183</b><code>            &quot;output_contract&quot;: &quot;monitor&quot;,</code></span>
+<span class='src-line'><b> 184</b><code>            &quot;acceptance_criteria&quot;: &quot;Progress is evaluated from durable deltas and the next branch is chosen.&quot;,</code></span>
+<span class='src-line'><b> 185</b><code>            &quot;evidence_needed&quot;: &quot;Reflection, lesson, task update, roadmap validation, or experiment comparison.&quot;,</code></span>
+<span class='src-line'><b> 186</b><code>            &quot;stall_behavior&quot;: &quot;Record a blocker or pivot when no durable delta was produced.&quot;,</code></span>
+<span class='src-line'><b> 187</b><code>        }</code></span>
+<span class='src-line'><b> 188</b><code>    return {</code></span>
+<span class='src-line'><b> 189</b><code>        &quot;output_contract&quot;: &quot;action&quot;,</code></span>
+<span class='src-line'><b> 190</b><code>        &quot;acceptance_criteria&quot;: &quot;The task produces an observable durable change.&quot;,</code></span>
+<span class='src-line'><b> 191</b><code>        &quot;evidence_needed&quot;: &quot;Tool result plus artifact, ledger, task, roadmap, or experiment update.&quot;,</code></span>
+<span class='src-line'><b> 192</b><code>        &quot;stall_behavior&quot;: &quot;Record a blocker and open a smaller follow-up task.&quot;,</code></span>
+<span class='src-line'><b> 193</b><code>    }</code></span>
+<span class='src-line'><b> 194</b><code></code></span>
+<span class='src-line'><b> 195</b><code></code></span>
+<span class='src-line'><b> 196</b><code>def initial_roadmap_for_objective(*, title: str, objective: str) -&gt; dict[str, Any]:</code></span>
+<span class='src-line'><b> 197</b><code>    profiles = objective_profiles(objective)</code></span>
+<span class='src-line'><b> 198</b><code>    execute_contract = _primary_execution_contract(profiles)</code></span>
+<span class='src-line'><b> 199</b><code>    return {</code></span>
+<span class='src-line'><b> 200</b><code>        &quot;title&quot;: title,</code></span>
+<span class='src-line'><b> 201</b><code>        &quot;status&quot;: &quot;planned&quot;,</code></span>
+<span class='src-line'><b> 202</b><code>        &quot;objective&quot;: objective,</code></span>
+<span class='src-line'><b> 203</b><code>        &quot;scope&quot;: (</code></span>
+<span class='src-line'><b> 204</b><code>            &quot;Initial roadmap generated from the objective and inferred generic work profile &quot;</code></span>
+<span class='src-line'><b> 205</b><code>            f&quot;({&#x27;, &#x27;.join(profiles)}). Refine this as evidence and operator context arrive.&quot;</code></span>
+<span class='src-line'><b> 206</b><code>        ),</code></span>
+<span class='src-line'><b> 207</b><code>        &quot;current_milestone&quot;: &quot;Clarify and frame the work&quot;,</code></span>
+<span class='src-line'><b> 208</b><code>        &quot;validation_contract&quot;: (</code></span>
+<span class='src-line'><b> 209</b><code>            &quot;Each milestone needs observable evidence that its acceptance criteria were met, &quot;</code></span>
+<span class='src-line'><b> 210</b><code>            &quot;or a recorded blocker plus follow-up tasks.&quot;</code></span>
+<span class='src-line'><b> 211</b><code>        ),</code></span>
+<span class='src-line'><b> 212</b><code>        &quot;milestones&quot;: [</code></span>
+<span class='src-line'><b> 213</b><code>            {</code></span>
+<span class='src-line'><b> 214</b><code>                &quot;title&quot;: &quot;Clarify and frame the work&quot;,</code></span>
+<span class='src-line'><b> 215</b><code>                &quot;status&quot;: &quot;planned&quot;,</code></span>
+<span class='src-line'><b> 216</b><code>                &quot;priority&quot;: 10,</code></span>
+<span class='src-line'><b> 217</b><code>                &quot;goal&quot;: &quot;Turn the objective into concrete success criteria and constraints.&quot;,</code></span>
+<span class='src-line'><b> 218</b><code>                &quot;acceptance_criteria&quot;: &quot;Success criteria and first branches are explicit.&quot;,</code></span>
+<span class='src-line'><b> 219</b><code>                &quot;evidence_needed&quot;: &quot;Operator context, planning notes, or a recorded task queue.&quot;,</code></span>
+<span class='src-line'><b> 220</b><code>                &quot;features&quot;: [{&quot;title&quot;: &quot;Capture success criteria&quot;, &quot;status&quot;: &quot;planned&quot;, &quot;output_contract&quot;: &quot;decision&quot;}],</code></span>
+<span class='src-line'><b> 221</b><code>            },</code></span>
+<span class='src-line'><b> 222</b><code>            {</code></span>
+<span class='src-line'><b> 223</b><code>                &quot;title&quot;: &quot;Execute first durable branches&quot;,</code></span>
+<span class='src-line'><b> 224</b><code>                &quot;status&quot;: &quot;planned&quot;,</code></span>
+<span class='src-line'><b> 225</b><code>                &quot;priority&quot;: 8,</code></span>
+<span class='src-line'><b> 226</b><code>                &quot;goal&quot;: &quot;Produce artifacts, findings, actions, or measurements that advance the objective.&quot;,</code></span>
+<span class='src-line'><b> 227</b><code>                &quot;acceptance_criteria&quot;: &quot;At least one branch produces durable evidence.&quot;,</code></span>
+<span class='src-line'><b> 228</b><code>                &quot;evidence_needed&quot;: &quot;Saved outputs, ledger updates, action results, or experiment records.&quot;,</code></span>
+<span class='src-line'><b> 229</b><code>                &quot;features&quot;: [</code></span>
+<span class='src-line'><b> 230</b><code>                    {</code></span>
+<span class='src-line'><b> 231</b><code>                        &quot;title&quot;: &quot;Run the first evidence-producing branch&quot;,</code></span>
+<span class='src-line'><b> 232</b><code>                        &quot;status&quot;: &quot;planned&quot;,</code></span>
+<span class='src-line'><b> 233</b><code>                        &quot;output_contract&quot;: execute_contract,</code></span>
+<span class='src-line'><b> 234</b><code>                    }</code></span>
+<span class='src-line'><b> 235</b><code>                ],</code></span>
+<span class='src-line'><b> 236</b><code>            },</code></span>
+<span class='src-line'><b> 237</b><code>            {</code></span>
+<span class='src-line'><b> 238</b><code>                &quot;title&quot;: &quot;Validate and continue&quot;,</code></span>
+<span class='src-line'><b> 239</b><code>                &quot;status&quot;: &quot;planned&quot;,</code></span>
+<span class='src-line'><b> 240</b><code>                &quot;priority&quot;: 6,</code></span>
+<span class='src-line'><b> 241</b><code>                &quot;goal&quot;: &quot;Check results against acceptance criteria and create follow-up work.&quot;,</code></span>
+<span class='src-line'><b> 242</b><code>                &quot;acceptance_criteria&quot;: &quot;Validation is passed, failed, or blocked with a next action.&quot;,</code></span>
+<span class='src-line'><b> 243</b><code>                &quot;evidence_needed&quot;: &quot;record_milestone_validation entry and follow-up tasks if needed.&quot;,</code></span>
+<span class='src-line'><b> 244</b><code>                &quot;features&quot;: [{&quot;title&quot;: &quot;Validate the checkpoint&quot;, &quot;status&quot;: &quot;planned&quot;, &quot;output_contract&quot;: &quot;decision&quot;}],</code></span>
+<span class='src-line'><b> 245</b><code>            },</code></span>
+<span class='src-line'><b> 246</b><code>        ],</code></span>
+<span class='src-line'><b> 247</b><code>        &quot;metadata&quot;: {&quot;phase&quot;: &quot;initial_plan&quot;},</code></span>
+<span class='src-line'><b> 248</b><code>    }</code></span>
+<span class='src-line'><b> 249</b><code></code></span>
+<span class='src-line'><b> 250</b><code></code></span>
+<span class='src-line'><b> 251</b><code>def _initial_summary_for_profiles(profiles: list[str]) -&gt; str:</code></span>
+<span class='src-line'><b> 252</b><code>    primary = profiles[0] if profiles else &quot;general&quot;</code></span>
+<span class='src-line'><b> 253</b><code>    if primary == &quot;measured&quot;:</code></span>
+<span class='src-line'><b> 254</b><code>        return &quot;I will start by defining the measurable baseline, then iterate on branches that can prove improvement.&quot;</code></span>
+<span class='src-line'><b> 255</b><code>    if primary == &quot;deliverable&quot;:</code></span>
+<span class='src-line'><b> 256</b><code>        return &quot;I will start by framing the deliverable, collecting evidence, and saving drafts that can be improved.&quot;</code></span>
+<span class='src-line'><b> 257</b><code>    if primary == &quot;monitor&quot;:</code></span>
+<span class='src-line'><b> 258</b><code>        return &quot;I will start by defining the watched signals, first check, cadence, and durable update format.&quot;</code></span>
+<span class='src-line'><b> 259</b><code>    if primary == &quot;implementation&quot;:</code></span>
+<span class='src-line'><b> 260</b><code>        return &quot;I will start by inspecting the current state, planning a small action, and validating the result.&quot;</code></span>
+<span class='src-line'><b> 261</b><code>    if primary == &quot;research&quot;:</code></span>
+<span class='src-line'><b> 262</b><code>        return &quot;I will start by mapping source branches, collecting evidence, and saving concise findings.&quot;</code></span>
+<span class='src-line'><b> 263</b><code>    return &quot;I will turn this objective into a durable long-running job before starting tool work.&quot;</code></span>
+<span class='src-line'><b> 264</b><code></code></span>
+<span class='src-line'><b> 265</b><code></code></span>
+<span class='src-line'><b> 266</b><code>def _initial_tasks_for_profiles(profiles: list[str]) -&gt; list[str]:</code></span>
+<span class='src-line'><b> 267</b><code>    tasks: list[str] = [&quot;Clarify success criteria, constraints, and stop conditions.&quot;]</code></span>
+<span class='src-line'><b> 268</b><code>    primary = profiles[0] if profiles else &quot;general&quot;</code></span>
+<span class='src-line'><b> 269</b><code>    if primary == &quot;measured&quot;:</code></span>
+<span class='src-line'><b> 270</b><code>        tasks.extend(</code></span>
+<span class='src-line'><b> 271</b><code>            [</code></span>
+<span class='src-line'><b> 272</b><code>                &quot;Record the baseline metric and measurement method.&quot;,</code></span>
+<span class='src-line'><b> 273</b><code>                &quot;Run the first measurable branch and record an experiment.&quot;,</code></span>
+<span class='src-line'><b> 274</b><code>                &quot;Compare the result with the best known baseline and choose the next branch.&quot;,</code></span>
+<span class='src-line'><b> 275</b><code>            ]</code></span>
+<span class='src-line'><b> 276</b><code>        )</code></span>
+<span class='src-line'><b> 277</b><code>    elif primary == &quot;deliverable&quot;:</code></span>
+<span class='src-line'><b> 278</b><code>        tasks.extend(</code></span>
+<span class='src-line'><b> 279</b><code>            [</code></span>
+<span class='src-line'><b> 280</b><code>                &quot;Map the outline, audience, evidence gaps, and acceptance criteria.&quot;,</code></span>
+<span class='src-line'><b> 281</b><code>                &quot;Collect evidence for the first section or deliverable unit.&quot;,</code></span>
+<span class='src-line'><b> 282</b><code>                &quot;Save a durable draft or report checkpoint.&quot;,</code></span>
+<span class='src-line'><b> 283</b><code>            ]</code></span>
+<span class='src-line'><b> 284</b><code>        )</code></span>
+<span class='src-line'><b> 285</b><code>    elif primary == &quot;monitor&quot;:</code></span>
+<span class='src-line'><b> 286</b><code>        tasks.extend(</code></span>
+<span class='src-line'><b> 287</b><code>            [</code></span>
+<span class='src-line'><b> 288</b><code>                &quot;Define watched signals, check cadence, and alert conditions.&quot;,</code></span>
+<span class='src-line'><b> 289</b><code>                &quot;Run the first status check and save the observation.&quot;,</code></span>
+<span class='src-line'><b> 290</b><code>                &quot;Defer or continue based on the next useful check time.&quot;,</code></span>
+<span class='src-line'><b> 291</b><code>            ]</code></span>
+<span class='src-line'><b> 292</b><code>        )</code></span>
+<span class='src-line'><b> 293</b><code>    elif primary == &quot;implementation&quot;:</code></span>
+<span class='src-line'><b> 294</b><code>        tasks.extend(</code></span>
+<span class='src-line'><b> 295</b><code>            [</code></span>
+<span class='src-line'><b> 296</b><code>                &quot;Inspect current state and identify the smallest safe action.&quot;,</code></span>
+<span class='src-line'><b> 297</b><code>                &quot;Apply one change or execute one action with observable output.&quot;,</code></span>
+<span class='src-line'><b> 298</b><code>                &quot;Validate the result and record any follow-up branch.&quot;,</code></span>
+<span class='src-line'><b> 299</b><code>            ]</code></span>
+<span class='src-line'><b> 300</b><code>        )</code></span>
+<span class='src-line'><b> 301</b><code>    else:</code></span>
+<span class='src-line'><b> 302</b><code>        tasks.extend(</code></span>
+<span class='src-line'><b> 303</b><code>            [</code></span>
+<span class='src-line'><b> 304</b><code>                &quot;Map the first research or execution branches.&quot;,</code></span>
+<span class='src-line'><b> 305</b><code>                &quot;Collect evidence and save outputs as files.&quot;,</code></span>
+<span class='src-line'><b> 306</b><code>                &quot;Reflect on what worked, update memory, and continue with the next branch.&quot;,</code></span>
+<span class='src-line'><b> 307</b><code>            ]</code></span>
+<span class='src-line'><b> 308</b><code>        )</code></span>
+<span class='src-line'><b> 309</b><code>    tasks.append(&quot;Publish a concise progress update and keep working on the next useful branch.&quot;)</code></span>
+<span class='src-line'><b> 310</b><code>    return tasks</code></span>
+<span class='src-line'><b> 311</b><code></code></span>
+<span class='src-line'><b> 312</b><code></code></span>
+<span class='src-line'><b> 313</b><code>def _initial_questions_for_profiles(profiles: list[str]) -&gt; list[str]:</code></span>
+<span class='src-line'><b> 314</b><code>    questions = [</code></span>
+<span class='src-line'><b> 315</b><code>        &quot;What result would make this job successful?&quot;,</code></span>
+<span class='src-line'><b> 316</b><code>        &quot;Are there constraints, risks, or approaches I should avoid?&quot;,</code></span>
+<span class='src-line'><b> 317</b><code>    ]</code></span>
+<span class='src-line'><b> 318</b><code>    primary = profiles[0] if profiles else &quot;general&quot;</code></span>
+<span class='src-line'><b> 319</b><code>    if primary == &quot;measured&quot;:</code></span>
+<span class='src-line'><b> 320</b><code>        questions.insert(1, &quot;What metric should be treated as the primary measure of progress?&quot;)</code></span>
+<span class='src-line'><b> 321</b><code>    elif primary == &quot;deliverable&quot;:</code></span>
+<span class='src-line'><b> 322</b><code>        questions.insert(1, &quot;Who is the audience, and what quality bar should the deliverable meet?&quot;)</code></span>
+<span class='src-line'><b> 323</b><code>    elif primary == &quot;monitor&quot;:</code></span>
+<span class='src-line'><b> 324</b><code>        questions.insert(1, &quot;How often should I check, and what change should trigger a report?&quot;)</code></span>
+<span class='src-line'><b> 325</b><code>    elif primary == &quot;implementation&quot;:</code></span>
+<span class='src-line'><b> 326</b><code>        questions.insert(1, &quot;Which environment or files are in scope, and what requires approval?&quot;)</code></span>
+<span class='src-line'><b> 327</b><code>    else:</code></span>
+<span class='src-line'><b> 328</b><code>        questions.insert(1, &quot;Which sources, artifacts, or signals should I trust most?&quot;)</code></span>
+<span class='src-line'><b> 329</b><code>    questions.append(&quot;Should this run aggressively in the background or wait for review between branches?&quot;)</code></span>
+<span class='src-line'><b> 330</b><code>    return questions</code></span>
+<span class='src-line'><b> 331</b><code></code></span>
+<span class='src-line'><b> 332</b><code></code></span>
+<span class='src-line'><b> 333</b><code>def _primary_execution_contract(profiles: list[str]) -&gt; str:</code></span>
+<span class='src-line'><b> 334</b><code>    if &quot;measured&quot; in profiles:</code></span>
+<span class='src-line'><b> 335</b><code>        return &quot;experiment&quot;</code></span>
+<span class='src-line'><b> 336</b><code>    if &quot;deliverable&quot; in profiles:</code></span>
+<span class='src-line'><b> 337</b><code>        return &quot;report&quot;</code></span>
+<span class='src-line'><b> 338</b><code>    if &quot;monitor&quot; in profiles:</code></span>
+<span class='src-line'><b> 339</b><code>        return &quot;monitor&quot;</code></span>
+<span class='src-line'><b> 340</b><code>    if &quot;implementation&quot; in profiles:</code></span>
+<span class='src-line'><b> 341</b><code>        return &quot;action&quot;</code></span>
+<span class='src-line'><b> 342</b><code>    if &quot;research&quot; in profiles:</code></span>
+<span class='src-line'><b> 343</b><code>        return &quot;research&quot;</code></span>
+<span class='src-line'><b> 344</b><code>    return &quot;artifact&quot;</code></span>
+<span class='src-line'><b> 345</b><code></code></span>
+<span class='src-line'><b> 346</b><code></code></span>
+<span class='src-line'><b> 347</b><code>def format_initial_plan(plan: dict[str, Any]) -&gt; str:</code></span>
+<span class='src-line'><b> 348</b><code>    tasks = plan.get(&quot;tasks&quot;) if isinstance(plan.get(&quot;tasks&quot;), list) else []</code></span>
+<span class='src-line'><b> 349</b><code>    questions = plan.get(&quot;questions&quot;) if isinstance(plan.get(&quot;questions&quot;), list) else []</code></span>
+<span class='src-line'><b> 350</b><code>    lines = [str(plan.get(&quot;summary&quot;) or &quot;Initial plan created.&quot;)]</code></span>
+<span class='src-line'><b> 351</b><code>    if tasks:</code></span>
+<span class='src-line'><b> 352</b><code>        lines.append(&quot;Plan:&quot;)</code></span>
+<span class='src-line'><b> 353</b><code>        lines.extend(f&quot;- {task}&quot; for task in tasks)</code></span>
+<span class='src-line'><b> 354</b><code>    if questions:</code></span>
+<span class='src-line'><b> 355</b><code>        lines.append(&quot;Questions:&quot;)</code></span>
+<span class='src-line'><b> 356</b><code>        lines.extend(f&quot;- {question}&quot; for question in questions)</code></span>
+<span class='src-line'><b> 357</b><code>    lines.append(&quot;Reply with answers, or use the right-side Run control when this plan is good enough to start.&quot;)</code></span>
+<span class='src-line'><b> 358</b><code>    return &quot;\n&quot;.join(lines)</code></span></pre>
 </details>
 <details class="source-file searchable" data-search="nipux_cli/progress.py &quot;&quot;&quot;Generic progress summaries for long-running jobs.&quot;&quot;&quot;
 
@@ -35124,7 +35472,7 @@ def test_inactive_prompt_operator_ids_returns_only_conversation_active_messages(
 <span class='src-line'><b>  29</b><code></code></span>
 <span class='src-line'><b>  30</b><code>    assert inactive_prompt_operator_ids(messages) == [&quot;op_chat&quot;]</code></span></pre>
 </details>
-<details class="source-file searchable" data-search="tests/nipux_cli/test_planning.py from nipux_cli.planning import initial_roadmap_for_objective, initial_task_contract
+<details class="source-file searchable" data-search="tests/nipux_cli/test_planning.py from nipux_cli.planning import initial_plan_for_objective, initial_roadmap_for_objective, initial_task_contract, objective_profiles
 
 
 def test_initial_task_contracts_are_generic_and_complete():
@@ -35155,9 +35503,44 @@ def test_initial_roadmap_uses_valid_generic_contracts():
                 &quot;monitor&quot;,
                 &quot;decision&quot;,
                 &quot;report&quot;,
-            }">
-<summary>tests/nipux_cli/test_planning.py <span>32 lines</span></summary>
-<pre class="source-code"><span class='src-line'><b>   1</b><code>from nipux_cli.planning import initial_roadmap_for_objective, initial_task_contract</code></span>
+            }
+
+
+def test_initial_plan_adapts_to_measurable_objectives():
+    plan = initial_plan_for_objective(&quot;optimize a generic process for lower latency and higher throughput&quot;)
+    contracts = [initial_task_contract(title)[&quot;output_contract&quot;] for title in plan[&quot;tasks&quot;]]
+
+    assert plan[&quot;profile&quot;] == &quot;measured&quot;
+    assert &quot;experiment&quot; in contracts
+    assert any(&quot;baseline&quot; in title.lower() for title in plan[&quot;tasks&quot;])
+    assert any(&quot;metric&quot; in question.lower() for question in plan[&quot;questions&quot;])
+
+
+def test_initial_plan_adapts_to_deliverable_objectives():
+    plan = initial_plan_for_objective(&quot;write a full research paper from evidence&quot;)
+    contracts = [initial_task_contract(title)[&quot;output_contract&quot;] for title in plan[&quot;tasks&quot;]]
+
+    assert plan[&quot;profile&quot;] == &quot;deliverable&quot;
+    assert &quot;report&quot; in contracts
+    assert any(&quot;draft&quot; in title.lower() or &quot;report&quot; in title.lower() for title in plan[&quot;tasks&quot;])
+
+
+def test_initial_plan_adapts_to_monitoring_objectives():
+    plan = initial_plan_for_objective(&quot;monitor a recurring process and report important changes&quot;)
+    contracts = [initial_task_contract(title)[&quot;output_contract&quot;] for title in plan[&quot;tasks&quot;]]
+
+    assert plan[&quot;profile&quot;] == &quot;monitor&quot;
+    assert &quot;monitor&quot; in contracts
+    assert any(&quot;cadence&quot; in question.lower() or &quot;check&quot; in question.lower() for question in plan[&quot;questions&quot;])
+
+
+def test_objective_profiles_stay_generic():
+    profiles = objective_profiles(&quot;investigate build quality and compare output changes&quot;)
+
+    assert profiles
+    assert all(profile in {&quot;measured&quot;, &quot;deliverable&quot;, &quot;monitor&quot;, &quot;implementation&quot;, &quot;research&quot;, &quot;general&quot;} for profile in profiles)">
+<summary>tests/nipux_cli/test_planning.py <span>67 lines</span></summary>
+<pre class="source-code"><span class='src-line'><b>   1</b><code>from nipux_cli.planning import initial_plan_for_objective, initial_roadmap_for_objective, initial_task_contract, objective_profiles</code></span>
 <span class='src-line'><b>   2</b><code></code></span>
 <span class='src-line'><b>   3</b><code></code></span>
 <span class='src-line'><b>   4</b><code>def test_initial_task_contracts_are_generic_and_complete():</code></span>
@@ -35188,7 +35571,42 @@ def test_initial_roadmap_uses_valid_generic_contracts():
 <span class='src-line'><b>  29</b><code>                &quot;monitor&quot;,</code></span>
 <span class='src-line'><b>  30</b><code>                &quot;decision&quot;,</code></span>
 <span class='src-line'><b>  31</b><code>                &quot;report&quot;,</code></span>
-<span class='src-line'><b>  32</b><code>            }</code></span></pre>
+<span class='src-line'><b>  32</b><code>            }</code></span>
+<span class='src-line'><b>  33</b><code></code></span>
+<span class='src-line'><b>  34</b><code></code></span>
+<span class='src-line'><b>  35</b><code>def test_initial_plan_adapts_to_measurable_objectives():</code></span>
+<span class='src-line'><b>  36</b><code>    plan = initial_plan_for_objective(&quot;optimize a generic process for lower latency and higher throughput&quot;)</code></span>
+<span class='src-line'><b>  37</b><code>    contracts = [initial_task_contract(title)[&quot;output_contract&quot;] for title in plan[&quot;tasks&quot;]]</code></span>
+<span class='src-line'><b>  38</b><code></code></span>
+<span class='src-line'><b>  39</b><code>    assert plan[&quot;profile&quot;] == &quot;measured&quot;</code></span>
+<span class='src-line'><b>  40</b><code>    assert &quot;experiment&quot; in contracts</code></span>
+<span class='src-line'><b>  41</b><code>    assert any(&quot;baseline&quot; in title.lower() for title in plan[&quot;tasks&quot;])</code></span>
+<span class='src-line'><b>  42</b><code>    assert any(&quot;metric&quot; in question.lower() for question in plan[&quot;questions&quot;])</code></span>
+<span class='src-line'><b>  43</b><code></code></span>
+<span class='src-line'><b>  44</b><code></code></span>
+<span class='src-line'><b>  45</b><code>def test_initial_plan_adapts_to_deliverable_objectives():</code></span>
+<span class='src-line'><b>  46</b><code>    plan = initial_plan_for_objective(&quot;write a full research paper from evidence&quot;)</code></span>
+<span class='src-line'><b>  47</b><code>    contracts = [initial_task_contract(title)[&quot;output_contract&quot;] for title in plan[&quot;tasks&quot;]]</code></span>
+<span class='src-line'><b>  48</b><code></code></span>
+<span class='src-line'><b>  49</b><code>    assert plan[&quot;profile&quot;] == &quot;deliverable&quot;</code></span>
+<span class='src-line'><b>  50</b><code>    assert &quot;report&quot; in contracts</code></span>
+<span class='src-line'><b>  51</b><code>    assert any(&quot;draft&quot; in title.lower() or &quot;report&quot; in title.lower() for title in plan[&quot;tasks&quot;])</code></span>
+<span class='src-line'><b>  52</b><code></code></span>
+<span class='src-line'><b>  53</b><code></code></span>
+<span class='src-line'><b>  54</b><code>def test_initial_plan_adapts_to_monitoring_objectives():</code></span>
+<span class='src-line'><b>  55</b><code>    plan = initial_plan_for_objective(&quot;monitor a recurring process and report important changes&quot;)</code></span>
+<span class='src-line'><b>  56</b><code>    contracts = [initial_task_contract(title)[&quot;output_contract&quot;] for title in plan[&quot;tasks&quot;]]</code></span>
+<span class='src-line'><b>  57</b><code></code></span>
+<span class='src-line'><b>  58</b><code>    assert plan[&quot;profile&quot;] == &quot;monitor&quot;</code></span>
+<span class='src-line'><b>  59</b><code>    assert &quot;monitor&quot; in contracts</code></span>
+<span class='src-line'><b>  60</b><code>    assert any(&quot;cadence&quot; in question.lower() or &quot;check&quot; in question.lower() for question in plan[&quot;questions&quot;])</code></span>
+<span class='src-line'><b>  61</b><code></code></span>
+<span class='src-line'><b>  62</b><code></code></span>
+<span class='src-line'><b>  63</b><code>def test_objective_profiles_stay_generic():</code></span>
+<span class='src-line'><b>  64</b><code>    profiles = objective_profiles(&quot;investigate build quality and compare output changes&quot;)</code></span>
+<span class='src-line'><b>  65</b><code></code></span>
+<span class='src-line'><b>  66</b><code>    assert profiles</code></span>
+<span class='src-line'><b>  67</b><code>    assert all(profile in {&quot;measured&quot;, &quot;deliverable&quot;, &quot;monitor&quot;, &quot;implementation&quot;, &quot;research&quot;, &quot;general&quot;} for profile in profiles)</code></span></pre>
 </details>
 <details class="source-file searchable" data-search="tests/nipux_cli/test_progress.py from nipux_cli.progress import build_progress_checkpoint, ledger_counts, recent_progress_bits
 
@@ -39121,9 +39539,9 @@ class AntiBotBrowserRegistry:
 <article class="test-card searchable" data-search="tests/nipux_cli/test_operator_context.py test_conversation_only_operator_messages_do_not_enter_worker_prompt test_actionable_operator_messages_remain_worker_constraints test_inactive_prompt_operator_ids_returns_only_conversation_active_messages">
 <h3>tests/nipux_cli/test_operator_context.py</h3><p><strong>3</strong> tests · 30 lines</p>
 <p class="muted">test_conversation_only_operator_messages_do_not_enter_worker_prompt, test_actionable_operator_messages_remain_worker_constraints, test_inactive_prompt_operator_ids_returns_only_conversation_active_messages</p></article>
-<article class="test-card searchable" data-search="tests/nipux_cli/test_planning.py test_initial_task_contracts_are_generic_and_complete test_initial_roadmap_uses_valid_generic_contracts">
-<h3>tests/nipux_cli/test_planning.py</h3><p><strong>2</strong> tests · 32 lines</p>
-<p class="muted">test_initial_task_contracts_are_generic_and_complete, test_initial_roadmap_uses_valid_generic_contracts</p></article>
+<article class="test-card searchable" data-search="tests/nipux_cli/test_planning.py test_initial_task_contracts_are_generic_and_complete test_initial_roadmap_uses_valid_generic_contracts test_initial_plan_adapts_to_measurable_objectives test_initial_plan_adapts_to_deliverable_objectives test_initial_plan_adapts_to_monitoring_objectives test_objective_profiles_stay_generic">
+<h3>tests/nipux_cli/test_planning.py</h3><p><strong>6</strong> tests · 67 lines</p>
+<p class="muted">test_initial_task_contracts_are_generic_and_complete, test_initial_roadmap_uses_valid_generic_contracts, test_initial_plan_adapts_to_measurable_objectives, test_initial_plan_adapts_to_deliverable_objectives, test_initial_plan_adapts_to_monitoring_objectives, test_objective_profiles_stay_generic</p></article>
 <article class="test-card searchable" data-search="tests/nipux_cli/test_progress.py test_progress_checkpoint_reports_deltas_and_recent_durable_work test_progress_checkpoint_for_saved_output_is_concise test_progress_checkpoint_without_delta_is_activity_not_progress test_progress_helpers_ignore_malformed_metadata">
 <h3>tests/nipux_cli/test_progress.py</h3><p><strong>4</strong> tests · 87 lines</p>
 <p class="muted">test_progress_checkpoint_reports_deltas_and_recent_durable_work, test_progress_checkpoint_for_saved_output_is_concise, test_progress_checkpoint_without_delta_is_activity_not_progress, test_progress_helpers_ignore_malformed_metadata</p></article>
@@ -39146,7 +39564,7 @@ class AntiBotBrowserRegistry:
       <div class="grid"><article class='card warning searchable' data-search='Large modules nipux_cli/cli.py (4321 lines), nipux_cli/worker.py (3278 lines), tests/nipux_cli/test_worker.py (2628 lines), nipux_cli/db.py (2403 lines), tests/nipux_cli/test_cli.py (2053 lines)'><h3>Large modules</h3><p>nipux_cli/cli.py (4321 lines), nipux_cli/worker.py (3278 lines), tests/nipux_cli/test_worker.py (2628 lines), nipux_cli/db.py (2403 lines), tests/nipux_cli/test_cli.py (2053 lines)</p></article>
 <article class='card warning searchable' data-search='Prompt surfaces 12 prompt/instruction-like strings were extracted. Inspect this section after any agent-behavior change.'><h3>Prompt surfaces</h3><p>12 prompt/instruction-like strings were extracted. Inspect this section after any agent-behavior change.</p></article>
 <article class='card warning searchable' data-search='Tool surface 27 tools are exposed to the worker. Review descriptions whenever generic behavior changes.'><h3>Tool surface</h3><p>27 tools are exposed to the worker. Review descriptions whenever generic behavior changes.</p></article>
-<article class='card warning searchable' data-search='Symbol map 1071 symbols were parsed. Large modules are candidates for refactoring once behavior stabilizes.'><h3>Symbol map</h3><p>1071 symbols were parsed. Large modules are candidates for refactoring once behavior stabilizes.</p></article></div>
+<article class='card warning searchable' data-search='Symbol map 1080 symbols were parsed. Large modules are candidates for refactoring once behavior stabilizes.'><h3>Symbol map</h3><p>1080 symbols were parsed. Large modules are candidates for refactoring once behavior stabilizes.</p></article></div>
     </section>
   </main>
 </div>
