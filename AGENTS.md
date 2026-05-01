@@ -13,7 +13,7 @@ This repo is a focused long-running worker, not a broad assistant distribution.
 ## Constraints
 
 - Keep the default tool surface small and explicit.
-- Do not reintroduce broad upstream surfaces such as gateways, skills, plugins, TUI, web UI, ACP, RL environments, voice, image generation, or arbitrary terminal execution.
+- Do not reintroduce broad upstream surfaces such as gateways, skills, plugins, web UI, ACP, RL environments, voice, image generation, or arbitrary terminal execution. The chat-first terminal UI is part of Nipux's active product surface; keep it generic, minimal, and backed by persisted worker state.
 - Preserve restartability: every worker step should persist state before and after tool execution.
 - Store exact evidence as artifacts. Summaries should point back to artifacts instead of replacing them.
 - Keep `memory_index` entries compact and artifact-referenced; do not use raw transcript replay as the long-term state strategy.

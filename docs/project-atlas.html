@@ -82,7 +82,7 @@ pre { max-height: 540px; overflow: auto; background: #050606; border: 1px solid 
 <div class="shell">
   <aside class="sidebar">
     <div class="logo">NIPUX ATLAS</div>
-    <div class="subtitle">Generated from tracked source on 67f15359.</div>
+    <div class="subtitle">Generated from tracked source on 01c6727c.</div>
     <input id="search" class="search" placeholder="filter files, prompts, tools..." autocomplete="off">
     <nav class="nav">
       <a href="#architecture">Architecture</a>
@@ -98,7 +98,7 @@ pre { max-height: 540px; overflow: auto; background: #050606; border: 1px solid 
     </nav>
     <div class="stats">
       <div class="stat"><b>90</b><span>tracked files</span></div>
-      <div class="stat"><b>28,394</b><span>tracked lines mapped</span></div>
+      <div class="stat"><b>28,396</b><span>tracked lines mapped</span></div>
       <div class="stat"><b>1200</b><span>python symbols</span></div>
       <div class="stat"><b>27</b><span>runtime tools</span></div>
     </div>
@@ -489,7 +489,7 @@ have incorporated or intentionally superseded a steer/follow_up message.
 <details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> none</p><p><strong>Symbols:</strong> none</p></details>
 </article>
 <article class="file-card searchable" data-search="RELEASE_CHECKLIST.md Use this before sharing the repository with outside users. none">
-<header><h3>RELEASE_CHECKLIST.md</h3><span>36 lines</span></header>
+<header><h3>RELEASE_CHECKLIST.md</h3><span>38 lines</span></header>
 <p>Use this before sharing the repository with outside users.</p>
 <div class="meta"><span>0 symbols</span><span>0 TODOs</span></div>
 <details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> none</p><p><strong>Symbols:</strong> none</p></details>
@@ -8242,7 +8242,7 @@ This repo is a focused long-running worker, not a broad assistant distribution.
 ## Constraints
 
 - Keep the default tool surface small and explicit.
-- Do not reintroduce broad upstream surfaces such as gateways, skills, plugins, TUI, web UI, ACP, RL environments, voice, image generation, or arbitrary terminal execution.
+- Do not reintroduce broad upstream surfaces such as gateways, skills, plugins, web UI, ACP, RL environments, voice, image generation, or arbitrary terminal execution. The chat-first terminal UI is part of Nipux&#x27;s active product surface; keep it generic, minimal, and backed by persisted worker state.
 - Preserve restartability: every worker step should persist state before and after tool execution.
 - Store exact evidence as artifacts. Summaries should point back to artifacts instead of replacing them.
 - Keep `memory_index` entries compact and artifact-referenced; do not use raw transcript replay as the long-term state strategy.
@@ -8275,7 +8275,7 @@ Use `nipux daemon --once --fake` for a no-model smoke test. Use `nipux logs JOB_
 <span class='src-line'><b>  13</b><code>## Constraints</code></span>
 <span class='src-line'><b>  14</b><code></code></span>
 <span class='src-line'><b>  15</b><code>- Keep the default tool surface small and explicit.</code></span>
-<span class='src-line'><b>  16</b><code>- Do not reintroduce broad upstream surfaces such as gateways, skills, plugins, TUI, web UI, ACP, RL environments, voice, image generation, or arbitrary terminal execution.</code></span>
+<span class='src-line'><b>  16</b><code>- Do not reintroduce broad upstream surfaces such as gateways, skills, plugins, web UI, ACP, RL environments, voice, image generation, or arbitrary terminal execution. The chat-first terminal UI is part of Nipux&#x27;s active product surface; keep it generic, minimal, and backed by persisted worker state.</code></span>
 <span class='src-line'><b>  17</b><code>- Preserve restartability: every worker step should persist state before and after tool execution.</code></span>
 <span class='src-line'><b>  18</b><code>- Store exact evidence as artifacts. Summaries should point back to artifacts instead of replacing them.</code></span>
 <span class='src-line'><b>  19</b><code>- Keep `memory_index` entries compact and artifact-referenced; do not use raw transcript replay as the long-term state strategy.</code></span>
@@ -8796,6 +8796,7 @@ Use this before sharing the repository with outside users.
 
 - `uv tool install --editable .` works from a checkout.
 - `uv run nipux --help` works without installing.
+- `NIPUX_HOME=$(mktemp -d) uv run nipux` opens the first-run terminal UI, not argparse help or an ASCII-only prompt.
 - `nipux init` writes the default Qwen/OpenRouter `~/.nipux/config.yaml` and a blank `~/.nipux/.env` template.
 - `nipux doctor` passes for local runtime checks after initialization.
 - `nipux daemon --once --fake` runs without a model key.
@@ -8807,6 +8808,7 @@ Use this before sharing the repository with outside users.
 - Worker prompts stay bounded and do not replay raw transcript history.
 - Operator chat that is only conversational stays in history but does not remain active worker context.
 - Measurable jobs record experiments instead of treating notes as progress.
+- Status, outcomes, and work panes show different layers clearly: jobs and latest outputs, durable progress by hour, and raw tool/console events.
 
 ## Validation
 
@@ -8817,7 +8819,7 @@ uv run --extra dev ruff check nipux_cli tests/nipux_cli
 rg -n --hidden -S &quot;(sk-[A-Za-z0-9_-]{20,}|OPENROUTER_API_KEY[=].+|OPENAI_API_KEY[=].+|Bearer\\s+[A-Za-z0-9._-]{20,})&quot; . \
   -g &#x27;!uv.lock&#x27; -g &#x27;!**/__pycache__/**&#x27; -g &#x27;!*.db&#x27; -g &#x27;!*.log&#x27; -g &#x27;!*.pyc&#x27;
 ```">
-<summary>RELEASE_CHECKLIST.md <span>36 lines</span></summary>
+<summary>RELEASE_CHECKLIST.md <span>38 lines</span></summary>
 <pre class="source-code"><span class='src-line'><b>   1</b><code># Release Checklist</code></span>
 <span class='src-line'><b>   2</b><code></code></span>
 <span class='src-line'><b>   3</b><code>Use this before sharing the repository with outside users.</code></span>
@@ -8833,27 +8835,29 @@ rg -n --hidden -S &quot;(sk-[A-Za-z0-9_-]{20,}|OPENROUTER_API_KEY[=].+|OPENAI_AP
 <span class='src-line'><b>  13</b><code></code></span>
 <span class='src-line'><b>  14</b><code>- `uv tool install --editable .` works from a checkout.</code></span>
 <span class='src-line'><b>  15</b><code>- `uv run nipux --help` works without installing.</code></span>
-<span class='src-line'><b>  16</b><code>- `nipux init` writes the default Qwen/OpenRouter `~/.nipux/config.yaml` and a blank `~/.nipux/.env` template.</code></span>
-<span class='src-line'><b>  17</b><code>- `nipux doctor` passes for local runtime checks after initialization.</code></span>
-<span class='src-line'><b>  18</b><code>- `nipux daemon --once --fake` runs without a model key.</code></span>
-<span class='src-line'><b>  19</b><code></code></span>
-<span class='src-line'><b>  20</b><code>## Runtime</code></span>
-<span class='src-line'><b>  21</b><code></code></span>
-<span class='src-line'><b>  22</b><code>- `nipux start`, `nipux stop`, and `nipux restart` recover stale daemon state.</code></span>
-<span class='src-line'><b>  23</b><code>- `nipux status`, `nipux activity`, `nipux history`, and `nipux artifacts` expose enough state to debug jobs.</code></span>
-<span class='src-line'><b>  24</b><code>- Worker prompts stay bounded and do not replay raw transcript history.</code></span>
-<span class='src-line'><b>  25</b><code>- Operator chat that is only conversational stays in history but does not remain active worker context.</code></span>
-<span class='src-line'><b>  26</b><code>- Measurable jobs record experiments instead of treating notes as progress.</code></span>
-<span class='src-line'><b>  27</b><code></code></span>
-<span class='src-line'><b>  28</b><code>## Validation</code></span>
+<span class='src-line'><b>  16</b><code>- `NIPUX_HOME=$(mktemp -d) uv run nipux` opens the first-run terminal UI, not argparse help or an ASCII-only prompt.</code></span>
+<span class='src-line'><b>  17</b><code>- `nipux init` writes the default Qwen/OpenRouter `~/.nipux/config.yaml` and a blank `~/.nipux/.env` template.</code></span>
+<span class='src-line'><b>  18</b><code>- `nipux doctor` passes for local runtime checks after initialization.</code></span>
+<span class='src-line'><b>  19</b><code>- `nipux daemon --once --fake` runs without a model key.</code></span>
+<span class='src-line'><b>  20</b><code></code></span>
+<span class='src-line'><b>  21</b><code>## Runtime</code></span>
+<span class='src-line'><b>  22</b><code></code></span>
+<span class='src-line'><b>  23</b><code>- `nipux start`, `nipux stop`, and `nipux restart` recover stale daemon state.</code></span>
+<span class='src-line'><b>  24</b><code>- `nipux status`, `nipux activity`, `nipux history`, and `nipux artifacts` expose enough state to debug jobs.</code></span>
+<span class='src-line'><b>  25</b><code>- Worker prompts stay bounded and do not replay raw transcript history.</code></span>
+<span class='src-line'><b>  26</b><code>- Operator chat that is only conversational stays in history but does not remain active worker context.</code></span>
+<span class='src-line'><b>  27</b><code>- Measurable jobs record experiments instead of treating notes as progress.</code></span>
+<span class='src-line'><b>  28</b><code>- Status, outcomes, and work panes show different layers clearly: jobs and latest outputs, durable progress by hour, and raw tool/console events.</code></span>
 <span class='src-line'><b>  29</b><code></code></span>
-<span class='src-line'><b>  30</b><code>```bash</code></span>
-<span class='src-line'><b>  31</b><code>python -m compileall nipux_cli tests/nipux_cli</code></span>
-<span class='src-line'><b>  32</b><code>uv run --extra dev python -m pytest tests/nipux_cli -q</code></span>
-<span class='src-line'><b>  33</b><code>uv run --extra dev ruff check nipux_cli tests/nipux_cli</code></span>
-<span class='src-line'><b>  34</b><code>rg -n --hidden -S &quot;(sk-[A-Za-z0-9_-]{20,}|OPENROUTER_API_KEY[=].+|OPENAI_API_KEY[=].+|Bearer\\s+[A-Za-z0-9._-]{20,})&quot; . \</code></span>
-<span class='src-line'><b>  35</b><code>  -g &#x27;!uv.lock&#x27; -g &#x27;!**/__pycache__/**&#x27; -g &#x27;!*.db&#x27; -g &#x27;!*.log&#x27; -g &#x27;!*.pyc&#x27;</code></span>
-<span class='src-line'><b>  36</b><code>```</code></span></pre>
+<span class='src-line'><b>  30</b><code>## Validation</code></span>
+<span class='src-line'><b>  31</b><code></code></span>
+<span class='src-line'><b>  32</b><code>```bash</code></span>
+<span class='src-line'><b>  33</b><code>python -m compileall nipux_cli tests/nipux_cli</code></span>
+<span class='src-line'><b>  34</b><code>uv run --extra dev python -m pytest tests/nipux_cli -q</code></span>
+<span class='src-line'><b>  35</b><code>uv run --extra dev ruff check nipux_cli tests/nipux_cli</code></span>
+<span class='src-line'><b>  36</b><code>rg -n --hidden -S &quot;(sk-[A-Za-z0-9_-]{20,}|OPENROUTER_API_KEY[=].+|OPENAI_API_KEY[=].+|Bearer\\s+[A-Za-z0-9._-]{20,})&quot; . \</code></span>
+<span class='src-line'><b>  37</b><code>  -g &#x27;!uv.lock&#x27; -g &#x27;!**/__pycache__/**&#x27; -g &#x27;!*.db&#x27; -g &#x27;!*.log&#x27; -g &#x27;!*.pyc&#x27;</code></span>
+<span class='src-line'><b>  38</b><code>```</code></span></pre>
 </details>
 <details class="source-file searchable" data-search="config.example.yaml model:
   name: qwen/qwen3.6-27b

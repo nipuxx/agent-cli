@@ -13,6 +13,7 @@ Use this before sharing the repository with outside users.
 
 - `uv tool install --editable .` works from a checkout.
 - `uv run nipux --help` works without installing.
+- `NIPUX_HOME=$(mktemp -d) uv run nipux` opens the first-run terminal UI, not argparse help or an ASCII-only prompt.
 - `nipux init` writes the default Qwen/OpenRouter `~/.nipux/config.yaml` and a blank `~/.nipux/.env` template.
 - `nipux doctor` passes for local runtime checks after initialization.
 - `nipux daemon --once --fake` runs without a model key.
@@ -24,6 +25,7 @@ Use this before sharing the repository with outside users.
 - Worker prompts stay bounded and do not replay raw transcript history.
 - Operator chat that is only conversational stays in history but does not remain active worker context.
 - Measurable jobs record experiments instead of treating notes as progress.
+- Status, outcomes, and work panes show different layers clearly: jobs and latest outputs, durable progress by hour, and raw tool/console events.
 
 ## Validation
 
