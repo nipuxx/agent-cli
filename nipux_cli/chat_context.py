@@ -5,10 +5,10 @@ from __future__ import annotations
 from typing import Any
 
 from nipux_cli.db import AgentDB
+from nipux_cli.event_render import event_line
 from nipux_cli.metric_format import format_metric_value
 from nipux_cli.operator_context import active_prompt_operator_entries
-from nipux_cli.tui_events import clean_step_summary, generic_display_text
-from nipux_cli.tui_style import _one_line
+from nipux_cli.tui_events import clean_step_summary
 
 
 def build_chat_messages(db: AgentDB, job: dict[str, Any], message: str) -> list[dict[str, str]]:
@@ -70,7 +70,7 @@ def build_chat_messages(db: AgentDB, job: dict[str, Any], message: str) -> list[
         for entry in sources[-8:]
         if isinstance(entry, dict)
     )
-    timeline_lines = "\n".join(_event_line(event, chars=700) for event in timeline_events[-12:])
+    timeline_lines = "\n".join(event_line(event, chars=700) for event in timeline_events[-12:])
 
     sections = {
         "Recent tool calls": _clip_chat_context(step_lines, 1_800),
@@ -144,57 +144,6 @@ def _experiment_line(entry: dict[str, Any]) -> str:
         f" {metric}"
         f"{' best' if entry.get('best_observed') else ''}"
     )
-
-
-def _event_line(event: dict[str, Any], *, chars: int) -> str:
-    when = _compact_time(str(event.get("created_at") or "?"))
-    label = _event_label(str(event.get("event_type") or "event"), event.get("metadata"))
-    title = str(event.get("title") or "").strip()
-    body = generic_display_text(event.get("body") or "")
-    detail = title if title else str(event.get("event_type") or "event")
-    if body:
-        detail = f"{detail} - {clean_step_summary(body)}"
-    return f"{when:<16} {label:<8} {_one_line(detail, chars)}"
-
-
-def _event_label(kind: str, metadata: Any) -> str:
-    metadata = metadata if isinstance(metadata, dict) else {}
-    if kind == "operator_message":
-        return "FOLLOW" if str(metadata.get("mode") or "") == "follow_up" else "USER"
-    if kind == "agent_message":
-        return "AGENT"
-    if kind == "tool_call":
-        return "TOOL"
-    if kind == "tool_result":
-        status = str(metadata.get("status") or "")
-        if status == "blocked":
-            return "BLOCK"
-        if status == "failed":
-            return "ERROR"
-        return "DONE"
-    labels = {
-        "artifact": "OUTPUT",
-        "compaction": "MEMORY",
-        "digest": "DIGEST",
-        "error": "ERROR",
-        "experiment": "TEST",
-        "finding": "FIND",
-        "lesson": "LEARN",
-        "milestone_validation": "VALID",
-        "operator_context": "ACK",
-        "reflection": "PLAN",
-        "roadmap": "ROAD",
-        "source": "SOURCE",
-        "task": "TASK",
-    }
-    return labels.get(kind, kind.upper()[:8])
-
-
-def _compact_time(value: str) -> str:
-    text = value.replace("T", " ")
-    if len(text) >= 16 and text[4:5] == "-" and text[13:14] == ":":
-        return text[:16]
-    return text[:16]
 
 
 def _empty_section_text(title: str) -> str:

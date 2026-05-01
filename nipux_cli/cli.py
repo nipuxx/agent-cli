@@ -50,6 +50,10 @@ from nipux_cli.first_run_tui import (
     build_first_run_frame as _build_first_run_tui_frame,
     first_run_columns as _first_run_columns,
 )
+from nipux_cli.event_render import (
+    event_display_parts as _event_display_parts,
+    event_line as _event_line,
+)
 from nipux_cli.frame_snapshot import load_frame_snapshot
 from nipux_cli.planning import (
     format_initial_plan,
@@ -2752,12 +2756,6 @@ def _important_startup_events(events: list[dict[str, Any]], *, limit: int) -> li
     return selected
 
 
-def _event_line(event: dict[str, Any], *, chars: int, full: bool = False) -> str:
-    when, label, detail, access = _event_display_parts(event, chars=chars, full=full)
-    suffix = f" | {access}" if access and full else ""
-    return f"{when:<16} {label:<8} {_one_line(detail + suffix, chars)}"
-
-
 def _print_event_card(event: dict[str, Any], *, chars: int, artifact_indexes: dict[str, int] | None = None) -> None:
     when, label, detail, access = _event_display_parts(event, chars=chars, full=False)
     artifact_indexes = artifact_indexes or {}
@@ -2767,114 +2765,6 @@ def _print_event_card(event: dict[str, Any], *, chars: int, artifact_indexes: di
     print(f"  {_event_badge(label):<8} {_muted(when):<16} {_one_line(detail, chars)}")
     if access:
         print(f"  {'':<8} {'':<16} {access}")
-
-
-def _event_display_parts(event: dict[str, Any], *, chars: int, full: bool = False) -> tuple[str, str, str, str]:
-    when = str(event.get("created_at") or "?")
-    when = _compact_time(when)
-    kind = str(event.get("event_type") or "event")
-    title = str(event.get("title") or "").strip()
-    body = _generic_display_text(event.get("body") or "")
-    ref_table = str(event.get("ref_table") or "")
-    ref_id = str(event.get("ref_id") or "")
-    metadata = event.get("metadata") if isinstance(event.get("metadata"), dict) else {}
-    label = _event_label(kind, metadata)
-    access = ""
-    if kind == "tool_result" and metadata.get("status"):
-        label = _event_label(f"{kind}:{metadata.get('status')}", metadata)
-    if kind == "error":
-        label = "ERROR"
-    if kind.startswith("tool_result") or kind == "error":
-        body = _clean_step_summary(body)
-    if kind == "artifact":
-        title = title or ref_id
-        if body.startswith("/") or "/.nipux/jobs/" in body or "/jobs/job_" in body:
-            body = _generic_display_text(metadata.get("summary") or "saved output")
-        if title:
-            access = f"open: /artifact {shlex.quote(title)}"
-    if kind == "operator_message" and metadata.get("mode"):
-        title = f"{title or 'operator'} {metadata.get('mode')}"
-    if kind == "operator_context":
-        body = body or f"{metadata.get('count') or 0} message(s)"
-    if kind in {"tool_call", "tool_result", "error"} and metadata.get("step_no"):
-        title = f"#{metadata.get('step_no')} {title}".strip()
-    if not body and kind == "artifact" and metadata.get("path"):
-        body = str(metadata.get("type") or "saved artifact")
-    if not body and kind == "finding" and metadata.get("category"):
-        body = str(metadata.get("category") or "")
-    if not body and kind == "task" and metadata.get("status"):
-        body = str(metadata.get("status") or "")
-    if not body and kind == "roadmap" and metadata.get("status"):
-        body = str(metadata.get("status") or "")
-    if not body and kind == "milestone_validation" and metadata.get("validation_status"):
-        body = str(metadata.get("validation_status") or "")
-    if not body and kind == "experiment":
-        metric_value = metadata.get("metric_value")
-        if metric_value is not None:
-            body = f"{metadata.get('metric_name') or 'metric'}={metric_value}{metadata.get('metric_unit') or ''}"
-    if kind == "compaction":
-        body = _one_line(body, min(chars, 140))
-    if kind == "daemon" and title == "run started":
-        body = body or str(metadata.get("model") or "")
-    detail = title if title else kind
-    if body:
-        detail = f"{detail} - {body}"
-    if ref_table and ref_id and full:
-        detail = f"{detail} [{ref_table}:{ref_id}]"
-    return when, label, detail, access
-
-
-def _event_label(kind: str, metadata: dict[str, Any]) -> str:
-    if kind == "operator_message":
-        mode = str(metadata.get("mode") or "")
-        return "FOLLOW" if mode == "follow_up" else "USER"
-    if kind == "operator_context":
-        return "ACK"
-    if kind == "agent_message":
-        return "AGENT"
-    if kind == "roadmap":
-        return "ROAD"
-    if kind == "milestone_validation":
-        return "VALID"
-    if kind == "tool_call":
-        return "TOOL"
-    if kind.startswith("tool_result"):
-        status = str(metadata.get("status") or "")
-        if status == "blocked":
-            return "BLOCK"
-        if status == "failed" or kind.endswith(":failed"):
-            return "ERROR"
-        return "DONE"
-    if kind == "artifact":
-        return "OUTPUT"
-    if kind == "finding":
-        return "FIND"
-    if kind == "source":
-        return "SOURCE"
-    if kind == "task":
-        return "TASK"
-    if kind == "experiment":
-        return "TEST"
-    if kind == "lesson":
-        return "LEARN"
-    if kind == "reflection":
-        return "PLAN"
-    if kind == "digest":
-        return "DIGEST"
-    if kind == "compaction":
-        return "MEMORY"
-    if kind == "error":
-        return "ERROR"
-    if kind == "daemon":
-        return "SYSTEM"
-    return kind.upper()[:8]
-
-
-def _compact_time(value: str) -> str:
-    text = value.replace("T", " ")
-    if len(text) >= 16 and text[4:5] == "-" and text[13:14] == ":":
-        return text[:16]
-    return _one_line(text, 16)
 
 
 def _public_event(event: dict[str, Any]) -> dict[str, Any]:
