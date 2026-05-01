@@ -229,7 +229,7 @@ def _operator_messages_for_prompt(
         for entry in messages
         if isinstance(entry, dict)
         and operator_entry_is_prompt_relevant(entry)
-        and (include_unclaimed or entry.get("claimed_at") or str(entry.get("mode") or "steer") == "note")
+        and _operator_message_visible_in_prompt(entry, include_unclaimed=include_unclaimed)
         and entry.get("event_id") not in active_ids
     ]
     if active_context:
@@ -240,6 +240,13 @@ def _operator_messages_for_prompt(
             if line:
                 lines.append(line)
     return "\n".join(lines) if lines else "No active operator context."
+
+
+def _operator_message_visible_in_prompt(entry: dict[str, Any], *, include_unclaimed: bool) -> bool:
+    mode = str(entry.get("mode") or "steer").strip().lower().replace("-", "_")
+    if entry.get("claimed_at") or mode == "note":
+        return True
+    return include_unclaimed and mode == "steer"
 
 
 def _acknowledge_non_prompt_operator_context(db: AgentDB, job_id: str) -> int:
@@ -2619,7 +2626,7 @@ def run_one_step(
             program_text=_load_program_text(config, job_id),
             timeline_events=db.list_timeline_events(job_id, limit=30),
             active_operator_messages=active_operator_messages,
-            include_unclaimed_operator_messages=False,
+            include_unclaimed_operator_messages=True,
         )
         llm = llm or OpenAIChatLLM(config.model)
         try:

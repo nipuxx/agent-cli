@@ -767,7 +767,7 @@ def test_worker_cannot_mark_job_completed_by_default(tmp_path):
         db.close()
 
 
-def test_run_one_step_claims_one_steering_message_per_turn(tmp_path):
+def test_run_one_step_claims_one_message_but_keeps_all_steering_in_prompt(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")
     try:
@@ -783,7 +783,7 @@ def test_run_one_step_claims_one_steering_message_per_turn(tmp_path):
         job = db.get_job(job_id)
         events = db.list_timeline_events(job_id, limit=30)
         assert "first instruction" in prompt
-        assert "second instruction" not in prompt
+        assert "second instruction" in prompt
         assert job["metadata"]["operator_messages"][0]["claimed_at"]
         assert not job["metadata"]["operator_messages"][1].get("claimed_at")
         assert any(event["event_type"] == "loop" and event["title"] == "agent_start" for event in events)
@@ -926,6 +926,22 @@ def test_prompt_keeps_claimed_operator_context_until_acknowledged(tmp_path):
         messages = build_messages(job, [], include_unclaimed_operator_messages=False)
 
         assert "use the corrected target from chat" not in messages[-1]["content"]
+    finally:
+        db.close()
+
+
+def test_prompt_keeps_unclaimed_steering_but_not_followup_until_claimed(tmp_path):
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Find durable research findings", title="research", kind="generic")
+        db.append_operator_message(job_id, "use the corrected target from chat", source="chat", mode="steer")
+        db.append_operator_message(job_id, "after this branch settles, write a recap", source="chat", mode="follow_up")
+
+        job = db.get_job(job_id)
+        content = build_messages(job, [], include_unclaimed_operator_messages=True)[-1]["content"]
+
+        assert "use the corrected target from chat" in content
+        assert "after this branch settles" not in content
     finally:
         db.close()
 
