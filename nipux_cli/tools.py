@@ -46,8 +46,6 @@ DELIVERABLE_OUTPUT_TERMS = {
     "deliverable",
     "draft",
     "final",
-    "paper",
-    "report",
     "revision",
     "updated",
 }
@@ -438,7 +436,7 @@ def _artifact_args_look_like_deliverable(args: dict[str, Any]) -> bool:
         return False
     evidence_like = any(term in text for term in EVIDENCE_OUTPUT_TERMS)
     deliverable_like = any(term in text for term in DELIVERABLE_OUTPUT_TERMS)
-    return deliverable_like and not (evidence_like and not deliverable_like)
+    return deliverable_like and not evidence_like
 
 
 def _shell_command_looks_like_write(command: str) -> bool:

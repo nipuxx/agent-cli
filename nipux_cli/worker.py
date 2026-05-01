@@ -241,8 +241,6 @@ DELIVERABLE_ARTIFACT_TERMS = {
     "deliverable",
     "draft",
     "final",
-    "paper",
-    "report",
     "revision",
     "updated",
 }
@@ -2580,7 +2578,7 @@ def _artifact_can_reconcile_task(
     evidence_like = any(term in artifact_text for term in EVIDENCE_ARTIFACT_TERMS)
     deliverable_like = any(term in artifact_text for term in DELIVERABLE_ARTIFACT_TERMS)
     task_needs_deliverable_action = any(term in task_lower for term in TASK_DELIVERABLE_ACTION_TERMS)
-    if evidence_like and not deliverable_like:
+    if evidence_like:
         return False
     if task_needs_deliverable_action and not deliverable_like:
         return False

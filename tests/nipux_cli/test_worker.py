@@ -314,6 +314,50 @@ def test_evidence_artifact_does_not_complete_deliverable_task(tmp_path):
         db.close()
 
 
+def test_checkpoint_artifact_does_not_complete_deliverable_task(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job(
+            "Compile a durable report",
+            title="report",
+            kind="generic",
+            metadata={
+                "task_queue": [
+                    {
+                        "title": "Compile full report",
+                        "status": "open",
+                        "priority": 5,
+                        "output_contract": "artifact",
+                        "acceptance_criteria": "Final compiled report is saved.",
+                    }
+                ]
+            },
+        )
+        llm = ScriptedLLM([
+            LLMResponse(tool_calls=[
+                ToolCall(
+                    name="write_artifact",
+                    arguments={
+                        "title": "Compiled report checkpoint",
+                        "summary": "Current state checkpoint, not a final compiled report",
+                        "content": "This checkpoint describes what still needs to be written.",
+                    },
+                )
+            ])
+        ])
+
+        result = run_one_step(job_id, config=config, db=db, llm=llm)
+
+        assert result.status == "completed"
+        job = db.get_job(job_id)
+        task = job["metadata"]["task_queue"][0]
+        assert task["status"] == "open"
+        assert "auto_reconciled_from_artifact" not in task.get("metadata", {})
+    finally:
+        db.close()
+
+
 def test_evidence_artifact_can_complete_research_task(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")
