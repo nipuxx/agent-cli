@@ -91,6 +91,25 @@ CHAT_SETTING_COMMANDS = {
     "digest-time": ("runtime.daily_digest_time", "HH:MM"),
 }
 
+SLASH_ARGUMENT_HINTS = {
+    "new": "OBJECTIVE",
+    "focus": "JOB_TITLE",
+    "switch": "JOB_TITLE",
+    "delete": "JOB_TITLE",
+    "history": "LIMIT",
+    "events": "LIMIT",
+    "outputs": "LIMIT",
+    "artifact": "QUERY_OR_ID",
+    "work": "N",
+    "work-verbose": "N",
+    "learn": "LESSON",
+    "note": "MESSAGE",
+    "follow": "MESSAGE",
+    **{command: placeholder for command, (_field, placeholder) in CHAT_SETTING_COMMANDS.items()},
+    "api-key": "KEY",
+    "key": "KEY",
+}
+
 
 def slash_suggestion_lines(
     input_buffer: str,
@@ -103,8 +122,19 @@ def slash_suggestion_lines(
         return []
     parts = input_buffer[1:].split(maxsplit=1)
     token = parts[0].lower() if parts else ""
-    if " " in input_buffer.strip():
-        return []
+    if " " in input_buffer[1:]:
+        hint = SLASH_ARGUMENT_HINTS.get(token)
+        description = next((desc for cmd, desc in commands if cmd == f"/{token}"), "")
+        if not hint:
+            return []
+        body = f"{_accent('/' + token)} {_muted(hint)}"
+        if description:
+            body += f"  {_muted(description)}"
+        return [
+            _fit_ansi(_muted("╭─ command"), width),
+            _fit_ansi(_muted("│ ") + body, width),
+            _fit_ansi(_muted("╰─ enter sends"), width),
+        ]
     matches = [(cmd, desc) for cmd, desc in commands if cmd[1:].startswith(token)]
     if not matches and token:
         matches = [(cmd, desc) for cmd, desc in commands if token in cmd[1:]]

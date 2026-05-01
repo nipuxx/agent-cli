@@ -335,6 +335,9 @@ def test_slash_autocomplete_filters_commands():
     assert "/artifacts" in text
     assert "/artifact" in text
     assert "/run" not in text
+    hint_text = "\n".join(_slash_suggestion_lines("/model ", CHAT_SLASH_COMMANDS, width=80))
+    assert "/model" in hint_text
+    assert "MODEL" in hint_text
     assert "/shell" not in "\n".join(_slash_suggestion_lines("/", CHAT_SLASH_COMMANDS, width=80, limit=20))
 
 
