@@ -26,23 +26,12 @@ class DaemonAlreadyRunning(RuntimeError):
     pass
 
 
-RUNTIME_CODE_FILES = (
-    "artifacts.py",
-    "browser.py",
-    "browser_web.py",
-    "compression.py",
-    "config.py",
-    "daemon.py",
-    "db.py",
-    "digest.py",
-    "llm.py",
-    "operator_context.py",
-    "progress.py",
-    "source_quality.py",
-    "templates.py",
-    "tools.py",
-    "worker.py",
-)
+RUNTIME_CODE_GLOB = "*.py"
+
+
+def runtime_code_file_names() -> tuple[str, ...]:
+    package_dir = Path(__file__).resolve().parent
+    return tuple(path.name for path in _runtime_code_paths(package_dir))
 
 
 @lru_cache(maxsize=1)
@@ -75,10 +64,8 @@ def _runtime_code_fingerprint() -> dict[str, Any]:
     package_dir = Path(__file__).resolve().parent
     digest = hashlib.sha256()
     mtimes: list[float] = []
-    for name in RUNTIME_CODE_FILES:
-        path = package_dir / name
-        if not path.exists():
-            continue
+    for path in _runtime_code_paths(package_dir):
+        name = path.name
         digest.update(name.encode("utf-8"))
         data = path.read_bytes()
         digest.update(hashlib.sha256(data).digest())
@@ -87,6 +74,13 @@ def _runtime_code_fingerprint() -> dict[str, Any]:
         "code_hash": digest.hexdigest()[:16],
         "code_mtime": max(mtimes) if mtimes else 0,
     }
+
+
+def _runtime_code_paths(package_dir: Path) -> list[Path]:
+    return sorted(path for path in package_dir.glob(RUNTIME_CODE_GLOB) if path.is_file())
+
+
+RUNTIME_CODE_FILES = runtime_code_file_names()
 
 
 def runtime_stale(metadata: dict[str, Any] | None) -> bool:

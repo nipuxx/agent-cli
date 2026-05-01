@@ -66,6 +66,7 @@ def test_daemon_lock_status_detects_stale_runtime(tmp_path):
 
 def test_runtime_fingerprint_tracks_progress_code():
     assert "progress.py" in RUNTIME_CODE_FILES
+    assert "parser_builder.py" in RUNTIME_CODE_FILES
 
 
 def test_rate_limit_backoff_uses_retry_after_header():
