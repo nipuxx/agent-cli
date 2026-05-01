@@ -1,6 +1,6 @@
 from nipux_cli.config import AppConfig, RuntimeConfig
 from nipux_cli.db import AgentDB
-from nipux_cli.digest import render_daily_digest, write_daily_digest
+from nipux_cli.digest import render_daily_digest, render_job_digest, write_daily_digest
 
 
 def test_daily_digest_includes_ledgers_lessons_sources_and_strategy(tmp_path):
@@ -13,11 +13,24 @@ def test_daily_digest_includes_ledgers_lessons_sources_and_strategy(tmp_path):
         db.append_source_record(job_id, "https://example.com", usefulness_score=0.9, yield_count=1, outcome="yielded findings")
         db.append_lesson(job_id, "Low-evidence pages are not finding sources.", category="source_quality")
         db.append_reflection(job_id, "Directories are working.", strategy="Try chambers next.")
+        db.start_run(job_id, model="test-model")
+        db.append_event(
+            job_id,
+            event_type="loop",
+            title="message_end",
+            metadata={"usage": {"prompt_tokens": 1200, "completion_tokens": 300, "total_tokens": 1500, "cost": 0.0025}},
+        )
 
         body = render_daily_digest(db)
+        job_body = render_job_digest(db, job_id)
         result = write_daily_digest(config, db, day="2026-04-25")
 
         assert "Counts: 1 findings, 1 sources, 1 tasks, 0 experiments, 1 lessons" in body
+        assert "Model usage:" in body
+        assert "1.5K tokens" in body
+        assert "cost=$0.0025" in body
+        assert "## Model Usage" in job_body
+        assert "test-model: 1 calls" in job_body
         assert "Experiments:" in body
         assert "Acme Finding" in body
         assert "Explore primary sources" in body

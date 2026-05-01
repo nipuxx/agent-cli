@@ -6,10 +6,12 @@ import smtplib
 from datetime import date
 from email.message import EmailMessage
 from pathlib import Path
+from typing import Any
 
 from nipux_cli.config import AppConfig, EmailConfig
 from nipux_cli.db import AgentDB
 from nipux_cli.operator_context import active_prompt_operator_entries
+from nipux_cli.tui_layout import _format_compact_count, _format_usage_cost
 
 
 def _metadata_list(job: dict, key: str) -> list[dict]:
@@ -27,7 +29,64 @@ def _active_operator_messages(messages: list[dict]) -> list[dict]:
     ]
 
 
-def render_job_digest(db: AgentDB, job_id: str) -> str:
+def _safe_int(value: Any) -> int:
+    try:
+        return int(float(value))
+    except (TypeError, ValueError):
+        return 0
+
+
+def _latest_run_model(db: AgentDB, job_id: str) -> str:
+    runs = db.list_runs(job_id, limit=1)
+    if runs:
+        return str(runs[0].get("model") or "unknown")
+    return "unknown"
+
+
+def _usage_lines(
+    db: AgentDB,
+    job_id: str,
+    *,
+    model: str | None = None,
+    base_url: str = "",
+    context_length: int = 0,
+) -> list[str]:
+    usage = db.job_token_usage(job_id)
+    calls = _safe_int(usage.get("calls"))
+    if calls <= 0:
+        return ["- No model usage recorded yet."]
+    model_name = model or _latest_run_model(db, job_id)
+    prompt = _safe_int(usage.get("prompt_tokens"))
+    completion = _safe_int(usage.get("completion_tokens"))
+    total = _safe_int(usage.get("total_tokens")) or prompt + completion
+    latest_prompt = _safe_int(usage.get("latest_prompt_tokens"))
+    latest_completion = _safe_int(usage.get("latest_completion_tokens"))
+    context_text = _format_compact_count(latest_prompt)
+    if context_length > 0:
+        context_text = f"{context_text}/{_format_compact_count(context_length)}"
+    cost_text = _format_usage_cost(usage, model=model_name, base_url=base_url)
+    lines = [
+        (
+            f"- {model_name}: {calls} calls, {_format_compact_count(total)} tokens "
+            f"({_format_compact_count(prompt)} prompt, {_format_compact_count(completion)} output), "
+            f"latest ctx={context_text}, latest output={_format_compact_count(latest_completion)}, cost={cost_text}"
+        )
+    ]
+    if _safe_int(usage.get("estimated_calls")):
+        lines.append("- Some token/cost values are estimated because the provider did not return complete usage metadata.")
+    elif not bool(usage.get("has_cost")) and cost_text == "pending":
+        lines.append("- Cost is pending until the provider returns cost metadata or the model is configured as local/free.")
+    return lines
+
+
+def render_job_digest(
+    db: AgentDB,
+    job_id: str,
+    *,
+    model: str | None = None,
+    base_url: str = "",
+    context_length: int = 0,
+) -> str:
     job = db.get_job(job_id)
     artifacts = db.list_artifacts(job_id, limit=50)
     steps = db.list_steps(job_id=job_id)
@@ -48,6 +107,10 @@ def render_job_digest(db: AgentDB, job_id: str) -> str:
         f"Tasks: {len(tasks)}",
         f"Experiments: {len(experiments)}",
         f"Lessons: {len(lessons)}",
+        "",
+        "## Model Usage",
+        "",
+        *_usage_lines(db, job_id, model=model, base_url=base_url, context_length=context_length),
         "",
         "## Objective",
         "",
@@ -152,7 +215,13 @@ def send_digest_email(config: EmailConfig, *, subject: str, body: str, to_addr: 
     return {"sent": True, "target": target, "subject": subject}
 
 
-def render_daily_digest(db: AgentDB) -> str:
+def render_daily_digest(
+    db: AgentDB,
+    *,
+    model: str | None = None,
+    base_url: str = "",
+    context_length: int = 0,
+) -> str:
     jobs = [job for job in db.list_jobs() if job["status"] not in {"cancelled"}]
     lines = ["# Nipux CLI Daily Digest", ""]
     if not jobs:
@@ -177,6 +246,11 @@ def render_daily_digest(db: AgentDB) -> str:
             f"Status: {job['status']}",
             f"Kind: {job['kind']}",
             f"Counts: {len(findings)} findings, {len(sources)} sources, {len(tasks)} tasks, {len(experiments)} experiments, {len(lessons)} lessons, {len(finding_batches)} recent finding artifacts",
+            "",
+            "Model usage:",
+        ])
+        lines.extend(_usage_lines(db, job["id"], model=model, base_url=base_url, context_length=context_length))
+        lines.extend([
             "",
             "Recent steps:",
         ])
@@ -244,7 +318,12 @@ def write_daily_digest(config: AppConfig, db: AgentDB, *, day: str | None = None
     if db.digest_exists(day=day, target=target):
         return {"sent": False, "skipped": True, "reason": "already_recorded", "day": day, "target": target}
 
-    body = render_daily_digest(db)
+    body = render_daily_digest(
+        db,
+        model=config.model.model,
+        base_url=config.model.base_url,
+        context_length=config.model.context_length,
+    )
     config.runtime.digests_dir.mkdir(parents=True, exist_ok=True)
     body_path = Path(config.runtime.digests_dir) / f"{day}-daily.md"
     body_path.write_text(body, encoding="utf-8")

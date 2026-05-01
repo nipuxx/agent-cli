@@ -3958,13 +3958,22 @@ def cmd_run(args: argparse.Namespace) -> None:
 
 
 def cmd_digest(args: argparse.Namespace) -> None:
-    db, _ = _db()
+    db, config = _db()
     try:
         job_id = _resolve_job_id(db, args.job_id)
         if not job_id:
             print(f"No job matched: {_job_ref_text(args.job_id)}")
             return
-        print(render_job_digest(db, job_id), end="")
+        print(
+            render_job_digest(
+                db,
+                job_id,
+                model=config.model.model,
+                base_url=config.model.base_url,
+                context_length=config.model.context_length,
+            ),
+            end="",
+        )
     finally:
         db.close()
 
