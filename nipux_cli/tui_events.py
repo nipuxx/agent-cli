@@ -9,7 +9,7 @@ import textwrap
 from pathlib import Path
 from typing import Any
 
-from nipux_cli.tui_style import _event_badge, _fit_ansi, _muted, _one_line, _style
+from nipux_cli.tui_style import _bold, _event_badge, _fit_ansi, _muted, _one_line, _page_indicator, _strip_ansi, _style
 
 
 CHAT_RIGHT_PAGES = [("status", "Status"), ("updates", "Updates"), ("work", "Work")]
@@ -139,6 +139,90 @@ def model_update_event_parts(event: dict[str, Any], *, width: int) -> tuple[str,
             path = str(output.get("path") or event_tool_args(metadata).get("path") or "")
             return "FILE", _one_line(f"updated {_short_path(path, max_width=chars - 8)}", chars), clock
     return None
+
+
+def latest_durable_outcome_line(events: list[dict[str, Any]], *, width: int) -> str:
+    fallback: tuple[str, str, str] | None = None
+    for event in reversed(events):
+        parsed = model_update_event_parts(event, width=width)
+        if not parsed:
+            continue
+        label, text, _clock = parsed
+        if label == "DONE":
+            fallback = fallback or parsed
+            continue
+        prefix = f"{_muted('Outcome')} {_event_badge(label)} "
+        return _fit_ansi(prefix + _one_line(text, max(12, width - len(_strip_ansi(prefix)))), width)
+    if fallback:
+        label, text, _clock = fallback
+        prefix = f"{_muted('Outcome')} {_event_badge(label)} "
+        return _fit_ansi(prefix + _one_line(text, max(12, width - len(_strip_ansi(prefix)))), width)
+    return ""
+
+
+def chat_updates_pane_lines(
+    *,
+    job: dict[str, Any],
+    events: list[dict[str, Any]],
+    width: int,
+    rows: int,
+) -> list[str]:
+    lines = [
+        f"{_muted('Page')}   {_page_indicator('updates', CHAT_RIGHT_PAGES)}",
+        f"{_muted('Focus')}  {_bold(_one_line(job.get('title') or 'untitled', width - 8))}",
+        "",
+        _bold("Progress by hour"),
+        _muted("Summaries of durable output, findings, measurements, decisions, and files."),
+        "",
+    ]
+    update_lines = hourly_update_lines(events, width=width, limit=max(4, rows - len(lines)))
+    if update_lines:
+        lines.extend(update_lines)
+    else:
+        lines.append(_muted("No durable model updates yet. Tool calls are on Work."))
+    return [_fit_ansi(line, width) for line in lines[:rows]]
+
+
+def hourly_update_lines(events: list[dict[str, Any]], *, width: int, limit: int) -> list[str]:
+    if limit <= 0:
+        return []
+    buckets: dict[str, dict[str, Any]] = {}
+    order: list[str] = []
+    for event in events:
+        parsed = model_update_event_parts(event, width=max(width, 220))
+        if not parsed:
+            continue
+        label, text, clock = parsed
+        hour = _event_hour(event)
+        if hour not in buckets:
+            buckets[hour] = {"counts": {}, "items": [], "clock": clock}
+            order.append(hour)
+        bucket = buckets[hour]
+        counts = bucket["counts"]
+        counts[label] = int(counts.get(label) or 0) + 1
+        item = (label, text)
+        if item not in bucket["items"]:
+            bucket["items"].append(item)
+    rendered: list[str] = []
+    recent_hours = order[-max(1, min(len(order), limit)) :]
+    per_bucket = max(2, min(8, (limit // max(1, len(recent_hours))) - 1))
+    for hour in recent_hours:
+        bucket = buckets[hour]
+        counts = bucket["counts"]
+        summary = " ".join(f"{count} {label.lower()}" for label, count in sorted(counts.items()))
+        rendered.append(_fit_ansi(f"{_muted(hour)} {_bold(summary or 'activity')}", width))
+        for label, text in bucket["items"][-per_bucket:]:
+            prefix = f"  {_event_badge(label)} "
+            available = max(16, width - len(_strip_ansi(prefix)))
+            parts = textwrap.wrap(text, width=available) or [""]
+            rendered.append(_fit_ansi(prefix + parts[0], width))
+            for part in parts[1:3]:
+                rendered.append(_fit_ansi(" " * len(_strip_ansi(prefix)) + part, width))
+                if len(rendered) >= limit:
+                    return rendered[:limit]
+        if len(rendered) >= limit:
+            return rendered[:limit]
+    return rendered[-limit:]
 
 
 def minimal_live_event_line(event: dict[str, Any], *, chars: int = 92) -> str:
@@ -327,6 +411,15 @@ def event_clock(event: dict[str, Any]) -> str:
     if len(compact) >= 16 and compact[10:11] == " ":
         return compact[11:16]
     return "" if compact == "?" else _one_line(compact, 5)
+
+
+def _event_hour(event: dict[str, Any]) -> str:
+    compact = _compact_time(str(event.get("created_at") or ""))
+    if len(compact) >= 13 and compact[10:11] == " ":
+        return f"{compact[:13]}:00"
+    if len(compact) >= 2:
+        return compact
+    return "recent"
 
 
 def friendly_error_text(text: str) -> str:
