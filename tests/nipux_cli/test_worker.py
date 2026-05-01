@@ -4,7 +4,7 @@ from nipux_cli.artifacts import ArtifactStore
 from nipux_cli.config import AppConfig, RuntimeConfig
 from nipux_cli.db import AgentDB
 from nipux_cli.llm import LLMResponse, ScriptedLLM, ToolCall
-from nipux_cli.worker import build_messages, run_one_step
+from nipux_cli.worker import MAX_WORKER_PROMPT_CHARS, build_messages, run_one_step
 
 
 class SnapshotRegistry:
@@ -912,7 +912,8 @@ def test_build_messages_keeps_generic_context_under_budget():
 
     assert "use the corrected target from chat" in content
     assert "how is it going" not in content
-    assert len(content) < 22000
+    assert len(content) < MAX_WORKER_PROMPT_CHARS
+    assert "Next-action constraint:" in content
 
 
 def test_measurement_obligation_blocks_research_until_recorded(tmp_path):

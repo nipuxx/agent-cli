@@ -210,6 +210,25 @@ RECENT_STATE_STEPS = 5
 RECENT_STATE_PROMPT_CHARS = 3000
 TIMELINE_PROMPT_EVENTS = 8
 SECTION_ITEM_CHARS = 420
+MAX_WORKER_PROMPT_CHARS = 18_000
+PROMPT_SECTION_BUDGETS = {
+    "Workspace": 520,
+    "Operator context": 2_200,
+    "Pending measurement obligation": 1_100,
+    "Measured progress guard": 1_000,
+    "Progress accounting guard": 900,
+    "Program": 1_400,
+    "Lessons learned": 1_100,
+    "Roadmap": 2_000,
+    "Task queue": 2_400,
+    "Ledgers": 2_400,
+    "Experiment ledger": 2_200,
+    "Reflections": 900,
+    "Compact memory": 1_100,
+    "Recent visible timeline": 1_000,
+    "Recent state": 1_800,
+    "Next-action constraint": 1_100,
+}
 
 QUERY_STOPWORDS = {
     "and",
@@ -393,38 +412,71 @@ def build_messages(
     reflections = _reflections_for_prompt(job)
     timeline = _timeline_for_prompt(timeline_events or [])
     next_constraint = _next_action_constraint(job, recent_steps)
+    content = _render_worker_prompt(
+        job,
+        sections=[
+            (
+                "Workspace",
+                "\n".join([
+                    f"- shell_exec default cwd: {os.getcwd()}",
+                    "- saved artifacts are separate Nipux outputs; read_artifact is only for those saved outputs",
+                    "- use shell_exec for workspace/project files unless the file is a saved artifact",
+                ]),
+            ),
+            ("Operator context", operator_messages),
+            ("Pending measurement obligation", measurement_obligation),
+            ("Measured progress guard", measured_progress_guard),
+            ("Progress accounting guard", progress_accounting_guard),
+            ("Program", program),
+            ("Lessons learned", lessons),
+            ("Roadmap", roadmap),
+            ("Task queue", tasks),
+            ("Ledgers", ledgers),
+            ("Experiment ledger", experiments),
+            ("Reflections", reflections),
+            ("Compact memory", memory_text),
+            ("Recent visible timeline", timeline),
+            ("Recent state", state),
+            ("Next-action constraint", next_constraint),
+        ],
+    )
     return [
         {"role": "system", "content": SYSTEM_PROMPT},
-        {
-            "role": "user",
-            "content": (
-                f"Job: {job['title']}\n"
-                f"Kind: {job['kind']}\n"
-                f"Objective:\n{job['objective']}\n\n"
-                f"Workspace:\n"
-                f"- shell_exec default cwd: {os.getcwd()}\n"
-                f"- saved artifacts are separate Nipux outputs; read_artifact is only for those saved outputs\n"
-                f"- use shell_exec for workspace/project files unless the file is a saved artifact\n\n"
-                f"Operator context:\n{operator_messages}\n\n"
-                f"Pending measurement obligation:\n{measurement_obligation}\n\n"
-                f"Measured progress guard:\n{measured_progress_guard}\n\n"
-                f"Progress accounting guard:\n{progress_accounting_guard}\n\n"
-                f"Program:\n{program}\n\n"
-                f"Lessons learned:\n{lessons}\n\n"
-                f"Roadmap:\n{roadmap}\n\n"
-                f"Task queue:\n{tasks}\n\n"
-                f"Ledgers:\n{ledgers}\n\n"
-                f"Experiment ledger:\n{experiments}\n\n"
-                f"Reflections:\n{reflections}\n\n"
-                f"Compact memory:\n{memory_text}\n\n"
-                f"Recent visible timeline:\n{timeline}\n\n"
-                f"Recent state:\n{state}\n\n"
-                f"Next-action constraint:\n{next_constraint}\n\n"
-                "Take exactly one bounded next action. If recent state contains search results, do not search the same query again. "
-                "If recent state contains extracted page evidence, write an artifact before doing more search or browsing."
-            ),
-        },
+        {"role": "user", "content": content},
     ]
+
+
+def _render_worker_prompt(job: dict[str, Any], *, sections: list[tuple[str, str]]) -> str:
+    objective = _clip_text(job.get("objective") or "", 2_000)
+    header = f"Job: {job['title']}\nKind: {job['kind']}\nObjective:\n{objective}"
+    instruction = (
+        "Take exactly one bounded next action. If recent state contains search results, do not search the same query again. "
+        "If recent state contains extracted page evidence, write an artifact before doing more search or browsing."
+    )
+    scale = 1.0
+    while True:
+        parts = [header]
+        for title, body in sections:
+            base_budget = PROMPT_SECTION_BUDGETS.get(title, SECTION_ITEM_CHARS)
+            budget = max(260, int(base_budget * scale))
+            parts.append(f"{title}:\n{_clip_text(body, budget)}")
+        parts.append(instruction)
+        content = "\n\n".join(parts)
+        if len(content) <= MAX_WORKER_PROMPT_CHARS or scale <= 0.45:
+            break
+        scale -= 0.12
+    if len(content) <= MAX_WORKER_PROMPT_CHARS:
+        return content
+    tail_title = "Next-action constraint"
+    tail = ""
+    for title, body in sections:
+        if title == tail_title:
+            tail = f"\n\n{tail_title}:\n{_clip_text(body, 900)}"
+            break
+    suffix = f"{tail}\n\n{instruction}"
+    marker = "\n\n...[middle context clipped to preserve operator context and next action]...\n"
+    head_budget = max(0, MAX_WORKER_PROMPT_CHARS - len(suffix) - len(marker))
+    return _clip_text(content, head_budget) + marker + suffix
 
 
 def _operator_messages_for_prompt(
