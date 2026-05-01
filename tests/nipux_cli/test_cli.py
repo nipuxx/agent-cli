@@ -1260,6 +1260,38 @@ def test_status_recent_outcomes_hide_plan_update_noise():
     assert "summarized current counts" not in rendered
 
 
+def test_hourly_outcomes_hide_plan_update_noise():
+    events = [
+        {
+            "event_type": "reflection",
+            "title": "reflection",
+            "body": "summarized current counts",
+            "metadata": {},
+            "created_at": "2026-05-01T12:05:00+00:00",
+        },
+        {
+            "event_type": "agent_message",
+            "title": "progress",
+            "body": "Checkpoint at step #100.",
+            "metadata": {},
+            "created_at": "2026-05-01T12:08:00+00:00",
+        },
+        {
+            "event_type": "artifact",
+            "title": "Saved research draft",
+            "body": "",
+            "metadata": {},
+            "created_at": "2026-05-01T12:20:00+00:00",
+        },
+    ]
+
+    rendered = "\n".join(hourly_update_lines(events, width=96, limit=6))
+
+    assert "Saved research draft" in rendered
+    assert "Checkpoint at step" not in rendered
+    assert "summarized current counts" not in rendered
+
+
 def test_hourly_outcomes_wrap_long_durable_updates_without_pre_truncation():
     events = [
         {

@@ -242,14 +242,15 @@ def hourly_update_lines(events: list[dict[str, Any]], *, width: int, limit: int)
         if not parsed:
             continue
         label, text, clock = parsed
+        if label not in SUMMARY_COUNT_LABELS:
+            continue
         hour = event_hour(event)
         if hour not in buckets:
             buckets[hour] = {"counts": {}, "items": [], "clock": clock}
             order.append(hour)
         bucket = buckets[hour]
         counts = bucket["counts"]
-        if label in SUMMARY_COUNT_LABELS:
-            counts[label] = int(counts.get(label) or 0) + 1
+        counts[label] = int(counts.get(label) or 0) + 1
         item = (label, text)
         if item not in bucket["items"]:
             bucket["items"].append(item)
