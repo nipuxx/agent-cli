@@ -72,6 +72,7 @@ from nipux_cli.worker_prompt_format import (
     format_step_for_prompt as _format_step_for_prompt,
     observation_for_prompt as _observation_for_prompt,
 )
+from nipux_cli.worker_usage import turn_usage_metadata
 
 @dataclass(frozen=True)
 class StepExecution:
@@ -2006,7 +2007,7 @@ def _emit_assistant_message_event(
     else:
         body = response.content[:1000]
         metadata = {"run_id": run_id, "tool_calls": []}
-    metadata["usage"] = _turn_usage_metadata(response, messages=messages, context_length=context_length)
+    metadata["usage"] = turn_usage_metadata(response, messages=messages, context_length=context_length)
     if response.model:
         metadata["model"] = response.model
     if response.response_id:
@@ -2051,39 +2052,6 @@ def _emit_loop_end(
         ref_id=run_id,
         metadata=metadata,
     )
-
-
-def _turn_usage_metadata(
-    response: LLMResponse,
-    *,
-    messages: list[dict[str, Any]],
-    context_length: int,
-) -> dict[str, Any]:
-    prompt_text = json.dumps(messages, ensure_ascii=False, default=str)
-    completion_text = response.content + json.dumps(
-        [{"name": call.name, "arguments": call.arguments} for call in response.tool_calls],
-        ensure_ascii=False,
-        default=str,
-    )
-    usage = dict(response.usage) if isinstance(response.usage, dict) else {}
-    prompt_tokens = _as_int(usage.get("prompt_tokens")) or _estimate_token_count(prompt_text)
-    completion_tokens = _as_int(usage.get("completion_tokens")) or _estimate_token_count(completion_text)
-    usage.setdefault("prompt_tokens", prompt_tokens)
-    usage.setdefault("completion_tokens", completion_tokens)
-    usage.setdefault("total_tokens", prompt_tokens + completion_tokens)
-    usage.setdefault("estimated", not bool(response.usage))
-    usage["prompt_chars"] = len(prompt_text)
-    usage["completion_chars"] = len(completion_text)
-    if context_length > 0:
-        usage["context_length"] = context_length
-        usage["context_fraction"] = round(prompt_tokens / max(1, context_length), 6)
-    return usage
-
-
-def _estimate_token_count(text: str) -> int:
-    if not text:
-        return 0
-    return max(1, (len(text) + 3) // 4)
 
 
 def _run_reflection_step(
