@@ -136,7 +136,7 @@ def print_jobs_panel(jobs: list[dict[str, Any]], *, focused_job_id: str, daemon_
 def next_operator_action(job: dict[str, Any], daemon_running: bool) -> str:
     status = str(job.get("status") or "")
     if status == "planning":
-        return "answer the plan questions, or use Run when ready"
+        return "review the plan, or run when ready"
     if status == "cancelled":
         return "resume to reopen this job, or delete it"
     if status == "paused":

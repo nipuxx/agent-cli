@@ -82,7 +82,7 @@ pre { max-height: 540px; overflow: auto; background: #050606; border: 1px solid 
 <div class="shell">
   <aside class="sidebar">
     <div class="logo">NIPUX ATLAS</div>
-    <div class="subtitle">Generated from tracked source on 98def65f.</div>
+    <div class="subtitle">Generated from tracked source on fa1a5fe3.</div>
     <input id="search" class="search" placeholder="filter files, prompts, tools..." autocomplete="off">
     <nav class="nav">
       <a href="#architecture">Architecture</a>
@@ -10344,7 +10344,7 @@ def handle_chat_slash_command(job_id: str, command: str, rest: list[str], *, dep
 <span class='src-line'><b> 239</b><code>            return True</code></span>
 <span class='src-line'><b> 240</b><code>        _created_id, title = deps.create_job(objective=objective, title=None, kind=&quot;generic&quot;, cadence=None)</code></span>
 <span class='src-line'><b> 241</b><code>        print(f&quot;created {title}&quot;)</code></span>
-<span class='src-line'><b> 242</b><code>        print(f&quot;focus set to {title}; answer the plan questions, then use /run when ready.&quot;)</code></span>
+<span class='src-line'><b> 242</b><code>        print(f&quot;focus set to {title}; initial plan accepted and queued. Use /run when ready.&quot;)</code></span>
 <span class='src-line'><b> 243</b><code>        return True</code></span>
 <span class='src-line'><b> 244</b><code>    if command in {&quot;focus&quot;, &quot;switch&quot;}:</code></span>
 <span class='src-line'><b> 245</b><code>        if not &quot; &quot;.join(rest).strip():</code></span>
@@ -14824,7 +14824,7 @@ def section_title(title: str, subtitle: str = &quot;&quot;) -&gt; str:
 <span class='src-line'><b> 136</b><code>def next_operator_action(job: dict[str, Any], daemon_running: bool) -&gt; str:</code></span>
 <span class='src-line'><b> 137</b><code>    status = str(job.get(&quot;status&quot;) or &quot;&quot;)</code></span>
 <span class='src-line'><b> 138</b><code>    if status == &quot;planning&quot;:</code></span>
-<span class='src-line'><b> 139</b><code>        return &quot;answer the plan questions, or use Run when ready&quot;</code></span>
+<span class='src-line'><b> 139</b><code>        return &quot;review the plan, or run when ready&quot;</code></span>
 <span class='src-line'><b> 140</b><code>    if status == &quot;cancelled&quot;:</code></span>
 <span class='src-line'><b> 141</b><code>        return &quot;resume to reopen this job, or delete it&quot;</code></span>
 <span class='src-line'><b> 142</b><code>    if status == &quot;paused&quot;:</code></span>
