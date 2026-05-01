@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from nipux_cli.tui_style import _accent, _fit_ansi, _muted
+from nipux_cli.tui_style import _accent, _bold, _fit_ansi, _muted
 
 
 FIRST_RUN_SLASH_COMMANDS = [
@@ -140,30 +140,33 @@ def slash_suggestion_lines(
         if description:
             body += f"  {_muted(description)}"
         return [
-            _fit_ansi(_muted("╭─ command"), width),
-            _fit_ansi(_muted("│ ") + body, width),
-            _fit_ansi(_muted("╰─ enter sends"), width),
+            _fit_ansi(_bold("Command"), width),
+            _fit_ansi(body, width),
+            _fit_ansi(_muted("enter sends"), width),
         ]
-    matches = [(cmd, desc) for cmd, desc in commands if cmd[1:].startswith(token)]
-    if not matches and token:
-        matches = [(cmd, desc) for cmd, desc in commands if token in cmd[1:]]
-    matches = matches[:limit]
+    all_matches = [(cmd, desc) for cmd, desc in commands if cmd[1:].startswith(token)]
+    if not all_matches and token:
+        all_matches = [(cmd, desc) for cmd, desc in commands if token in cmd[1:]]
+    matches = all_matches[:limit]
     if not matches:
         return [
-            _fit_ansi(_muted("╭─ commands"), width),
-            _fit_ansi(_muted("│ no matches"), width),
-            _fit_ansi(_muted("╰"), width),
+            _fit_ansi(_bold("Commands"), width),
+            _fit_ansi(_muted("no matches"), width),
         ]
     cmd_width = min(14, max(len(cmd) for cmd, _ in matches) + 2)
-    lines = [_fit_ansi(_muted("╭─ commands"), width)]
+    lines = [_fit_ansi(_bold("Commands") + _muted(f" {len(all_matches)}"), width)]
     for index, (cmd, desc) in enumerate(matches):
         marker = _accent("›") if index == 0 else _muted(" ")
         hint = SLASH_ARGUMENT_HINTS.get(cmd[1:])
         command_text = cmd if not hint else f"{cmd} {hint}"
         command_width = cmd_width + (len(hint) + 1 if hint else 0)
         body = f"{marker} {_fit_ansi(_accent(command_text), command_width)} {_muted(desc)}"
-        lines.append(_fit_ansi(_muted("│ ") + body, width))
-    lines.append(_fit_ansi(_muted("╰─ tab completes first match"), width))
+        lines.append(_fit_ansi(body, width))
+    hidden = max(0, len(all_matches) - len(matches))
+    if hidden:
+        lines.append(_fit_ansi(_muted(f"+{hidden} more; type to filter"), width))
+    else:
+        lines.append(_fit_ansi(_muted("tab completes highlighted command"), width))
     return lines
 
 

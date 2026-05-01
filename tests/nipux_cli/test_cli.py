@@ -290,7 +290,7 @@ def test_first_run_frame_has_slash_command_popup(monkeypatch, tmp_path):
     assert "/model" in frame
     assert "/settings" not in frame
     assert "/shell" not in frame
-    assert "tab completes first match" in frame
+    assert "type to filter" in frame
 
 
 def test_first_run_frame_has_no_settings_page(monkeypatch, tmp_path):
@@ -349,6 +349,8 @@ def test_slash_autocomplete_filters_commands():
     assert "MODEL" in hint_text
     partial_hint_text = "\n".join(_slash_suggestion_lines("/mo", CHAT_SLASH_COMMANDS, width=80))
     assert "/model MODEL" in partial_hint_text
+    full_palette_text = "\n".join(_slash_suggestion_lines("/", CHAT_SLASH_COMMANDS, width=80, limit=5))
+    assert "+26 more; type to filter" in full_palette_text
     assert "/shell" not in "\n".join(_slash_suggestion_lines("/", CHAT_SLASH_COMMANDS, width=80, limit=20))
 
 
