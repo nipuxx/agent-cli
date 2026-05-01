@@ -210,6 +210,57 @@ def test_run_one_step_records_estimated_usage_for_scripted_model(tmp_path):
         db.close()
 
 
+def test_run_one_step_blocks_content_only_worker_turn(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Keep taking bounded tool actions", title="no tool", kind="generic")
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([LLMResponse(content="What should I do next?")]),
+        )
+
+        assert result.status == "blocked"
+        assert result.result["error"] == "worker tool call required"
+        assert "What should I do next?" in result.result["content"]
+        step = db.list_steps(job_id=job_id)[0]
+        assert step["kind"] == "assistant"
+        assert step["status"] == "blocked"
+        assert step["error"] == "worker tool call required"
+        job = db.get_job(job_id)
+        assert job["metadata"]["last_agent_update"]["category"] == "blocked"
+    finally:
+        db.close()
+
+
+def test_run_one_step_recovers_repeated_content_only_worker_turns(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Keep taking bounded tool actions", title="no tool", kind="generic")
+        llm = ScriptedLLM([
+            LLMResponse(content="What should I do next?"),
+            LLMResponse(content="I can continue if you want."),
+            LLMResponse(content="Please confirm the next step."),
+        ])
+
+        run_one_step(job_id, config=config, db=db, llm=llm)
+        run_one_step(job_id, config=config, db=db, llm=llm)
+        run_one_step(job_id, config=config, db=db, llm=llm)
+        result = run_one_step(job_id, config=config, db=db, llm=ExplodingLLM())
+
+        assert result.status == "completed"
+        assert result.tool_name == "guard_recovery"
+        assert result.result["guard_recovery"]["error"] == "worker tool call required"
+        job = db.get_job(job_id)
+        assert any(task["title"] == "Resolve guard: worker tool call required" for task in job["metadata"]["task_queue"])
+    finally:
+        db.close()
+
+
 def test_run_one_step_records_context_pressure_without_spam(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path), model=ModelConfig(context_length=10_000))
     db = AgentDB(tmp_path / "state.db")
@@ -917,7 +968,8 @@ def test_run_one_step_claims_one_message_but_keeps_all_steering_in_prompt(tmp_pa
 
         result = run_one_step(job_id, config=config, db=db, llm=llm)
 
-        assert result.status == "completed"
+        assert result.status == "blocked"
+        assert result.result["error"] == "worker tool call required"
         prompt = llm.messages[-1]["content"]
         job = db.get_job(job_id)
         events = db.list_timeline_events(job_id, limit=30)

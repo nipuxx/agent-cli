@@ -1098,7 +1098,7 @@ def _repeated_guard_block_context(
         step
         for step in recent_steps
         if int(step.get("step_no") or 0) > last_recovery_no
-        if step.get("kind") in {"tool", "recovery"} and step.get("tool_name") != "guard_recovery"
+        if step.get("kind") in {"tool", "recovery", "assistant"} and step.get("tool_name") != "guard_recovery"
     ]
     tail = operational_steps[-window:]
     latest_blocked = next((step for step in reversed(tail) if step.get("status") == "blocked"), None)
@@ -2413,16 +2413,45 @@ def run_one_step(
             job_id=job_id,
             run_id=run_id,
             kind="assistant",
-            status="completed",
-            summary=response.content[:500],
+            status="blocked",
+            summary="worker returned content without a tool call",
             input_data={},
         )
-        result = {"success": True, "content": response.content}
-        db.finish_step(step_id, status="completed", output_data=result)
-        db.finish_run(run_id, "completed")
-        _emit_loop_end(db, job_id, run_id, status="completed", step_id=step_id, detail=response.content[:1000])
+        result = {
+            "success": False,
+            "recoverable": True,
+            "error": "worker tool call required",
+            "content": response.content,
+            "next": (
+                "Worker turns must use a tool call. Continue by choosing one bounded action such as "
+                "record_tasks, report_update, write_artifact, write_file, shell_exec, record_findings, "
+                "record_source, record_experiment, record_lesson, or defer_job."
+            ),
+        }
+        db.append_agent_update(
+            job_id,
+            "Worker returned a message without a tool call; continuing with a tool-action recovery constraint.",
+            category="blocked",
+            metadata={"reason": "worker_tool_call_required", "step_id": step_id},
+        )
+        db.finish_step(
+            step_id,
+            status="blocked",
+            summary="blocked assistant-only worker turn; tool call required",
+            output_data=result,
+            error="worker tool call required",
+        )
+        db.finish_run(run_id, "blocked", error="worker tool call required")
+        _emit_loop_end(
+            db,
+            job_id,
+            run_id,
+            status="blocked",
+            step_id=step_id,
+            detail="worker tool call required",
+        )
         refresh_memory_index(db, job_id)
-        return StepExecution(job_id=job_id, run_id=run_id, step_id=step_id, tool_name=None, status="completed", result=result)
+        return StepExecution(job_id=job_id, run_id=run_id, step_id=step_id, tool_name=None, status="blocked", result=result)
     finally:
         if owns_db:
             db.close()

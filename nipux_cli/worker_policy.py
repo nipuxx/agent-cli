@@ -191,6 +191,7 @@ RECOVERABLE_GUARD_ERRORS = {
     "similar search query blocked",
     "task branch required before more work",
     "task queue saturated",
+    "worker tool call required",
 }
 MEASURABLE_RESEARCH_BUDGET_STEPS = 18
 MEASURABLE_ACTION_BUDGET_STEPS = 4
