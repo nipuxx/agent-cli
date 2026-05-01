@@ -204,6 +204,7 @@ uv run nipux experiments "nightly research"
 uv run nipux sources "nightly research"
 uv run nipux memory "nightly research"
 uv run nipux metrics "nightly research"
+uv run nipux usage "nightly research"
 uv run nipux artifacts "nightly research" --paths
 ```
 
@@ -289,6 +290,7 @@ nipux experiments [JOB_TITLE] [--limit N] [--status STATUS] [--json]
 nipux sources [JOB_TITLE] [--limit N] [--json]
 nipux memory [JOB_TITLE]
 nipux metrics [JOB_TITLE]
+nipux usage [JOB_TITLE] [--json]
 nipux artifacts [JOB_TITLE] [--paths]
 nipux artifact QUERY_OR_TITLE [--job JOB_TITLE]
 nipux lessons [JOB_TITLE]

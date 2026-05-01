@@ -608,6 +608,7 @@ def test_shell_help_has_no_examples_or_control_run_sections(capsys):
     assert "\nControl\n" not in out
     assert "\nRun\n" not in out
     assert "delete JOB_TITLE" in out
+    assert "usage [JOB_TITLE]" in out
     assert "Jobs" in out
     assert "Worker" in out
 
@@ -863,6 +864,7 @@ def test_plain_chat_control_intents_map_to_commands():
     assert _chat_control_command("pause this job") == "/pause"
     assert _chat_control_command("show jobs") == "/jobs"
     assert _chat_control_command("change model") == "/model"
+    assert _chat_control_command("how much did it cost") == "/usage"
 
 
 def test_plain_chat_control_intent_does_not_queue_operator_context(monkeypatch, tmp_path):
