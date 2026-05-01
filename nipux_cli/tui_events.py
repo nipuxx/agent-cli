@@ -9,10 +9,29 @@ import textwrap
 from pathlib import Path
 from typing import Any
 
-from nipux_cli.tui_style import _bold, _event_badge, _fit_ansi, _muted, _one_line, _page_indicator, _strip_ansi, _style
+from nipux_cli.tui_style import (
+    _accent,
+    _bold,
+    _center_ansi,
+    _event_badge,
+    _fit_ansi,
+    _muted,
+    _one_line,
+    _page_indicator,
+    _strip_ansi,
+    _style,
+)
 
 
 CHAT_RIGHT_PAGES = [("status", "Status"), ("updates", "Updates"), ("work", "Work")]
+
+NIPUX_HERO = [
+    " _   _ ___ ____  _   ___  __",
+    "| \\ | |_ _|  _ \\| | | \\ \\/ /",
+    "|  \\| || || |_) | | | |>  < ",
+    "| |\\  || ||  __/| |_| /_/\\_\\",
+    "|_| \\_|___|_|    \\___/      ",
+]
 
 LOW_SIGNAL_FRAME_TOOLS = {
     "acknowledge_operator_context",
@@ -61,6 +80,45 @@ def append_chat_output(lines: list[str], label: str, body: Any, *, clock: str, w
                 lines.append(_fit_ansi(" " * prefix_width + part, width))
     if first:
         lines.append(_fit_ansi(prefix, width))
+
+
+def chat_pane_lines(events: list[dict[str, Any]], notices: list[str], *, width: int, rows: int) -> list[str]:
+    items: list[tuple[str, str, str]] = []
+    for event in events:
+        rendered = chat_event_parts(event)
+        if not rendered:
+            continue
+        label, body, clock = rendered
+        items.append((label, body, clock))
+    for notice in notices:
+        if notice.startswith("> "):
+            items.append(("YOU", notice[2:], ""))
+        else:
+            items.append(("NIPUX", notice, ""))
+    if not items:
+        return chat_empty_state_lines(width=width, rows=rows)
+    output_rows: list[str] = []
+    for label, body, clock in items[-max(4, rows) :]:
+        append_chat_output(output_rows, label, body, clock=clock, width=width)
+    return output_rows[-rows:]
+
+
+def chat_empty_state_lines(*, width: int, rows: int) -> list[str]:
+    if width < 48:
+        content = [
+            _center_ansi(_bold(_accent("NIPUX")), width),
+            "",
+            _center_ansi(_muted("Type normally to talk."), width),
+        ]
+        return content[:rows]
+    content = [
+        *[_center_ansi(_style(line, "37;1"), width) for line in NIPUX_HERO],
+        "",
+        _center_ansi(_muted("A persistent agent workspace."), width),
+        _center_ansi(_muted("Enter sends  ·  / opens commands  ·  arrows switch panels"), width),
+    ]
+    top_pad = max(0, (rows - len(content)) // 2 - 1)
+    return ([""] * top_pad + content)[:rows]
 
 
 def worker_activity_lines(events: list[dict[str, Any]], *, width: int, limit: int) -> list[str]:

@@ -62,9 +62,9 @@ from nipux_cli.tui_commands import (
 )
 from nipux_cli.tui_events import (
     CHAT_RIGHT_PAGES,
-    append_chat_output as _append_chat_output,
+    NIPUX_HERO,
+    chat_pane_lines as _chat_pane_lines,
     chat_updates_pane_lines as _chat_updates_pane_lines,
-    chat_event_parts as _chat_event_parts,
     clean_step_summary as _clean_step_summary,
     experiment_metric_text as _experiment_metric_text,
     friendly_error_text as _friendly_error_text,
@@ -1807,54 +1807,6 @@ def _build_chat_frame(
         middle_budget = max(0, height - keep_top - keep_bottom)
         lines = lines[:keep_top] + lines[-(middle_budget + keep_bottom) : -keep_bottom] + lines[-keep_bottom:]
     return "\n".join(_first_run_themed_lines(lines[:height], width=width))
-
-
-def _chat_pane_lines(events: list[dict[str, Any]], notices: list[str], *, width: int, rows: int) -> list[str]:
-    items: list[tuple[str, str, str]] = []
-    for event in events:
-        rendered = _chat_event_parts(event)
-        if not rendered:
-            continue
-        label, body, clock = rendered
-        items.append((label, body, clock))
-    for notice in notices:
-        if notice.startswith("> "):
-            items.append(("YOU", notice[2:], ""))
-        else:
-            items.append(("NIPUX", notice, ""))
-    if not items:
-        return _chat_empty_state_lines(width=width, rows=rows)
-    output_rows: list[str] = []
-    for label, body, clock in items[-max(4, rows) :]:
-        _append_chat_output(output_rows, label, body, clock=clock, width=width)
-    return output_rows[-rows:]
-
-
-NIPUX_HERO = [
-    " _   _ ___ ____  _   ___  __",
-    "| \\ | |_ _|  _ \\| | | \\ \\/ /",
-    "|  \\| || || |_) | | | |>  < ",
-    "| |\\  || ||  __/| |_| /_/\\_\\",
-    "|_| \\_|___|_|    \\___/      ",
-]
-
-
-def _chat_empty_state_lines(*, width: int, rows: int) -> list[str]:
-    if width < 48:
-        content = [
-            _center_ansi(_bold(_accent("NIPUX")), width),
-            "",
-            _center_ansi(_muted("Type normally to talk."), width),
-        ]
-        return content[:rows]
-    content = [
-        *[_center_ansi(_style(line, "37;1"), width) for line in NIPUX_HERO],
-        "",
-        _center_ansi(_muted("A persistent agent workspace."), width),
-        _center_ansi(_muted("Enter sends  ·  / opens commands  ·  arrows switch panels"), width),
-    ]
-    top_pad = max(0, (rows - len(content)) // 2 - 1)
-    return ([""] * top_pad + content)[:rows]
 
 
 def _right_pane_lines(
