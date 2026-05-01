@@ -1,4 +1,5 @@
 from nipux_cli.artifacts import ArtifactStore
+from nipux_cli import __version__
 from nipux_cli.cli import (
     CHAT_SLASH_COMMANDS,
     FIRST_RUN_SLASH_COMMANDS,
@@ -81,6 +82,15 @@ def test_cli_has_operator_commands():
     assert parser.parse_args(["service", "status"]).func.__name__ == "cmd_service"
     assert parser.parse_args(["work", "--steps", "2", "--fake"]).func.__name__ == "cmd_work"
     assert parser.parse_args(["run", "--no-follow"]).func.__name__ == "cmd_run"
+
+
+def test_cli_version_flag(capsys):
+    try:
+        main(["--version"])
+    except SystemExit as exc:
+        assert exc.code == 0
+
+    assert f"nipux {__version__}" in capsys.readouterr().out
 
 
 def test_init_openrouter_writes_secret_free_config_and_env_template(monkeypatch, tmp_path, capsys):

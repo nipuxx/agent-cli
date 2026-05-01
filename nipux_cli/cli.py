@@ -25,6 +25,7 @@ from urllib.parse import urlparse
 
 import yaml
 
+from nipux_cli import __version__
 from nipux_cli.artifacts import ArtifactStore
 from nipux_cli.config import (
     DEFAULT_BASE_URL,
@@ -5766,6 +5767,7 @@ def _steer_default_job(message: str) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="nipux")
+    parser.add_argument("--version", action="version", version=f"nipux {__version__}")
     sub = parser.add_subparsers(dest="command", required=True)
 
     init = sub.add_parser("init")
