@@ -172,6 +172,37 @@ def test_run_one_step_executes_scripted_tool_call(tmp_path):
         db.close()
 
 
+def test_run_one_step_records_estimated_usage_for_scripted_model(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Summarize progress", title="usage", kind="generic")
+
+        run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([LLMResponse(content="No tool this turn.")]),
+        )
+
+        usage = db.job_token_usage(job_id)
+        assert usage["calls"] == 1
+        assert usage["prompt_tokens"] > 0
+        assert usage["completion_tokens"] > 0
+        assert usage["estimated_calls"] == 1
+        event = next(
+            event
+            for event in db.list_events(job_id=job_id, event_types=["loop"])
+            if event.get("title") == "message_end"
+        )
+        event_usage = event["metadata"]["usage"]
+        assert event_usage["prompt_chars"] > 0
+        assert event_usage["context_length"] == config.model.context_length
+        assert event_usage["context_fraction"] > 0
+    finally:
+        db.close()
+
+
 def test_run_one_step_executes_tool_call_batch_in_order(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")
