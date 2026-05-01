@@ -25,12 +25,19 @@ from urllib.parse import urlparse
 from nipux_cli import __version__
 from nipux_cli.artifacts import ArtifactStore
 from nipux_cli.chat_intent import (
-    chat_control_command as _chat_control_command,
+    chat_control_command,
     extract_job_objective_from_message as _extract_job_objective_from_message,
-    message_requests_immediate_run as _message_requests_immediate_run,
     natural_command_for,
 )
 from nipux_cli.chat_context import build_chat_messages as _build_chat_messages
+from nipux_cli.chat_controller import (
+    ChatControllerDeps,
+    chat_reply_text_and_metadata as _controller_reply_text_and_metadata,
+    handle_chat_control_intent as _controller_handle_chat_control_intent,
+    handle_chat_message as _controller_handle_chat_message,
+    maybe_spawn_job_from_chat as _controller_maybe_spawn_job_from_chat,
+    queue_chat_note as _controller_queue_chat_note,
+)
 from nipux_cli.chat_frame_runtime import (
     compact_command_output as _compact_command_output,
     emit_frame_if_changed as _emit_frame_if_changed,
@@ -117,6 +124,7 @@ from nipux_cli.usage import format_usage_report
 _save_config_field = save_config_field
 _config_field_value = config_field_value
 _slash_suggestion_lines = slash_suggestion_lines
+_chat_control_command = chat_control_command
 
 
 SHELL_BUILTINS = {"help", "?", "commands", "exit", "quit", ":q", "clear"}
@@ -3614,124 +3622,42 @@ def _chat_handle_line(job_id: str, line: str, *, reply_fn=None) -> bool:
 
 
 def _handle_chat_message(job_id: str, line: str, *, reply_fn=None, quiet: bool = False) -> tuple[bool, str]:
-    if reply_fn is None:
-        reply_fn = _reply_to_chat
-    spawned = _maybe_spawn_job_from_chat(job_id, line, quiet=quiet)
-    if spawned:
-        return True, spawned
-    controlled = _handle_chat_control_intent(job_id, line, quiet=quiet)
-    if controlled is not None:
-        return controlled
-    _queue_chat_note(job_id, line, mode="steer", quiet=quiet)
-    try:
-        reply = reply_fn(job_id, line)
-    except Exception as exc:
-        detail = _friendly_error_text(f"{type(exc).__name__}: {exc}")
-        message = f"{detail}; message saved for the worker"
-        if not quiet:
-            print(detail)
-            print("Your message is still saved for the next worker step.")
-        return True, message
-    reply_text, reply_metadata = _chat_reply_text_and_metadata(reply)
-    if reply_text.strip():
-        db, _ = _db()
-        try:
-            if reply_metadata:
-                db.append_event(
-                    job_id,
-                    event_type="loop",
-                    title="message_end",
-                    body=reply_text[:1000],
-                    metadata={"source": "chat", "tool_calls": [], **reply_metadata},
-                )
-            db.append_agent_update(job_id, reply_text.strip(), category="chat")
-        finally:
-            db.close()
-        if not quiet:
-            print()
-            print(reply_text.strip())
-            print()
-        return True, ""
-    else:
-        message = "model returned an empty reply; message is queued"
-        if not quiet:
-            print("model returned an empty reply; your message is still queued.")
-        return True, message
+    return _controller_handle_chat_message(
+        job_id,
+        line,
+        deps=_chat_controller_deps(),
+        reply_fn=reply_fn,
+        quiet=quiet,
+    )
 
 
 def _chat_reply_text_and_metadata(reply: Any) -> tuple[str, dict[str, Any]]:
-    content = getattr(reply, "content", None)
-    if content is None:
-        return str(reply), {}
-    metadata: dict[str, Any] = {}
-    usage = getattr(reply, "usage", None)
-    if isinstance(usage, dict) and usage:
-        metadata["usage"] = usage
-    model = getattr(reply, "model", "")
-    if model:
-        metadata["model"] = model
-    response_id = getattr(reply, "response_id", "")
-    if response_id:
-        metadata["response_id"] = response_id
-    return str(content), metadata
+    return _controller_reply_text_and_metadata(reply)
 
 
 def _handle_chat_control_intent(job_id: str, line: str, *, quiet: bool = False) -> tuple[bool, str] | None:
-    command = _chat_control_command(line)
-    if not command:
-        return None
-    keep_running, output = _capture_chat_command(job_id, command)
-    compact = _compact_command_output(output)
-    message = " | ".join(compact[-4:]) if compact else f"{command.lstrip('/')} done"
-    if not quiet:
-        print(message)
-    return keep_running, message
+    return _controller_handle_chat_control_intent(job_id, line, deps=_chat_controller_deps(), quiet=quiet)
 
 
 def _maybe_spawn_job_from_chat(job_id: str, message: str, *, quiet: bool = False) -> str:
-    objective = _extract_job_objective_from_message(message)
-    if not objective:
-        return ""
-    created_id, title = _create_job(objective=objective, title=None, kind="generic", cadence=None)
-    _write_shell_state({"focus_job_id": created_id})
-    db, _ = _db()
-    try:
-        db.append_operator_message(created_id, message, source="chat", mode="steer")
-        run_now = _message_requests_immediate_run(message)
-        update = "Created this job from chat and drafted its initial plan."
-        if run_now:
-            update += " Starting the daemon so it can begin work."
-        else:
-            update += " Use the right pane to run it."
-        db.append_agent_update(created_id, update, category="chat")
-        db.append_agent_update(
-            job_id,
-            f"Created job '{title}' from your chat request and switched focus to it.",
-            category="chat",
-        )
-    finally:
-        db.close()
-    run_now = _message_requests_immediate_run(message)
-    text = f"Created job: {title}. Focus switched to it."
-    if run_now:
-        _start_daemon_if_needed(poll_seconds=0.0, quiet=True)
-        text += " Started worker."
-    if not quiet:
-        print(text)
-    return text
+    return _controller_maybe_spawn_job_from_chat(job_id, message, deps=_chat_controller_deps(), quiet=quiet)
 
 
 def _queue_chat_note(job_id: str, message: str, *, mode: str = "steer", quiet: bool = False) -> None:
-    db, _ = _db()
-    try:
-        entry = db.append_operator_message(job_id, message, source="chat", mode=mode)
-        if not quiet:
-            if entry.get("mode") == "follow_up":
-                print(f"waiting after current branch: {entry['message']}")
-            else:
-                print(f"waiting: {entry['message']}")
-    finally:
-        db.close()
+    _controller_queue_chat_note(job_id, message, deps=_chat_controller_deps(), mode=mode, quiet=quiet)
+
+
+def _chat_controller_deps() -> ChatControllerDeps:
+    return ChatControllerDeps(
+        db_factory=_db,
+        reply_fn=_reply_to_chat,
+        create_job=_create_job,
+        write_shell_state=_write_shell_state,
+        start_daemon=_start_daemon_if_needed,
+        capture_command=_capture_chat_command,
+        compact_command_output=_compact_command_output,
+        friendly_error_text=_friendly_error_text,
+    )
 
 
 def _reply_to_chat(job_id: str, message: str) -> Any:
