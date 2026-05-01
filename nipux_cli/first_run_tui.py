@@ -50,7 +50,7 @@ def build_first_run_frame(
         hint = edit_target_hint(editing_field, config)
         prompt_label = edit_target_label(editing_field)
     else:
-        hint = "Enter selects the highlighted control. ↑↓ moves. ←→ switches pages. Click selects."
+        hint = "Type a goal to create a job. / opens commands. ↑↓ moves. Click selects."
         prompt_label = "❯"
     suggestions = [] if editing_field else slash_suggestion_lines(input_buffer, FIRST_RUN_SLASH_COMMANDS, width=width)
     compose_lines = _compose_bar(
@@ -118,7 +118,7 @@ def _first_run_left_lines(
             *[_center_ansi(_style(line, "37;1"), width) for line in NIPUX_HERO],
             "",
             _center_ansi(_muted("A long-running agent harness."), width),
-            _center_ansi(_muted("Type an objective, or use the controls on the right."), width),
+            _center_ansi(_muted("Type an objective, or use slash commands for setup."), width),
             "",
             _center_ansi(f"{_muted('Selected')} {_accent(selected_label)}", width),
         ]
