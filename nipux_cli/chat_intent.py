@@ -12,6 +12,12 @@ NATURAL_COMMANDS = {
     "show accomplishments": "outcomes",
     "what did it accomplish": "outcomes",
     "what has it done": "outcomes",
+    "what has it done so far": "outcomes",
+    "what have you done": "outcomes",
+    "what have you done so far": "outcomes",
+    "what did it actually do": "outcomes",
+    "what did the model do": "outcomes",
+    "show me what it did": "outcomes",
     "show history": "history",
     "what happened": "history",
     "show events": "events",
@@ -44,6 +50,10 @@ NATURAL_COMMANDS = {
     "how is it going": "status",
     "how are things going": "status",
     "check up on things": "status",
+    "what is blocking it": "status",
+    "what's blocking it": "status",
+    "why is it stuck": "status",
+    "is it stuck": "status",
     "is it running": "health",
     "is the daemon running": "health",
     "daemon health": "health",
@@ -91,7 +101,19 @@ def chat_control_command(line: str) -> str:
         return "/resume"
     if lowered in {"history", "show history", "timeline", "show timeline"}:
         return "/history"
-    if lowered in {"outcomes", "show outcomes", "accomplishments", "show accomplishments", "what has it done"}:
+    if lowered in {
+        "outcomes",
+        "show outcomes",
+        "accomplishments",
+        "show accomplishments",
+        "what has it done",
+        "what has it done so far",
+        "what have you done",
+        "what have you done so far",
+        "what did it actually do",
+        "what did the model do",
+        "show me what it did",
+    }:
         return "/outcomes"
     if lowered in {"artifacts", "outputs", "saved outputs", "show artifacts", "show outputs"}:
         return "/artifacts"
@@ -147,9 +169,15 @@ def looks_like_job_objective(text: str) -> bool:
         "fix",
         "write",
         "analyze",
+        "audit",
         "track",
         "benchmark",
+        "create",
+        "document",
+        "draft",
+        "generate",
         "scrape",
+        "produce",
         "watch",
         "automate",
         "summarize",

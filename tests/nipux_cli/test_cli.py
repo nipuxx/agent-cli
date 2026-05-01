@@ -924,12 +924,15 @@ def test_chat_frame_does_not_cap_long_agent_messages():
 
 def test_plain_chat_control_intents_map_to_commands():
     assert _chat_control_command("how is it going?") == "/status"
+    assert _chat_control_command("what is blocking it?") == "/status"
     assert _chat_control_command("start working") == "/run"
     assert _chat_control_command("pause this job") == "/pause"
     assert _chat_control_command("show jobs") == "/jobs"
     assert _chat_control_command("change model") == "/model"
     assert _chat_control_command("how much did it cost") == "/usage"
     assert _chat_control_command("what has it done") == "/outcomes"
+    assert _chat_control_command("what have you done so far") == "/outcomes"
+    assert _chat_control_command("what did the model do") == "/outcomes"
 
 
 def test_plain_chat_control_intent_does_not_queue_operator_context(monkeypatch, tmp_path):
@@ -1793,6 +1796,33 @@ def test_chat_can_spawn_new_job_from_plain_message(monkeypatch, tmp_path, capsys
         assert created["metadata"]["planning_status"] == "auto_accepted"
         assert "should not call model" not in out
         assert "Created job" in out
+    finally:
+        db.close()
+
+
+def test_chat_can_spawn_generic_deliverable_job_from_plain_message(monkeypatch, tmp_path):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        original_id = db.create_job("Research topic", title="nightly research")
+    finally:
+        db.close()
+
+    assert (
+        _chat_handle_line(
+            original_id,
+            "generate a polished launch checklist for this repository",
+            reply_fn=lambda _job_id, _message: "should not call model",
+        )
+        is True
+    )
+
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        jobs = db.list_jobs()
+        assert len(jobs) == 2
+        created = [job for job in jobs if job["id"] != original_id][0]
+        assert "launch checklist" in created["objective"]
     finally:
         db.close()
 
