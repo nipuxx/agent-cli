@@ -81,6 +81,20 @@ OUTCOME_SUMMARY_NAMES = {
     "DONE": "research",
 }
 
+SUMMARY_EVENT_TYPES = (
+    "agent_message",
+    "artifact",
+    "error",
+    "experiment",
+    "finding",
+    "lesson",
+    "milestone_validation",
+    "reflection",
+    "roadmap",
+    "source",
+    "task",
+)
+
 
 def chat_event_parts(event: dict[str, Any]) -> tuple[str, str, str] | None:
     kind = str(event.get("event_type") or "")

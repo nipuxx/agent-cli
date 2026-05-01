@@ -19,6 +19,7 @@ from nipux_cli.cli import (
     _handle_chat_message,
     _inline_setting_notice,
     _launch_agent_plist,
+    _load_frame_snapshot,
     _minimal_live_event_line,
     _print_shell_help,
     _run_shell_line,
@@ -1182,6 +1183,33 @@ def test_chat_status_page_shows_job_outputs():
     assert "Latest durable milestone" in frame
     assert "Primary Saved Draft" in frame
     assert "Other Job Deliverable" in frame
+
+
+def test_frame_snapshot_keeps_summary_events_durable(monkeypatch, tmp_path):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("keep frame refresh focused", title="focused")
+        for index in range(30):
+            db.append_event(
+                job_id=job_id,
+                event_type="tool_result",
+                title="web_search",
+                body=f"search noise {index}",
+                metadata={"status": "completed"},
+            )
+        db.append_event(job_id=job_id, event_type="artifact", title="Durable Paper Draft", body="", metadata={})
+        db.append_event(job_id=job_id, event_type="finding", title="Actual finding", body="", metadata={})
+    finally:
+        db.close()
+
+    snapshot = _load_frame_snapshot(job_id, history_limit=4)
+    summary_text = "\n".join(str(event.get("title") or event.get("body") or "") for event in snapshot["summary_events"])
+
+    assert "Durable Paper Draft" in summary_text
+    assert "Actual finding" in summary_text
+    assert "web_search" not in summary_text
+    assert "search noise" not in summary_text
 
 
 def test_chat_status_page_marks_deferred_jobs_waiting():

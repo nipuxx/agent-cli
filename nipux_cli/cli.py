@@ -72,6 +72,7 @@ from nipux_cli.settings import (
 )
 from nipux_cli.tui_events import (
     CHAT_RIGHT_PAGES,
+    SUMMARY_EVENT_TYPES,
     clean_step_summary as _clean_step_summary,
     friendly_error_text as _friendly_error_text,
     generic_display_text as _generic_display_text,
@@ -1235,7 +1236,11 @@ def _load_frame_snapshot(job_id: str, *, history_limit: int = 12) -> dict[str, A
         }
         memory_entries = db.list_memory(job_id)[:8]
         events = db.list_events(job_id=job_id, limit=max(history_limit * 16, 240))
-        summary_events = db.list_events(job_id=job_id, limit=max(history_limit * 80, 1000))
+        summary_events = db.list_events(
+            job_id=job_id,
+            limit=max(history_limit * 24, 360),
+            event_types=SUMMARY_EVENT_TYPES,
+        )
         token_usage = db.job_token_usage(job_id)
         daemon = daemon_lock_status(config.runtime.home / "agentd.lock")
     finally:
