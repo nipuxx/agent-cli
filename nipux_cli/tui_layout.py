@@ -73,13 +73,12 @@ def _compose_bar(
     hint = _muted(hint or "Enter sends  /jobs switches  /run starts  /help commands")
     label = _accent(prompt_label) if prompt_label == "❯" else _muted(prompt_label)
     prompt = f"{label} {visible_input}{_accent('▌')}"
-    title = " Compose "
     lines = []
     if suggestions:
         lines.extend(suggestions)
     lines.extend(
         [
-            _muted("╭─") + _bold(title) + _muted("─" * max(0, width - len(title) - 2)),
+            _muted("─" * width),
             _fit_ansi(hint, width),
             _fit_ansi(prompt, width),
         ]

@@ -267,7 +267,7 @@ def test_first_run_frame_uses_full_screen_ui_not_banner(monkeypatch, tmp_path):
     assert "Nipux" in frame
     assert "Nipux Chat" in frame
     assert "Workspace" in frame
-    assert "Compose" in frame
+    assert "Type a goal to create a job" in frame
     assert "New job" in frame
     assert "slash commands for setup" in frame
     assert "controls on the right" not in frame
@@ -778,7 +778,7 @@ def test_chat_frame_is_bounded_and_has_composer():
     assert "tok" in frame
     assert "5.3K" in frame
     assert "$0.0123" in frame
-    assert "Compose" in frame
+    assert "Enter sends" in frame
     assert "❯ hello" in frame
     task_frame = _build_chat_frame(snapshot, "", [], width=100, height=26)
     assert "Draft next deli" in task_frame
