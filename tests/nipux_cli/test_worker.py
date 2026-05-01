@@ -1228,6 +1228,9 @@ def test_prompt_includes_experiment_ledger_and_best_result():
     assert "Best observed results:" in content
     assert "variant b" in content
     assert "score=3.5units" in content
+    assert "Next-action constraint:" in content
+    assert "latest measured experiment selected a concrete next action" in content
+    assert "try another independent variant" in content
 
 
 def test_prompt_marks_recent_anti_bot_browser_source():

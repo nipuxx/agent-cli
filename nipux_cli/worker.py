@@ -838,6 +838,14 @@ def _next_action_constraint(job: dict[str, Any], recent_steps: list[dict[str, An
             "Do one of: run a small measuring command/action, call record_experiment for a known measurement, "
             "record_tasks with an experiment/action/monitor contract, or record_lesson if measurement is blocked."
         )
+    experiment_next_action = _latest_experiment_next_action_context(job)
+    if experiment_next_action:
+        return (
+            "The latest measured experiment selected a concrete next action. "
+            f"Next action: {_clip_text(experiment_next_action.get('next_action') or '', 520)}. "
+            "Act on it with the appropriate tool, or use record_tasks/record_lesson if it is invalid or blocked. "
+            "Do not bury it under more checkpoints or unrelated research."
+        )
     milestone_validation = _milestone_validation_needed(job)
     if milestone_validation:
         return (
@@ -902,6 +910,26 @@ def _milestone_validation_needed(job: dict[str, Any]) -> dict[str, Any] | None:
             for feature in features
         ):
             return milestone
+    return None
+
+
+def _latest_experiment_next_action_context(job: dict[str, Any]) -> dict[str, Any] | None:
+    experiments = _metadata_list(job, "experiment_ledger")
+    for experiment in reversed(experiments):
+        if not isinstance(experiment, dict):
+            continue
+        status = str(experiment.get("status") or "").strip().lower()
+        next_action = str(experiment.get("next_action") or "").strip()
+        if not next_action:
+            continue
+        if status in {"measured", "failed", "blocked"} or experiment.get("metric_value") is not None:
+            return {
+                "title": experiment.get("title"),
+                "status": status,
+                "metric_name": experiment.get("metric_name"),
+                "metric_value": experiment.get("metric_value"),
+                "next_action": next_action,
+            }
     return None
 
 
