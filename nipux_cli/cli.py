@@ -29,6 +29,13 @@ from nipux_cli.chat_intent import (
     extract_job_objective_from_message as _extract_job_objective_from_message,
     natural_command_for,
 )
+from nipux_cli.cli_state import (
+    configured_focus_job_id as _configured_focus_job_id,
+    default_job_id as _default_job_id,
+    find_job as _find_job,
+    read_shell_state as _read_shell_state,
+    write_shell_state as _write_shell_state,
+)
 from nipux_cli.chat_context import build_chat_messages as _build_chat_messages
 from nipux_cli.chat_commands import ChatCommandDeps, handle_chat_slash_command as _handle_chat_slash_command
 from nipux_cli.chat_controller import (
@@ -2756,71 +2763,6 @@ def _resolve_control_job_and_note(db: AgentDB, args: argparse.Namespace) -> tupl
         return None, "", " ".join(parts)
     job_ref = _job_ref_text(getattr(args, "job_id", None))
     return _resolve_job_id(db, job_ref), _note_text(getattr(args, "note", None)), job_ref
-
-
-def _default_job_id(db: AgentDB) -> str | None:
-    configured = _configured_focus_job_id(db)
-    if configured:
-        return configured
-    jobs = db.list_jobs()
-    for status in ("running", "queued", "planning", "paused", "failed", "completed"):
-        for job in jobs:
-            if job.get("status") == status:
-                return str(job["id"])
-    return str(jobs[0]["id"]) if jobs else None
-
-
-def _configured_focus_job_id(db: AgentDB) -> str | None:
-    job_id = _read_shell_state().get("focus_job_id")
-    if not isinstance(job_id, str) or not job_id:
-        return None
-    try:
-        db.get_job(job_id)
-    except KeyError:
-        return None
-    return job_id
-
-
-def _find_job(db: AgentDB, query: str) -> dict[str, Any] | None:
-    needle = " ".join(query.split()).lower()
-    if not needle:
-        return None
-    jobs = db.list_jobs()
-    for job in jobs:
-        if str(job["id"]).lower() == needle:
-            return job
-    for job in jobs:
-        if str(job.get("title") or "").lower() == needle:
-            return job
-    for job in jobs:
-        if needle in str(job.get("title") or "").lower():
-            return job
-    return None
-
-
-def _shell_state_path() -> Path:
-    config = load_config()
-    config.ensure_dirs()
-    return config.runtime.home / "shell_state.json"
-
-
-def _read_shell_state() -> dict[str, Any]:
-    path = _shell_state_path()
-    if not path.exists():
-        return {}
-    try:
-        parsed = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return {}
-    return parsed if isinstance(parsed, dict) else {}
-
-
-def _write_shell_state(patch: dict[str, Any]) -> None:
-    state = _read_shell_state()
-    state.update(patch)
-    _shell_state_path().write_text(
-        json.dumps(state, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8"
-    )
 
 
 def _pid_is_alive(pid: int) -> bool:
