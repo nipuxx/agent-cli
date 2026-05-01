@@ -31,7 +31,7 @@ from nipux_cli.cli import (
 from nipux_cli.config import load_config
 from nipux_cli.daemon import append_daemon_event
 from nipux_cli.db import AgentDB
-from nipux_cli.tui_events import chat_pane_lines, recent_model_update_lines
+from nipux_cli.tui_events import chat_pane_lines, hourly_update_lines, recent_model_update_lines
 
 
 def test_cli_has_operator_commands():
@@ -987,7 +987,7 @@ def test_chat_frame_has_model_updates_page():
 
     assert "Outcomes" in frame
     assert "Outcomes by hour" in frame
-    assert "distillation agents" in frame
+    assert "1 research" in frame
     assert "Literature Review Draft" in frame
     assert "Trajectory distillation" in frame
     assert "Citation density check" in frame
@@ -1063,6 +1063,48 @@ def test_chat_updates_page_uses_deeper_summary_events():
 
     assert "Full Paper Draft" in frame
     assert "Distillation method map" in frame
+
+
+def test_hourly_outcomes_prioritize_durable_work_over_research_noise():
+    events = [
+        {
+            "event_type": "tool_result",
+            "title": "web_search",
+            "body": "web_search query='generic harness patterns' returned 5 results",
+            "metadata": {"status": "completed", "input": {"arguments": {"query": "generic harness patterns"}}},
+            "created_at": "2026-05-01T12:05:00+00:00",
+        },
+        {
+            "event_type": "tool_result",
+            "title": "web_extract",
+            "body": "web_extract fetched 3/3 pages",
+            "metadata": {"status": "completed"},
+            "created_at": "2026-05-01T12:08:00+00:00",
+        },
+        {
+            "event_type": "artifact",
+            "title": "Harness Architecture Notes",
+            "body": "saved design notes",
+            "metadata": {},
+            "created_at": "2026-05-01T12:20:00+00:00",
+        },
+        {
+            "event_type": "experiment",
+            "title": "Context budget check",
+            "body": "",
+            "metadata": {"metric_name": "prompt_tokens", "metric_value": 4200, "metric_unit": "tokens"},
+            "created_at": "2026-05-01T12:30:00+00:00",
+        },
+    ]
+
+    rendered = "\n".join(hourly_update_lines(events, width=96, limit=8))
+
+    assert "2 research" in rendered
+    assert "1 outputs" in rendered
+    assert "1 measurements" in rendered
+    assert "Harness Architecture Notes" in rendered
+    assert "Context budget check" in rendered
+    assert "generic harness patterns" not in rendered
 
 
 def test_chat_updates_page_includes_agent_error_updates():

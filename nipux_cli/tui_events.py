@@ -50,6 +50,37 @@ LOW_SIGNAL_FRAME_TOOLS = {
     "write_artifact",
 }
 
+PRIMARY_OUTCOME_LABELS = {
+    "SAVE",
+    "FIND",
+    "SOURCE",
+    "TEST",
+    "TASK",
+    "ROAD",
+    "VALID",
+    "LEARN",
+    "PLAN",
+    "UPDATE",
+    "FAIL",
+    "FILE",
+}
+
+OUTCOME_SUMMARY_NAMES = {
+    "SAVE": "outputs",
+    "FIND": "findings",
+    "SOURCE": "sources",
+    "TEST": "measurements",
+    "TASK": "tasks",
+    "ROAD": "roadmap",
+    "VALID": "validations",
+    "LEARN": "lessons",
+    "PLAN": "plans",
+    "UPDATE": "updates",
+    "FAIL": "blocks",
+    "FILE": "files",
+    "DONE": "research",
+}
+
 
 def chat_event_parts(event: dict[str, Any]) -> tuple[str, str, str] | None:
     kind = str(event.get("event_type") or "")
@@ -304,9 +335,11 @@ def hourly_update_lines(events: list[dict[str, Any]], *, width: int, limit: int)
     for hour in recent_hours:
         bucket = buckets[hour]
         counts = bucket["counts"]
-        summary = " ".join(f"{count} {label.lower()}" for label, count in sorted(counts.items()))
+        summary = hourly_outcome_summary(counts)
         rendered.append(_fit_ansi(f"{_muted(hour)} {_bold(summary or 'activity')}", width))
-        for label, text in bucket["items"][-per_bucket:]:
+        primary_items = [item for item in bucket["items"] if item[0] in PRIMARY_OUTCOME_LABELS]
+        visible_items = primary_items or bucket["items"]
+        for label, text in visible_items[-per_bucket:]:
             prefix = f"  {_event_badge(label)} "
             available = max(16, width - len(_strip_ansi(prefix)))
             parts = textwrap.wrap(text, width=available) or [""]
@@ -318,6 +351,17 @@ def hourly_update_lines(events: list[dict[str, Any]], *, width: int, limit: int)
         if len(rendered) >= limit:
             return rendered[:limit]
     return rendered[-limit:]
+
+
+def hourly_outcome_summary(counts: dict[str, Any]) -> str:
+    pieces: list[str] = []
+    for label in sorted(counts):
+        count = int(counts.get(label) or 0)
+        if count <= 0:
+            continue
+        name = OUTCOME_SUMMARY_NAMES.get(label, label.lower())
+        pieces.append(f"{count} {name}")
+    return " ".join(pieces)
 
 
 def minimal_live_event_line(event: dict[str, Any], *, chars: int = 92) -> str:
