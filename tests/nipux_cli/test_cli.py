@@ -889,8 +889,9 @@ def test_frame_emit_skips_unchanged_render(capsys):
     assert second == "frame"
     assert third == "frame\nline three"
     assert out.count("\033[H") == 1
-    assert "\033[1;1H\033[2Kframe" in out
-    assert "\033[2;1H\033[2K" in out
+    assert "\033[1;1Hframe" in out
+    assert "\033[2;1H        " in out
+    assert "\033[2K" not in out
     assert "\033[J" not in out
 
 

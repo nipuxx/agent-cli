@@ -20,7 +20,7 @@ from nipux_cli.tui_input import (
     read_terminal_char,
 )
 from nipux_cli.tui_outcomes import CHAT_RIGHT_PAGES
-from nipux_cli.tui_style import _frame_enter_sequence, _frame_exit_sequence, _one_line
+from nipux_cli.tui_style import _frame_enter_sequence, _frame_exit_sequence, _one_line, _strip_ansi
 
 
 @dataclass(frozen=True)
@@ -191,7 +191,11 @@ def _diff_frame_update(frame: str, previous_frame: str) -> str:
         previous = previous_lines[index] if index < len(previous_lines) else ""
         if current == previous:
             continue
-        output.append(f"\033[{index + 1};1H\033[2K{current}")
+        current_width = len(_strip_ansi(current))
+        previous_width = len(_strip_ansi(previous))
+        if current_width < previous_width:
+            current += " " * (previous_width - current_width)
+        output.append(f"\033[{index + 1};1H{current}")
     return "".join(output)
 
 
