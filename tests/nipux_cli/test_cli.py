@@ -1536,6 +1536,8 @@ def test_chat_status_page_shows_job_outputs():
     frame = _build_chat_frame(snapshot, "", [], width=132, height=34)
 
     assert "Jobs" in frame
+    assert "Latest hour" in frame
+    assert "1 findings" in frame
     assert "Outcome" in frame
     assert "Latest durable milestone" in frame
     assert "Primary Saved Draft" in frame

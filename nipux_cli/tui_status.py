@@ -14,6 +14,7 @@ from nipux_cli.tui_events import (
 from nipux_cli.tui_outcomes import (
     CHAT_RIGHT_PAGES,
     latest_durable_outcome_line,
+    latest_hour_outcome_summary_line,
     model_update_event_parts,
     recent_model_update_lines,
 )
@@ -119,6 +120,9 @@ def right_pane_lines(
     defer_line = _defer_status_line(job, width=width)
     if defer_line:
         info_lines.append(defer_line)
+    latest_hour = latest_hour_outcome_summary_line(events, width=width) if rows >= 18 else ""
+    if latest_hour:
+        info_lines.append(latest_hour)
     latest_outcome = latest_durable_outcome_line(events, width=width)
     if latest_outcome:
         info_lines.append(latest_outcome)

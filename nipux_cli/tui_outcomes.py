@@ -183,6 +183,32 @@ def latest_durable_outcome_line(events: list[dict[str, Any]], *, width: int) -> 
     return ""
 
 
+def latest_hour_outcome_summary_line(events: list[dict[str, Any]], *, width: int) -> str:
+    """Return a single compact count summary for the newest visible activity hour."""
+
+    buckets: dict[str, dict[str, int]] = {}
+    order: list[str] = []
+    for event in events:
+        parsed = model_update_event_parts(event, width=max(width, 180), compact=False)
+        if not parsed:
+            continue
+        label, _text, _clock = parsed
+        if label not in SUMMARY_COUNT_LABELS:
+            continue
+        hour = event_hour(event)
+        if hour not in buckets:
+            buckets[hour] = {}
+            order.append(hour)
+        buckets[hour][label] = int(buckets[hour].get(label) or 0) + 1
+    if not order:
+        return ""
+    summary = hourly_outcome_summary(buckets[order[-1]])
+    if not summary:
+        return ""
+    prefix = f"{_muted('Latest hour')} "
+    return _fit_ansi(prefix + _bold(_one_line(summary, max(12, width - len(_strip_ansi(prefix))))), width)
+
+
 def recent_model_update_lines(
     events: list[dict[str, Any]],
     *,
