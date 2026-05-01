@@ -992,6 +992,9 @@ def test_chat_status_page_shows_job_outputs():
         },
         "memory_entries": [],
         "events": [],
+        "summary_events": [
+            {"event_type": "finding", "title": "Latest durable milestone", "body": "", "metadata": {}},
+        ],
         "daemon": {"running": True, "metadata": {"pid": 123}},
         "model": "model/demo",
         "counts": {"steps": 0, "artifacts": 1, "memory": 0},
@@ -1000,6 +1003,8 @@ def test_chat_status_page_shows_job_outputs():
     frame = _build_chat_frame(snapshot, "", [], width=132, height=34)
 
     assert "Jobs" in frame
+    assert "Outcome" in frame
+    assert "Latest durable milestone" in frame
     assert "Primary Saved Draft" in frame
     assert "Other Job Deliverable" in frame
 

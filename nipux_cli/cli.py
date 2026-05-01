@@ -1768,7 +1768,7 @@ def _build_chat_frame(
             goal_text=goal_text,
             latest_text=latest_text,
             metrics=metrics,
-            events=events,
+            events=summary_events,
             width=right_width,
             rows=right_rows,
             right_view=right_view,
@@ -1879,6 +1879,9 @@ def _right_pane_lines(
         info_lines.append(f"{_muted('Context')} {_one_line(active_operator[-1].get('message') or '', width - 8)}")
     if pending_measurement:
         info_lines.append(f"{_muted('Measure')} pending step #{pending_measurement.get('source_step_no') or '?'}")
+    latest_outcome = _latest_durable_outcome_line(events, width=width)
+    if latest_outcome:
+        info_lines.append(latest_outcome)
     info_lines.append("")
     info_lines.append(_bold("Jobs"))
     info_lines.extend(
@@ -1901,6 +1904,25 @@ def _right_pane_lines(
     else:
         info_lines.append(_muted("No saved outputs yet."))
     return info_lines[:rows]
+
+
+def _latest_durable_outcome_line(events: list[dict[str, Any]], *, width: int) -> str:
+    fallback: tuple[str, str, str] | None = None
+    for event in reversed(events):
+        parsed = _model_update_event_parts(event, width=width)
+        if not parsed:
+            continue
+        label, text, clock = parsed
+        if label == "DONE":
+            fallback = fallback or parsed
+            continue
+        prefix = f"{_muted('Outcome')} {_event_badge(label)} "
+        return _fit_ansi(prefix + _one_line(text, max(12, width - len(_strip_ansi(prefix)))), width)
+    if fallback:
+        label, text, clock = fallback
+        prefix = f"{_muted('Outcome')} {_event_badge(label)} "
+        return _fit_ansi(prefix + _one_line(text, max(12, width - len(_strip_ansi(prefix)))), width)
+    return ""
 
 
 def _chat_work_pane_lines(
