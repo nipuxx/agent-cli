@@ -68,6 +68,8 @@ SUMMARY_EVENT_TYPES = (
     "task",
 )
 
+SUMMARY_TOOL_EVENT_TYPES = ("tool_result",)
+
 
 def model_update_event_parts(event: dict[str, Any], *, width: int, compact: bool = True) -> tuple[str, str, str] | None:
     kind = str(event.get("event_type") or "")
@@ -125,6 +127,24 @@ def model_update_event_parts(event: dict[str, Any], *, width: int, compact: bool
             path = str(output.get("path") or event_tool_args(metadata).get("path") or "")
             return "FILE", _outcome_text(f"updated {short_path(path, max_width=chars - 8)}", chars=chars, compact=compact), clock
     return None
+
+
+def is_summary_event_candidate(event: dict[str, Any]) -> bool:
+    kind = str(event.get("event_type") or "")
+    if kind in SUMMARY_EVENT_TYPES:
+        return True
+    if kind != "tool_result":
+        return False
+    metadata = event.get("metadata") if isinstance(event.get("metadata"), dict) else {}
+    if str(metadata.get("status") or "") != "completed":
+        return False
+    title = str(event.get("title") or "")
+    if title == "write_file":
+        return True
+    if title == "shell_exec":
+        command = str(event_tool_args(metadata).get("command") or "")
+        return bool(shell_write_target(command))
+    return False
 
 
 def latest_durable_outcome_line(events: list[dict[str, Any]], *, width: int) -> str:

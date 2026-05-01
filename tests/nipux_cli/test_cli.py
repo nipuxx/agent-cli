@@ -1376,6 +1376,20 @@ def test_frame_snapshot_keeps_summary_events_durable(monkeypatch, tmp_path):
                 body=f"search noise {index}",
                 metadata={"status": "completed"},
             )
+        db.append_event(
+            job_id=job_id,
+            event_type="tool_result",
+            title="write_file",
+            body="write_file overwrite /tmp/paper.md",
+            metadata={"status": "completed", "input": {"arguments": {"path": "/tmp/paper.md"}}, "output": {"path": "/tmp/paper.md"}},
+        )
+        db.append_event(
+            job_id=job_id,
+            event_type="tool_result",
+            title="shell_exec",
+            body="shell_exec rc=0",
+            metadata={"status": "completed", "input": {"arguments": {"command": "printf draft | tee /tmp/outline.md"}}},
+        )
         db.append_event(job_id=job_id, event_type="artifact", title="Durable Paper Draft", body="", metadata={})
         db.append_event(job_id=job_id, event_type="finding", title="Actual finding", body="", metadata={})
     finally:
@@ -1386,6 +1400,8 @@ def test_frame_snapshot_keeps_summary_events_durable(monkeypatch, tmp_path):
 
     assert "Durable Paper Draft" in summary_text
     assert "Actual finding" in summary_text
+    assert "write_file" in summary_text
+    assert "shell_exec" in summary_text
     assert "web_search" not in summary_text
     assert "search noise" not in summary_text
 
