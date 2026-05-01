@@ -5559,11 +5559,13 @@ def _maybe_spawn_job_from_chat(job_id: str, message: str, *, quiet: bool = False
     db, _ = _db()
     try:
         db.append_operator_message(created_id, message, source="chat", mode="steer")
-        db.append_agent_update(
-            created_id,
-            "Created this job from chat and drafted its initial plan. Use the right-side controls to run it.",
-            category="chat",
-        )
+        run_now = _message_requests_immediate_run(message)
+        update = "Created this job from chat and drafted its initial plan."
+        if run_now:
+            update += " Starting the daemon so it can begin work."
+        else:
+            update += " Use the right-side controls to run it."
+        db.append_agent_update(created_id, update, category="chat")
         db.append_agent_update(
             job_id,
             f"Created job '{title}' from your chat request and switched focus to it.",
@@ -5571,10 +5573,19 @@ def _maybe_spawn_job_from_chat(job_id: str, message: str, *, quiet: bool = False
         )
     finally:
         db.close()
+    run_now = _message_requests_immediate_run(message)
     text = f"Created job: {title}. Focus switched to it."
+    if run_now:
+        _start_daemon_if_needed(poll_seconds=0.0, quiet=True)
+        text += " Started worker."
     if not quiet:
         print(text)
     return text
+
+
+def _message_requests_immediate_run(message: str) -> bool:
+    lowered = " ".join(message.strip().lower().split())
+    return bool(re.match(r"^(?:please\s+)?(?:start|launch|run|spin\s+off)\b", lowered))
 
 
 def _extract_job_objective_from_message(message: str) -> str:
