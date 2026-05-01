@@ -78,6 +78,7 @@ def test_cli_has_operator_commands():
     assert parser.parse_args(["sources"]).func.__name__ == "cmd_sources"
     assert parser.parse_args(["memory"]).func.__name__ == "cmd_memory"
     assert parser.parse_args(["metrics"]).func.__name__ == "cmd_metrics"
+    assert parser.parse_args(["usage"]).func.__name__ == "cmd_usage"
     assert parser.parse_args(["outputs", "research", "finder"]).func.__name__ == "cmd_logs"
     assert parser.parse_args(["outputs"]).func.__name__ == "cmd_logs"
     assert parser.parse_args(["service", "status"]).func.__name__ == "cmd_service"
@@ -376,6 +377,7 @@ def test_chat_help_has_config_slash_commands_without_settings_page(monkeypatch, 
 
     out = capsys.readouterr().out
     assert "/settings" not in out
+    assert "/usage" in out
     assert "/model MODEL" in out
     assert "/api-key KEY" in out
     assert "/timeout SECONDS" in out
@@ -425,6 +427,35 @@ def test_chat_settings_slash_commands_persist_config(monkeypatch, tmp_path, caps
     assert _config_field_value("runtime.daily_digest_enabled") is False
     assert _config_field_value("runtime.daily_digest_time") == "08:30"
     assert "NIPUX_TEST_KEY=sk-test-value" in (tmp_path / ".env").read_text(encoding="utf-8")
+
+
+def test_chat_usage_slash_command_reports_tokens(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Research topic", title="research")
+        db.append_event(
+            job_id,
+            event_type="loop",
+            title="message_end",
+            metadata={
+                "usage": {
+                    "prompt_tokens": 1000,
+                    "completion_tokens": 250,
+                    "total_tokens": 1250,
+                    "cost": 0.0042,
+                }
+            },
+        )
+    finally:
+        db.close()
+
+    assert _chat_handle_line(job_id, "/usage") is True
+
+    out = capsys.readouterr().out
+    assert "usage research" in out
+    assert "tokens: total=1.2K prompt=1.0K output=250" in out
+    assert "cost=$0.0042" in out
 
 
 def test_first_run_settings_slash_commands_persist_config(monkeypatch, tmp_path):

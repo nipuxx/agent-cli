@@ -98,6 +98,7 @@ from nipux_cli.tui_style import (
     _style,
     _themed_lines,
 )
+from nipux_cli.usage import format_usage_report
 
 
 SHELL_BUILTINS = {"help", "?", "commands", "exit", "quit", ":q", "clear"}
@@ -139,6 +140,7 @@ SHELL_COMMAND_NAMES = {
     "sources",
     "memory",
     "metrics",
+    "usage",
     "logs",
     "outputs",
     "output",
@@ -2594,6 +2596,31 @@ def cmd_metrics(args: argparse.Namespace) -> None:
         db.close()
 
 
+def cmd_usage(args: argparse.Namespace) -> None:
+    db, config = _db()
+    try:
+        job_id = _resolve_job_id(db, args.job_id)
+        if not job_id:
+            ref = _job_ref_text(args.job_id)
+            print(f"No job matched: {ref}" if ref else "No jobs found.")
+            return
+        job = db.get_job(job_id)
+        usage = db.job_token_usage(job_id)
+        if args.json:
+            print(json.dumps(usage, ensure_ascii=False, indent=2, sort_keys=True))
+            return
+        lines = format_usage_report(
+            title=str(job.get("title") or job_id),
+            usage=usage,
+            context_length=int(config.model.context_length or 0),
+            model=str(config.model.model),
+            base_url=str(config.model.base_url),
+        )
+        print("\n".join(lines))
+    finally:
+        db.close()
+
+
 def _remote_model_preflight_failures(config) -> list[str]:
     host = (urlparse(config.model.base_url).hostname or "").lower()
     local_hosts = {"", "localhost", "127.0.0.1", "::1", "0.0.0.0"}
@@ -4100,7 +4127,7 @@ def _chat_handle_line(job_id: str, line: str, *, reply_fn=None) -> bool:
     if line in {"/help", "help"}:
         print("Chat commands:")
         print("  /jobs /focus JOB_TITLE /switch JOB_TITLE /new OBJECTIVE /delete [JOB_TITLE]")
-        print("  /history /events /activity /outputs /updates /status /health")
+        print("  /history /events /activity /outputs /updates /status /usage /health")
         print("  /artifacts /artifact QUERY /findings /tasks /roadmap /experiments /sources /memory /metrics /lessons")
         print("  /model MODEL /base-url URL /api-key KEY /api-key-env ENV /context TOKENS")
         print("  /timeout SECONDS /home PATH /step-limit SECONDS /output-chars CHARS /daily-digest BOOL /digest-time HH:MM /doctor")
@@ -4220,6 +4247,9 @@ def _chat_handle_line(job_id: str, line: str, *, reply_fn=None) -> bool:
             return True
         if command == "status":
             cmd_status(argparse.Namespace(job_id=job_id, limit=8, chars=180, full=False, json=False))
+            return True
+        if command == "usage":
+            cmd_usage(argparse.Namespace(job_id=job_id, json=False))
             return True
         if _handle_chat_setting_command(command, rest):
             return True
@@ -5101,6 +5131,11 @@ def build_parser() -> argparse.ArgumentParser:
     metrics.add_argument("job_id", nargs="*")
     metrics.add_argument("--chars", type=int, default=220)
     metrics.set_defaults(func=cmd_metrics)
+
+    usage = sub.add_parser("usage")
+    usage.add_argument("job_id", nargs="*")
+    usage.add_argument("--json", action="store_true")
+    usage.set_defaults(func=cmd_usage)
 
     logs = sub.add_parser("logs", aliases=["outputs", "output"])
     logs.add_argument("job_id", nargs="*")

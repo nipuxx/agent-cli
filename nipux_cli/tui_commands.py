@@ -36,6 +36,7 @@ CHAT_SLASH_COMMANDS = [
     ("/artifacts", "outputs"),
     ("/artifact", "open output"),
     ("/memory", "learning"),
+    ("/usage", "tokens/cost"),
     ("/status", "job state"),
     ("/model", "set model"),
     ("/base-url", "set endpoint"),
