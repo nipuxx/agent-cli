@@ -23,8 +23,6 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
-import yaml
-
 from nipux_cli import __version__
 from nipux_cli.artifacts import ArtifactStore
 from nipux_cli.config import (
@@ -34,7 +32,6 @@ from nipux_cli.config import (
     DEFAULT_MODEL,
     DEFAULT_OPENROUTER_MODEL,
     default_config_yaml,
-    get_agent_home,
     load_config,
 )
 from nipux_cli.daemon import Daemon, DaemonAlreadyRunning, daemon_lock_status, read_daemon_events
@@ -55,9 +52,16 @@ from nipux_cli.tui_commands import (
     CHAT_SLASH_COMMANDS,
     FIRST_RUN_ACTIONS,
     FIRST_RUN_SLASH_COMMANDS,
-    SETTINGS_FIELD_TYPES,
     autocomplete_slash as _autocomplete_slash,
     slash_suggestion_lines as _slash_suggestion_lines,
+)
+from nipux_cli.settings import (
+    config_field_value as _config_field_value,
+    edit_target_hint as _edit_target_hint,
+    edit_target_label as _edit_target_label,
+    edit_target_masks_input as _edit_target_masks_input,
+    inline_setting_notice as _inline_setting_notice,
+    save_config_field,
 )
 from nipux_cli.tui_events import (
     CHAT_RIGHT_PAGES,
@@ -99,6 +103,8 @@ from nipux_cli.tui_style import (
     _themed_lines,
 )
 from nipux_cli.usage import format_usage_report
+
+_save_config_field = save_config_field
 
 
 SHELL_BUILTINS = {"help", "?", "commands", "exit", "quit", ":q", "clear"}
@@ -769,126 +775,6 @@ def _enter_first_run_frame(*, history_limit: int = 12) -> None:
         print("\033[?1002l\033[?1000l\033[?1006l\033[?25h\033[0m\033[?1049l", flush=True)
     if next_job_id:
         _enter_chat(next_job_id, show_history=True, history_limit=history_limit)
-
-
-def _config_path() -> Path:
-    return get_agent_home() / "config.yaml"
-
-
-def _load_config_yaml() -> dict[str, Any]:
-    path = _config_path()
-    if not path.exists():
-        loaded = yaml.safe_load(default_config_yaml()) or {}
-        return loaded if isinstance(loaded, dict) else {}
-    loaded = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-    return loaded if isinstance(loaded, dict) else {}
-
-
-def _save_config_yaml(data: dict[str, Any]) -> None:
-    path = _config_path()
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
-
-
-def _config_field_value(field: str, config: Any | None = None) -> Any:
-    config = load_config() if config is None else config
-    values = {
-        "model.name": config.model.model,
-        "model.base_url": config.model.base_url,
-        "model.api_key_env": config.model.api_key_env,
-        "model.context_length": config.model.context_length,
-        "model.request_timeout_seconds": config.model.request_timeout_seconds,
-        "runtime.home": str(config.runtime.home),
-        "runtime.max_step_seconds": config.runtime.max_step_seconds,
-        "runtime.artifact_inline_char_limit": config.runtime.artifact_inline_char_limit,
-        "runtime.daily_digest_enabled": config.runtime.daily_digest_enabled,
-        "runtime.daily_digest_time": config.runtime.daily_digest_time,
-    }
-    return values.get(field, "")
-
-
-def _save_config_field(field: str, raw_value: str) -> Any:
-    value = _coerce_config_value(field, raw_value)
-    data = _load_config_yaml()
-    section, key = field.split(".", 1)
-    target = data.setdefault(section, {})
-    if not isinstance(target, dict):
-        target = {}
-        data[section] = target
-    target[key] = value
-    _save_config_yaml(data)
-    return value
-
-
-def _inline_setting_notice(field: str, raw_value: str) -> str:
-    value = raw_value.strip()
-    if not value:
-        return f"kept {field}"
-    if field == "secret:model.api_key":
-        config = load_config()
-        name = config.model.api_key_env
-        _save_env_secret(name, value)
-        return f"saved {name} in {_short_path(get_agent_home() / '.env')}"
-    try:
-        saved = _save_config_field(field, value)
-    except ValueError as exc:
-        return f"{field}: {exc}"
-    return f"saved {field} = {saved}"
-
-
-def _save_env_secret(name: str, value: str) -> None:
-    env_path = get_agent_home() / ".env"
-    env_path.parent.mkdir(parents=True, exist_ok=True)
-    existing: dict[str, str] = {}
-    if env_path.exists():
-        for raw in env_path.read_text(encoding="utf-8", errors="ignore").splitlines():
-            if "=" not in raw or raw.strip().startswith("#"):
-                continue
-            key, current = raw.split("=", 1)
-            if key.strip():
-                existing[key.strip()] = current.strip()
-    existing[name] = value
-    env_path.write_text("\n".join(f"{key}={current}" for key, current in existing.items()) + "\n", encoding="utf-8")
-    env_path.chmod(0o600)
-    os.environ[name] = value
-
-
-def _edit_target_label(field: str) -> str:
-    if field == "secret:model.api_key":
-        return "API key"
-    return field
-
-
-def _edit_target_hint(field: str, config: Any | None = None) -> str:
-    config = config or load_config()
-    if field == "secret:model.api_key":
-        state = "set" if config.model.api_key else "missing"
-        return f"Editing API key ({state}). Enter saves, Esc cancels. Input is hidden."
-    current = _config_field_value(field, config)
-    return f"Editing {field}. Current: {current}. Enter saves, Esc cancels, empty keeps current."
-
-
-def _edit_target_masks_input(field: str | None) -> bool:
-    return field == "secret:model.api_key"
-
-
-def _coerce_config_value(field: str, raw_value: str) -> Any:
-    kind = SETTINGS_FIELD_TYPES.get(field, "str")
-    value = raw_value.strip()
-    if kind == "int":
-        return int(value)
-    if kind == "float":
-        return float(value)
-    if kind == "bool":
-        lowered = value.lower()
-        if lowered in {"1", "true", "yes", "on"}:
-            return True
-        if lowered in {"0", "false", "no", "off"}:
-            return False
-        raise ValueError("use true or false")
-    if kind == "path":
-        return str(Path(value).expanduser())
-    return value
 
 
 def _first_run_actions(view: str) -> list[tuple[str, str, str]]:
