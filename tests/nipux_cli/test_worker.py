@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 
 from nipux_cli.artifacts import ArtifactStore
 from nipux_cli.config import AppConfig, RuntimeConfig
@@ -858,7 +859,8 @@ def test_prompt_includes_recent_tool_arguments_and_observations():
     assert "target model docs" in content
     assert "Target Docs <https://example.com>" in content
     assert "do not search the same query again" in content
-    assert "shell_exec default cwd:" in content
+    assert "shell_exec runs on the machine hosting this Nipux worker" in content
+    assert str(Path.cwd()) not in content
     assert "read_artifact is only for those saved outputs" in content
 
 

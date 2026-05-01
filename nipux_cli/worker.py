@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import os
 import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -426,7 +425,7 @@ def build_messages(
             (
                 "Workspace",
                 "\n".join([
-                    f"- shell_exec default cwd: {os.getcwd()}",
+                    "- shell_exec runs on the machine hosting this Nipux worker, in the current worker directory unless the command changes it",
                     "- saved artifacts are separate Nipux outputs; read_artifact is only for those saved outputs",
                     "- use shell_exec for workspace/project files unless the file is a saved artifact",
                 ]),
