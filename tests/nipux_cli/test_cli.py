@@ -1265,7 +1265,34 @@ def test_recent_outcome_lines_wrap_long_updates():
     rendered = "\n".join(lines)
     assert len(lines) >= 2
     assert "Trajectory distillation improves" in rendered
-    assert "teacher traces include failures" in rendered
+    assert "teacher traces include" in rendered
+    assert "failures" in rendered
+
+
+def test_recent_outcome_lines_do_not_pretruncate_actual_work():
+    events = [
+        {
+            "event_type": "artifact",
+            "title": (
+                "Research paper draft rewritten with a new methods section, expanded evaluation table, "
+                "and integrated citations from teacher trajectory distillation, agent workflow distillation, "
+                "and self-improvement harness papers"
+            ),
+            "body": "",
+            "metadata": {},
+            "created_at": "2026-05-01T12:34:00+00:00",
+        }
+    ]
+
+    rendered = "\n".join(recent_model_update_lines(events, width=72, limit=6))
+
+    assert "methods" in rendered
+    assert "section" in rendered
+    assert "integrated" in rendered
+    assert "citations" in rendered
+    assert "self-improvement harness" in rendered
+    assert "papers" in rendered
+    assert "..." not in rendered
 
 
 def test_chat_pane_marks_hidden_overflow():

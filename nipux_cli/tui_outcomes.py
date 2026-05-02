@@ -223,7 +223,7 @@ def recent_model_update_lines(
     items: list[dict[str, Any]] = []
     index_by_key: dict[tuple[str, str], int] = {}
     for event in reversed(events):
-        parsed = model_update_event_parts(event, width=max(width, 180))
+        parsed = model_update_event_parts(event, width=max(width, 180), compact=False)
         if not parsed:
             continue
         label, text, clock = parsed
@@ -245,15 +245,16 @@ def recent_model_update_lines(
         clock = str(item["clock"])
         count = int(item.get("count") or 1)
         prefix = f"{_muted(clock)} {_event_badge(label)} " if clock else f"{_event_badge(label)} "
-        available = max(12, width - len(_strip_ansi(prefix)))
+        prefix_width = len(_strip_ansi(prefix))
+        available = max(12, width - prefix_width - 2)
         if count > 1:
             text = f"{text} x{count}"
         wrapped = textwrap.wrap(text, width=available) or [""]
         lines.append(_fit_ansi(prefix + wrapped[0], width))
         if len(lines) >= limit:
             return lines
-        continuation_prefix = " " * len(_strip_ansi(prefix))
-        for part in wrapped[1:2]:
+        continuation_prefix = " " * prefix_width
+        for part in wrapped[1:]:
             lines.append(_fit_ansi(continuation_prefix + part, width))
             if len(lines) >= limit:
                 return lines
