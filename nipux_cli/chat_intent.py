@@ -138,9 +138,21 @@ def chat_control_command(line: str) -> str:
 
 def message_requests_immediate_run(message: str) -> bool:
     lowered = " ".join(message.strip().lower().split())
+    if message_requests_queued_job(message):
+        return False
     if re.match(r"^(?:please\s+)?(?:start|launch|run|spin\s+off)\b", lowered):
         return True
     return bool(re.search(r"\b(?:and|then)\s+(?:start|launch|run|resume)\s+(?:it|the\s+job|work)?\b", lowered))
+
+
+def message_requests_queued_job(message: str) -> bool:
+    lowered = " ".join(message.strip().lower().split())
+    return bool(
+        re.search(
+            r"\b(?:queue only|plan only|create only|do not start|don't start|do not run|don't run|without starting)\b",
+            lowered,
+        )
+    )
 
 
 def extract_job_objective_from_message(message: str) -> str:

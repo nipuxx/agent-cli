@@ -606,7 +606,8 @@ def _prompt_first_run_value(label: str) -> str:
 def _first_run_create_and_open(objective: str, *, history_limit: int = 12) -> None:
     job_id, title = _create_job(objective=objective, title=None, kind="generic", cadence=None)
     print(f"created {title}")
-    print("Opening workspace. Use the right pane to run, switch jobs, or inspect output.")
+    _start_daemon_if_needed(poll_seconds=0.0, quiet=True)
+    print("Opening workspace. Worker started; use the right pane to switch jobs or inspect output.")
     _enter_chat(job_id, show_history=True, history_limit=history_limit)
 
 
@@ -617,6 +618,7 @@ def _first_token(line: str) -> str:
 def _enter_first_run_frame(*, history_limit: int = 12) -> None:
     next_job_id = _run_first_run_frame(deps=_first_run_runtime_deps())
     if next_job_id:
+        _start_daemon_if_needed(poll_seconds=0.0, quiet=True)
         _enter_chat(next_job_id, show_history=True, history_limit=history_limit)
 
 

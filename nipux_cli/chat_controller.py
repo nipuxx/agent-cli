@@ -9,6 +9,7 @@ from nipux_cli.chat_intent import (
     chat_control_command,
     extract_job_objective_from_message,
     message_requests_immediate_run,
+    message_requests_queued_job,
 )
 
 
@@ -125,7 +126,7 @@ def maybe_spawn_job_from_chat(
     db, _config = deps.db_factory()
     try:
         db.append_operator_message(created_id, message, source="chat", mode="steer")
-        run_now = message_requests_immediate_run(message)
+        run_now = not message_requests_queued_job(message) or message_requests_immediate_run(message)
         update = "Created this job from chat and drafted its initial plan."
         if run_now:
             update += " Starting the daemon so it can begin work."
@@ -139,7 +140,7 @@ def maybe_spawn_job_from_chat(
         )
     finally:
         db.close()
-    run_now = message_requests_immediate_run(message)
+    run_now = not message_requests_queued_job(message) or message_requests_immediate_run(message)
     text = f"Created job: {title}. Focus switched to it."
     if run_now:
         deps.start_daemon(poll_seconds=0.0, quiet=True)

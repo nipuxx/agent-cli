@@ -239,7 +239,8 @@ def handle_chat_slash_command(job_id: str, command: str, rest: list[str], *, dep
             return True
         _created_id, title = deps.create_job(objective=objective, title=None, kind="generic", cadence=None)
         print(f"created {title}")
-        print(f"focus set to {title}; initial plan accepted and queued. Use /run when ready.")
+        deps.start(argparse.Namespace(poll_seconds=0.0, fake=False, quiet=True, log_file=None))
+        print(f"focus set to {title}; initial plan accepted and worker started.")
         return True
     if command in {"focus", "switch"}:
         if not " ".join(rest).strip():

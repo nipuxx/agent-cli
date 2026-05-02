@@ -221,6 +221,7 @@ def test_main_no_args_with_no_jobs_shows_first_run_menu(monkeypatch, tmp_path, c
 def test_first_run_menu_can_create_job_and_open_workspace(monkeypatch, tmp_path, capsys):
     monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
     opened = {}
+    started = {}
 
     def fake_input(_prompt):
         return "new Build a durable workflow"
@@ -231,8 +232,12 @@ def test_first_run_menu_can_create_job_and_open_workspace(monkeypatch, tmp_path,
         opened["history_limit"] = history_limit
         print(f"opened {job_id}")
 
+    def fake_start(**kwargs):
+        started.update(kwargs)
+
     monkeypatch.setattr("builtins.input", fake_input)
     monkeypatch.setattr("nipux_cli.cli._enter_chat", fake_enter_chat)
+    monkeypatch.setattr("nipux_cli.cli._start_daemon_if_needed", fake_start)
 
     main([])
 
@@ -247,8 +252,10 @@ def test_first_run_menu_can_create_job_and_open_workspace(monkeypatch, tmp_path,
         assert opened["history_limit"] == 12
     finally:
         db.close()
+    assert started["poll_seconds"] == 0.0
+    assert started["quiet"] is True
     assert "created Build a durable workflow" in out
-    assert "Opening workspace" in out
+    assert "Worker started" in out
     assert "opened" in out
 
 
@@ -2028,6 +2035,12 @@ def test_chat_can_spawn_new_job_from_plain_message(monkeypatch, tmp_path, capsys
         original_id = db.create_job("Research topic", title="nightly research")
     finally:
         db.close()
+    started = {}
+
+    def fake_start(**kwargs):
+        started.update(kwargs)
+
+    monkeypatch.setattr("nipux_cli.cli._start_daemon_if_needed", fake_start)
 
     assert (
         _chat_handle_line(
@@ -2049,8 +2062,40 @@ def test_chat_can_spawn_new_job_from_plain_message(monkeypatch, tmp_path, capsys
         assert created["metadata"]["planning_status"] == "auto_accepted"
         assert "should not call model" not in out
         assert "Created job" in out
+        assert "Started worker" in out
+        assert started["poll_seconds"] == 0.0
+        assert started["quiet"] is True
     finally:
         db.close()
+
+
+def test_chat_can_queue_new_job_without_starting(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        original_id = db.create_job("Research topic", title="nightly research")
+    finally:
+        db.close()
+    started = {}
+
+    def fake_start(**kwargs):
+        started.update(kwargs)
+
+    monkeypatch.setattr("nipux_cli.cli._start_daemon_if_needed", fake_start)
+
+    assert (
+        _chat_handle_line(
+            original_id,
+            "create only a job to monitor nightly benchmarks and report regressions",
+            reply_fn=lambda _job_id, _message: "should not call model",
+        )
+        is True
+    )
+
+    out = capsys.readouterr().out
+    assert "Created job" in out
+    assert "Started worker" not in out
+    assert started == {}
 
 
 def test_chat_can_spawn_generic_deliverable_job_from_plain_message(monkeypatch, tmp_path):
@@ -2060,6 +2105,12 @@ def test_chat_can_spawn_generic_deliverable_job_from_plain_message(monkeypatch, 
         original_id = db.create_job("Research topic", title="nightly research")
     finally:
         db.close()
+    started = {}
+
+    def fake_start(**kwargs):
+        started.update(kwargs)
+
+    monkeypatch.setattr("nipux_cli.cli._start_daemon_if_needed", fake_start)
 
     assert (
         _chat_handle_line(
@@ -2076,6 +2127,7 @@ def test_chat_can_spawn_generic_deliverable_job_from_plain_message(monkeypatch, 
         assert len(jobs) == 2
         created = [job for job in jobs if job["id"] != original_id][0]
         assert "launch checklist" in created["objective"]
+        assert started["quiet"] is True
     finally:
         db.close()
 
