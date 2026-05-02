@@ -2444,6 +2444,33 @@ def test_build_chat_messages_includes_recent_job_state(tmp_path):
         db.close()
 
 
+def test_build_chat_messages_includes_durable_outcome_summary(tmp_path):
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Research topic", title="nightly research", kind="generic")
+        db.append_event(job_id=job_id, event_type="artifact", title="First draft", body="saved report", metadata={})
+        db.append_event(job_id=job_id, event_type="finding", title="Evidence map", body="", metadata={})
+        db.append_event(
+            job_id=job_id,
+            event_type="experiment",
+            title="Citation coverage",
+            body="",
+            metadata={"metric_name": "citations", "metric_value": 12, "metric_unit": "count"},
+        )
+        job = db.get_job(job_id)
+
+        messages = _build_chat_messages(db, job, "what has it actually done?")
+
+        content = messages[-1]["content"]
+        assert "Durable outcomes:" in content
+        assert "summary: 1 outputs 1 findings 1 measurements" in content
+        assert "save: First draft" in content
+        assert "find: Evidence map" in content
+        assert "test: Citation coverage" in content
+    finally:
+        db.close()
+
+
 def test_build_chat_messages_does_not_include_local_machine_context(monkeypatch, tmp_path):
     monkeypatch.setenv("HOME", str(tmp_path))
     ssh_dir = tmp_path / ".ssh"

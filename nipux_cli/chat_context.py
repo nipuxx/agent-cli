@@ -9,6 +9,14 @@ from nipux_cli.event_render import event_line
 from nipux_cli.metric_format import format_metric_value
 from nipux_cli.operator_context import active_prompt_operator_entries
 from nipux_cli.tui_event_format import clean_step_summary
+from nipux_cli.tui_outcomes import (
+    SUMMARY_EVENT_TYPES,
+    SUMMARY_TOOL_EVENT_TYPES,
+    hourly_outcome_summary,
+    is_summary_event_candidate,
+    model_update_event_parts,
+    outcome_counts,
+)
 
 
 def build_chat_messages(db: AgentDB, job: dict[str, Any], message: str) -> list[dict[str, str]]:
@@ -18,6 +26,7 @@ def build_chat_messages(db: AgentDB, job: dict[str, Any], message: str) -> list[
     jobs = db.list_jobs()[:12]
     artifacts = db.list_artifacts(job["id"], limit=5)
     timeline_events = db.list_timeline_events(job["id"], limit=18)
+    outcome_events = _durable_outcome_events(db, job["id"])
     metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
     operator_messages = metadata.get("operator_messages") if isinstance(metadata.get("operator_messages"), list) else []
     agent_updates = metadata.get("agent_updates") if isinstance(metadata.get("agent_updates"), list) else []
@@ -75,6 +84,7 @@ def build_chat_messages(db: AgentDB, job: dict[str, Any], message: str) -> list[
 
     sections = {
         "Jobs": _clip_chat_context(_job_list_lines(jobs, focused_job_id=job["id"]), 1_300),
+        "Durable outcomes": _clip_chat_context(_durable_outcome_lines(outcome_events), 1_600),
         "Recent tool calls": _clip_chat_context(step_lines, 1_800),
         "Latest artifacts": _clip_chat_context(artifact_lines, 1_200),
         "Finding ledger": _clip_chat_context(finding_lines, 1_200),
@@ -112,6 +122,44 @@ def build_chat_messages(db: AgentDB, job: dict[str, Any], message: str) -> list[
             ),
         },
     ]
+
+
+def _durable_outcome_events(db: AgentDB, job_id: str) -> list[dict[str, Any]]:
+    durable_events = db.list_events(job_id=job_id, limit=160, event_types=SUMMARY_EVENT_TYPES)
+    tool_events = [
+        event
+        for event in db.list_events(job_id=job_id, limit=80, event_types=SUMMARY_TOOL_EVENT_TYPES)
+        if is_summary_event_candidate(event)
+    ]
+    merged: dict[str, dict[str, Any]] = {}
+    for event in [*durable_events, *tool_events]:
+        event_id = str(event.get("id") or "")
+        key = event_id or f"{event.get('created_at')}-{event.get('event_type')}-{event.get('title')}-{len(merged)}"
+        merged[key] = event
+    return sorted(merged.values(), key=lambda event: (str(event.get("created_at") or ""), str(event.get("id") or "")))
+
+
+def _durable_outcome_lines(events: list[dict[str, Any]]) -> str:
+    if not events:
+        return ""
+    counts = outcome_counts(events, include_research=True, include_failures=True)
+    lines = [f"- summary: {hourly_outcome_summary(counts)}"]
+    seen: set[str] = set()
+    for event in reversed(events):
+        parsed = model_update_event_parts(event, width=240, compact=False)
+        if not parsed:
+            continue
+        label, text, _clock = parsed
+        if label in {"DONE", "PLAN", "UPDATE"}:
+            continue
+        key = f"{label}:{text}"
+        if key in seen:
+            continue
+        seen.add(key)
+        lines.append(f"- {label.lower()}: {text}")
+        if len(lines) >= 9:
+            break
+    return "\n".join(lines)
 
 
 def _job_list_lines(jobs: list[dict[str, Any]], *, focused_job_id: str) -> str:
