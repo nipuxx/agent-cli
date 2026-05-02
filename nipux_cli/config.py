@@ -30,6 +30,7 @@ def load_env_file(path: str | Path) -> None:
     env_path = Path(path).expanduser()
     if not env_path.exists():
         return
+    ensure_private_file_permissions(env_path)
     for raw_line in env_path.read_text(encoding="utf-8").splitlines():
         line = raw_line.strip()
         if not line or line.startswith("#") or "=" not in line:
@@ -39,6 +40,45 @@ def load_env_file(path: str | Path) -> None:
         value = value.strip().strip("\"'")
         if key and key not in os.environ:
             os.environ[key] = value
+
+
+def ensure_private_file_permissions(path: str | Path) -> None:
+    """Best-effort POSIX privacy for local config/secret files."""
+
+    if os.name == "nt":
+        return
+    try:
+        Path(path).chmod(0o600)
+    except OSError:
+        pass
+
+
+def ensure_private_dir_permissions(path: str | Path) -> None:
+    """Best-effort POSIX privacy for the local Nipux state directory."""
+
+    if os.name == "nt":
+        return
+    try:
+        Path(path).chmod(0o700)
+    except OSError:
+        pass
+
+
+def write_private_text(path: str | Path, text: str) -> None:
+    """Write text with private file permissions from creation time."""
+
+    target = Path(path).expanduser()
+    target.parent.mkdir(parents=True, exist_ok=True)
+    flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
+    fd = os.open(target, flags, 0o600)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            fd = -1
+            handle.write(text)
+    finally:
+        if fd >= 0:
+            os.close(fd)
+    ensure_private_file_permissions(target)
 
 
 @dataclass(frozen=True)
@@ -105,10 +145,14 @@ class AppConfig:
     email: EmailConfig = field(default_factory=EmailConfig)
 
     def ensure_dirs(self) -> None:
-        self.runtime.home.mkdir(parents=True, exist_ok=True)
-        self.runtime.jobs_dir.mkdir(parents=True, exist_ok=True)
-        self.runtime.logs_dir.mkdir(parents=True, exist_ok=True)
-        self.runtime.digests_dir.mkdir(parents=True, exist_ok=True)
+        for directory in (
+            self.runtime.home,
+            self.runtime.jobs_dir,
+            self.runtime.logs_dir,
+            self.runtime.digests_dir,
+        ):
+            directory.mkdir(parents=True, exist_ok=True)
+            ensure_private_dir_permissions(directory)
 
 
 def _as_dict(value: Any) -> dict[str, Any]:

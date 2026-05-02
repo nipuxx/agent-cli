@@ -8,7 +8,7 @@ from typing import Any
 
 import yaml
 
-from nipux_cli.config import default_config_yaml, get_agent_home, load_config
+from nipux_cli.config import default_config_yaml, get_agent_home, load_config, write_private_text
 from nipux_cli.tui_commands import SETTINGS_FIELD_TYPES
 
 
@@ -94,8 +94,7 @@ def _load_config_yaml() -> dict[str, Any]:
 
 def _save_config_yaml(data: dict[str, Any]) -> None:
     path = _config_path()
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
+    write_private_text(path, yaml.safe_dump(data, sort_keys=False))
 
 
 def _save_env_secret(name: str, value: str) -> None:
@@ -110,8 +109,7 @@ def _save_env_secret(name: str, value: str) -> None:
             if key.strip():
                 existing[key.strip()] = current.strip()
     existing[name] = value
-    env_path.write_text("\n".join(f"{key}={current}" for key, current in existing.items()) + "\n", encoding="utf-8")
-    env_path.chmod(0o600)
+    write_private_text(env_path, "\n".join(f"{key}={current}" for key, current in existing.items()) + "\n")
     os.environ[name] = value
 
 

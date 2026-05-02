@@ -3,6 +3,10 @@ from pathlib import Path
 from nipux_cli.config import DEFAULT_CONTEXT_LENGTH, default_config_yaml, load_config
 
 
+def _mode(path):
+    return path.stat().st_mode & 0o777
+
+
 def test_load_config_defaults_to_qwen_openrouter(tmp_path, monkeypatch):
     monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
 
@@ -73,6 +77,18 @@ model:
     config = load_config()
 
     assert config.model.api_key == "secret-test-key"
+
+
+def test_load_config_tightens_local_env_permissions(tmp_path, monkeypatch):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    env_path = tmp_path / ".env"
+    env_path.write_text("OPENROUTER_API_KEY" + "=secret-test-key\n", encoding="utf-8")
+    env_path.chmod(0o644)
+
+    load_config()
+
+    assert _mode(env_path) == 0o600
 
 
 def test_default_config_yaml_allows_provider_template_without_secret():

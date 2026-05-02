@@ -43,6 +43,10 @@ from nipux_cli.tui_input import decode_terminal_escape as _decode_terminal_escap
 from nipux_cli.tui_outcomes import hourly_update_lines, recent_model_update_lines
 
 
+def _mode(path):
+    return path.stat().st_mode & 0o777
+
+
 def test_cli_has_operator_commands():
     parser = build_parser()
 
@@ -122,6 +126,8 @@ def test_init_openrouter_writes_secret_free_config_and_env_template(monkeypatch,
     assert "sk-" not in config_text
     assert env_text.strip().endswith("OPENROUTER_API_KEY" + "=")
     assert "sk-" not in env_text
+    assert _mode(tmp_path / "config.yaml") == 0o600
+    assert _mode(tmp_path / ".env") == 0o600
 
 
 def test_init_defaults_to_qwen_openrouter(monkeypatch, tmp_path):
@@ -527,6 +533,8 @@ def test_chat_settings_slash_commands_persist_config(monkeypatch, tmp_path, caps
     assert "saved model.api_key_env = NIPUX_TEST_KEY" in out
     assert "saved NIPUX_TEST_KEY" in out
     assert "sk-test-value" not in out
+    assert _mode(tmp_path / "config.yaml") == 0o600
+    assert _mode(tmp_path / ".env") == 0o600
     assert _config_field_value("model.name") == "provider/model"
     assert _config_field_value("model.base_url") == "https://example.com/v1"
     assert _config_field_value("model.context_length") == 8192

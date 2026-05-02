@@ -78,6 +78,7 @@ from nipux_cli.config import (
     DEFAULT_OPENROUTER_MODEL,
     default_config_yaml,
     load_config,
+    write_private_text,
 )
 from nipux_cli.daemon_control import cmd_restart_impl as _cmd_restart_impl
 from nipux_cli.daemon_control import cmd_start_impl as _cmd_start_impl
@@ -279,26 +280,22 @@ def cmd_init(args: argparse.Namespace) -> None:
         base_url = args.base_url or "https://openrouter.ai/api/v1"
         api_key_env = args.api_key_env or DEFAULT_API_KEY_ENV
         model = args.model or DEFAULT_OPENROUTER_MODEL
-    path.write_text(
+    write_private_text(
+        path,
         default_config_yaml(
             model=model,
             base_url=base_url,
             api_key_env=api_key_env,
             context_length=args.context_length,
         ),
-        encoding="utf-8",
     )
     print(f"Wrote {path}")
     env_path = config.runtime.home / ".env"
     if not env_path.exists():
-        env_path.write_text(
+        write_private_text(
+            env_path,
             f"# Optional local secrets for Nipux. This file stays outside the git repo.\n{api_key_env}=\n",
-            encoding="utf-8",
         )
-        try:
-            env_path.chmod(0o600)
-        except OSError:
-            pass
         print(f"Wrote {env_path} (fill {api_key_env}; do not commit secrets)")
 
 
