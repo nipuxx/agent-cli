@@ -170,10 +170,17 @@ def chat_work_pane_lines(
     lines = [
         f"{_muted('Page')}   {_page_indicator('work', CHAT_RIGHT_PAGES)}",
         f"{_muted('Focus')}  {_bold(_one_line(job.get('title') or 'untitled', width - 8))}",
+    ]
+    done_lines = recent_model_update_lines(events, width=width, limit=max(2, rows // 4))
+    if done_lines:
+        lines.extend(["", _bold("Done")])
+        lines.extend(done_lines)
+    lines.extend([
         "",
         _bold("Tool / console"),
-    ]
-    tool_lines = worker_activity_lines(events, width=width, limit=max(4, rows // 2))
+    ])
+    tool_budget = max(3, min(max(4, rows // 3), rows - len(lines) - 5))
+    tool_lines = worker_activity_lines(events, width=width, limit=tool_budget)
     if tool_lines:
         lines.extend(tool_lines)
     else:

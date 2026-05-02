@@ -1146,6 +1146,7 @@ def test_chat_frame_surfaces_actual_work_events():
     work = _build_chat_frame(snapshot, "", [], width=150, height=34, right_view="work")
     frame = updates + "\n" + work
 
+    assert "Done" in work
     assert "Research Paper Draft" in frame
     assert "Distillation finding" in frame
     assert "Compare methods" in frame
