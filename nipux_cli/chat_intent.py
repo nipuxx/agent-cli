@@ -45,8 +45,12 @@ NATURAL_COMMANDS = {
     "show metrics": "metrics",
     "show usage": "usage",
     "show cost": "usage",
+    "show tokens": "usage",
+    "show token usage": "usage",
+    "context usage": "usage",
     "token usage": "usage",
     "how much did it cost": "usage",
+    "how many tokens did it use": "usage",
     "what is going on": "status",
     "whats going on": "status",
     "what's going on": "status",
@@ -65,6 +69,24 @@ NATURAL_COMMANDS = {
     "show health": "health",
     "show activity": "activity",
     "show tool calls": "activity",
+    "show worker activity": "activity",
+    "show worker output": "activity",
+    "show raw work": "outputs",
+    "show console output": "outputs",
+    "show logs": "outputs",
+    "show saved files": "artifacts",
+    "what did it save": "artifacts",
+    "what files did it create": "artifacts",
+    "what outputs did it save": "artifacts",
+    "what tasks are open": "tasks",
+    "what is the current task": "tasks",
+    "show measurements": "experiments",
+    "show benchmarks": "experiments",
+    "show milestones": "roadmap",
+    "show plan": "roadmap",
+    "show daemon": "health",
+    "start daemon": "start",
+    "restart daemon": "restart",
 }
 
 
@@ -80,6 +102,38 @@ def chat_control_command(line: str) -> str:
     natural = NATURAL_COMMANDS.get(lowered)
     if natural:
         return f"/{natural}"
+    control_phrase = _looks_like_control_phrase(lowered)
+    if control_phrase and _mentions_any(lowered, ("token", "cost", "usage", "context window", "context budget")):
+        return "/usage"
+    if control_phrase and _mentions_any(lowered, ("tool call", "tool calls", "worker activity", "worker output", "right pane")):
+        return "/activity"
+    if control_phrase and _mentions_any(lowered, ("console output", "raw output", "raw run", "raw runs", "log", "logs")):
+        return "/outputs"
+    if control_phrase and _mentions_any(lowered, ("saved file", "saved files", "artifact", "artifacts")):
+        return "/artifacts"
+    if (
+        _mentions_any(lowered, ("what did", "what has", "what have", "show me"))
+        and _mentions_any(lowered, ("made", "created", "saved", "produced", "done", "accomplished"))
+    ):
+        return "/outcomes"
+    if control_phrase and _mentions_any(lowered, ("measurement", "measurements", "experiment", "experiments", "benchmark", "benchmarks")):
+        return "/experiments"
+    if control_phrase and _mentions_any(lowered, ("roadmap", "milestone", "milestones", "plan")):
+        return "/roadmap"
+    if control_phrase and _mentions_any(lowered, ("task", "tasks", "todo", "to do", "queue")):
+        return "/tasks"
+    if control_phrase and _mentions_any(lowered, ("finding", "findings")):
+        return "/findings"
+    if control_phrase and _mentions_any(lowered, ("source", "sources")):
+        return "/sources"
+    if control_phrase and _mentions_any(lowered, ("lesson", "lessons", "learned")):
+        return "/lessons"
+    if control_phrase and _mentions_any(lowered, ("memory", "remembered", "learning state")):
+        return "/memory"
+    if lowered in {"start daemon", "launch daemon"}:
+        return "/start"
+    if lowered in {"restart daemon", "reload daemon"}:
+        return "/restart"
     if lowered in {"jobs", "show jobs", "list jobs", "switch jobs", "change jobs"}:
         return "/jobs"
     if lowered in {"settings", "show settings"}:
@@ -134,6 +188,36 @@ def chat_control_command(line: str) -> str:
     if lowered in {"memory", "show memory", "learning", "show learning"}:
         return "/memory"
     return ""
+
+
+def _mentions_any(text: str, needles: tuple[str, ...]) -> bool:
+    for needle in needles:
+        if " " in needle:
+            if needle in text:
+                return True
+            continue
+        if re.search(rf"\b{re.escape(needle)}\b", text):
+            return True
+    return False
+
+
+def _looks_like_control_phrase(text: str) -> bool:
+    return text.startswith(
+        (
+            "show ",
+            "view ",
+            "open ",
+            "list ",
+            "display ",
+            "give me ",
+            "where ",
+            "what ",
+            "how ",
+            "is ",
+            "are ",
+            "check ",
+        )
+    )
 
 
 def message_requests_immediate_run(message: str) -> bool:

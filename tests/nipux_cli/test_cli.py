@@ -1028,6 +1028,16 @@ def test_plain_chat_control_intents_map_to_commands():
     assert _chat_control_command("what have you done so far") == "/outcomes"
     assert _chat_control_command("what did the model do") == "/outcomes"
     assert _chat_control_command("what have all jobs done") == "/outcomes all"
+    assert _chat_control_command("what files did it create") == "/artifacts"
+    assert _chat_control_command("show me the saved files") == "/artifacts"
+    assert _chat_control_command("what tool calls did it run") == "/activity"
+    assert _chat_control_command("show console output") == "/outputs"
+    assert _chat_control_command("what tasks are open") == "/tasks"
+    assert _chat_control_command("show the current plan") == "/roadmap"
+    assert _chat_control_command("show benchmarks") == "/experiments"
+    assert _chat_control_command("how many tokens did it use") == "/usage"
+    assert _chat_control_command("restart daemon") == "/restart"
+    assert _chat_control_command("prefer artifact-backed findings") == ""
 
 
 def test_plain_chat_control_intent_does_not_queue_operator_context(monkeypatch, tmp_path):
