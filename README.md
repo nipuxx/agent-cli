@@ -80,9 +80,12 @@ the environment or `~/.nipux/.env`, not in the git repo.
 ```bash
 nipux init
 $EDITOR ~/.nipux/.env
-chmod 600 ~/.nipux/.env
 nipux doctor --check-model
 ```
+
+`nipux init` creates `~/.nipux/config.yaml` and `~/.nipux/.env` with private
+file permissions. Later `/api-key` edits keep the secret in `~/.nipux/.env`
+instead of writing it to config.
 
 For a local OpenAI-compatible server:
 
@@ -151,7 +154,7 @@ OPENROUTER_API_KEY=
 
 The repository includes `.env.example` and `config.example.yaml` as templates.
 Do not commit real `.env`, state databases, logs, artifacts, or browser
-profiles.
+profiles. The default `.gitignore` excludes those local runtime files.
 
 ## Local Model Examples
 
