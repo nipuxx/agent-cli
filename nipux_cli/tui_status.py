@@ -13,6 +13,7 @@ from nipux_cli.tui_events import (
 )
 from nipux_cli.tui_outcomes import (
     CHAT_RIGHT_PAGES,
+    job_outcome_summary,
     latest_durable_outcome_line,
     latest_hour_outcome_summary_line,
     model_update_event_parts,
@@ -252,6 +253,9 @@ def _job_compact_work_lines(
     focused: bool = False,
 ) -> list[str]:
     lines: list[str] = []
+    summary = job_outcome_summary(events, width=max(12, width - 13))
+    if summary:
+        lines.append(_fit_ansi(f"   {_muted('work')} {_bold(summary)}", width))
     if outputs:
         latest = outputs[0]
         output_total = int(counts.get("artifacts") or len(outputs))

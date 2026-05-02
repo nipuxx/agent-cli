@@ -1253,6 +1253,47 @@ def test_chat_frame_has_model_updates_page():
     assert "outline.md" in frame
 
 
+def test_status_job_cards_show_durable_work_mix():
+    events = [
+        {"event_type": "artifact", "title": "Paper draft", "body": "", "metadata": {}},
+        {"event_type": "finding", "title": "Method taxonomy", "body": "", "metadata": {}},
+        {
+            "event_type": "experiment",
+            "title": "Citation coverage check",
+            "body": "",
+            "metadata": {"metric_name": "citations", "metric_value": 12, "metric_unit": "count"},
+        },
+    ]
+    snapshot = {
+        "job_id": "job_demo",
+        "job": {
+            "id": "job_demo",
+            "title": "paper job",
+            "objective": "write a paper",
+            "status": "running",
+            "kind": "generic",
+            "metadata": {},
+        },
+        "jobs": [{"id": "job_demo", "title": "paper job", "status": "running", "kind": "generic", "metadata": {}}],
+        "steps": [],
+        "artifacts": [{"id": "art_1", "title": "Paper draft"}],
+        "job_artifacts": {"job_demo": [{"id": "art_1", "title": "Paper draft"}]},
+        "job_summary_events": {"job_demo": events},
+        "job_counts": {"job_demo": {"artifacts": 1}},
+        "memory_entries": [],
+        "events": events,
+        "summary_events": events,
+        "daemon": {"running": True, "metadata": {"pid": 123}},
+        "model": "model/demo",
+    }
+
+    frame = _build_chat_frame(snapshot, "", [], width=150, height=34)
+
+    assert "work 1 outputs 1 findings 1 measurements" in frame
+    assert "made 1 output" in frame
+    assert "Paper draft" in frame
+
+
 def test_recent_outcome_lines_wrap_long_updates():
     lines = recent_model_update_lines(
         [

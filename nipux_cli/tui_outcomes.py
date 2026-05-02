@@ -209,6 +209,49 @@ def latest_hour_outcome_summary_line(events: list[dict[str, Any]], *, width: int
     return _fit_ansi(prefix + _bold(_one_line(summary, max(12, width - len(_strip_ansi(prefix))))), width)
 
 
+def visible_outcome_summary_line(events: list[dict[str, Any]], *, width: int) -> str:
+    """Return a stable summary of the durable outcomes available to the pane."""
+
+    counts = outcome_counts(events, include_research=False, include_failures=True)
+    summary = hourly_outcome_summary(counts)
+    if not summary:
+        return ""
+    prefix = f"{_muted('Visible')} "
+    return _fit_ansi(prefix + _bold(_one_line(summary, max(12, width - len(_strip_ansi(prefix))))), width)
+
+
+def job_outcome_summary(events: list[dict[str, Any]], *, width: int) -> str:
+    """Return a short per-job durable outcome mix for compact job cards."""
+
+    counts = outcome_counts(events, include_research=False, include_failures=False)
+    summary = hourly_outcome_summary(counts)
+    if not summary:
+        return ""
+    return _one_line(summary, width)
+
+
+def outcome_counts(
+    events: list[dict[str, Any]],
+    *,
+    include_research: bool,
+    include_failures: bool,
+) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for event in events:
+        parsed = model_update_event_parts(event, width=220, compact=False)
+        if not parsed:
+            continue
+        label, _text, _clock = parsed
+        if label == "DONE" and not include_research:
+            continue
+        if label == "FAIL" and not include_failures:
+            continue
+        if label not in SUMMARY_COUNT_LABELS:
+            continue
+        counts[label] = int(counts.get(label) or 0) + 1
+    return counts
+
+
 def recent_model_update_lines(
     events: list[dict[str, Any]],
     *,
@@ -274,10 +317,14 @@ def chat_updates_pane_lines(
         f"{_muted('Page')}   {_page_indicator('updates', CHAT_RIGHT_PAGES)}",
         f"{_muted('Focus')}  {_bold(_one_line(job.get('title') or 'untitled', width - 8))}",
         "",
-        _bold("Outcomes by hour"),
+        _bold("Outcome summary"),
         _muted("Summaries of durable output, findings, measurements, decisions, and files."),
         "",
     ]
+    summary = visible_outcome_summary_line(events, width=width)
+    if summary:
+        lines.extend([summary, ""])
+    lines.append(_bold("Outcomes by hour"))
     update_lines = hourly_update_lines(events, width=width, limit=max(4, rows - len(lines)))
     if update_lines:
         lines.extend(update_lines)
