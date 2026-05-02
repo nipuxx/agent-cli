@@ -364,10 +364,10 @@ def test_slash_autocomplete_filters_commands():
     assert _autocomplete_slash("/rest", CHAT_SLASH_COMMANDS) == "/restart "
     assert _autocomplete_slash("/step", CHAT_SLASH_COMMANDS) == "/step-limit "
     assert _autocomplete_slash("/out", FIRST_RUN_SLASH_COMMANDS) == "/output-chars "
-    assert _cycle_slash("/", CHAT_SLASH_COMMANDS, direction=1) == "/work "
+    assert _cycle_slash("/", CHAT_SLASH_COMMANDS, direction=1) == "/run "
     assert _cycle_slash("/", CHAT_SLASH_COMMANDS, direction=-1) == "/exit "
     assert _cycle_slash("/work ", CHAT_SLASH_COMMANDS, direction=1) == "/work "
-    assert _cycle_slash("/out", CHAT_SLASH_COMMANDS, direction=1) == "/outputs "
+    assert _cycle_slash("/out", CHAT_SLASH_COMMANDS, direction=1) == "/outcomes "
     assert _cycle_slash("/out", CHAT_SLASH_COMMANDS, direction=-1) == "/output-cost "
     assert _autocomplete_slash("plain text", CHAT_SLASH_COMMANDS) == "plain text"
     lines = _slash_suggestion_lines("/art", CHAT_SLASH_COMMANDS, width=80)
@@ -380,7 +380,7 @@ def test_slash_autocomplete_filters_commands():
     assert "MODEL" in hint_text
     partial_hint_text = "\n".join(_slash_suggestion_lines("/mo", CHAT_SLASH_COMMANDS, width=80))
     assert "/model MODEL" in partial_hint_text
-    assert "↑↓ cycles" in partial_hint_text
+    assert "↑↓ select" in partial_hint_text
     full_palette_text = "\n".join(_slash_suggestion_lines("/", CHAT_SLASH_COMMANDS, width=80, limit=5))
     assert "type to filter" in full_palette_text
     assert "/shell" not in "\n".join(_slash_suggestion_lines("/", CHAT_SLASH_COMMANDS, width=80, limit=20))

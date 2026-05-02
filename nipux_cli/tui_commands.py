@@ -193,7 +193,7 @@ def slash_suggestion_lines(
     if hidden:
         lines.append(_fit_ansi(_muted(f"+{hidden} more; type to filter"), width))
     else:
-        lines.append(_fit_ansi(_muted("tab fills · ↑↓ cycles"), width))
+        lines.append(_fit_ansi(_muted("tab fills · ↑↓ select"), width))
     return lines
 
 
@@ -216,7 +216,7 @@ def cycle_slash(input_buffer: str, commands: list[tuple[str, str]], *, direction
     try:
         index = matches.index(current)
     except ValueError:
-        index = 0
+        return (matches[0] if direction >= 0 else matches[-1]) + " "
     return matches[(index + direction) % len(matches)] + " "
 
 

@@ -82,7 +82,7 @@ pre { max-height: 540px; overflow: auto; background: #050606; border: 1px solid 
 <div class="shell">
   <aside class="sidebar">
     <div class="logo">NIPUX ATLAS</div>
-    <div class="subtitle">Generated from tracked source on 28d84a26.</div>
+    <div class="subtitle">Generated from tracked source on 3040db00.</div>
     <input id="search" class="search" placeholder="filter files, prompts, tools..." autocomplete="off">
     <nav class="nav">
       <a href="#architecture">Architecture</a>
@@ -97,8 +97,8 @@ pre { max-height: 540px; overflow: auto; background: #050606; border: 1px solid 
       <a href="#risks">Review Points</a>
     </nav>
     <div class="stats">
-      <div class="stat"><b>90</b><span>tracked files</span></div>
-      <div class="stat"><b>30,195</b><span>tracked lines mapped</span></div>
+      <div class="stat"><b>91</b><span>tracked files</span></div>
+      <div class="stat"><b>30,204</b><span>tracked lines mapped</span></div>
       <div class="stat"><b>1257</b><span>python symbols</span></div>
       <div class="stat"><b>27</b><span>runtime tools</span></div>
     </div>
@@ -475,7 +475,7 @@ have incorporated or intentionally superseded a steer/follow_up message.
     </section>
 
     <section id="files" class="section">
-      <header><div><div class="kicker">Source index</div><h2>Important Files</h2></div><span class="muted">83 Python modules plus docs/config files.</span></header>
+      <header><div><div class="kicker">Source index</div><h2>Important Files</h2></div><span class="muted">84 Python modules plus docs/config files.</span></header>
       <div class="grid"><article class="file-card searchable" data-search="AGENTS.md This repo is a focused long-running worker, not a broad assistant distribution. none">
 <header><h3>AGENTS.md</h3><span>32 lines</span></header>
 <p>This repo is a focused long-running worker, not a broad assistant distribution.</p>
@@ -514,6 +514,12 @@ fixed tool surface. none">
 <p>Minimal daemon-first Nipux runtime. This package owns the daemon, state store, model adapter, artifact store, and fixed tool surface.</p>
 <div class="meta"><span>0 symbols</span><span>0 TODOs</span></div>
 <details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> none</p><p><strong>Symbols:</strong> none</p></details>
+</article>
+<article class="file-card searchable" data-search="nipux_cli/__main__.py Run the Nipux CLI with ``python -m nipux_cli``. none">
+<header><h3>nipux_cli/__main__.py</h3><span>9 lines</span></header>
+<p>Run the Nipux CLI with ``python -m nipux_cli``.</p>
+<div class="meta"><span>0 symbols</span><span>0 TODOs</span></div>
+<details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> __future__, nipux_cli.cli</p><p><strong>Symbols:</strong> none</p></details>
 </article>
 <article class="file-card searchable" data-search="nipux_cli/artifacts.py Artifact file storage for long-running jobs. safe_filename, sha256_text, StoredArtifact, ArtifactStore, __init__, job_dir, _assert_inside_home, write_text, read_text, search_text">
 <header><h3>nipux_cli/artifacts.py</h3><span>138 lines</span></header>
@@ -9627,6 +9633,26 @@ __version__ = &quot;0.1.0&quot;">
 <span class='src-line'><b>   9</b><code>]</code></span>
 <span class='src-line'><b>  10</b><code></code></span>
 <span class='src-line'><b>  11</b><code>__version__ = &quot;0.1.0&quot;</code></span></pre>
+</details>
+<details class="source-file searchable" data-search="nipux_cli/__main__.py &quot;&quot;&quot;Run the Nipux CLI with ``python -m nipux_cli``.&quot;&quot;&quot;
+
+from __future__ import annotations
+
+from nipux_cli.cli import main
+
+
+if __name__ == &quot;__main__&quot;:
+    main()">
+<summary>nipux_cli/__main__.py <span>9 lines</span></summary>
+<pre class="source-code"><span class='src-line'><b>   1</b><code>&quot;&quot;&quot;Run the Nipux CLI with ``python -m nipux_cli``.&quot;&quot;&quot;</code></span>
+<span class='src-line'><b>   2</b><code></code></span>
+<span class='src-line'><b>   3</b><code>from __future__ import annotations</code></span>
+<span class='src-line'><b>   4</b><code></code></span>
+<span class='src-line'><b>   5</b><code>from nipux_cli.cli import main</code></span>
+<span class='src-line'><b>   6</b><code></code></span>
+<span class='src-line'><b>   7</b><code></code></span>
+<span class='src-line'><b>   8</b><code>if __name__ == &quot;__main__&quot;:</code></span>
+<span class='src-line'><b>   9</b><code>    main()</code></span></pre>
 </details>
 <details class="source-file searchable" data-search="nipux_cli/artifacts.py &quot;&quot;&quot;Artifact file storage for long-running jobs.&quot;&quot;&quot;
 
@@ -28243,7 +28269,7 @@ CHAT_SETTING_COMMANDS = {
 <span class='src-line'><b> 193</b><code>    if hidden:</code></span>
 <span class='src-line'><b> 194</b><code>        lines.append(_fit_ansi(_muted(f&quot;+{hidden} more; type to filter&quot;), width))</code></span>
 <span class='src-line'><b> 195</b><code>    else:</code></span>
-<span class='src-line'><b> 196</b><code>        lines.append(_fit_ansi(_muted(&quot;tab fills · ↑↓ cycles&quot;), width))</code></span>
+<span class='src-line'><b> 196</b><code>        lines.append(_fit_ansi(_muted(&quot;tab fills · ↑↓ select&quot;), width))</code></span>
 <span class='src-line'><b> 197</b><code>    return lines</code></span>
 <span class='src-line'><b> 198</b><code></code></span>
 <span class='src-line'><b> 199</b><code></code></span>
@@ -28266,7 +28292,7 @@ CHAT_SETTING_COMMANDS = {
 <span class='src-line'><b> 216</b><code>    try:</code></span>
 <span class='src-line'><b> 217</b><code>        index = matches.index(current)</code></span>
 <span class='src-line'><b> 218</b><code>    except ValueError:</code></span>
-<span class='src-line'><b> 219</b><code>        index = 0</code></span>
+<span class='src-line'><b> 219</b><code>        return (matches[0] if direction &gt;= 0 else matches[-1]) + &quot; &quot;</code></span>
 <span class='src-line'><b> 220</b><code>    return matches[(index + direction) % len(matches)] + &quot; &quot;</code></span>
 <span class='src-line'><b> 221</b><code></code></span>
 <span class='src-line'><b> 222</b><code></code></span>
@@ -37502,10 +37528,10 @@ def test_cli_has_operator_commands():
 <span class='src-line'><b> 364</b><code>    assert _autocomplete_slash(&quot;/rest&quot;, CHAT_SLASH_COMMANDS) == &quot;/restart &quot;</code></span>
 <span class='src-line'><b> 365</b><code>    assert _autocomplete_slash(&quot;/step&quot;, CHAT_SLASH_COMMANDS) == &quot;/step-limit &quot;</code></span>
 <span class='src-line'><b> 366</b><code>    assert _autocomplete_slash(&quot;/out&quot;, FIRST_RUN_SLASH_COMMANDS) == &quot;/output-chars &quot;</code></span>
-<span class='src-line'><b> 367</b><code>    assert _cycle_slash(&quot;/&quot;, CHAT_SLASH_COMMANDS, direction=1) == &quot;/work &quot;</code></span>
+<span class='src-line'><b> 367</b><code>    assert _cycle_slash(&quot;/&quot;, CHAT_SLASH_COMMANDS, direction=1) == &quot;/run &quot;</code></span>
 <span class='src-line'><b> 368</b><code>    assert _cycle_slash(&quot;/&quot;, CHAT_SLASH_COMMANDS, direction=-1) == &quot;/exit &quot;</code></span>
 <span class='src-line'><b> 369</b><code>    assert _cycle_slash(&quot;/work &quot;, CHAT_SLASH_COMMANDS, direction=1) == &quot;/work &quot;</code></span>
-<span class='src-line'><b> 370</b><code>    assert _cycle_slash(&quot;/out&quot;, CHAT_SLASH_COMMANDS, direction=1) == &quot;/outputs &quot;</code></span>
+<span class='src-line'><b> 370</b><code>    assert _cycle_slash(&quot;/out&quot;, CHAT_SLASH_COMMANDS, direction=1) == &quot;/outcomes &quot;</code></span>
 <span class='src-line'><b> 371</b><code>    assert _cycle_slash(&quot;/out&quot;, CHAT_SLASH_COMMANDS, direction=-1) == &quot;/output-cost &quot;</code></span>
 <span class='src-line'><b> 372</b><code>    assert _autocomplete_slash(&quot;plain text&quot;, CHAT_SLASH_COMMANDS) == &quot;plain text&quot;</code></span>
 <span class='src-line'><b> 373</b><code>    lines = _slash_suggestion_lines(&quot;/art&quot;, CHAT_SLASH_COMMANDS, width=80)</code></span>
@@ -37518,7 +37544,7 @@ def test_cli_has_operator_commands():
 <span class='src-line'><b> 380</b><code>    assert &quot;MODEL&quot; in hint_text</code></span>
 <span class='src-line'><b> 381</b><code>    partial_hint_text = &quot;\n&quot;.join(_slash_suggestion_lines(&quot;/mo&quot;, CHAT_SLASH_COMMANDS, width=80))</code></span>
 <span class='src-line'><b> 382</b><code>    assert &quot;/model MODEL&quot; in partial_hint_text</code></span>
-<span class='src-line'><b> 383</b><code>    assert &quot;↑↓ cycles&quot; in partial_hint_text</code></span>
+<span class='src-line'><b> 383</b><code>    assert &quot;↑↓ select&quot; in partial_hint_text</code></span>
 <span class='src-line'><b> 384</b><code>    full_palette_text = &quot;\n&quot;.join(_slash_suggestion_lines(&quot;/&quot;, CHAT_SLASH_COMMANDS, width=80, limit=5))</code></span>
 <span class='src-line'><b> 385</b><code>    assert &quot;type to filter&quot; in full_palette_text</code></span>
 <span class='src-line'><b> 386</b><code>    assert &quot;/shell&quot; not in &quot;\n&quot;.join(_slash_suggestion_lines(&quot;/&quot;, CHAT_SLASH_COMMANDS, width=80, limit=20))</code></span>
