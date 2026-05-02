@@ -1600,6 +1600,34 @@ def test_chat_status_page_surfaces_context_pressure():
     assert "high" in frame
 
 
+def test_chat_status_page_surfaces_low_durable_yield():
+    snapshot = {
+        "job_id": "job_demo",
+        "job": {
+            "id": "job_demo",
+            "title": "yield job",
+            "objective": "keep durable progress visible",
+            "status": "running",
+            "kind": "generic",
+            "metadata": {},
+        },
+        "jobs": [{"id": "job_demo", "title": "yield job", "status": "running", "kind": "generic", "metadata": {}}],
+        "steps": [],
+        "artifacts": [{"id": "art_demo", "title": "Only Saved Output"}],
+        "memory_entries": [],
+        "events": [],
+        "daemon": {"running": True, "metadata": {"pid": 123}},
+        "model": "model/demo",
+        "counts": {"steps": 120, "artifacts": 1, "memory": 0},
+    }
+
+    frame = _build_chat_frame(snapshot, "", [], width=132, height=30)
+
+    assert "Yield" in frame
+    assert "watch" in frame
+    assert "120.0 actions/outcome" in frame
+
+
 def test_chat_status_page_shows_job_outputs():
     snapshot = {
         "job_id": "job_demo",

@@ -134,6 +134,7 @@ def build_messages(
     progress_accounting_guard = _progress_accounting_for_prompt(recent_steps)
     activity_stagnation = _activity_stagnation_for_prompt(job)
     task_planning_guard = _task_planning_guard_for_prompt(job)
+    durable_yield = _durable_yield_for_prompt(job, recent_steps)
     context_pressure = context_pressure_for_prompt(job)
     lessons = _lessons_for_prompt(job)
     roadmap = _roadmap_for_prompt(job)
@@ -161,6 +162,7 @@ def build_messages(
             ("Progress accounting guard", progress_accounting_guard),
             ("Activity stagnation", activity_stagnation),
             ("Task planning guard", task_planning_guard),
+            ("Durable progress yield", durable_yield),
             ("Context pressure", context_pressure),
             ("Program", program),
             ("Lessons learned", lessons),
@@ -294,6 +296,47 @@ def _task_planning_guard_for_prompt(job: dict[str, Any]) -> str:
         f"open_tasks={context.get('open_tasks')} total_tasks={context.get('total_tasks')}. "
         "Do not create more new open tasks next. Execute, measure, validate, write a checkpoint, mark existing "
         "tasks done/blocked/skipped, or record a lesson from the branch."
+    )
+
+
+def _durable_yield_for_prompt(job: dict[str, Any], recent_steps: list[dict[str, Any]]) -> str:
+    completed = [step for step in recent_steps if step.get("status") == "completed"]
+    if len(completed) < 20:
+        return "None."
+    durable_tools = LEDGER_PROGRESS_TOOLS | {"write_artifact", "write_file"}
+    durable_indexes = [
+        index
+        for index, step in enumerate(completed)
+        if step.get("tool_name") in durable_tools
+    ]
+    metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
+    durable_records = (
+        len(_metadata_list(job, "finding_ledger"))
+        + len(_metadata_list(job, "source_ledger"))
+        + len(_metadata_list(job, "experiment_ledger"))
+        + len(_metadata_list(job, "lessons"))
+    )
+    roadmap = metadata.get("roadmap") if isinstance(metadata.get("roadmap"), dict) else {}
+    milestones = roadmap.get("milestones") if isinstance(roadmap.get("milestones"), list) else []
+    durable_records += len(milestones)
+    if not durable_indexes and durable_records <= 0:
+        return (
+            f"No durable progress records after {len(completed)} completed actions. "
+            "Next action should save an output, record findings/source/experiment/lesson/roadmap progress, "
+            "or mark the branch blocked/skipped before more read-only work."
+        )
+    last_durable_index = durable_indexes[-1] if durable_indexes else -1
+    actions_since = len(completed) - last_durable_index - 1
+    durable_steps = len(durable_indexes)
+    actions_per_durable = len(completed) / max(1, durable_steps + durable_records)
+    if actions_since < 25 and actions_per_durable < 30:
+        return "None."
+    return (
+        f"Durable yield is low: completed_actions={len(completed)} durable_steps={durable_steps} "
+        f"durable_records={durable_records} actions_since_last_durable={actions_since} "
+        f"actions_per_durable~{actions_per_durable:.1f}. "
+        "Prefer a concrete checkpoint next: write/save output, record measured or reusable evidence, validate a milestone, "
+        "or reject/pivot the branch with a lesson."
     )
 
 

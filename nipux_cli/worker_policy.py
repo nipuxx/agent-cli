@@ -233,6 +233,7 @@ PROMPT_SECTION_BUDGETS = {
     "Progress accounting guard": 900,
     "Activity stagnation": 900,
     "Task planning guard": 900,
+    "Durable progress yield": 900,
     "Program": 1_400,
     "Lessons learned": 1_100,
     "Roadmap": 2_000,

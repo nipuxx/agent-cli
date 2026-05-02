@@ -125,6 +125,9 @@ def right_pane_lines(
     if latest_outcome:
         info_lines.append(latest_outcome)
     info_lines.extend(_metrics_grid_lines(metrics, width=width))
+    yield_line = _yield_line(metrics, width=width)
+    if yield_line:
+        info_lines.append(yield_line)
     info_lines.append("")
     info_lines.append(_bold("Jobs"))
     info_lines.extend(
@@ -419,6 +422,26 @@ def _metrics_grid_lines(metrics: list[tuple[str, Any]], *, width: int) -> list[s
 def _metric_cell(item: tuple[str, Any], *, width: int) -> str:
     label, value = item
     return _fit_ansi(f"{_muted(label)} {_bold(value)}", width)
+
+
+def _yield_line(metrics: list[tuple[str, Any]], *, width: int) -> str:
+    lookup = {label: value for label, value in metrics}
+    actions = _safe_int(lookup.get("actions"))
+    if actions < 20:
+        return ""
+    outputs = _safe_int(lookup.get("outputs"))
+    findings = _safe_int(lookup.get("findings"))
+    sources = _safe_int(lookup.get("sources"))
+    experiments = _safe_int(lookup.get("experiments"))
+    durable = outputs + findings + sources + experiments
+    if durable <= 0:
+        return _fit_ansi(f"{_muted('Yield')}  {_status_badge('blocked')} no durable outcomes after {actions} actions", width)
+    actions_per = actions / durable
+    label = "watch" if actions_per >= 25 else "ok"
+    if actions_per < 8:
+        return ""
+    detail = f"{actions_per:.1f} actions/outcome"
+    return _fit_ansi(f"{_muted('Yield')}  {_status_badge(label)} {detail}", width)
 
 
 def _safe_int(value: Any) -> int:

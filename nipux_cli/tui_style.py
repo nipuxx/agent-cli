@@ -107,6 +107,8 @@ def _status_badge(value: Any) -> str:
         "cancelled": "31",
         "failed": "31",
         "completed": "36",
+        "ok": "32",
+        "watch": "33",
     }.get(text, "37")
     return _style(text, color)
 

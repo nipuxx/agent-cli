@@ -1832,6 +1832,31 @@ def test_prompt_includes_task_planning_guard_context():
     assert "Do not create more new open tasks next" in content
 
 
+def test_prompt_includes_durable_yield_pressure():
+    job = {
+        "title": "research",
+        "kind": "generic",
+        "objective": "keep making durable progress",
+        "metadata": {},
+    }
+    steps = [
+        {
+            "step_no": index,
+            "kind": "tool",
+            "status": "completed",
+            "tool_name": "web_search",
+            "summary": f"search {index}",
+        }
+        for index in range(1, 31)
+    ]
+
+    content = build_messages(job, steps)[-1]["content"]
+
+    assert "Durable progress yield" in content
+    assert "No durable progress records after 30 completed actions" in content
+    assert "record findings/source/experiment/lesson/roadmap progress" in content
+
+
 def test_prompt_includes_finding_source_ledgers_and_reflections():
     job = {
         "title": "research",
