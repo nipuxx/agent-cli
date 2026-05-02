@@ -425,6 +425,7 @@ def test_chat_help_has_config_slash_commands_without_settings_page(monkeypatch, 
     out = capsys.readouterr().out
     assert "/settings" not in out
     assert "/usage" in out
+    assert "/config" in out
     assert "/outcomes" in out
     assert "/model MODEL" in out
     assert "/api-key KEY" in out
@@ -450,6 +451,7 @@ def test_chat_slash_palette_matches_public_chat_commands():
         "/outcomes",
         "/status",
         "/usage",
+        "/config",
         "/health",
         "/artifacts",
         "/artifact",
@@ -546,6 +548,45 @@ def test_chat_settings_slash_commands_persist_config(monkeypatch, tmp_path, caps
     assert _config_field_value("runtime.daily_digest_enabled") is False
     assert _config_field_value("runtime.daily_digest_time") == "08:30"
     assert "NIPUX_TEST_KEY=sk-test-value" in (tmp_path / ".env").read_text(encoding="utf-8")
+
+
+def test_chat_config_slash_command_summarizes_runtime_without_secret(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    monkeypatch.setenv("NIPUX_TEST_KEY", "sk-test-value")
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Research topic", title="research")
+    finally:
+        db.close()
+    (tmp_path / "config.yaml").write_text(
+        """
+model:
+  name: provider/model
+  base_url: https://example.com/v1
+  api_key_env: NIPUX_TEST_KEY
+  context_length: 8192
+  request_timeout_seconds: 45
+  input_cost_per_million: 0.1
+  output_cost_per_million: 0.2
+runtime:
+  max_step_seconds: 90
+  artifact_inline_char_limit: 4096
+  daily_digest_enabled: false
+  daily_digest_time: "08:30"
+""",
+        encoding="utf-8",
+    )
+
+    assert _chat_handle_line(job_id, "/config") is True
+
+    out = capsys.readouterr().out
+    assert "config" in out
+    assert "model: provider/model" in out
+    assert "endpoint: https://example.com/v1" in out
+    assert "key: set (NIPUX_TEST_KEY)" in out
+    assert "context: 8192" in out
+    assert "cost rates: input $0.1 / output $0.2 per 1M tokens" in out
+    assert "sk-test-value" not in out
 
 
 def test_chat_usage_slash_command_reports_tokens(monkeypatch, tmp_path, capsys):

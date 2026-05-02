@@ -12,6 +12,9 @@ from nipux_cli.tui_commands import CHAT_SETTING_COMMANDS
 
 
 def handle_chat_setting_command(command: str, rest: list[str]) -> bool:
+    if command == "config":
+        print("\n".join(config_summary_lines()))
+        return True
     if command in {"key", "api-key"}:
         if not rest:
             config = load_config()
@@ -30,6 +33,30 @@ def handle_chat_setting_command(command: str, rest: list[str]) -> bool:
         return True
     print(inline_setting_notice(field, " ".join(rest)))
     return True
+
+
+def config_summary_lines() -> list[str]:
+    config = load_config()
+    key_state = "set" if config.model.api_key else "missing"
+    input_cost = _rate_text(config.model.input_cost_per_million)
+    output_cost = _rate_text(config.model.output_cost_per_million)
+    return [
+        "config",
+        f"model: {config.model.model}",
+        f"endpoint: {config.model.base_url}",
+        f"key: {key_state} ({config.model.api_key_env})",
+        f"context: {config.model.context_length}",
+        f"request timeout: {config.model.request_timeout_seconds}s",
+        f"cost rates: input {input_cost} / output {output_cost} per 1M tokens",
+        f"home: {config.runtime.home}",
+        f"step timeout: {config.runtime.max_step_seconds}s",
+        f"output preview: {config.runtime.artifact_inline_char_limit} chars",
+        f"daily digest: {config.runtime.daily_digest_enabled} at {config.runtime.daily_digest_time}",
+    ]
+
+
+def _rate_text(value: float | None) -> str:
+    return "provider-reported" if value is None else f"${value:g}"
 
 
 def capture_setting_command(line: str) -> list[str]:
