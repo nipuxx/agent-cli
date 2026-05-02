@@ -348,7 +348,7 @@ def test_slash_autocomplete_filters_commands():
     assert _cycle_slash("/", CHAT_SLASH_COMMANDS, direction=1) == "/work "
     assert _cycle_slash("/", CHAT_SLASH_COMMANDS, direction=-1) == "/exit "
     assert _cycle_slash("/work ", CHAT_SLASH_COMMANDS, direction=1) == "/work "
-    assert _cycle_slash("/out", CHAT_SLASH_COMMANDS, direction=1) == "/output-chars "
+    assert _cycle_slash("/out", CHAT_SLASH_COMMANDS, direction=1) == "/outputs "
     assert _cycle_slash("/out", CHAT_SLASH_COMMANDS, direction=-1) == "/output-cost "
     assert _autocomplete_slash("plain text", CHAT_SLASH_COMMANDS) == "plain text"
     lines = _slash_suggestion_lines("/art", CHAT_SLASH_COMMANDS, width=80)
@@ -419,6 +419,69 @@ def test_chat_help_has_config_slash_commands_without_settings_page(monkeypatch, 
     assert "/home PATH" in out
     assert "/digest-time HH:MM" in out
     assert "/shell" not in out
+
+
+def test_chat_slash_palette_matches_public_chat_commands():
+    palette = {command for command, _description in CHAT_SLASH_COMMANDS}
+    advertised = {
+        "/jobs",
+        "/focus",
+        "/switch",
+        "/new",
+        "/delete",
+        "/history",
+        "/events",
+        "/activity",
+        "/outputs",
+        "/updates",
+        "/outcomes",
+        "/status",
+        "/usage",
+        "/health",
+        "/artifacts",
+        "/artifact",
+        "/findings",
+        "/tasks",
+        "/roadmap",
+        "/experiments",
+        "/sources",
+        "/memory",
+        "/metrics",
+        "/lessons",
+        "/model",
+        "/base-url",
+        "/api-key",
+        "/api-key-env",
+        "/context",
+        "/input-cost",
+        "/output-cost",
+        "/timeout",
+        "/home",
+        "/step-limit",
+        "/output-chars",
+        "/daily-digest",
+        "/digest-time",
+        "/doctor",
+        "/run",
+        "/start",
+        "/restart",
+        "/work",
+        "/work-verbose",
+        "/stop",
+        "/pause",
+        "/resume",
+        "/cancel",
+        "/learn",
+        "/note",
+        "/follow",
+        "/digest",
+        "/clear",
+        "/exit",
+    }
+
+    assert advertised <= palette
+    assert "/settings" not in palette
+    assert "/shell" not in palette
 
 
 def test_chat_settings_slash_commands_persist_config(monkeypatch, tmp_path, capsys):

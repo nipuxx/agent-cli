@@ -31,16 +31,29 @@ FIRST_RUN_SLASH_COMMANDS = [
 CHAT_SLASH_COMMANDS = [
     ("/run", "start worker"),
     ("/work", "one step"),
+    ("/work-verbose", "verbose step"),
     ("/jobs", "switch jobs"),
     ("/focus", "set focus"),
+    ("/switch", "set focus"),
     ("/history", "timeline"),
+    ("/events", "event feed"),
     ("/activity", "live feed"),
     ("/outcomes", "durable work"),
+    ("/updates", "durable work"),
+    ("/outputs", "raw runs"),
     ("/artifacts", "outputs"),
     ("/artifact", "open output"),
+    ("/findings", "finding ledger"),
+    ("/tasks", "task queue"),
+    ("/roadmap", "milestones"),
+    ("/experiments", "measurements"),
+    ("/sources", "source ledger"),
     ("/memory", "learning"),
+    ("/metrics", "counts"),
+    ("/lessons", "lessons"),
     ("/usage", "tokens/cost"),
     ("/status", "job state"),
+    ("/health", "daemon health"),
     ("/start", "start daemon"),
     ("/restart", "restart daemon"),
     ("/model", "set model"),
@@ -57,10 +70,18 @@ CHAT_SLASH_COMMANDS = [
     ("/daily-digest", "daily digest on/off"),
     ("/digest-time", "digest time"),
     ("/doctor", "check setup"),
+    ("/init", "write config"),
     ("/pause", "pause job"),
     ("/resume", "resume job"),
     ("/stop", "pause job"),
+    ("/cancel", "cancel job"),
     ("/new", "new job"),
+    ("/delete", "delete job"),
+    ("/learn", "save lesson"),
+    ("/note", "save note"),
+    ("/follow", "queue follow-up"),
+    ("/digest", "digest"),
+    ("/clear", "clear notices"),
     ("/exit", "quit"),
 ]
 
@@ -175,7 +196,7 @@ def slash_suggestion_lines(
 
 
 def autocomplete_slash(input_buffer: str, commands: list[tuple[str, str]]) -> str:
-    if not input_buffer.startswith("/") or " " in input_buffer.strip():
+    if not input_buffer.startswith("/") or " " in input_buffer[1:]:
         return input_buffer
     matches = _slash_command_matches(input_buffer, commands)
     if not matches:
@@ -184,7 +205,7 @@ def autocomplete_slash(input_buffer: str, commands: list[tuple[str, str]]) -> st
 
 
 def cycle_slash(input_buffer: str, commands: list[tuple[str, str]], *, direction: int) -> str:
-    if not input_buffer.startswith("/") or " " in input_buffer.strip():
+    if not input_buffer.startswith("/") or " " in input_buffer[1:]:
         return input_buffer
     matches = _slash_command_matches(input_buffer, commands)
     if not matches:
