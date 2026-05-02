@@ -371,6 +371,13 @@ def test_fake_daemon_can_run_100_iterations_without_auto_stop(tmp_path):
         assert len(steps) == 100
         assert any(step["kind"] == "reflection" for step in steps)
         assert db.list_artifacts(job_id)
+        memory = db.list_memory(job_id)
+        assert memory
+        assert memory[0]["key"] == "rolling_state"
+        assert "Recent steps:" in memory[0]["summary"]
+        assert db.get_job(job_id)["status"] in {"queued", "running"}
+        step_events = [event for event in read_daemon_events(config, limit=120) if event.get("event") == "step"]
+        assert len(step_events) == 100
         assert daemon_lock_status(tmp_path / "agentd.lock")["running"] is False
     finally:
         db.close()

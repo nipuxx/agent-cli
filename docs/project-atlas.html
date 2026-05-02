@@ -82,7 +82,7 @@ pre { max-height: 540px; overflow: auto; background: #050606; border: 1px solid 
 <div class="shell">
   <aside class="sidebar">
     <div class="logo">NIPUX ATLAS</div>
-    <div class="subtitle">Generated from tracked source on 3040db00.</div>
+    <div class="subtitle">Generated from tracked source on 1739045a.</div>
     <input id="search" class="search" placeholder="filter files, prompts, tools..." autocomplete="off">
     <nav class="nav">
       <a href="#architecture">Architecture</a>
@@ -98,7 +98,7 @@ pre { max-height: 540px; overflow: auto; background: #050606; border: 1px solid 
     </nav>
     <div class="stats">
       <div class="stat"><b>91</b><span>tracked files</span></div>
-      <div class="stat"><b>30,204</b><span>tracked lines mapped</span></div>
+      <div class="stat"><b>30,211</b><span>tracked lines mapped</span></div>
       <div class="stat"><b>1257</b><span>python symbols</span></div>
       <div class="stat"><b>27</b><span>runtime tools</span></div>
     </div>
@@ -930,7 +930,7 @@ fixed tool surface. none">
 <details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> pathlib, nipux_cli.config</p><p><strong>Symbols:</strong> _mode, test_load_config_defaults_to_qwen_openrouter, test_load_config_from_yaml, test_load_config_reads_local_env_file, test_load_config_tightens_local_env_permissions, test_default_config_yaml_allows_provider_template_without_secret, test_config_example_matches_default_provider</p></details>
 </article>
 <article class="file-card searchable" data-search="tests/nipux_cli/test_daemon.py No module docstring. test_single_instance_lock_rejects_second_holder, test_daemon_lock_status_reports_free_lock, test_lock_metadata_can_be_updated_while_held, test_daemon_lock_status_detects_stale_runtime, test_runtime_fingerprint_tracks_progress_code, test_rate_limit_backoff_uses_retry_after_header, RateLimit, test_rate_limit_backoff_has_conservative_fallback, RateLimit, test_failed_step_provider_config_error_gets_long_backoff">
-<header><h3>tests/nipux_cli/test_daemon.py</h3><span>376 lines</span></header>
+<header><h3>tests/nipux_cli/test_daemon.py</h3><span>383 lines</span></header>
 <p>No module docstring.</p>
 <div class="meta"><span>29 symbols</span><span>0 TODOs</span></div>
 <details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> datetime, json, time, pytest, nipux_cli.config, nipux_cli.daemon, nipux_cli.db, nipux_cli.worker</p><p><strong>Symbols:</strong> test_single_instance_lock_rejects_second_holder, test_daemon_lock_status_reports_free_lock, test_lock_metadata_can_be_updated_while_held, test_daemon_lock_status_detects_stale_runtime, test_runtime_fingerprint_tracks_progress_code, test_rate_limit_backoff_uses_retry_after_header, RateLimit, test_rate_limit_backoff_has_conservative_fallback, RateLimit, test_failed_step_provider_config_error_gets_long_backoff</p></details>
@@ -7227,11 +7227,11 @@ fixed tool surface. none">
 <p>No docstring.</p>
 <p class="calls"><strong>Calls:</strong> StepExecution</p>
 </article>
-<article class="symbol searchable" data-search="tests/nipux_cli/test_daemon.py test_fake_daemon_can_run_100_iterations_without_auto_stop No docstring. AgentDB, AppConfig, Daemon, RuntimeConfig, any, daemon.run_forever, daemon_lock_status, db.close, db.create_job, db.list_artifacts, db.list_steps, len">
+<article class="symbol searchable" data-search="tests/nipux_cli/test_daemon.py test_fake_daemon_can_run_100_iterations_without_auto_stop No docstring. AgentDB, AppConfig, Daemon, RuntimeConfig, any, daemon.run_forever, daemon_lock_status, db.close, db.create_job, db.get_job, db.list_artifacts, db.list_memory, db.list_steps, event.get, len, read_daemon_events">
 <h3>test_fake_daemon_can_run_100_iterations_without_auto_stop</h3>
 <p><span class="pill">function</span> <span class="pill">tests/nipux_cli/test_daemon.py:361</span></p>
 <p>No docstring.</p>
-<p class="calls"><strong>Calls:</strong> AgentDB, AppConfig, Daemon, RuntimeConfig, any, daemon.run_forever, daemon_lock_status, db.close, db.create_job, db.list_artifacts, db.list_steps, len</p>
+<p class="calls"><strong>Calls:</strong> AgentDB, AppConfig, Daemon, RuntimeConfig, any, daemon.run_forever, daemon_lock_status, db.close, db.create_job, db.get_job, db.list_artifacts, db.list_memory, db.list_steps, event.get, len, read_daemon_events</p>
 </article>
 <article class="symbol searchable" data-search="tests/nipux_cli/test_dashboard.py test_dashboard_collects_jobs_steps_and_artifacts No docstring. AgentDB, AppConfig, ArtifactStore, RuntimeConfig, collect_dashboard_state, db.add_step, db.append_lesson, db.append_task_record, db.close, db.create_job, db.finish_run, db.finish_step, db.start_run, render_dashboard, render_overview, write_text">
 <h3>test_dashboard_collects_jobs_steps_and_artifacts</h3>
@@ -40647,7 +40647,7 @@ def test_daemon_run_once_claims_next_job_with_fake_step(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / &quot;state.db&quot;)
  ">
-<summary>tests/nipux_cli/test_daemon.py <span>376 lines</span></summary>
+<summary>tests/nipux_cli/test_daemon.py <span>383 lines</span></summary>
 <pre class="source-code"><span class='src-line'><b>   1</b><code>from datetime import datetime, timedelta, timezone</code></span>
 <span class='src-line'><b>   2</b><code>import json</code></span>
 <span class='src-line'><b>   3</b><code>import time</code></span>
@@ -41021,9 +41021,16 @@ def test_daemon_run_once_claims_next_job_with_fake_step(tmp_path):
 <span class='src-line'><b> 371</b><code>        assert len(steps) == 100</code></span>
 <span class='src-line'><b> 372</b><code>        assert any(step[&quot;kind&quot;] == &quot;reflection&quot; for step in steps)</code></span>
 <span class='src-line'><b> 373</b><code>        assert db.list_artifacts(job_id)</code></span>
-<span class='src-line'><b> 374</b><code>        assert daemon_lock_status(tmp_path / &quot;agentd.lock&quot;)[&quot;running&quot;] is False</code></span>
-<span class='src-line'><b> 375</b><code>    finally:</code></span>
-<span class='src-line'><b> 376</b><code>        db.close()</code></span></pre>
+<span class='src-line'><b> 374</b><code>        memory = db.list_memory(job_id)</code></span>
+<span class='src-line'><b> 375</b><code>        assert memory</code></span>
+<span class='src-line'><b> 376</b><code>        assert memory[0][&quot;key&quot;] == &quot;rolling_state&quot;</code></span>
+<span class='src-line'><b> 377</b><code>        assert &quot;Recent steps:&quot; in memory[0][&quot;summary&quot;]</code></span>
+<span class='src-line'><b> 378</b><code>        assert db.get_job(job_id)[&quot;status&quot;] in {&quot;queued&quot;, &quot;running&quot;}</code></span>
+<span class='src-line'><b> 379</b><code>        step_events = [event for event in read_daemon_events(config, limit=120) if event.get(&quot;event&quot;) == &quot;step&quot;]</code></span>
+<span class='src-line'><b> 380</b><code>        assert len(step_events) == 100</code></span>
+<span class='src-line'><b> 381</b><code>        assert daemon_lock_status(tmp_path / &quot;agentd.lock&quot;)[&quot;running&quot;] is False</code></span>
+<span class='src-line'><b> 382</b><code>    finally:</code></span>
+<span class='src-line'><b> 383</b><code>        db.close()</code></span></pre>
 </details>
 <details class="source-file searchable" data-search="tests/nipux_cli/test_dashboard.py from datetime import datetime, timedelta, timezone
 
@@ -47166,7 +47173,7 @@ class AntiBotBrowserRegistry:
 <h3>tests/nipux_cli/test_config.py</h3><p><strong>6</strong> tests · 119 lines</p>
 <p class="muted">test_load_config_defaults_to_qwen_openrouter, test_load_config_from_yaml, test_load_config_reads_local_env_file, test_load_config_tightens_local_env_permissions, test_default_config_yaml_allows_provider_template_without_secret, test_config_example_matches_default_provider</p></article>
 <article class="test-card searchable" data-search="tests/nipux_cli/test_daemon.py test_single_instance_lock_rejects_second_holder test_daemon_lock_status_reports_free_lock test_lock_metadata_can_be_updated_while_held test_daemon_lock_status_detects_stale_runtime test_runtime_fingerprint_tracks_progress_code test_rate_limit_backoff_uses_retry_after_header test_rate_limit_backoff_has_conservative_fallback test_failed_step_provider_config_error_gets_long_backoff test_failed_step_rate_limit_gets_throttled_backoff test_retry_after_parses_epoch_milliseconds test_daemon_run_once_claims_next_job_with_fake_step test_daemon_ignores_ui_focus_for_worker_scheduling test_daemon_skips_deferred_jobs_until_due test_daemon_quarantines_provider_blocked_jobs test_daemon_idle_sleep_wakes_for_deferred_job test_daemon_idle_sleep_uses_poll_when_no_deferred_jobs test_daemon_advances_multiple_runnable_jobs_without_focus_starvation test_daemon_writes_due_daily_digest_once test_daemon_event_log_round_trips_jsonl test_daemon_recovers_stale_running_steps_on_start test_daemon_survives_unexpected_step_exception test_daemon_treats_blocked_steps_as_recoverable test_fake_daemon_can_run_100_iterations_without_auto_stop">
-<h3>tests/nipux_cli/test_daemon.py</h3><p><strong>23</strong> tests · 376 lines</p>
+<h3>tests/nipux_cli/test_daemon.py</h3><p><strong>23</strong> tests · 383 lines</p>
 <p class="muted">test_single_instance_lock_rejects_second_holder, test_daemon_lock_status_reports_free_lock, test_lock_metadata_can_be_updated_while_held, test_daemon_lock_status_detects_stale_runtime, test_runtime_fingerprint_tracks_progress_code, test_rate_limit_backoff_uses_retry_after_header, test_rate_limit_backoff_has_conserva...</p></article>
 <article class="test-card searchable" data-search="tests/nipux_cli/test_dashboard.py test_dashboard_collects_jobs_steps_and_artifacts test_overview_marks_stopped_daemon_as_not_advancing test_overview_marks_old_heartbeat_as_busy_for_running_step">
 <h3>tests/nipux_cli/test_dashboard.py</h3><p><strong>3</strong> tests · 86 lines</p>
