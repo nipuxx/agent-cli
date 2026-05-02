@@ -238,6 +238,7 @@ PROMPT_SECTION_BUDGETS = {
     "Lessons learned": 1_100,
     "Roadmap": 2_000,
     "Task queue": 2_400,
+    "Durable outcomes": 1_200,
     "Ledgers": 2_400,
     "Experiment ledger": 2_200,
     "Reflections": 900,

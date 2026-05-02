@@ -1466,6 +1466,50 @@ def test_prompt_timeline_filters_low_signal_tool_noise():
     assert "search noise" not in content
 
 
+def test_prompt_includes_durable_outcome_summary():
+    job = {
+        "title": "outcomes",
+        "kind": "generic",
+        "objective": "keep useful durable progress visible",
+        "metadata": {},
+    }
+    events = [
+        {
+            "event_type": "artifact",
+            "title": "Draft checkpoint",
+            "body": "",
+            "metadata": {},
+        },
+        {
+            "event_type": "finding",
+            "title": "Reusable finding",
+            "body": "",
+            "metadata": {},
+        },
+        {
+            "event_type": "experiment",
+            "title": "Quality check",
+            "body": "",
+            "metadata": {"metric_name": "score", "metric_value": 0.82, "metric_unit": ""},
+        },
+        {
+            "event_type": "tool_result",
+            "title": "web_search",
+            "body": "web_search query='background' returned 5 results",
+            "metadata": {"status": "completed"},
+        },
+    ]
+
+    content = build_messages(job, [], timeline_events=events)[-1]["content"]
+    outcome_section = content.split("Durable outcomes:", 1)[1].split("Ledgers:", 1)[0]
+
+    assert "Outcome counts: 1 outputs 1 findings 1 measurements." in outcome_section
+    assert "save: Draft checkpoint" in outcome_section
+    assert "find: Reusable finding" in outcome_section
+    assert "test: Quality check" in outcome_section
+    assert "background" not in outcome_section
+
+
 def test_emergency_prompt_clipping_repeats_operator_and_next_action():
     job = {"title": "clip", "kind": "generic", "objective": "keep context safe"}
     sections = [(f"Noise {index}", "noise " * 2000) for index in range(90)]

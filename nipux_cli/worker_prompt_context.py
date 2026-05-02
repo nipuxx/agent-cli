@@ -6,6 +6,7 @@ from typing import Any
 
 from nipux_cli.metric_format import format_metric_value
 from nipux_cli.operator_context import active_prompt_operator_entries, operator_entry_is_prompt_relevant
+from nipux_cli.tui_outcomes import hourly_outcome_summary, model_update_event_parts, outcome_counts
 from nipux_cli.worker_policy import (
     MAX_WORKER_PROMPT_CHARS,
     PROMPT_SECTION_BUDGETS,
@@ -269,6 +270,34 @@ def _timeline_for_prompt(events: list[dict[str, Any]]) -> str:
     for at, event_type, detail in selected[-TIMELINE_PROMPT_EVENTS:]:
         prefix = f"- {at} {event_type}: " if at else f"- {event_type}: "
         lines.append(prefix + _clip_text(detail, SECTION_ITEM_CHARS))
+    return "\n".join(lines)
+
+
+def _outcomes_for_prompt(events: list[dict[str, Any]]) -> str:
+    """Summarize durable outputs so the worker sees progress, not just activity."""
+
+    if not events:
+        return "No durable outcomes visible in recent timeline."
+    counts = outcome_counts(events, include_research=False, include_failures=True)
+    summary = hourly_outcome_summary(counts)
+    lines = [f"Outcome counts: {summary or 'none'}."]
+    seen: set[str] = set()
+    for event in reversed(events):
+        parsed = model_update_event_parts(event, width=240, compact=False)
+        if not parsed:
+            continue
+        label, text, _clock = parsed
+        if label in {"DONE", "PLAN", "UPDATE"}:
+            continue
+        key = f"{label}:{text}"
+        if key in seen:
+            continue
+        seen.add(key)
+        lines.append(f"- {label.lower()}: {_clip_text(text, 360)}")
+        if len(lines) >= 8:
+            break
+    if len(lines) == 1:
+        lines.append("No durable output/finding/measurement records are visible; prioritize creating or accounting for one.")
     return "\n".join(lines)
 
 

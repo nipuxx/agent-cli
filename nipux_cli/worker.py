@@ -74,6 +74,7 @@ from nipux_cli.worker_prompt_context import (
     _memory_entries_for_prompt,
     _metadata_list,
     _operator_messages_for_prompt,
+    _outcomes_for_prompt,
     _render_worker_prompt,
     _roadmap_for_prompt,
     _tasks_for_prompt,
@@ -143,6 +144,7 @@ def build_messages(
     experiments = _experiments_for_prompt(job)
     reflections = _reflections_for_prompt(job)
     timeline = _timeline_for_prompt(timeline_events or [])
+    outcomes = _outcomes_for_prompt(timeline_events or [])
     next_constraint = _next_action_constraint(job, recent_steps)
     content = _render_worker_prompt(
         job,
@@ -168,6 +170,7 @@ def build_messages(
             ("Lessons learned", lessons),
             ("Roadmap", roadmap),
             ("Task queue", tasks),
+            ("Durable outcomes", outcomes),
             ("Ledgers", ledgers),
             ("Experiment ledger", experiments),
             ("Reflections", reflections),
