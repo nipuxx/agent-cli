@@ -82,7 +82,7 @@ pre { max-height: 540px; overflow: auto; background: #050606; border: 1px solid 
 <div class="shell">
   <aside class="sidebar">
     <div class="logo">NIPUX ATLAS</div>
-    <div class="subtitle">Generated from tracked source on 3a1737a0.</div>
+    <div class="subtitle">Generated from tracked source on 9d48d055.</div>
     <input id="search" class="search" placeholder="filter files, prompts, tools..." autocomplete="off">
     <nav class="nav">
       <a href="#architecture">Architecture</a>
@@ -98,7 +98,7 @@ pre { max-height: 540px; overflow: auto; background: #050606; border: 1px solid 
     </nav>
     <div class="stats">
       <div class="stat"><b>90</b><span>tracked files</span></div>
-      <div class="stat"><b>29,894</b><span>tracked lines mapped</span></div>
+      <div class="stat"><b>29,895</b><span>tracked lines mapped</span></div>
       <div class="stat"><b>1242</b><span>python symbols</span></div>
       <div class="stat"><b>27</b><span>runtime tools</span></div>
     </div>
@@ -840,7 +840,7 @@ fixed tool surface. none">
 <details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> __future__, json, re, dataclasses, datetime, typing, urllib.parse, nipux_cli.artifacts, nipux_cli.config, nipux_cli.compression, nipux_cli.context_pressure, nipux_cli.db</p><p><strong>Symbols:</strong> StepExecution, build_messages, _acknowledge_non_prompt_operator_context, _measured_progress_guard_for_prompt, _deliverable_progress_guard_for_prompt, _measurement_obligation_for_prompt, _progress_accounting_for_prompt, _activity_stagnation_for_prompt, _task_planning_guard_for_prompt, _reflections_for_prompt</p></details>
 </article>
 <article class="file-card searchable" data-search="nipux_cli/worker_policy.py Static worker prompt and loop policy constants. none">
-<header><h3>nipux_cli/worker_policy.py</h3><span>394 lines</span></header>
+<header><h3>nipux_cli/worker_policy.py</h3><span>395 lines</span></header>
 <p>Static worker prompt and loop policy constants.</p>
 <div class="meta"><span>0 symbols</span><span>0 TODOs</span></div>
 <details><summary>Imports and top symbols</summary><p><strong>Imports:</strong> __future__, re</p><p><strong>Symbols:</strong> none</p></details>
@@ -34025,7 +34025,7 @@ experiments, files, bugs, sources, or other reusable outputs. Dedupe against the
 finding ledger and artifacts before saving.
 Use record_tasks to maintain a durable queue of objective-neutral branches:
 open work, active branch, blocked branch, completed bran">
-<summary>nipux_cli/worker_policy.py <span>394 lines</span></summary>
+<summary>nipux_cli/worker_policy.py <span>395 lines</span></summary>
 <pre class="source-code"><span class='src-line'><b>   1</b><code>&quot;&quot;&quot;Static worker prompt and loop policy constants.&quot;&quot;&quot;</code></span>
 <span class='src-line'><b>   2</b><code></code></span>
 <span class='src-line'><b>   3</b><code>from __future__ import annotations</code></span>
@@ -34260,166 +34260,167 @@ open work, active branch, blocked branch, completed bran">
 <span class='src-line'><b> 232</b><code>    &quot;Deliverable progress guard&quot;: 1_000,</code></span>
 <span class='src-line'><b> 233</b><code>    &quot;Progress accounting guard&quot;: 900,</code></span>
 <span class='src-line'><b> 234</b><code>    &quot;Activity stagnation&quot;: 900,</code></span>
-<span class='src-line'><b> 235</b><code>    &quot;Program&quot;: 1_400,</code></span>
-<span class='src-line'><b> 236</b><code>    &quot;Lessons learned&quot;: 1_100,</code></span>
-<span class='src-line'><b> 237</b><code>    &quot;Roadmap&quot;: 2_000,</code></span>
-<span class='src-line'><b> 238</b><code>    &quot;Task queue&quot;: 2_400,</code></span>
-<span class='src-line'><b> 239</b><code>    &quot;Ledgers&quot;: 2_400,</code></span>
-<span class='src-line'><b> 240</b><code>    &quot;Experiment ledger&quot;: 2_200,</code></span>
-<span class='src-line'><b> 241</b><code>    &quot;Reflections&quot;: 900,</code></span>
-<span class='src-line'><b> 242</b><code>    &quot;Compact memory&quot;: 1_100,</code></span>
-<span class='src-line'><b> 243</b><code>    &quot;Recent visible timeline&quot;: 1_000,</code></span>
-<span class='src-line'><b> 244</b><code>    &quot;Recent state&quot;: 1_800,</code></span>
-<span class='src-line'><b> 245</b><code>    &quot;Next-action constraint&quot;: 1_100,</code></span>
-<span class='src-line'><b> 246</b><code>}</code></span>
-<span class='src-line'><b> 247</b><code></code></span>
-<span class='src-line'><b> 248</b><code>QUERY_STOPWORDS = {</code></span>
-<span class='src-line'><b> 249</b><code>    &quot;and&quot;,</code></span>
-<span class='src-line'><b> 250</b><code>    &quot;are&quot;,</code></span>
-<span class='src-line'><b> 251</b><code>    &quot;does&quot;,</code></span>
-<span class='src-line'><b> 252</b><code>    &quot;for&quot;,</code></span>
-<span class='src-line'><b> 253</b><code>    &quot;from&quot;,</code></span>
-<span class='src-line'><b> 254</b><code>    &quot;how&quot;,</code></span>
-<span class='src-line'><b> 255</b><code>    &quot;offer&quot;,</code></span>
-<span class='src-line'><b> 256</b><code>    &quot;product&quot;,</code></span>
-<span class='src-line'><b> 257</b><code>    &quot;service&quot;,</code></span>
-<span class='src-line'><b> 258</b><code>    &quot;services&quot;,</code></span>
-<span class='src-line'><b> 259</b><code>    &quot;the&quot;,</code></span>
-<span class='src-line'><b> 260</b><code>    &quot;they&quot;,</code></span>
-<span class='src-line'><b> 261</b><code>    &quot;what&quot;,</code></span>
-<span class='src-line'><b> 262</b><code>    &quot;with&quot;,</code></span>
-<span class='src-line'><b> 263</b><code>}</code></span>
-<span class='src-line'><b> 264</b><code>TEXT_TOKEN_STOPWORDS = &lt;redacted&gt;</code></span>
-<span class='src-line'><b> 265</b><code>    &quot;and&quot;,</code></span>
-<span class='src-line'><b> 266</b><code>    &quot;are&quot;,</code></span>
-<span class='src-line'><b> 267</b><code>    &quot;for&quot;,</code></span>
-<span class='src-line'><b> 268</b><code>    &quot;from&quot;,</code></span>
-<span class='src-line'><b> 269</b><code>    &quot;into&quot;,</code></span>
-<span class='src-line'><b> 270</b><code>    &quot;that&quot;,</code></span>
-<span class='src-line'><b> 271</b><code>    &quot;the&quot;,</code></span>
-<span class='src-line'><b> 272</b><code>    &quot;this&quot;,</code></span>
-<span class='src-line'><b> 273</b><code>    &quot;with&quot;,</code></span>
-<span class='src-line'><b> 274</b><code>}</code></span>
-<span class='src-line'><b> 275</b><code></code></span>
-<span class='src-line'><b> 276</b><code>EVIDENCE_ARTIFACT_TERMS = {</code></span>
-<span class='src-line'><b> 277</b><code>    &quot;checkpoint&quot;,</code></span>
-<span class='src-line'><b> 278</b><code>    &quot;evidence&quot;,</code></span>
-<span class='src-line'><b> 279</b><code>    &quot;extract&quot;,</code></span>
-<span class='src-line'><b> 280</b><code>    &quot;extracted&quot;,</code></span>
-<span class='src-line'><b> 281</b><code>    &quot;notes&quot;,</code></span>
-<span class='src-line'><b> 282</b><code>    &quot;source&quot;,</code></span>
-<span class='src-line'><b> 283</b><code>    &quot;sources&quot;,</code></span>
-<span class='src-line'><b> 284</b><code>}</code></span>
-<span class='src-line'><b> 285</b><code>DELIVERABLE_ARTIFACT_TERMS = {</code></span>
-<span class='src-line'><b> 286</b><code>    &quot;article&quot;,</code></span>
-<span class='src-line'><b> 287</b><code>    &quot;checklist&quot;,</code></span>
-<span class='src-line'><b> 288</b><code>    &quot;compiled&quot;,</code></span>
-<span class='src-line'><b> 289</b><code>    &quot;deck&quot;,</code></span>
-<span class='src-line'><b> 290</b><code>    &quot;deliverable&quot;,</code></span>
-<span class='src-line'><b> 291</b><code>    &quot;doc&quot;,</code></span>
-<span class='src-line'><b> 292</b><code>    &quot;document&quot;,</code></span>
-<span class='src-line'><b> 293</b><code>    &quot;draft&quot;,</code></span>
-<span class='src-line'><b> 294</b><code>    &quot;final&quot;,</code></span>
-<span class='src-line'><b> 295</b><code>    &quot;guide&quot;,</code></span>
-<span class='src-line'><b> 296</b><code>    &quot;manual&quot;,</code></span>
-<span class='src-line'><b> 297</b><code>    &quot;memo&quot;,</code></span>
-<span class='src-line'><b> 298</b><code>    &quot;outline&quot;,</code></span>
-<span class='src-line'><b> 299</b><code>    &quot;paper&quot;,</code></span>
-<span class='src-line'><b> 300</b><code>    &quot;presentation&quot;,</code></span>
-<span class='src-line'><b> 301</b><code>    &quot;report&quot;,</code></span>
-<span class='src-line'><b> 302</b><code>    &quot;revision&quot;,</code></span>
-<span class='src-line'><b> 303</b><code>    &quot;section&quot;,</code></span>
-<span class='src-line'><b> 304</b><code>    &quot;spec&quot;,</code></span>
-<span class='src-line'><b> 305</b><code>    &quot;template&quot;,</code></span>
-<span class='src-line'><b> 306</b><code>    &quot;updated&quot;,</code></span>
-<span class='src-line'><b> 307</b><code>    &quot;writeup&quot;,</code></span>
-<span class='src-line'><b> 308</b><code>}</code></span>
-<span class='src-line'><b> 309</b><code>TASK_DELIVERABLE_ACTION_TERMS = {</code></span>
-<span class='src-line'><b> 310</b><code>    &quot;add&quot;,</code></span>
-<span class='src-line'><b> 311</b><code>    &quot;append&quot;,</code></span>
-<span class='src-line'><b> 312</b><code>    &quot;compile&quot;,</code></span>
-<span class='src-line'><b> 313</b><code>    &quot;create&quot;,</code></span>
-<span class='src-line'><b> 314</b><code>    &quot;edit&quot;,</code></span>
-<span class='src-line'><b> 315</b><code>    &quot;insert&quot;,</code></span>
-<span class='src-line'><b> 316</b><code>    &quot;polish&quot;,</code></span>
-<span class='src-line'><b> 317</b><code>    &quot;rewrite&quot;,</code></span>
-<span class='src-line'><b> 318</b><code>    &quot;update&quot;,</code></span>
-<span class='src-line'><b> 319</b><code>    &quot;write&quot;,</code></span>
-<span class='src-line'><b> 320</b><code>}</code></span>
-<span class='src-line'><b> 321</b><code>EXPERIMENT_DELIVERY_ACTION_TERMS = {</code></span>
-<span class='src-line'><b> 322</b><code>    &quot;append&quot;,</code></span>
-<span class='src-line'><b> 323</b><code>    &quot;apply&quot;,</code></span>
-<span class='src-line'><b> 324</b><code>    &quot;build&quot;,</code></span>
-<span class='src-line'><b> 325</b><code>    &quot;compile&quot;,</code></span>
-<span class='src-line'><b> 326</b><code>    &quot;create&quot;,</code></span>
-<span class='src-line'><b> 327</b><code>    &quot;edit&quot;,</code></span>
-<span class='src-line'><b> 328</b><code>    &quot;finish&quot;,</code></span>
-<span class='src-line'><b> 329</b><code>    &quot;fix&quot;,</code></span>
-<span class='src-line'><b> 330</b><code>    &quot;generate&quot;,</code></span>
-<span class='src-line'><b> 331</b><code>    &quot;implement&quot;,</code></span>
-<span class='src-line'><b> 332</b><code>    &quot;insert&quot;,</code></span>
-<span class='src-line'><b> 333</b><code>    &quot;merge&quot;,</code></span>
-<span class='src-line'><b> 334</b><code>    &quot;patch&quot;,</code></span>
-<span class='src-line'><b> 335</b><code>    &quot;produce&quot;,</code></span>
-<span class='src-line'><b> 336</b><code>    &quot;publish&quot;,</code></span>
-<span class='src-line'><b> 337</b><code>    &quot;replace&quot;,</code></span>
-<span class='src-line'><b> 338</b><code>    &quot;rewrite&quot;,</code></span>
-<span class='src-line'><b> 339</b><code>    &quot;save&quot;,</code></span>
-<span class='src-line'><b> 340</b><code>    &quot;update&quot;,</code></span>
-<span class='src-line'><b> 341</b><code>    &quot;write&quot;,</code></span>
-<span class='src-line'><b> 342</b><code>}</code></span>
-<span class='src-line'><b> 343</b><code>EXPERIMENT_INFORMATION_ACTION_TERMS = {</code></span>
-<span class='src-line'><b> 344</b><code>    &quot;audit&quot;,</code></span>
-<span class='src-line'><b> 345</b><code>    &quot;collect&quot;,</code></span>
-<span class='src-line'><b> 346</b><code>    &quot;extract&quot;,</code></span>
-<span class='src-line'><b> 347</b><code>    &quot;find&quot;,</code></span>
-<span class='src-line'><b> 348</b><code>    &quot;gather&quot;,</code></span>
-<span class='src-line'><b> 349</b><code>    &quot;inspect&quot;,</code></span>
-<span class='src-line'><b> 350</b><code>    &quot;read&quot;,</code></span>
-<span class='src-line'><b> 351</b><code>    &quot;research&quot;,</code></span>
-<span class='src-line'><b> 352</b><code>    &quot;review&quot;,</code></span>
-<span class='src-line'><b> 353</b><code>    &quot;search&quot;,</code></span>
-<span class='src-line'><b> 354</b><code>    &quot;source&quot;,</code></span>
-<span class='src-line'><b> 355</b><code>    &quot;survey&quot;,</code></span>
-<span class='src-line'><b> 356</b><code>}</code></span>
-<span class='src-line'><b> 357</b><code>EXPERIMENT_NEXT_ACTION_BLOCKED_TOOLS = INFORMATION_GATHERING_TOOLS | {&quot;report_update&quot;}</code></span>
-<span class='src-line'><b> 358</b><code>READ_ONLY_SHELL_COMMAND_PATTERN = re.compile(</code></span>
-<span class='src-line'><b> 359</b><code>    r&quot;(?is)^\s*(?:&quot;</code></span>
-<span class='src-line'><b> 360</b><code>    r&quot;awk\b|cat\b|df\b|du\b|echo\b|find\b|git\s+(?:diff|grep|log|ls-files|show|status)\b|&quot;</code></span>
-<span class='src-line'><b> 361</b><code>    r&quot;grep\b|head\b|ls\b|pwd\b|rg\b|sed\s+-n\b|stat\b|tail\b|tree\b|wc\b&quot;</code></span>
-<span class='src-line'><b> 362</b><code>    r&quot;)&quot;</code></span>
-<span class='src-line'><b> 363</b><code>)</code></span>
-<span class='src-line'><b> 364</b><code></code></span>
-<span class='src-line'><b> 365</b><code>BROWSER_REF_IGNORE_NAMES = {</code></span>
-<span class='src-line'><b> 366</b><code>    &quot;about us&quot;,</code></span>
-<span class='src-line'><b> 367</b><code>    &quot;back to top&quot;,</code></span>
-<span class='src-line'><b> 368</b><code>    &quot;careers&quot;,</code></span>
-<span class='src-line'><b> 369</b><code>    &quot;click here&quot;,</code></span>
-<span class='src-line'><b> 370</b><code>    &quot;clutch rating&quot;,</code></span>
-<span class='src-line'><b> 371</b><code>    &quot;organization name&quot;,</code></span>
-<span class='src-line'><b> 372</b><code>    &quot;contact&quot;,</code></span>
-<span class='src-line'><b> 373</b><code>    &quot;contact us&quot;,</code></span>
-<span class='src-line'><b> 374</b><code>    &quot;go&quot;,</code></span>
-<span class='src-line'><b> 375</b><code>    &quot;headquarters&quot;,</code></span>
-<span class='src-line'><b> 376</b><code>    &quot;help&quot;,</code></span>
-<span class='src-line'><b> 377</b><code>    &quot;latest links&quot;,</code></span>
-<span class='src-line'><b> 378</b><code>    &quot;learn more&quot;,</code></span>
-<span class='src-line'><b> 379</b><code>    &quot;privacy&quot;,</code></span>
-<span class='src-line'><b> 380</b><code>    &quot;read more&quot;,</code></span>
-<span class='src-line'><b> 381</b><code>    &quot;readmore&quot;,</code></span>
-<span class='src-line'><b> 382</b><code>    &quot;services&quot;,</code></span>
-<span class='src-line'><b> 383</b><code>    &quot;submit&quot;,</code></span>
-<span class='src-line'><b> 384</b><code>    &quot;top hits&quot;,</code></span>
-<span class='src-line'><b> 385</b><code>}</code></span>
-<span class='src-line'><b> 386</b><code></code></span>
-<span class='src-line'><b> 387</b><code>ANTI_BOT_ACK_TERMS = (</code></span>
-<span class='src-line'><b> 388</b><code>    &quot;anti-bot&quot;,</code></span>
-<span class='src-line'><b> 389</b><code>    &quot;blocked&quot;,</code></span>
-<span class='src-line'><b> 390</b><code>    &quot;bot check&quot;,</code></span>
-<span class='src-line'><b> 391</b><code>    &quot;captcha&quot;,</code></span>
-<span class='src-line'><b> 392</b><code>    &quot;not usable&quot;,</code></span>
-<span class='src-line'><b> 393</b><code>    &quot;verification&quot;,</code></span>
-<span class='src-line'><b> 394</b><code>)</code></span></pre>
+<span class='src-line'><b> 235</b><code>    &quot;Task planning guard&quot;: 900,</code></span>
+<span class='src-line'><b> 236</b><code>    &quot;Program&quot;: 1_400,</code></span>
+<span class='src-line'><b> 237</b><code>    &quot;Lessons learned&quot;: 1_100,</code></span>
+<span class='src-line'><b> 238</b><code>    &quot;Roadmap&quot;: 2_000,</code></span>
+<span class='src-line'><b> 239</b><code>    &quot;Task queue&quot;: 2_400,</code></span>
+<span class='src-line'><b> 240</b><code>    &quot;Ledgers&quot;: 2_400,</code></span>
+<span class='src-line'><b> 241</b><code>    &quot;Experiment ledger&quot;: 2_200,</code></span>
+<span class='src-line'><b> 242</b><code>    &quot;Reflections&quot;: 900,</code></span>
+<span class='src-line'><b> 243</b><code>    &quot;Compact memory&quot;: 1_100,</code></span>
+<span class='src-line'><b> 244</b><code>    &quot;Recent visible timeline&quot;: 1_000,</code></span>
+<span class='src-line'><b> 245</b><code>    &quot;Recent state&quot;: 1_800,</code></span>
+<span class='src-line'><b> 246</b><code>    &quot;Next-action constraint&quot;: 1_100,</code></span>
+<span class='src-line'><b> 247</b><code>}</code></span>
+<span class='src-line'><b> 248</b><code></code></span>
+<span class='src-line'><b> 249</b><code>QUERY_STOPWORDS = {</code></span>
+<span class='src-line'><b> 250</b><code>    &quot;and&quot;,</code></span>
+<span class='src-line'><b> 251</b><code>    &quot;are&quot;,</code></span>
+<span class='src-line'><b> 252</b><code>    &quot;does&quot;,</code></span>
+<span class='src-line'><b> 253</b><code>    &quot;for&quot;,</code></span>
+<span class='src-line'><b> 254</b><code>    &quot;from&quot;,</code></span>
+<span class='src-line'><b> 255</b><code>    &quot;how&quot;,</code></span>
+<span class='src-line'><b> 256</b><code>    &quot;offer&quot;,</code></span>
+<span class='src-line'><b> 257</b><code>    &quot;product&quot;,</code></span>
+<span class='src-line'><b> 258</b><code>    &quot;service&quot;,</code></span>
+<span class='src-line'><b> 259</b><code>    &quot;services&quot;,</code></span>
+<span class='src-line'><b> 260</b><code>    &quot;the&quot;,</code></span>
+<span class='src-line'><b> 261</b><code>    &quot;they&quot;,</code></span>
+<span class='src-line'><b> 262</b><code>    &quot;what&quot;,</code></span>
+<span class='src-line'><b> 263</b><code>    &quot;with&quot;,</code></span>
+<span class='src-line'><b> 264</b><code>}</code></span>
+<span class='src-line'><b> 265</b><code>TEXT_TOKEN_STOPWORDS = &lt;redacted&gt;</code></span>
+<span class='src-line'><b> 266</b><code>    &quot;and&quot;,</code></span>
+<span class='src-line'><b> 267</b><code>    &quot;are&quot;,</code></span>
+<span class='src-line'><b> 268</b><code>    &quot;for&quot;,</code></span>
+<span class='src-line'><b> 269</b><code>    &quot;from&quot;,</code></span>
+<span class='src-line'><b> 270</b><code>    &quot;into&quot;,</code></span>
+<span class='src-line'><b> 271</b><code>    &quot;that&quot;,</code></span>
+<span class='src-line'><b> 272</b><code>    &quot;the&quot;,</code></span>
+<span class='src-line'><b> 273</b><code>    &quot;this&quot;,</code></span>
+<span class='src-line'><b> 274</b><code>    &quot;with&quot;,</code></span>
+<span class='src-line'><b> 275</b><code>}</code></span>
+<span class='src-line'><b> 276</b><code></code></span>
+<span class='src-line'><b> 277</b><code>EVIDENCE_ARTIFACT_TERMS = {</code></span>
+<span class='src-line'><b> 278</b><code>    &quot;checkpoint&quot;,</code></span>
+<span class='src-line'><b> 279</b><code>    &quot;evidence&quot;,</code></span>
+<span class='src-line'><b> 280</b><code>    &quot;extract&quot;,</code></span>
+<span class='src-line'><b> 281</b><code>    &quot;extracted&quot;,</code></span>
+<span class='src-line'><b> 282</b><code>    &quot;notes&quot;,</code></span>
+<span class='src-line'><b> 283</b><code>    &quot;source&quot;,</code></span>
+<span class='src-line'><b> 284</b><code>    &quot;sources&quot;,</code></span>
+<span class='src-line'><b> 285</b><code>}</code></span>
+<span class='src-line'><b> 286</b><code>DELIVERABLE_ARTIFACT_TERMS = {</code></span>
+<span class='src-line'><b> 287</b><code>    &quot;article&quot;,</code></span>
+<span class='src-line'><b> 288</b><code>    &quot;checklist&quot;,</code></span>
+<span class='src-line'><b> 289</b><code>    &quot;compiled&quot;,</code></span>
+<span class='src-line'><b> 290</b><code>    &quot;deck&quot;,</code></span>
+<span class='src-line'><b> 291</b><code>    &quot;deliverable&quot;,</code></span>
+<span class='src-line'><b> 292</b><code>    &quot;doc&quot;,</code></span>
+<span class='src-line'><b> 293</b><code>    &quot;document&quot;,</code></span>
+<span class='src-line'><b> 294</b><code>    &quot;draft&quot;,</code></span>
+<span class='src-line'><b> 295</b><code>    &quot;final&quot;,</code></span>
+<span class='src-line'><b> 296</b><code>    &quot;guide&quot;,</code></span>
+<span class='src-line'><b> 297</b><code>    &quot;manual&quot;,</code></span>
+<span class='src-line'><b> 298</b><code>    &quot;memo&quot;,</code></span>
+<span class='src-line'><b> 299</b><code>    &quot;outline&quot;,</code></span>
+<span class='src-line'><b> 300</b><code>    &quot;paper&quot;,</code></span>
+<span class='src-line'><b> 301</b><code>    &quot;presentation&quot;,</code></span>
+<span class='src-line'><b> 302</b><code>    &quot;report&quot;,</code></span>
+<span class='src-line'><b> 303</b><code>    &quot;revision&quot;,</code></span>
+<span class='src-line'><b> 304</b><code>    &quot;section&quot;,</code></span>
+<span class='src-line'><b> 305</b><code>    &quot;spec&quot;,</code></span>
+<span class='src-line'><b> 306</b><code>    &quot;template&quot;,</code></span>
+<span class='src-line'><b> 307</b><code>    &quot;updated&quot;,</code></span>
+<span class='src-line'><b> 308</b><code>    &quot;writeup&quot;,</code></span>
+<span class='src-line'><b> 309</b><code>}</code></span>
+<span class='src-line'><b> 310</b><code>TASK_DELIVERABLE_ACTION_TERMS = {</code></span>
+<span class='src-line'><b> 311</b><code>    &quot;add&quot;,</code></span>
+<span class='src-line'><b> 312</b><code>    &quot;append&quot;,</code></span>
+<span class='src-line'><b> 313</b><code>    &quot;compile&quot;,</code></span>
+<span class='src-line'><b> 314</b><code>    &quot;create&quot;,</code></span>
+<span class='src-line'><b> 315</b><code>    &quot;edit&quot;,</code></span>
+<span class='src-line'><b> 316</b><code>    &quot;insert&quot;,</code></span>
+<span class='src-line'><b> 317</b><code>    &quot;polish&quot;,</code></span>
+<span class='src-line'><b> 318</b><code>    &quot;rewrite&quot;,</code></span>
+<span class='src-line'><b> 319</b><code>    &quot;update&quot;,</code></span>
+<span class='src-line'><b> 320</b><code>    &quot;write&quot;,</code></span>
+<span class='src-line'><b> 321</b><code>}</code></span>
+<span class='src-line'><b> 322</b><code>EXPERIMENT_DELIVERY_ACTION_TERMS = {</code></span>
+<span class='src-line'><b> 323</b><code>    &quot;append&quot;,</code></span>
+<span class='src-line'><b> 324</b><code>    &quot;apply&quot;,</code></span>
+<span class='src-line'><b> 325</b><code>    &quot;build&quot;,</code></span>
+<span class='src-line'><b> 326</b><code>    &quot;compile&quot;,</code></span>
+<span class='src-line'><b> 327</b><code>    &quot;create&quot;,</code></span>
+<span class='src-line'><b> 328</b><code>    &quot;edit&quot;,</code></span>
+<span class='src-line'><b> 329</b><code>    &quot;finish&quot;,</code></span>
+<span class='src-line'><b> 330</b><code>    &quot;fix&quot;,</code></span>
+<span class='src-line'><b> 331</b><code>    &quot;generate&quot;,</code></span>
+<span class='src-line'><b> 332</b><code>    &quot;implement&quot;,</code></span>
+<span class='src-line'><b> 333</b><code>    &quot;insert&quot;,</code></span>
+<span class='src-line'><b> 334</b><code>    &quot;merge&quot;,</code></span>
+<span class='src-line'><b> 335</b><code>    &quot;patch&quot;,</code></span>
+<span class='src-line'><b> 336</b><code>    &quot;produce&quot;,</code></span>
+<span class='src-line'><b> 337</b><code>    &quot;publish&quot;,</code></span>
+<span class='src-line'><b> 338</b><code>    &quot;replace&quot;,</code></span>
+<span class='src-line'><b> 339</b><code>    &quot;rewrite&quot;,</code></span>
+<span class='src-line'><b> 340</b><code>    &quot;save&quot;,</code></span>
+<span class='src-line'><b> 341</b><code>    &quot;update&quot;,</code></span>
+<span class='src-line'><b> 342</b><code>    &quot;write&quot;,</code></span>
+<span class='src-line'><b> 343</b><code>}</code></span>
+<span class='src-line'><b> 344</b><code>EXPERIMENT_INFORMATION_ACTION_TERMS = {</code></span>
+<span class='src-line'><b> 345</b><code>    &quot;audit&quot;,</code></span>
+<span class='src-line'><b> 346</b><code>    &quot;collect&quot;,</code></span>
+<span class='src-line'><b> 347</b><code>    &quot;extract&quot;,</code></span>
+<span class='src-line'><b> 348</b><code>    &quot;find&quot;,</code></span>
+<span class='src-line'><b> 349</b><code>    &quot;gather&quot;,</code></span>
+<span class='src-line'><b> 350</b><code>    &quot;inspect&quot;,</code></span>
+<span class='src-line'><b> 351</b><code>    &quot;read&quot;,</code></span>
+<span class='src-line'><b> 352</b><code>    &quot;research&quot;,</code></span>
+<span class='src-line'><b> 353</b><code>    &quot;review&quot;,</code></span>
+<span class='src-line'><b> 354</b><code>    &quot;search&quot;,</code></span>
+<span class='src-line'><b> 355</b><code>    &quot;source&quot;,</code></span>
+<span class='src-line'><b> 356</b><code>    &quot;survey&quot;,</code></span>
+<span class='src-line'><b> 357</b><code>}</code></span>
+<span class='src-line'><b> 358</b><code>EXPERIMENT_NEXT_ACTION_BLOCKED_TOOLS = INFORMATION_GATHERING_TOOLS | {&quot;report_update&quot;}</code></span>
+<span class='src-line'><b> 359</b><code>READ_ONLY_SHELL_COMMAND_PATTERN = re.compile(</code></span>
+<span class='src-line'><b> 360</b><code>    r&quot;(?is)^\s*(?:&quot;</code></span>
+<span class='src-line'><b> 361</b><code>    r&quot;awk\b|cat\b|df\b|du\b|echo\b|find\b|git\s+(?:diff|grep|log|ls-files|show|status)\b|&quot;</code></span>
+<span class='src-line'><b> 362</b><code>    r&quot;grep\b|head\b|ls\b|pwd\b|rg\b|sed\s+-n\b|stat\b|tail\b|tree\b|wc\b&quot;</code></span>
+<span class='src-line'><b> 363</b><code>    r&quot;)&quot;</code></span>
+<span class='src-line'><b> 364</b><code>)</code></span>
+<span class='src-line'><b> 365</b><code></code></span>
+<span class='src-line'><b> 366</b><code>BROWSER_REF_IGNORE_NAMES = {</code></span>
+<span class='src-line'><b> 367</b><code>    &quot;about us&quot;,</code></span>
+<span class='src-line'><b> 368</b><code>    &quot;back to top&quot;,</code></span>
+<span class='src-line'><b> 369</b><code>    &quot;careers&quot;,</code></span>
+<span class='src-line'><b> 370</b><code>    &quot;click here&quot;,</code></span>
+<span class='src-line'><b> 371</b><code>    &quot;clutch rating&quot;,</code></span>
+<span class='src-line'><b> 372</b><code>    &quot;organization name&quot;,</code></span>
+<span class='src-line'><b> 373</b><code>    &quot;contact&quot;,</code></span>
+<span class='src-line'><b> 374</b><code>    &quot;contact us&quot;,</code></span>
+<span class='src-line'><b> 375</b><code>    &quot;go&quot;,</code></span>
+<span class='src-line'><b> 376</b><code>    &quot;headquarters&quot;,</code></span>
+<span class='src-line'><b> 377</b><code>    &quot;help&quot;,</code></span>
+<span class='src-line'><b> 378</b><code>    &quot;latest links&quot;,</code></span>
+<span class='src-line'><b> 379</b><code>    &quot;learn more&quot;,</code></span>
+<span class='src-line'><b> 380</b><code>    &quot;privacy&quot;,</code></span>
+<span class='src-line'><b> 381</b><code>    &quot;read more&quot;,</code></span>
+<span class='src-line'><b> 382</b><code>    &quot;readmore&quot;,</code></span>
+<span class='src-line'><b> 383</b><code>    &quot;services&quot;,</code></span>
+<span class='src-line'><b> 384</b><code>    &quot;submit&quot;,</code></span>
+<span class='src-line'><b> 385</b><code>    &quot;top hits&quot;,</code></span>
+<span class='src-line'><b> 386</b><code>}</code></span>
+<span class='src-line'><b> 387</b><code></code></span>
+<span class='src-line'><b> 388</b><code>ANTI_BOT_ACK_TERMS = (</code></span>
+<span class='src-line'><b> 389</b><code>    &quot;anti-bot&quot;,</code></span>
+<span class='src-line'><b> 390</b><code>    &quot;blocked&quot;,</code></span>
+<span class='src-line'><b> 391</b><code>    &quot;bot check&quot;,</code></span>
+<span class='src-line'><b> 392</b><code>    &quot;captcha&quot;,</code></span>
+<span class='src-line'><b> 393</b><code>    &quot;not usable&quot;,</code></span>
+<span class='src-line'><b> 394</b><code>    &quot;verification&quot;,</code></span>
+<span class='src-line'><b> 395</b><code>)</code></span></pre>
 </details>
 <details class="source-file searchable" data-search="nipux_cli/worker_prompt_context.py &quot;&quot;&quot;Prompt-context renderers for the Nipux worker loop.&quot;&quot;&quot;
 
