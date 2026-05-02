@@ -189,6 +189,7 @@ RECOVERABLE_GUARD_ERRORS = {
     "progress ledger update required",
     "similar artifact search blocked",
     "similar search query blocked",
+    "task execution required",
     "task branch required before more work",
     "task queue saturated",
     "worker tool call required",
@@ -199,6 +200,7 @@ DELIVERABLE_RESEARCH_BUDGET_STEPS = 18
 ACTIVITY_STAGNATION_CHECKPOINTS = 3
 TASK_QUEUE_SATURATION_OPEN_TASKS = 40
 TASK_QUEUE_TOTAL_SOFT_LIMIT = 80
+TASK_PLANNING_STAGNATION_CHECKPOINTS = 2
 PROGRAM_PROMPT_CHARS = 2000
 MEMORY_ENTRY_PROMPT_CHARS = 700
 MEMORY_PROMPT_CHARS = 1800

@@ -60,6 +60,7 @@ from nipux_cli.worker_policy import (
     ROADMAP_STALENESS_BLOCKED_TOOLS,
     SYSTEM_PROMPT,
     TASK_DELIVERABLE_ACTION_TERMS,
+    TASK_PLANNING_STAGNATION_CHECKPOINTS,
     TASK_QUEUE_SATURATION_OPEN_TASKS,
     TASK_QUEUE_TOTAL_SOFT_LIMIT,
     TEXT_TOKEN_STOPWORDS,
@@ -132,6 +133,7 @@ def build_messages(
     deliverable_progress_guard = _deliverable_progress_guard_for_prompt(job, recent_steps)
     progress_accounting_guard = _progress_accounting_for_prompt(recent_steps)
     activity_stagnation = _activity_stagnation_for_prompt(job)
+    task_planning_guard = _task_planning_guard_for_prompt(job)
     context_pressure = context_pressure_for_prompt(job)
     lessons = _lessons_for_prompt(job)
     roadmap = _roadmap_for_prompt(job)
@@ -158,6 +160,7 @@ def build_messages(
             ("Deliverable progress guard", deliverable_progress_guard),
             ("Progress accounting guard", progress_accounting_guard),
             ("Activity stagnation", activity_stagnation),
+            ("Task planning guard", task_planning_guard),
             ("Context pressure", context_pressure),
             ("Program", program),
             ("Lessons learned", lessons),
@@ -281,6 +284,19 @@ def _activity_stagnation_for_prompt(job: dict[str, Any]) -> str:
     )
 
 
+def _task_planning_guard_for_prompt(job: dict[str, Any]) -> str:
+    context = _task_planning_stagnation_context(job)
+    if not context:
+        return "None."
+    return (
+        "Recent checkpoints only added or updated tasks without durable evidence, measurements, validations, "
+        f"or lessons. task_only_checkpoints={context.get('task_only_checkpoints')} "
+        f"open_tasks={context.get('open_tasks')} total_tasks={context.get('total_tasks')}. "
+        "Do not create more new open tasks next. Execute, measure, validate, write a checkpoint, mark existing "
+        "tasks done/blocked/skipped, or record a lesson from the branch."
+    )
+
+
 def _reflections_for_prompt(job: dict[str, Any]) -> str:
     reflections = _metadata_list(job, "reflections")
     if not reflections:
@@ -321,6 +337,13 @@ def _next_action_constraint(job: dict[str, Any], recent_steps: list[dict[str, An
             "Recent checkpoints show activity without durable progress. "
             "Use a ledger or planning tool to classify what changed, reject the low-yield branch, or open a better branch "
             "before more read-only work or output churn."
+        )
+    task_planning_guard = _task_planning_stagnation_context(job)
+    if task_planning_guard:
+        return (
+            "Recent progress is only task planning. Do not create more new open tasks next. Execute an existing task, "
+            "record evidence/measurements/validation, write a checkpoint, mark tasks done/blocked/skipped, or record "
+            "a lesson before expanding the queue again."
         )
     deliverable_guard = _deliverable_progress_guard_context(job, recent_steps)
     if deliverable_guard:
@@ -562,6 +585,47 @@ def _task_queue_saturation_context(job: dict[str, Any], args: dict[str, Any]) ->
         "new_open_count": len(new_open_titles),
         "new_open_titles": new_open_titles[:8],
     }
+
+
+def _task_planning_stagnation_context(job: dict[str, Any]) -> dict[str, Any] | None:
+    metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
+    streak = _as_int(metadata.get("task_planning_checkpoint_streak"))
+    if streak < TASK_PLANNING_STAGNATION_CHECKPOINTS:
+        return None
+    tasks = _metadata_list(job, "task_queue")
+    open_tasks = [
+        task
+        for task in tasks
+        if str(task.get("status") or "open").strip().lower().replace(" ", "_") in {"open", "active"}
+    ]
+    return {
+        "task_only_checkpoints": streak,
+        "threshold": TASK_PLANNING_STAGNATION_CHECKPOINTS,
+        "total_tasks": len(tasks),
+        "open_tasks": len(open_tasks),
+    }
+
+
+def _record_tasks_adds_new_open_work(args: dict[str, Any], job: dict[str, Any]) -> bool:
+    incoming = args.get("tasks") if isinstance(args.get("tasks"), list) else []
+    if not incoming:
+        incoming = [args]
+    tasks = _metadata_list(job, "task_queue")
+    existing_keys = {
+        _norm_task_key(str(task.get("parent") or ""), str(task.get("title") or ""))
+        for task in tasks
+    }
+    for task in incoming:
+        if not isinstance(task, dict):
+            continue
+        title = str(task.get("title") or task.get("name") or "").strip()
+        if not title:
+            continue
+        status = str(task.get("status") or "open").strip().lower().replace(" ", "_")
+        key = _norm_task_key(str(task.get("parent") or ""), title)
+        if status in {"open", "active"} and key not in existing_keys:
+            return True
+    return False
 
 
 def _norm_task_key(parent: str, title: str) -> str:
@@ -1164,6 +1228,21 @@ def _blocked_tool_call_result(
                 ),
             }
             return result, f"blocked record_tasks; {saturated['reason']}"
+        task_planning_stagnation = _task_planning_stagnation_context(job)
+        if task_planning_stagnation and _record_tasks_adds_new_open_work(args, job):
+            result = {
+                "success": False,
+                "error": "task execution required",
+                "blocked_tool": name,
+                "blocked_arguments": args,
+                "task_planning": task_planning_stagnation,
+                "guidance": (
+                    "Recent checkpoints only expanded the task queue. Do not add more new open tasks yet. "
+                    "Execute or validate an existing branch, save a durable checkpoint, record findings/source/"
+                    "experiment evidence, mark existing tasks done/blocked/skipped, or record a lesson."
+                ),
+            }
+            return result, "blocked record_tasks; task-only planning needs execution"
 
     duplicate_step = _duplicate_recent_tool_call(name, args, recent_steps)
     if duplicate_step:
@@ -2136,11 +2215,18 @@ def _auto_checkpoint_update(
     )
     streak = _as_int(metadata.get("activity_checkpoint_streak"))
     streak = streak + 1 if checkpoint.category == "activity" else 0
+    task_only_progress = checkpoint.deltas.get("tasks", 0) > 0 and not any(
+        checkpoint.deltas.get(key, 0) > 0
+        for key in ("findings", "sources", "experiments", "lessons", "milestones")
+    )
+    task_planning_streak = _as_int(metadata.get("task_planning_checkpoint_streak"))
+    task_planning_streak = task_planning_streak + 1 if task_only_progress else 0
     db.update_job_metadata(
         job_id,
         {
             "last_checkpoint_counts": checkpoint.counts,
             "activity_checkpoint_streak": streak,
+            "task_planning_checkpoint_streak": task_planning_streak,
         },
     )
 

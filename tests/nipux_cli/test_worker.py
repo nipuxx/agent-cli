@@ -736,6 +736,120 @@ def test_activity_checkpoint_streak_blocks_more_churn_until_ledger_update(tmp_pa
         db.close()
 
 
+def test_task_only_checkpoint_streak_blocks_new_task_sprawl(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Keep executing durable work", title="task-sprawl", kind="generic")
+        db.update_job_metadata(
+            job_id,
+            {
+                "task_planning_checkpoint_streak": 2,
+                "task_queue": [
+                    {
+                        "key": "existing-branch",
+                        "title": "Existing branch",
+                        "status": "open",
+                    }
+                ],
+            },
+        )
+
+        blocked = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(
+                        name="record_tasks",
+                        arguments={"tasks": [{"title": "Another open branch", "status": "open"}]},
+                    )
+                ])
+            ]),
+        )
+
+        assert blocked.status == "blocked"
+        assert blocked.result["error"] == "task execution required"
+
+        allowed = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(
+                        name="record_tasks",
+                        arguments={
+                            "tasks": [
+                                {
+                                    "title": "Existing branch",
+                                    "status": "done",
+                                    "result": "Executed and checkpointed.",
+                                }
+                            ]
+                        },
+                    )
+                ])
+            ]),
+        )
+
+        assert allowed.status == "completed"
+        assert allowed.tool_name == "record_tasks"
+    finally:
+        db.close()
+
+
+def test_task_only_checkpoint_updates_planning_streak(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Track planning-only progress", title="task-streak", kind="generic")
+        for index in range(9):
+            run_id = db.start_run(job_id, model="test")
+            step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="web_search")
+            db.finish_step(step_id, status="completed", summary=f"search {index}", output_data={"success": True})
+            db.finish_run(run_id, "completed")
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(name="record_tasks", arguments={"tasks": [{"title": "First branch", "status": "open"}]})
+                ])
+            ]),
+        )
+
+        assert result.status == "completed"
+        job = db.get_job(job_id)
+        assert job["metadata"]["task_planning_checkpoint_streak"] == 1
+
+        db.append_finding_record(job_id, name="Durable finding")
+        for index in range(9):
+            run_id = db.start_run(job_id, model="test")
+            step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="web_search")
+            db.finish_step(step_id, status="completed", summary=f"search reset {index}", output_data={"success": True})
+            db.finish_run(run_id, "completed")
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(name="record_tasks", arguments={"tasks": [{"title": "Second branch", "status": "open"}]})
+                ])
+            ]),
+        )
+
+        assert result.status == "completed"
+        job = db.get_job(job_id)
+        assert job["metadata"]["task_planning_checkpoint_streak"] == 0
+    finally:
+        db.close()
+
+
 def test_run_one_step_blocks_similar_artifact_search(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")
@@ -1695,6 +1809,27 @@ def test_prompt_includes_activity_stagnation_context():
     assert "Activity stagnation" in content
     assert "activity_checkpoint_streak=3" in content
     assert "Recent checkpoints show activity without durable progress" in content
+
+
+def test_prompt_includes_task_planning_guard_context():
+    job = {
+        "title": "research",
+        "kind": "generic",
+        "objective": "keep making durable progress",
+        "metadata": {
+            "task_planning_checkpoint_streak": 2,
+            "task_queue": [
+                {"title": "Plan branch", "status": "open"},
+                {"title": "Executed branch", "status": "done"},
+            ],
+        },
+    }
+
+    content = build_messages(job, [])[-1]["content"]
+
+    assert "Task planning guard" in content
+    assert "task_only_checkpoints=2" in content
+    assert "Do not create more new open tasks next" in content
 
 
 def test_prompt_includes_finding_source_ledgers_and_reflections():
