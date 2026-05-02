@@ -70,6 +70,7 @@ from nipux_cli.chat_frame_runtime import (
     run_chat_frame as _run_chat_frame,
 )
 from nipux_cli.chat_tui import build_chat_frame as _build_chat_tui_frame
+from nipux_cli.cli_help import NIPUX_BANNER, print_shell_help as _render_shell_help
 from nipux_cli.config import (
     DEFAULT_BASE_URL,
     DEFAULT_API_KEY_ENV,
@@ -241,15 +242,6 @@ SHELL_COMMAND_NAMES = {
     "autostart",
     "service",
 }
-
-NIPUX_BANNER = r"""
- _   _ _                  ____ _     ___
-| \ | (_)_ __  _   ___  _/ ___| |   |_ _|
-|  \| | | '_ \| | | \ \/ / |   | |    | |
-| |\  | | |_) | |_| |>  <| |___| |___ | |
-|_| \_|_| .__/ \__,_/_/\_\\____|_____|___|
-        |_|
-""".strip("\n")
 
 def _db() -> tuple[AgentDB, object]:
     config = load_config()
@@ -2332,71 +2324,7 @@ def _print_shell_status(*, limit: int, chars: int) -> None:
 
 
 def _print_shell_help() -> None:
-    print(NIPUX_BANNER)
-    print(_rule("="))
-    print("Jobs")
-    for command in (
-        'create "objective" --title TITLE',
-        "ls",
-        "focus [JOB_TITLE]",
-        "rename JOB_TITLE --title NEW_TITLE",
-        "delete JOB_TITLE",
-        "chat [JOB_TITLE]",
-        "steer [--job JOB_TITLE] MESSAGE",
-        "pause [JOB_TITLE] [note...]",
-        "resume [JOB_TITLE]",
-        "cancel [JOB_TITLE] [note...]",
-    ):
-        print(f"  {command}")
-    print()
-    print("Inspect")
-    for command in (
-        "status [JOB_TITLE]",
-        "health",
-        "history [JOB_TITLE]",
-        "events [JOB_TITLE] [--follow] [--json]",
-        "activity [JOB_TITLE] [--follow]",
-        "updates [JOB_TITLE]",
-        "outputs [JOB_TITLE] --verbose",
-        "findings [JOB_TITLE]",
-        "tasks [JOB_TITLE]",
-        "roadmap [JOB_TITLE]",
-        "experiments [JOB_TITLE]",
-        "sources [JOB_TITLE]",
-        "memory [JOB_TITLE]",
-        "metrics [JOB_TITLE]",
-        "usage [JOB_TITLE]",
-        "artifacts [JOB_TITLE]",
-        "artifact QUERY_OR_TITLE",
-        "lessons [JOB_TITLE]",
-    ):
-        print(f"  {command}")
-    print()
-    print("Worker")
-    for command in (
-        "work [JOB_TITLE] --steps N [--verbose]",
-        "run [JOB_TITLE] --poll-seconds N",
-        "start --poll-seconds N",
-        "restart --poll-seconds N",
-        "stop  # daemon",
-        "stop [JOB_TITLE]  # pause job",
-    ):
-        print(f"  {command}")
-    print()
-    print("System")
-    for command in (
-        "learn [--job JOB_TITLE] LESSON",
-        "digest JOB_TITLE",
-        "daily-digest",
-        "service install|status|uninstall",
-        "autostart install|status|uninstall",
-        "dashboard [JOB_TITLE] --no-follow",
-        "doctor --check-model",
-        "browser-dashboard --port 4848",
-        "help",
-        "exit",
-    ):
-        print(f"  {command}")
+    _render_shell_help(rule=_rule)
 
 
 def _run_shell_line(line: str) -> bool:
