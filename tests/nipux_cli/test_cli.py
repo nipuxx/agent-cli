@@ -111,6 +111,12 @@ def test_cli_version_flag(capsys):
     assert f"nipux {__version__}" in capsys.readouterr().out
 
 
+def test_python_module_entrypoint_uses_cli_main():
+    import nipux_cli.__main__ as module_entrypoint
+
+    assert module_entrypoint.main is main
+
+
 def test_init_openrouter_writes_secret_free_config_and_env_template(monkeypatch, tmp_path, capsys):
     monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
 
