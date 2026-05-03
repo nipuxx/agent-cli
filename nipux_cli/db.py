@@ -197,6 +197,10 @@ def _metadata_list(metadata: dict[str, Any], key: str) -> list[dict[str, Any]]:
     return [value for value in values if isinstance(value, dict)]
 
 
+def _change_fingerprint(entry: dict[str, Any], fields: Iterable[str]) -> str:
+    return _json_dumps({field: entry.get(field) for field in fields})
+
+
 def _norm_key(value: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")[:120]
 
@@ -1172,6 +1176,17 @@ class AgentDB:
             sources = _metadata_list(job_metadata, "source_ledger")
             current = next((entry for entry in sources if entry.get("key") == key), None)
             created = current is None
+            change_fields = (
+                "source",
+                "source_type",
+                "usefulness_score",
+                "fail_count",
+                "yield_count",
+                "warnings",
+                "last_outcome",
+                "metadata",
+            )
+            before = "" if created else _change_fingerprint(current, change_fields)
             if current is None:
                 current = {
                     "key": key,
@@ -1204,6 +1219,10 @@ class AgentDB:
                 merged_metadata.update(metadata)
                 current["metadata"] = merged_metadata
             current["created"] = created
+            substantive_update = created or before != _change_fingerprint(current, change_fields)
+            current["substantive_update"] = substantive_update
+            if substantive_update:
+                current["updated_at"] = now
             current["last_seen"] = now
             event = _insert_event(
                 conn,
@@ -1213,6 +1232,7 @@ class AgentDB:
                 body=current.get("last_outcome") or outcome,
                 metadata={
                     "created": created,
+                    "substantive_update": substantive_update,
                     "source_type": current.get("source_type"),
                     "usefulness_score": current.get("usefulness_score"),
                     "yield_count": current.get("yield_count"),
@@ -1265,6 +1285,19 @@ class AgentDB:
             findings = _metadata_list(job_metadata, "finding_ledger")
             current = next((entry for entry in findings if entry.get("key") == key), None)
             created = current is None
+            change_fields = (
+                "url",
+                "source_url",
+                "category",
+                "location",
+                "contact",
+                "reason",
+                "status",
+                "score",
+                "evidence_artifact",
+                "metadata",
+            )
+            before = "" if created else _change_fingerprint(current, change_fields)
             if current is None:
                 current = {
                     "key": key,
@@ -1301,8 +1334,11 @@ class AgentDB:
                     merged_metadata = current.get("metadata") if isinstance(current.get("metadata"), dict) else {}
                     merged_metadata.update(metadata)
                     current["metadata"] = merged_metadata
-            current["updated_at"] = now
             current["created"] = created
+            substantive_update = created or before != _change_fingerprint(current, change_fields)
+            current["substantive_update"] = substantive_update
+            if substantive_update:
+                current["updated_at"] = now
             event = _insert_event(
                 conn,
                 job_id=job_id,
@@ -1311,6 +1347,7 @@ class AgentDB:
                 body=current.get("reason") or current.get("category") or "",
                 metadata={
                     "created": created,
+                    "substantive_update": substantive_update,
                     "score": current.get("score"),
                     "status": current.get("status"),
                     "source_url": current.get("source_url"),
@@ -1350,10 +1387,10 @@ class AgentDB:
         status = _clean_status(status, {"planned", "active", "validating", "done", "blocked", "paused"}, "planned")
         milestone_items = milestones if isinstance(milestones, list) else []
 
-        def merge_feature(existing_features: list[dict[str, Any]], feature: dict[str, Any]) -> tuple[dict[str, Any] | None, bool]:
+        def merge_feature(existing_features: list[dict[str, Any]], feature: dict[str, Any]) -> tuple[dict[str, Any] | None, bool, bool]:
             feature_title = str(feature.get("title") or feature.get("name") or "").strip()
             if not feature_title:
-                return None, False
+                return None, False, False
             feature_key = _norm_key(str(feature.get("key") or feature_title))
             feature_title_key = _norm_key(feature_title)
             current = next(
@@ -1365,6 +1402,17 @@ class AgentDB:
                 None,
             )
             created = current is None
+            change_fields = (
+                "title",
+                "status",
+                "goal",
+                "output_contract",
+                "acceptance_criteria",
+                "evidence_needed",
+                "result",
+                "metadata",
+            )
+            before = "" if created else _change_fingerprint(current, change_fields)
             if current is None:
                 current = {
                     "key": feature_key,
@@ -1397,9 +1445,12 @@ class AgentDB:
                     current["metadata"] = merged
             if current.get("output_contract") not in {"research", "artifact", "experiment", "action", "monitor", "decision", "report", "validation"}:
                 current["output_contract"] = ""
-            current["updated_at"] = now
             current["created"] = created
-            return current, created
+            changed = created or before != _change_fingerprint(current, change_fields)
+            current["substantive_update"] = changed
+            if changed:
+                current["updated_at"] = now
+            return current, created, changed
 
         def op(conn: sqlite3.Connection) -> dict[str, Any]:
             row = conn.execute("SELECT objective, metadata_json FROM jobs WHERE id = ?", (job_id,)).fetchone()
@@ -1408,6 +1459,16 @@ class AgentDB:
             job_metadata = json.loads(row["metadata_json"] or "{}")
             roadmap = job_metadata.get("roadmap")
             created = not isinstance(roadmap, dict)
+            roadmap_change_fields = (
+                "title",
+                "status",
+                "objective",
+                "scope",
+                "validation_contract",
+                "current_milestone",
+                "metadata",
+            )
+            roadmap_before = "" if created else _change_fingerprint(roadmap, roadmap_change_fields)
             if created:
                 roadmap = {
                     "key": _norm_key(title),
@@ -1460,6 +1521,19 @@ class AgentDB:
                     None,
                 )
                 milestone_created = current is None
+                milestone_change_fields = (
+                    "title",
+                    "status",
+                    "priority",
+                    "goal",
+                    "acceptance_criteria",
+                    "evidence_needed",
+                    "validation_status",
+                    "validation_result",
+                    "next_action",
+                    "metadata",
+                )
+                milestone_before = "" if milestone_created else _change_fingerprint(current, milestone_change_fields)
                 if current is None:
                     current = {
                         "key": milestone_key,
@@ -1479,7 +1553,6 @@ class AgentDB:
                     stored_milestones.append(current)
                     added_milestones += 1
                 else:
-                    updated_milestones += 1
                     current["status"] = _clean_status(str(milestone.get("status") or current.get("status") or "planned"), {"planned", "active", "validating", "done", "blocked", "skipped"}, "planned")
                     if "priority" in milestone:
                         current["priority"] = int(milestone.get("priority") or 0)
@@ -1500,24 +1573,34 @@ class AgentDB:
                         current["metadata"] = merged_metadata
                 feature_items = milestone.get("features") if isinstance(milestone.get("features"), list) else []
                 features = current.get("features") if isinstance(current.get("features"), list) else []
+                feature_changed = False
                 for feature in feature_items[:100]:
                     if not isinstance(feature, dict):
                         continue
-                    stored_feature, feature_created = merge_feature(features, feature)
+                    stored_feature, feature_created, feature_updated = merge_feature(features, feature)
                     if stored_feature is None:
                         continue
                     if feature_created:
                         added_features += 1
-                    else:
+                    elif feature_updated:
                         updated_features += 1
+                    feature_changed = feature_changed or feature_updated
                 current["features"] = features[-500:]
-                current["updated_at"] = now
                 current["created"] = milestone_created
+                milestone_changed = milestone_created or milestone_before != _change_fingerprint(current, milestone_change_fields)
+                current["substantive_update"] = milestone_changed or feature_changed
+                if current["substantive_update"]:
+                    current["updated_at"] = now
+                if not milestone_created and milestone_changed:
+                    updated_milestones += 1
                 touched.append(current)
 
             roadmap["milestones"] = stored_milestones[-500:]
-            roadmap["updated_at"] = now
             roadmap["created"] = created
+            roadmap_substantive_update = created or roadmap_before != _change_fingerprint(roadmap, roadmap_change_fields)
+            roadmap["substantive_update"] = roadmap_substantive_update
+            if roadmap_substantive_update or added_milestones or updated_milestones or added_features or updated_features:
+                roadmap["updated_at"] = now
             roadmap["added_milestones"] = added_milestones
             roadmap["updated_milestones"] = updated_milestones
             roadmap["added_features"] = added_features
@@ -1530,6 +1613,7 @@ class AgentDB:
                 body=f"{roadmap.get('status')} | milestones +{added_milestones}/~{updated_milestones} | features +{added_features}/~{updated_features}",
                 metadata={
                     "created": created,
+                    "substantive_update": roadmap_substantive_update,
                     "status": roadmap.get("status"),
                     "current_milestone": roadmap.get("current_milestone"),
                     "milestone_count": len(roadmap.get("milestones") or []),
@@ -1537,6 +1621,7 @@ class AgentDB:
                     "updated_milestones": updated_milestones,
                     "added_features": added_features,
                     "updated_features": updated_features,
+                    "roadmap_updated": roadmap_substantive_update and not created,
                 },
                 created_at=now,
             )
@@ -1547,12 +1632,14 @@ class AgentDB:
                 "updated_at": now,
                 "event_id": event["id"],
                 "created": created,
+                "substantive_update": roadmap_substantive_update,
                 "title": roadmap.get("title"),
                 "status": roadmap.get("status"),
                 "added_milestones": added_milestones,
                 "updated_milestones": updated_milestones,
                 "added_features": added_features,
                 "updated_features": updated_features,
+                "roadmap_updated": roadmap_substantive_update and not created,
                 "milestones": touched[-10:],
             }
             conn.execute(
@@ -1731,6 +1818,20 @@ class AgentDB:
                 None,
             )
             created = current is None
+            change_fields = (
+                "status",
+                "priority",
+                "goal",
+                "source_hint",
+                "result",
+                "parent",
+                "output_contract",
+                "acceptance_criteria",
+                "evidence_needed",
+                "stall_behavior",
+                "metadata",
+            )
+            before = "" if created else _change_fingerprint(current, change_fields)
             if current is None:
                 current = {
                     "key": key,
@@ -1768,8 +1869,11 @@ class AgentDB:
                     merged_metadata = current.get("metadata") if isinstance(current.get("metadata"), dict) else {}
                     merged_metadata.update(metadata)
                     current["metadata"] = merged_metadata
-            current["updated_at"] = now
             current["created"] = created
+            substantive_update = created or before != _change_fingerprint(current, change_fields)
+            current["substantive_update"] = substantive_update
+            if substantive_update:
+                current["updated_at"] = now
             event = _insert_event(
                 conn,
                 job_id=job_id,
@@ -1778,6 +1882,7 @@ class AgentDB:
                 body=current.get("result") or current.get("goal") or "",
                 metadata={
                     "created": created,
+                    "substantive_update": substantive_update,
                     "status": current.get("status"),
                     "priority": current.get("priority"),
                     "parent": current.get("parent"),
@@ -1837,6 +1942,23 @@ class AgentDB:
             experiments = _metadata_list(job_metadata, "experiment_ledger")
             current = next((entry for entry in experiments if entry.get("key") == key), None)
             created = current is None
+            change_fields = (
+                "hypothesis",
+                "status",
+                "metric_name",
+                "metric_value",
+                "metric_unit",
+                "higher_is_better",
+                "baseline_value",
+                "config",
+                "result",
+                "evidence_artifact",
+                "next_action",
+                "metadata",
+                "delta_from_previous_best",
+                "best_observed",
+            )
+            before = "" if created else _change_fingerprint(current, change_fields)
             previous_best = _best_experiment_for_metric(
                 experiments,
                 metric_name=metric_name,
@@ -1886,7 +2008,6 @@ class AgentDB:
                     merged_metadata = current.get("metadata") if isinstance(current.get("metadata"), dict) else {}
                     merged_metadata.update(metadata)
                     current["metadata"] = merged_metadata
-            current["updated_at"] = now
             current["created"] = created
             current["delta_from_previous_best"] = _metric_delta(
                 metric_value=current.get("metric_value"),
@@ -1894,6 +2015,10 @@ class AgentDB:
                 higher_is_better=bool(current.get("higher_is_better", True)),
             )
             best = _mark_best_experiments(experiments)
+            substantive_update = created or before != _change_fingerprint(current, change_fields)
+            current["substantive_update"] = substantive_update
+            if substantive_update:
+                current["updated_at"] = now
             event_body = current.get("result") or ""
             if current.get("metric_value") is not None:
                 event_body = format_metric_value(
@@ -1913,6 +2038,7 @@ class AgentDB:
                 body=event_body,
                 metadata={
                     "created": created,
+                    "substantive_update": substantive_update,
                     "status": current.get("status"),
                     "metric_name": current.get("metric_name"),
                     "metric_value": current.get("metric_value"),

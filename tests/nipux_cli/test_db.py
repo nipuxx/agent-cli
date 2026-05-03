@@ -333,6 +333,52 @@ def test_source_and_finding_ledgers_dedupe_and_update(tmp_path):
         db.close()
 
 
+def test_repeated_source_and_finding_records_mark_non_substantive_touches(tmp_path):
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Research topic")
+
+        db.append_source_record(
+            job_id,
+            "https://example.com/source",
+            source_type="web_source",
+            usefulness_score=0.7,
+            outcome="yielded reusable findings",
+        )
+        repeated_source = db.append_source_record(
+            job_id,
+            "https://example.com/source",
+            source_type="web_source",
+            usefulness_score=0.7,
+            outcome="yielded reusable findings",
+        )
+        changed_source = db.append_source_record(
+            job_id,
+            "https://example.com/source",
+            source_type="web_source",
+            usefulness_score=0.8,
+            outcome="yielded reusable findings",
+        )
+
+        db.append_finding_record(job_id, name="Acme Finding", url="https://acme.example", score=0.8)
+        repeated_finding = db.append_finding_record(job_id, name="Acme Finding", url="https://acme.example", score=0.8)
+        changed_finding = db.append_finding_record(
+            job_id,
+            name="Acme Finding",
+            url="https://acme.example",
+            score=0.9,
+        )
+
+        assert repeated_source["created"] is False
+        assert repeated_source["substantive_update"] is False
+        assert changed_source["substantive_update"] is True
+        assert repeated_finding["created"] is False
+        assert repeated_finding["substantive_update"] is False
+        assert changed_finding["substantive_update"] is True
+    finally:
+        db.close()
+
+
 def test_task_queue_dedupes_and_updates(tmp_path):
     db = AgentDB(tmp_path / "state.db")
     try:
@@ -360,6 +406,47 @@ def test_task_queue_dedupes_and_updates(tmp_path):
         assert job["metadata"]["task_queue"][0]["status"] == "done"
         assert job["metadata"]["task_queue"][0]["priority"] == 5
         assert job["metadata"]["task_queue"][0]["result"] == "Saved source artifact"
+    finally:
+        db.close()
+
+
+def test_repeated_task_and_experiment_records_mark_non_substantive_touches(tmp_path):
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Research topic")
+
+        db.append_task_record(job_id, title="Explore primary sources", status="open", priority=3)
+        repeated_task = db.append_task_record(job_id, title="Explore primary sources", status="open", priority=3)
+        changed_task = db.append_task_record(job_id, title="Explore primary sources", status="done", priority=3)
+
+        db.append_experiment_record(
+            job_id,
+            title="Trial",
+            status="measured",
+            metric_name="score",
+            metric_value=0.8,
+        )
+        repeated_experiment = db.append_experiment_record(
+            job_id,
+            title="Trial",
+            status="measured",
+            metric_name="score",
+            metric_value=0.8,
+        )
+        changed_experiment = db.append_experiment_record(
+            job_id,
+            title="Trial",
+            status="measured",
+            metric_name="score",
+            metric_value=0.9,
+        )
+
+        assert repeated_task["created"] is False
+        assert repeated_task["substantive_update"] is False
+        assert changed_task["substantive_update"] is True
+        assert repeated_experiment["created"] is False
+        assert repeated_experiment["substantive_update"] is False
+        assert changed_experiment["substantive_update"] is True
     finally:
         db.close()
 
@@ -394,6 +481,25 @@ def test_roadmap_last_records_include_progress_accounting_metadata(tmp_path):
         assert roadmap_record["updated_milestones"] == 1
         assert validation_record["validated_at"]
         assert validation_record["validation_status"] == "passed"
+    finally:
+        db.close()
+
+
+def test_repeated_roadmap_records_do_not_create_fake_milestone_updates(tmp_path):
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Research topic")
+        milestone = {"title": "Foundation", "status": "active", "priority": 5}
+        db.append_roadmap_record(job_id, title="Roadmap", milestones=[milestone])
+        repeated = db.append_roadmap_record(job_id, title="Roadmap", milestones=[milestone])
+        metadata = db.get_job(job_id)["metadata"]
+        roadmap_record = metadata["last_roadmap_record"]
+
+        assert repeated["created"] is False
+        assert repeated["substantive_update"] is False
+        assert roadmap_record["updated_milestones"] == 0
+        assert roadmap_record["updated_features"] == 0
+        assert roadmap_record["roadmap_updated"] is False
     finally:
         db.close()
 

@@ -121,6 +121,49 @@ def test_progress_checkpoint_counts_existing_record_updates_as_progress():
     assert "~1 experiment updated" in checkpoint.message
 
 
+def test_progress_checkpoint_ignores_non_substantive_record_touches():
+    metadata = {
+        "last_checkpoint_at": "2026-01-01T00:00:00+00:00",
+        "finding_ledger": [{}],
+        "source_ledger": [{}],
+        "task_queue": [{"title": "Existing branch", "status": "open"}],
+        "experiment_ledger": [{"title": "Trial", "status": "planned"}],
+        "last_task_record": {
+            "title": "Existing branch",
+            "status": "open",
+            "created": False,
+            "substantive_update": False,
+            "updated_at": "2026-01-01T00:01:00+00:00",
+        },
+        "last_source_record": {
+            "source": "https://example.test",
+            "created": False,
+            "substantive_update": False,
+            "last_seen": "2026-01-01T00:01:30+00:00",
+        },
+        "last_experiment_record": {
+            "title": "Trial",
+            "status": "planned",
+            "created": False,
+            "substantive_update": False,
+            "updated_at": "2026-01-01T00:02:00+00:00",
+        },
+    }
+
+    checkpoint = build_progress_checkpoint(
+        metadata,
+        previous_counts={"findings": 1, "sources": 1, "tasks": 1, "experiments": 1, "lessons": 0, "milestones": 0},
+        step_no=61,
+        tool_name="record_tasks",
+    )
+
+    assert checkpoint.category == "activity"
+    assert checkpoint.updates["tasks"] == 0
+    assert checkpoint.updates["sources"] == 0
+    assert checkpoint.updates["experiments"] == 0
+    assert "no new durable ledger entries" in checkpoint.message
+
+
 def test_progress_checkpoint_counts_roadmap_updates_and_validations():
     metadata = {
         "last_checkpoint_at": "2026-01-01T00:00:00+00:00",

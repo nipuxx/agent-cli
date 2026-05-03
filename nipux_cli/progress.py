@@ -102,6 +102,8 @@ def ledger_update_counts(metadata: dict[str, Any], *, since: str = "") -> dict[s
     roadmap = metadata.get("last_roadmap_record")
     if isinstance(roadmap, dict) and _record_after_checkpoint(roadmap, since=since):
         updated = _as_int(roadmap.get("updated_milestones")) + _as_int(roadmap.get("updated_features"))
+        if roadmap.get("roadmap_updated"):
+            updated += 1
         added = _as_int(roadmap.get("added_milestones")) + _as_int(roadmap.get("added_features"))
         if updated > 0 and added <= 0:
             counts["milestones"] += 1
@@ -184,6 +186,7 @@ def _updated_existing_record(record: Any, *, since: str) -> bool:
     return (
         isinstance(record, dict)
         and record.get("created") is False
+        and record.get("substantive_update") is not False
         and _record_after_checkpoint(record, since=since)
     )
 
