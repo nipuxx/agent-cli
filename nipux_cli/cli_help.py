@@ -73,6 +73,7 @@ def print_shell_help(*, rule: Callable[[str], str]) -> None:
             "learn [--job JOB_TITLE] LESSON",
             "digest JOB_TITLE",
             "daily-digest",
+            "update",
             "service install|status|uninstall",
             "autostart install|status|uninstall",
             "dashboard [JOB_TITLE] --no-follow",

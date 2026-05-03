@@ -166,6 +166,7 @@ from nipux_cli.tui_style import (
     _one_line,
     _status_badge,
 )
+from nipux_cli.updater import update_checkout
 from nipux_cli.updates import render_all_updates_report, render_updates_report
 
 _save_config_field = save_config_field
@@ -288,6 +289,14 @@ def cmd_init(args: argparse.Namespace) -> None:
             f"# Optional local secrets for Nipux. This file stays outside the git repo.\n{api_key_env}=\n",
         )
         print(f"Wrote {env_path} (fill {api_key_env}; do not commit secrets)")
+
+
+def cmd_update(args: argparse.Namespace) -> None:
+    code, lines = update_checkout(path=args.path, allow_dirty=args.allow_dirty)
+    for line in lines:
+        print(line)
+    if code:
+        raise SystemExit(code)
 
 
 def cmd_create(args: argparse.Namespace) -> None:
@@ -2416,6 +2425,7 @@ def build_parser() -> argparse.ArgumentParser:
     return build_arg_parser(
         handlers={
             "init": cmd_init,
+            "update": cmd_update,
             "create": cmd_create,
             "jobs": cmd_jobs,
             "focus": cmd_focus,

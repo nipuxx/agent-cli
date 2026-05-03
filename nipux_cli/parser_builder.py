@@ -34,6 +34,11 @@ def build_arg_parser(
     init.add_argument("--context-length", type=int, default=default_context_length)
     init.set_defaults(func=_handler(handlers, "init"))
 
+    update = sub.add_parser("update")
+    update.add_argument("--path", help="Git checkout to update. Defaults to the current Nipux install.")
+    update.add_argument("--allow-dirty", action="store_true", help="Attempt git pull even when local changes exist")
+    update.set_defaults(func=_handler(handlers, "update"))
+
     create = sub.add_parser("create")
     create.add_argument("objective")
     create.add_argument("--title")
@@ -267,7 +272,7 @@ def build_arg_parser(
     activity.add_argument("--paths", action="store_true", help="Show full artifact paths")
     activity.set_defaults(func=_handler(handlers, "activity"))
 
-    updates = sub.add_parser("updates", aliases=["update", "outcomes", "outcome"])
+    updates = sub.add_parser("updates", aliases=["outcomes", "outcome"])
     updates.add_argument("job_id", nargs="*")
     updates.add_argument("--all", action="store_true", help="Show durable outcome summaries for every job")
     updates.add_argument("--limit", type=int, default=5)

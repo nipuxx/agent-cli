@@ -1,4 +1,5 @@
 import json
+import subprocess
 
 from nipux_cli.artifacts import ArtifactStore
 from nipux_cli import __version__
@@ -43,6 +44,7 @@ from nipux_cli.tui_commands import (
 from nipux_cli.tui_events import chat_pane_lines
 from nipux_cli.tui_input import decode_terminal_escape as _decode_terminal_escape
 from nipux_cli.tui_outcomes import hourly_update_lines, recent_model_update_lines
+from nipux_cli.updater import update_checkout as _update_checkout
 
 
 def _mode(path):
@@ -59,8 +61,8 @@ def test_cli_has_operator_commands():
     assert parser.parse_args(["events", "--follow"]).func.__name__ == "cmd_events"
     assert parser.parse_args(["activity", "--follow"]).func.__name__ == "cmd_activity"
     assert parser.parse_args(["feed"]).func.__name__ == "cmd_activity"
+    assert parser.parse_args(["update"]).func.__name__ == "cmd_update"
     assert parser.parse_args(["updates"]).func.__name__ == "cmd_updates"
-    assert parser.parse_args(["update"]).func.__name__ == "cmd_updates"
     assert parser.parse_args(["outcomes"]).func.__name__ == "cmd_updates"
     assert parser.parse_args(["outcomes", "--all"]).all is True
     assert parser.parse_args(["steer", "focus", "sources"]).func.__name__ == "cmd_steer"
@@ -862,8 +864,49 @@ def test_shell_help_has_no_examples_or_control_run_sections(capsys):
     assert "\nRun\n" not in out
     assert "delete JOB_TITLE" in out
     assert "usage [JOB_TITLE]" in out
+    assert "update" in out
     assert "Jobs" in out
     assert "Worker" in out
+
+
+def test_update_checkout_refuses_non_git_path(tmp_path):
+    code, lines = _update_checkout(path=tmp_path)
+
+    assert code == 1
+    assert "not a git checkout" in " ".join(lines)
+
+
+def test_update_checkout_fast_forwards_git_checkout(tmp_path):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / ".git").mkdir()
+    calls: list[tuple[str, ...]] = []
+    rev_calls = 0
+
+    def runner(command, cwd):
+        nonlocal rev_calls
+        assert cwd == repo
+        calls.append(tuple(command))
+        if command == ["git", "rev-parse", "--show-toplevel"]:
+            return subprocess.CompletedProcess(command, 0, stdout=str(repo) + "\n")
+        if command == ["git", "rev-parse", "--short", "HEAD"]:
+            rev_calls += 1
+            return subprocess.CompletedProcess(command, 0, stdout=("aaa111\n" if rev_calls == 1 else "bbb222\n"))
+        if command == ["git", "branch", "--show-current"]:
+            return subprocess.CompletedProcess(command, 0, stdout="main\n")
+        if command == ["git", "status", "--porcelain"]:
+            return subprocess.CompletedProcess(command, 0, stdout="")
+        if command == ["git", "pull", "--ff-only"]:
+            return subprocess.CompletedProcess(command, 0, stdout="Fast-forward\n")
+        raise AssertionError(f"unexpected command: {command}")
+
+    code, lines = _update_checkout(path=repo, runner=runner)
+
+    assert code == 0
+    assert ("git", "pull", "--ff-only") in calls
+    rendered = "\n".join(lines)
+    assert "Fast-forward" in rendered
+    assert "aaa111 -> bbb222" in rendered
 
 
 def test_chat_clear_does_not_queue_operator_message(monkeypatch, tmp_path, capsys):
