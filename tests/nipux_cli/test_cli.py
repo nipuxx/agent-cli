@@ -33,6 +33,7 @@ from nipux_cli.daemon import append_daemon_event
 from nipux_cli.db import AgentDB
 from nipux_cli.llm import LLMResponse
 from nipux_cli.settings import inline_setting_notice as _inline_setting_notice
+from nipux_cli.first_run_frame_runtime import directional_first_run_action as _directional_first_run_action
 from nipux_cli.tui_commands import (
     CHAT_SLASH_COMMANDS,
     FIRST_RUN_SLASH_COMMANDS,
@@ -415,6 +416,32 @@ def test_first_run_click_maps_right_pane_actions(monkeypatch):
     assert _first_run_click_action(70, 13, view="start") == 0
     assert _first_run_click_action(70, 15, view="start") == 2
     assert _first_run_click_action(10, 13, view="start") is None
+
+
+def test_first_run_arrow_navigation_changes_setup_screens():
+    assert _directional_first_run_action(
+        [
+            ("view:model", "Begin setup", "walk through setup"),
+            ("doctor", "Doctor", "check"),
+        ],
+        direction=1,
+    ) == "view:model"
+    assert _directional_first_run_action(
+        [
+            ("edit:model.name", "Edit model", "set model"),
+            ("view:connector", "Continue", "choose connector"),
+            ("view:start", "Back", "intro"),
+        ],
+        direction=1,
+    ) == "view:connector"
+    assert _directional_first_run_action(
+        [
+            ("edit:model.name", "Edit model", "set model"),
+            ("view:connector", "Continue", "choose connector"),
+            ("view:start", "Back", "intro"),
+        ],
+        direction=-1,
+    ) == "view:start"
 
 
 def test_frame_next_job_cycles_jobs():

@@ -153,7 +153,18 @@ def _handle_first_run_escape(
         actions = deps.actions(view)
         return view, (selected + 1) % len(actions), None, None, False, buffer
     if key in {"left", "right"}:
-        return view, 0, None, None, False, buffer
+        next_action = directional_first_run_action(deps.actions(view), direction=1 if key == "right" else -1)
+        if next_action:
+            action, payload = deps.handle_action(next_action)
+            next_view, next_selected, editing_field, next_job_id, should_exit = _apply_first_run_action(
+                action,
+                payload,
+                view=view,
+                selected=selected,
+                notices=notices,
+            )
+            return next_view, next_selected, editing_field, next_job_id, should_exit, buffer
+        return view, selected, None, None, False, buffer
     if key == "click" and isinstance(payload, tuple):
         clicked = deps.click_action(payload[0], payload[1], view)
         if clicked is not None:
@@ -168,6 +179,20 @@ def _handle_first_run_escape(
             return next_view, next_selected, editing_field, next_job_id, should_exit, buffer
     drain_pending_input(stdin_fd)
     return view, selected, None, None, False, buffer
+
+
+def directional_first_run_action(actions: list[tuple[str, str, str]], *, direction: int) -> str | None:
+    """Return the setup-screen action for left/right navigation."""
+
+    if direction >= 0:
+        for key, label, _detail in actions:
+            if key.startswith("view:") and label.lower() in {"begin setup", "continue"}:
+                return key
+        return None
+    for key, label, _detail in reversed(actions):
+        if key.startswith("view:") and label.lower() == "back":
+            return key
+    return None
 
 
 def _apply_first_run_action(
