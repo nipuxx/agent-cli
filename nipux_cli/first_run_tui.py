@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import textwrap
 from typing import Any
 
 from nipux_cli.config import AppConfig
@@ -14,8 +13,7 @@ from nipux_cli.settings import (
 )
 from nipux_cli.tui_commands import FIRST_RUN_SLASH_COMMANDS, slash_suggestion_lines
 from nipux_cli.tui_events import NIPUX_HERO
-from nipux_cli.tui_layout import _compose_bar, _top_bar, _two_col_line, _two_col_title
-from nipux_cli.tui_status import frame_jobs_lines
+from nipux_cli.tui_layout import _compose_bar, _top_bar
 from nipux_cli.tui_style import (
     _accent,
     _bold,
@@ -24,6 +22,7 @@ from nipux_cli.tui_style import (
     _muted,
     _one_line,
     _style,
+    _strip_ansi,
     _themed_lines,
 )
 
@@ -122,30 +121,18 @@ def build_first_run_frame(
     )
     footer_rows = len(compose_lines)
     body_rows = max(10, height - len(header) - 1 - footer_rows)
-    left_width, right_width = first_run_columns(width)
-    left_lines = _wizard_left_lines(
-        notices,
-        config=config,
-        view=view,
-        width=left_width,
-        rows=body_rows,
-    )
-    right_lines = _wizard_right_lines(
+    body_lines = _wizard_body_lines(
+        notices=notices,
         jobs=jobs,
         config=config,
         home=home,
         config_path=config_path,
         selected=selected,
         view=view,
-        width=right_width,
+        width=width,
         rows=body_rows,
     )
-    lines = [*header, _two_col_title(left_width, right_width, _left_title(view), "Setup")]
-    for index in range(body_rows):
-        left = left_lines[index] if index < len(left_lines) else ""
-        right = right_lines[index] if index < len(right_lines) else ""
-        lines.append(_two_col_line(left, right, left_width=left_width, right_width=right_width))
-    lines.extend(compose_lines)
+    lines = [*header, *body_lines, *compose_lines]
     return "\n".join(first_run_themed_lines(lines[:height], width=width))
 
 
@@ -166,47 +153,9 @@ def first_run_themed_lines(lines: list[str], *, width: int) -> list[str]:
     return _themed_lines(lines, width=width)
 
 
-def _wizard_left_lines(
+def _wizard_body_lines(
+    *,
     notices: list[str],
-    *,
-    config: AppConfig,
-    view: str,
-    width: int,
-    rows: int,
-) -> list[str]:
-    if view == "start" and not notices:
-        content = [
-            *[_center_ansi(_style(line, "37;1"), width) for line in NIPUX_HERO],
-            "",
-            _center_ansi(_bold("Long-running work, installed in-session."), width),
-            _center_ansi(_muted("Pick a model, connect an endpoint, run doctor, then create the first job."), width),
-            "",
-            _center_ansi(_install_summary(config, width=max(24, width - 8)), width),
-            "",
-            _center_ansi(_muted("Press Enter to begin. Type / for commands."), width),
-        ]
-        top_pad = max(0, (rows - len(content)) // 2 - 1)
-        return ([""] * top_pad + content)[:rows]
-
-    lines = [
-        _bold(_screen_heading(view)),
-        _muted(_screen_copy(view)),
-        "",
-        *_screen_value_lines(view, config=config, width=width),
-    ]
-    if notices:
-        lines.extend(["", _bold("Transcript")])
-        for notice in notices[-5:]:
-            normalized = " ".join(str(notice).split())
-            wrapped = textwrap.wrap(normalized, width=max(24, width - 4))[:3] or [""]
-            for index, part in enumerate(wrapped):
-                prefix = _accent("› ") if index == 0 else "  "
-                lines.append(_fit_ansi(prefix + part, width))
-    return [_fit_ansi(line, width) for line in lines[:rows]]
-
-
-def _wizard_right_lines(
-    *,
     jobs: list[dict[str, Any]],
     config: AppConfig,
     home: str,
@@ -216,28 +165,198 @@ def _wizard_right_lines(
     width: int,
     rows: int,
 ) -> list[str]:
-    actions = first_run_actions(view)
-    lines = [
-        _bold("Install"),
-        *_stepper_lines(view, config=config, width=width),
-        "",
-        _bold("Actions"),
-    ]
-    for index, action in enumerate(actions):
-        lines.append(_action_line(index, action, selected=selected, config=config, width=width))
-    lines.extend([
-        "",
-        _bold("Profile"),
-        f"{_muted('home')}   {_one_line(home, width - 7)}",
-        f"{_muted('config')} {_one_line(config_path, width - 7)}",
-        "",
-        _bold("Jobs"),
-    ])
-    if jobs:
-        lines.extend(frame_jobs_lines(jobs, focused_job_id="", daemon_running=True, width=width)[:4])
+    if view == "start":
+        lines = _start_page_lines(config=config, selected=selected, width=width, rows=rows)
+    elif view == "model":
+        lines = _model_page_lines(config=config, selected=selected, width=width)
+    elif view == "connector":
+        lines = _connector_page_lines(config=config, selected=selected, width=width)
+    elif view == "endpoint":
+        lines = _endpoint_page_lines(config=config, selected=selected, width=width)
+    elif view == "api":
+        lines = _api_page_lines(config=config, selected=selected, width=width)
+    elif view == "doctor":
+        lines = _doctor_page_lines(config=config, selected=selected, width=width)
+    elif view == "job":
+        lines = _job_page_lines(
+            jobs=jobs,
+            config=config,
+            home=home,
+            config_path=config_path,
+            selected=selected,
+            width=width,
+        )
     else:
-        lines.append(_muted("No jobs yet. The final screen creates one."))
-    return [_fit_ansi(line, width) for line in lines[:rows]]
+        lines = _start_page_lines(config=config, selected=selected, width=width, rows=rows)
+    if notices:
+        lines = _append_notice_block(lines, notices, width=width, rows=rows)
+    return _fit_page(lines, width=width, rows=rows)
+
+
+def _start_page_lines(*, config: AppConfig, selected: int, width: int, rows: int) -> list[str]:
+    actions = first_run_actions("start")
+    content = [
+        "",
+        *[_center_ansi(_style(line, "37;1"), width) for line in NIPUX_HERO],
+        "",
+        _center_ansi(_bold("Long-running work, installed in-session."), width),
+        _center_ansi(_muted("A local-first setup flow opens before any workspace exists."), width),
+        "",
+        _center_ansi(_install_summary(config, width=max(24, width - 12)), width),
+        "",
+        *_action_cards(actions, selected=selected, config=config, width=width),
+        "",
+        _center_ansi(_muted("Enter selects  ·  → begins setup  ·  / opens the command palette"), width),
+    ]
+    top_pad = max(0, (rows - len(content)) // 2 - 1)
+    return [""] * top_pad + content
+
+
+def _model_page_lines(*, config: AppConfig, selected: int, width: int) -> list[str]:
+    return [
+        *_step_header("model", width=width),
+        "",
+        _center_ansi(_muted("STEP 1 / 6"), width),
+        _center_ansi(_bold("Choose the model"), width),
+        _center_ansi(_muted("This model powers chat replies and background workers until you change it."), width),
+        "",
+        *_panel(
+            "MODEL ID",
+            [_bold(_accent(config.model.model)), _muted("Use any provider/model name your endpoint accepts.")],
+            width=min(84, width - 8),
+            page_width=width,
+        ),
+        "",
+        *_action_cards(first_run_actions("model"), selected=selected, config=config, width=width),
+    ]
+
+
+def _connector_page_lines(*, config: AppConfig, selected: int, width: int) -> list[str]:
+    connector = "local" if _is_local_endpoint(config.model.base_url) else "hosted"
+    local_card = _choice_card(
+        "LOCAL",
+        "Use an OpenAI-compatible server on this machine.",
+        "http://localhost:8000/v1",
+        active=connector == "local",
+        width=max(30, (width - 10) // 2),
+    )
+    hosted_card = _choice_card(
+        "HOSTED",
+        "Use OpenRouter, OpenAI, or another compatible provider.",
+        "requires endpoint + key",
+        active=connector != "local",
+        width=max(30, (width - 10) // 2),
+    )
+    return [
+        *_step_header("connector", width=width),
+        "",
+        _center_ansi(_muted("STEP 2 / 6"), width),
+        _center_ansi(_bold("Choose a connector"), width),
+        _center_ansi(_muted("Pick local for first install, or keep a hosted endpoint if you already configured one."), width),
+        "",
+        *_join_cards(local_card, hosted_card, width=width),
+        "",
+        *_action_cards(first_run_actions("connector"), selected=selected, config=config, width=width),
+    ]
+
+
+def _endpoint_page_lines(*, config: AppConfig, selected: int, width: int) -> list[str]:
+    return [
+        *_step_header("endpoint", width=width),
+        "",
+        _center_ansi(_muted("STEP 3 / 6"), width),
+        _center_ansi(_bold("Connect an endpoint"), width),
+        _center_ansi(_muted("Nipux talks to OpenAI-compatible /v1 APIs. Nothing here is tied to one provider."), width),
+        "",
+        *_form_panel(
+            "BASE URL",
+            config.model.base_url,
+            "/base-url URL",
+            width=min(90, width - 8),
+            page_width=width,
+        ),
+        "",
+        *_action_cards(first_run_actions("endpoint"), selected=selected, config=config, width=width),
+    ]
+
+
+def _api_page_lines(*, config: AppConfig, selected: int, width: int) -> list[str]:
+    key_state = "set" if config.model.api_key else "missing"
+    key_color = _style(key_state, "32" if key_state == "set" else "33")
+    return [
+        *_step_header("api", width=width),
+        "",
+        _center_ansi(_muted("STEP 4 / 6"), width),
+        _center_ansi(_bold("Add a secret"), width),
+        _center_ansi(_muted("Local endpoints can continue without a key. Hosted providers usually need one."), width),
+        "",
+        *_panel(
+            "API KEY",
+            [
+                f"{_muted('state')} {key_color}",
+                f"{_muted('env')}   {_bold(config.model.api_key_env)}",
+                _muted("Stored in the local Nipux env file, never in repository config."),
+            ],
+            width=min(84, width - 8),
+            page_width=width,
+        ),
+        "",
+        *_action_cards(first_run_actions("api"), selected=selected, config=config, width=width),
+    ]
+
+
+def _doctor_page_lines(*, config: AppConfig, selected: int, width: int) -> list[str]:
+    checks = [
+        ("state directory", "writable under ~/.nipux or NIPUX_HOME"),
+        ("database", "SQLite state store can open"),
+        ("model config", f"{config.model.model} at {config.model.base_url}"),
+        ("tools", "browser, web, files, memory, shell surface"),
+    ]
+    rows = [f"{_accent('✓')} {_fit_ansi(name, 18)} {_muted(detail)}" for name, detail in checks]
+    return [
+        *_step_header("doctor", width=width),
+        "",
+        _center_ansi(_muted("STEP 5 / 6"), width),
+        _center_ansi(_bold("Run checks"), width),
+        _center_ansi(_muted("Doctor verifies the local runtime before the first job opens."), width),
+        "",
+        *_panel("DOCTOR", rows, width=min(90, width - 8), page_width=width),
+        "",
+        *_action_cards(first_run_actions("doctor"), selected=selected, config=config, width=width),
+    ]
+
+
+def _job_page_lines(
+    *,
+    jobs: list[dict[str, Any]],
+    config: AppConfig,
+    home: str,
+    config_path: str,
+    selected: int,
+    width: int,
+) -> list[str]:
+    job_state = f"{len(jobs)} saved job" + ("" if len(jobs) == 1 else "s")
+    return [
+        *_step_header("job", width=width),
+        "",
+        _center_ansi(_muted("STEP 6 / 6"), width),
+        _center_ansi(_bold("Create the first job"), width),
+        _center_ansi(_muted("Type a real objective in the composer. Nipux opens chat/workspace after creation."), width),
+        "",
+        *_panel(
+            "READY",
+            [
+                f"{_muted('model')}  {_bold(config.model.model)}",
+                f"{_muted('home')}   {_one_line(home, 64)}",
+                f"{_muted('config')} {_one_line(config_path, 64)}",
+                f"{_muted('jobs')}   {job_state}",
+            ],
+            width=min(86, width - 8),
+            page_width=width,
+        ),
+        "",
+        *_action_cards(first_run_actions("job"), selected=selected, config=config, width=width),
+    ]
 
 
 def _stepper_lines(view: str, *, config: AppConfig, width: int) -> list[str]:
@@ -247,6 +366,135 @@ def _stepper_lines(view: str, *, config: AppConfig, width: int) -> list[str]:
         state = _step_state(key, config=config)
         lines.append(_fit_ansi(f"{marker} {_fit_ansi(label, 10)} {_muted(state)}", width))
     return lines
+
+
+def _step_header(view: str, *, width: int) -> list[str]:
+    parts = []
+    for index, (key, label, _detail) in enumerate(INSTALL_FLOW, start=1):
+        marker = _accent("●") if key == view else _muted("○")
+        text = _bold(label) if key == view else _muted(label)
+        parts.append(f"{marker} {index} {text}")
+    return [
+        _center_ansi("   ".join(parts), width),
+        _muted("─" * width),
+    ]
+
+
+def _action_cards(
+    actions: list[tuple[str, str, str]],
+    *,
+    selected: int,
+    config: AppConfig,
+    width: int,
+) -> list[str]:
+    if not actions:
+        return []
+    gap = 2
+    card_width = max(24, min(34, (width - (len(actions) - 1) * gap - 4) // len(actions)))
+    cards = [_action_tile(index, action, selected=selected, config=config, width=card_width) for index, action in enumerate(actions)]
+    rows = _join_many_cards(cards, gap=gap, width=width)
+    return [_center_ansi(row.rstrip(), width) for row in rows]
+
+
+def _action_tile(
+    index: int,
+    action: tuple[str, str, str],
+    *,
+    selected: int,
+    config: AppConfig,
+    width: int,
+) -> list[str]:
+    key, label, detail = action
+    active = index == selected
+    border = _accent if active else _muted
+    marker = _accent("›") if active else _muted(" ")
+    label_text = _bold(label) if active else label
+    value = _action_value(key, detail, config=config)
+    inner = max(8, width - 4)
+    return [
+        border("╭" + "─" * (width - 2) + "╮"),
+        border("│ ") + _fit_ansi(f"{marker} {index + 1}. {label_text}", inner) + border(" │"),
+        border("│ ") + _fit_ansi(_muted(_one_line(value, inner)), inner) + border(" │"),
+        border("╰" + "─" * (width - 2) + "╯"),
+    ]
+
+
+def _panel(title: str, body: list[str], *, width: int, page_width: int | None = None) -> list[str]:
+    width = max(32, width)
+    inner = max(8, width - 4)
+    title_text = f" {title} "
+    lines = [_muted("╭─" + title_text + "─" * max(0, width - len(title_text) - 3) + "╮")]
+    for item in body:
+        lines.append(_muted("│ ") + _fit_ansi(item, inner) + _muted(" │"))
+    lines.append(_muted("╰" + "─" * (width - 2) + "╯"))
+    return [_center_ansi(line, page_width or width) for line in lines]
+
+
+def _form_panel(title: str, value: str, command: str, *, width: int, page_width: int | None = None) -> list[str]:
+    return _panel(
+        title,
+        [
+            _bold(_accent(_one_line(value, max(16, width - 10)))),
+            _muted(f"edit with {command} or press Enter on Edit endpoint"),
+        ],
+        width=width,
+        page_width=page_width,
+    )
+
+
+def _choice_card(title: str, copy: str, value: str, *, active: bool, width: int) -> list[str]:
+    border = _accent if active else _muted
+    marker = _accent("● selected") if active else _muted("○ available")
+    inner = max(8, width - 4)
+    return [
+        border("╭" + "─" * (width - 2) + "╮"),
+        border("│ ") + _fit_ansi(_bold(title), inner) + border(" │"),
+        border("│ ") + _fit_ansi(marker, inner) + border(" │"),
+        border("│ ") + _fit_ansi(_muted(copy), inner) + border(" │"),
+        border("│ ") + _fit_ansi(_accent(value), inner) + border(" │"),
+        border("╰" + "─" * (width - 2) + "╯"),
+    ]
+
+
+def _join_cards(left: list[str], right: list[str], *, width: int) -> list[str]:
+    gap = "  "
+    rows = []
+    for index in range(max(len(left), len(right))):
+        left_line = left[index] if index < len(left) else " " * len(_strip_ansi(left[0]))
+        right_line = right[index] if index < len(right) else " " * len(_strip_ansi(right[0]))
+        rows.append(_center_ansi(left_line + gap + right_line, width))
+    return rows
+
+
+def _join_many_cards(cards: list[list[str]], *, gap: int, width: int) -> list[str]:
+    rows: list[str] = []
+    max_rows = max(len(card) for card in cards)
+    gap_text = " " * gap
+    for row_index in range(max_rows):
+        row_parts = []
+        for card in cards:
+            fallback_width = len(_strip_ansi(card[0]))
+            row_parts.append(card[row_index] if row_index < len(card) else " " * fallback_width)
+        rows.append(gap_text.join(row_parts))
+    return [_fit_ansi(row, width) for row in rows]
+
+
+def _append_notice_block(lines: list[str], notices: list[str], *, width: int, rows: int) -> list[str]:
+    budget = max(3, min(6, rows // 4))
+    notice_lines = [_bold("Transcript")]
+    for notice in notices[-budget:]:
+        notice_lines.append(_fit_ansi(_accent("› ") + _one_line(notice, width - 4), width))
+    if len(lines) + len(notice_lines) + 1 <= rows:
+        return [*lines, "", *notice_lines]
+    keep = max(0, rows - len(notice_lines) - 1)
+    return [*lines[:keep], "", *notice_lines]
+
+
+def _fit_page(lines: list[str], *, width: int, rows: int) -> list[str]:
+    fitted = [_fit_ansi(line, width) for line in lines]
+    if len(fitted) < rows:
+        fitted.extend([" " * width for _ in range(rows - len(fitted))])
+    return fitted[:rows]
 
 
 def _action_line(

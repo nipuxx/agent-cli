@@ -640,15 +640,23 @@ def _handle_first_run_action(action: str) -> tuple[str, str | list[str] | None]:
 
 
 def _first_run_click_action(x: int, y: int, *, view: str) -> int | None:
-    width, _height = shutil.get_terminal_size((100, 30))
-    left_width, _right_width = _first_run_columns(max(92, width))
-    right_start = left_width + 4
-    if x < right_start:
-        return None
-    body_start_y = 4
-    action_body_index = 9
-    index = y - (body_start_y + action_body_index)
+    width, height = shutil.get_terminal_size((100, 30))
+    width = max(92, width)
     actions = _first_run_actions(view)
+    if not actions or y < 10 or y > max(10, height - 4):
+        return None
+    gap = 2
+    card_width = max(24, min(34, (width - (len(actions) - 1) * gap - 4) // len(actions)))
+    total_width = len(actions) * card_width + (len(actions) - 1) * gap
+    start_x = max(1, (width - total_width) // 2 + 1)
+    relative = x - start_x
+    if relative < 0 or relative >= total_width:
+        return None
+    span = card_width + gap
+    index = relative // span
+    within_card = relative % span < card_width
+    if not within_card:
+        return None
     return index if 0 <= index < len(actions) else None
 
 

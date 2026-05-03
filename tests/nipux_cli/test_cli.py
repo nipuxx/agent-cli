@@ -293,18 +293,14 @@ def test_first_run_frame_uses_full_screen_ui_not_banner(monkeypatch, tmp_path):
     frame = _build_first_run_frame("", [], width=100, height=24)
 
     assert "NIPUX" in frame
-    assert "WELCOME" in frame
-    assert "SETUP" in frame
     assert "Begin setup" in frame
     assert "Long-running work, installed in-session." in frame
-    assert "Model" in frame
-    assert "Connector" in frame
-    assert "Endpoint" in frame
-    assert "API key" in frame
-    assert "First job" in frame
+    assert "local-first setup flow" in frame
     assert "Enter selects" in frame
     assert "controls on the right" not in frame
     assert "Control" not in frame
+    assert "SETUP" not in frame
+    assert "│ SETUP" not in frame
     assert "daemon stopped" not in frame
     assert "███" in frame
     assert "FIRST RUN" not in frame
@@ -334,13 +330,15 @@ def test_first_run_frame_walks_setup_screens(monkeypatch, tmp_path):
     api = _build_first_run_frame("", [], width=100, height=26, view="api", selected=0)
     invalid = _build_first_run_frame("", [], width=100, height=26, view="settings", selected=1)
 
-    assert "CHOOSE MODEL" in model
+    assert "Choose the model" in model
     assert "Edit model" in model
-    assert "CONNECT ENDPOINT" in endpoint
+    assert "Connect an endpoint" in endpoint
     assert "Edit endpoint" in endpoint
-    assert "ADD API KEY" in api
+    assert "Add a secret" in api
     assert "Save API key" in api
-    assert "WELCOME" in invalid
+    assert "Choose the model" not in endpoint
+    assert "Connect an endpoint" not in api
+    assert "Long-running work, installed in-session." in invalid
     assert "/shell" not in model
 
 
@@ -413,9 +411,10 @@ def test_terminal_escape_decodes_arrows_and_mouse_click():
 def test_first_run_click_maps_right_pane_actions(monkeypatch):
     monkeypatch.setattr("shutil.get_terminal_size", lambda fallback=(100, 30): (100, 30))
 
-    assert _first_run_click_action(70, 13, view="start") == 0
-    assert _first_run_click_action(70, 15, view="start") == 2
-    assert _first_run_click_action(10, 13, view="start") is None
+    assert _first_run_click_action(5, 15, view="start") == 0
+    assert _first_run_click_action(36, 15, view="start") == 1
+    assert _first_run_click_action(68, 15, view="start") == 2
+    assert _first_run_click_action(1, 4, view="start") is None
 
 
 def test_first_run_arrow_navigation_changes_setup_screens():
