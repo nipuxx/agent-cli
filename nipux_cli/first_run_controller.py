@@ -22,6 +22,14 @@ class FirstRunFrameDeps:
 
 
 def handle_first_run_action(action: str, *, deps: FirstRunFrameDeps) -> tuple[str, str | list[str] | None]:
+    if action == "preset:local":
+        notices = [
+            *deps.capture_setting_command("model local-model"),
+            *deps.capture_setting_command("base-url http://localhost:8000/v1"),
+            *deps.capture_setting_command("api-key-env OPENAI_API_KEY"),
+            "Local connector selected. Start your OpenAI-compatible server, then create a job.",
+        ]
+        return "notice", notices
     if action.startswith("edit:"):
         return "edit", action.split(":", 1)[1]
     if action.startswith("secret:"):

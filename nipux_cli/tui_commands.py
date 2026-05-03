@@ -88,10 +88,12 @@ CHAT_SLASH_COMMANDS = [
 ]
 
 FIRST_RUN_ACTIONS = [
+    ("preset:local", "Local connector", "recommended"),
+    ("edit:model.name", "Model", "choose model id"),
+    ("edit:model.base_url", "Endpoint", "OpenAI-compatible /v1"),
+    ("secret:model.api_key", "API key", "hosted providers only"),
     ("new", "New job", "type a goal, then press enter"),
-    ("jobs", "Jobs", "show saved workspaces"),
-    ("doctor", "Doctor", "check local setup"),
-    ("init", "Init", "write starter config"),
+    ("doctor", "Doctor", "check setup"),
     ("exit", "Exit", "leave Nipux"),
 ]
 
@@ -171,10 +173,21 @@ def slash_suggestion_lines(
             _fit_ansi(body, width),
             _fit_ansi(_muted("enter sends"), width),
         ]
-    all_matches = [(cmd, desc) for cmd, desc in commands if cmd[1:].startswith(token)]
-    if not all_matches and token:
-        all_matches = [(cmd, desc) for cmd, desc in commands if token in cmd[1:]]
-    matches = all_matches[:limit]
+    command_names = [cmd for cmd, _desc in commands]
+    selected_command = f"/{token}" if token else ""
+    exact_selection = selected_command in command_names and input_buffer.rstrip() == selected_command
+    if exact_selection:
+        all_matches = commands
+    else:
+        all_matches = [(cmd, desc) for cmd, desc in commands if cmd[1:].startswith(token)]
+        if not all_matches and token:
+            all_matches = [(cmd, desc) for cmd, desc in commands if token in cmd[1:]]
+    if exact_selection:
+        selected_index = next((index for index, (cmd, _desc) in enumerate(all_matches) if cmd == selected_command), 0)
+        start = max(0, min(selected_index - max(0, limit // 2), max(0, len(all_matches) - limit)))
+        matches = all_matches[start : start + limit]
+    else:
+        matches = all_matches[:limit]
     if not matches:
         return [
             _fit_ansi(_bold("/ commands"), width),
@@ -183,11 +196,13 @@ def slash_suggestion_lines(
     cmd_width = min(14, max(len(cmd) for cmd, _ in matches) + 2)
     lines = [_fit_ansi(_bold("/ commands") + _muted(f" {len(all_matches)}"), width)]
     for index, (cmd, desc) in enumerate(matches):
-        marker = _accent("›") if index == 0 else _muted(" ")
+        active = cmd == selected_command if exact_selection else index == 0
+        marker = _accent("›") if active else _muted(" ")
         hint = SLASH_ARGUMENT_HINTS.get(cmd[1:])
         command_text = cmd if not hint else f"{cmd} {hint}"
         command_width = cmd_width + (len(hint) + 1 if hint else 0)
-        body = f"{marker} {_fit_ansi(_accent(command_text), command_width)} {_muted(desc)}"
+        name = _bold(_accent(command_text)) if active else _accent(command_text)
+        body = f"{marker} {_fit_ansi(name, command_width)} {_muted(desc)}"
         lines.append(_fit_ansi(body, width))
     hidden = max(0, len(all_matches) - len(matches))
     if hidden:
@@ -216,8 +231,8 @@ def cycle_slash(input_buffer: str, commands: list[tuple[str, str]], *, direction
     try:
         index = matches.index(current)
     except ValueError:
-        return (matches[0] if direction >= 0 else matches[-1]) + " "
-    return matches[(index + direction) % len(matches)] + " "
+        return matches[0] if direction >= 0 else matches[-1]
+    return matches[(index + direction) % len(matches)]
 
 
 def _slash_command_matches(input_buffer: str, commands: list[tuple[str, str]]) -> list[str]:

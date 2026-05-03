@@ -43,14 +43,22 @@ def build_first_run_frame(
     home: str,
     config_path: str,
 ) -> str:
+    del daemon_text
     width = max(92, width)
     height = max(22, height)
-    header = _top_bar(width, state="setup", daemon=daemon_text, model=config.model.model)
+    header = _top_bar(
+        width,
+        state="setup",
+        daemon="",
+        model=config.model.model,
+        base_url=config.model.base_url,
+        context_length=config.model.context_length,
+    )
     if editing_field:
         hint = edit_target_hint(editing_field, config)
         prompt_label = edit_target_label(editing_field)
     else:
-        hint = "Type a goal. / commands. ↑↓ choose. Click selects."
+        hint = "Type normally to talk or create work. / opens commands. ↑↓ chooses setup."
         prompt_label = "❯"
     suggestions = [] if editing_field else slash_suggestion_lines(input_buffer, FIRST_RUN_SLASH_COMMANDS, width=width)
     compose_lines = _compose_bar(
@@ -73,8 +81,7 @@ def build_first_run_frame(
     )
     right_lines = _first_run_right_lines(
         jobs=jobs,
-        daemon_text=daemon_text,
-        model=config.model.model,
+        config=config,
         home=home,
         config_path=config_path,
         selected=selected,
@@ -117,26 +124,20 @@ def _first_run_left_lines(
         content = [
             *[_center_ansi(_style(line, "37;1"), width) for line in NIPUX_HERO],
             "",
-            _center_ansi(_muted("Long-running work, one prompt at a time."), width),
-            _center_ansi(_muted("Type an objective or open / commands."), width),
+            _center_ansi(_bold("Set up the model, then describe long-running work."), width),
+            _center_ansi(_muted("Local OpenAI-compatible endpoints are recommended for first tests."), width),
             "",
-            _center_ansi(f"{_muted('Selected')} {_accent(selected_label)}", width),
+            _center_ansi(f"{_muted('Selected')} {_accent(selected_label)}  {_muted('Enter opens it')}", width),
         ]
         top_pad = max(0, (rows - len(content)) // 2 - 1)
         return ([""] * top_pad + content)[:rows]
     lines = [
-        _bold("No agent output yet."),
-        _muted("Create a job from the control pane or type a goal in the input line."),
+        _bold("Setup chat"),
+        _muted("Ask Nipux about setup, or type a concrete objective to create the first job."),
         "",
         f"{_muted('Selected')} {_accent(selected_label)}",
         "",
-        f"{_muted('Mode')} {_accent('Start')}",
-        "",
-        _muted("After a job exists, this side becomes the agent conversation and output stream."),
-        "",
-        _muted("Use arrows, Enter, click, or / commands. The right pane shows jobs and setup."),
-        "",
-        _muted("Recent"),
+        _muted("Recent setup messages"),
     ]
     for notice in notices[-6:]:
         for wrapped in textwrap.wrap(" ".join(str(notice).split()), width=max(20, width - 4))[:3]:
@@ -147,8 +148,7 @@ def _first_run_left_lines(
 def _first_run_right_lines(
     *,
     jobs: list[dict[str, Any]],
-    daemon_text: str,
-    model: str,
+    config: AppConfig,
     home: str,
     config_path: str,
     selected: int,
@@ -157,15 +157,14 @@ def _first_run_right_lines(
     rows: int,
 ) -> list[str]:
     profile_lines = _first_run_profile_lines(
-        model=model,
-        daemon_text=daemon_text,
+        config=config,
         home=home,
         config_path=config_path,
         width=width,
     )
     lines = [
         *profile_lines,
-        _bold("Commands"),
+        _bold("Setup"),
         *_first_run_action_lines(_first_run_actions(view), selected, width=width),
         "",
         _bold("Jobs"),
@@ -179,18 +178,20 @@ def _first_run_right_lines(
 
 def _first_run_profile_lines(
     *,
-    model: str,
-    daemon_text: str,
+    config: AppConfig,
     home: str,
     config_path: str,
     width: int,
 ) -> list[str]:
+    key_state = "set" if config.model.api_key else "missing"
     return [
-        f"{_muted('Mode')}   {_accent('Start')}",
-        f"{_muted('Model')}  {_one_line(model, width - 8)}",
-        f"{_muted('Daemon')} {_one_line(daemon_text, width - 8)}",
-        f"{_muted('Home')}   {_one_line(home, width - 8)}",
-        f"{_muted('Config')} {_one_line(config_path, width - 8)}",
+        _bold("Workspace"),
+        f"{_muted('Model')}    {_one_line(config.model.model, width - 10)}",
+        f"{_muted('Connector')} OpenAI-compatible HTTP",
+        f"{_muted('Endpoint')} {_one_line(config.model.base_url, width - 10)}",
+        f"{_muted('Key')}      {key_state} via {_one_line(config.model.api_key_env, max(8, width - 23))}",
+        f"{_muted('Home')}     {_one_line(home, width - 10)}",
+        f"{_muted('Config')}   {_one_line(config_path, width - 10)}",
         "",
     ]
 
@@ -207,7 +208,7 @@ def _first_run_action_lines(actions: list[tuple[str, str, str]], selected: int, 
         elif key == "secret:model.api_key":
             config = load_config()
             detail = "set" if config.model.api_key else "missing"
-        lines.append(_fit_ansi(f"{marker} {_fit_ansi(name, 14)} {_muted(detail)}", width))
+        lines.append(_fit_ansi(f"{marker} {_fit_ansi(name, 17)} {_muted(detail)}", width))
     return lines
 
 

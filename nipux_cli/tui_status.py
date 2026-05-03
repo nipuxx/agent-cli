@@ -90,13 +90,12 @@ def right_pane_lines(
     rows: int,
     right_view: str = "status",
 ) -> list[str]:
-    del model, latest_text
+    del model, latest_text, daemon_text
     info_lines = _chat_workspace_lines(
         right_view=right_view,
         job=job,
         state=state,
         worker=worker,
-        daemon_text=daemon_text,
         goal_text=goal_text,
         token_usage=token_usage,
         context_length=context_length,
@@ -364,7 +363,6 @@ def _chat_workspace_lines(
     job: dict[str, Any],
     state: str,
     worker: str,
-    daemon_text: str,
     goal_text: str,
     token_usage: dict[str, Any],
     context_length: int,
@@ -377,7 +375,7 @@ def _chat_workspace_lines(
     lines = [
         f"{_muted('Page')}   {_page_indicator(right_view, CHAT_RIGHT_PAGES)}",
         _bold(title),
-        f"{_status_badge(state)} {_muted('worker')} {_status_badge(worker)}  {_muted(_one_line(daemon_text, max(8, width - 28)))}",
+        f"{_muted('State')}  {_status_badge(state)}  {_muted('worker')} {_status_badge(worker)}",
         f"{_muted('Goal')}   {goal_lines[0]}",
         f"{_muted('       ')}{goal_lines[1]}",
     ]

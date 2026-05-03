@@ -13,6 +13,7 @@ from nipux_cli.cli import (
     _config_field_value,
     _emit_frame_if_changed,
     _first_run_click_action,
+    _handle_first_run_action,
     _handle_first_run_menu_line,
     _handle_first_run_frame_line,
     _handle_chat_message,
@@ -267,7 +268,7 @@ def test_first_run_menu_can_create_job_and_open_workspace(monkeypatch, tmp_path,
     assert started["poll_seconds"] == 0.0
     assert started["quiet"] is True
     assert "created Build a durable workflow" in out
-    assert "Worker started" in out
+    assert "Opening workspace." in out
     assert "opened" in out
 
 
@@ -293,9 +294,11 @@ def test_first_run_frame_uses_full_screen_ui_not_banner(monkeypatch, tmp_path):
     assert "Nipux" in frame
     assert "Nipux Chat" in frame
     assert "Workspace" in frame
-    assert "Type a goal" in frame
+    assert "Set up the model" in frame
+    assert "Local connector" in frame
+    assert "OpenAI-compatible" in frame
     assert "New job" in frame
-    assert "/ commands" in frame
+    assert "/ opens commands" in frame
     assert "controls on the right" not in frame
     assert "Control" not in frame
     assert "_   _" in frame
@@ -327,8 +330,8 @@ def test_first_run_frame_has_no_settings_page(monkeypatch, tmp_path):
     assert "/base-url URL" not in frame
     assert "/api-key KEY" not in frame
     assert "/timeout SECONDS" not in frame
-    assert "Mode" in frame
-    assert "Start" in frame
+    assert "Workspace" in frame
+    assert "Setup" in frame
     assert "/shell" not in frame
 
 
@@ -364,11 +367,11 @@ def test_slash_autocomplete_filters_commands():
     assert _autocomplete_slash("/rest", CHAT_SLASH_COMMANDS) == "/restart "
     assert _autocomplete_slash("/step", CHAT_SLASH_COMMANDS) == "/step-limit "
     assert _autocomplete_slash("/out", FIRST_RUN_SLASH_COMMANDS) == "/output-chars "
-    assert _cycle_slash("/", CHAT_SLASH_COMMANDS, direction=1) == "/run "
-    assert _cycle_slash("/", CHAT_SLASH_COMMANDS, direction=-1) == "/exit "
+    assert _cycle_slash("/", CHAT_SLASH_COMMANDS, direction=1) == "/run"
+    assert _cycle_slash("/", CHAT_SLASH_COMMANDS, direction=-1) == "/exit"
     assert _cycle_slash("/work ", CHAT_SLASH_COMMANDS, direction=1) == "/work "
-    assert _cycle_slash("/out", CHAT_SLASH_COMMANDS, direction=1) == "/outcomes "
-    assert _cycle_slash("/out", CHAT_SLASH_COMMANDS, direction=-1) == "/output-cost "
+    assert _cycle_slash("/out", CHAT_SLASH_COMMANDS, direction=1) == "/outcomes"
+    assert _cycle_slash("/out", CHAT_SLASH_COMMANDS, direction=-1) == "/output-cost"
     assert _autocomplete_slash("plain text", CHAT_SLASH_COMMANDS) == "plain text"
     lines = _slash_suggestion_lines("/art", CHAT_SLASH_COMMANDS, width=80)
     text = "\n".join(lines)
@@ -401,8 +404,8 @@ def test_terminal_escape_decodes_arrows_and_mouse_click():
 def test_first_run_click_maps_right_pane_actions(monkeypatch):
     monkeypatch.setattr("shutil.get_terminal_size", lambda fallback=(100, 30): (100, 30))
 
-    assert _first_run_click_action(70, 11, view="start") == 0
-    assert _first_run_click_action(70, 13, view="start") == 2
+    assert _first_run_click_action(70, 12, view="start") == 0
+    assert _first_run_click_action(70, 14, view="start") == 2
     assert _first_run_click_action(10, 12, view="start") is None
 
 
@@ -672,6 +675,19 @@ def test_first_run_settings_slash_commands_persist_config(monkeypatch, tmp_path)
     assert _config_field_value("model.name") == "provider/model"
 
 
+def test_first_run_local_connector_action_sets_generic_local_endpoint(monkeypatch, tmp_path):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+
+    action, payload = _handle_first_run_action("preset:local")
+
+    assert action == "notice"
+    assert isinstance(payload, list)
+    assert any("saved model.name = local-model" in line for line in payload)
+    assert any("saved model.base_url = http://localhost:8000/v1" in line for line in payload)
+    assert _config_field_value("model.name") == "local-model"
+    assert _config_field_value("model.base_url") == "http://localhost:8000/v1"
+
+
 def test_shell_ls_alias_lists_jobs_instead_of_steering(monkeypatch, tmp_path, capsys):
     monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
     db = AgentDB(tmp_path / "state.db")
@@ -924,7 +940,9 @@ def test_chat_frame_is_bounded_and_has_composer():
     assert "tok" in frame
     assert "5.3K" in frame
     assert "$0.0123" in frame
-    assert "daemon running  model model/demo  ctx 4.1K/8.2K" in wide_frame
+    assert "Nipux CLI" in wide_frame
+    assert "model model/demo  ctx 4.1K/8.2K" in wide_frame
+    assert "daemon running" not in wide_frame
     assert wide_frame.splitlines()[1].startswith("─")
     assert "Enter send" in frame
     assert "❯ hello" in frame

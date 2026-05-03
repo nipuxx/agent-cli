@@ -595,8 +595,8 @@ def _prompt_first_run_value(label: str) -> str:
 def _first_run_create_and_open(objective: str, *, history_limit: int = 12) -> None:
     job_id, title = _create_job(objective=objective, title=None, kind="generic", cadence=None)
     print(f"created {title}")
-    _start_daemon_if_needed(poll_seconds=0.0, quiet=True)
-    print("Opening workspace. Worker started; use the right pane to switch jobs or inspect output.")
+    _start_interactive_daemon_if_possible()
+    print("Opening workspace.")
     _enter_chat(job_id, show_history=True, history_limit=history_limit)
 
 
@@ -607,7 +607,7 @@ def _first_token(line: str) -> str:
 def _enter_first_run_frame(*, history_limit: int = 12) -> None:
     next_job_id = _run_first_run_frame(deps=_first_run_runtime_deps())
     if next_job_id:
-        _start_daemon_if_needed(poll_seconds=0.0, quiet=True)
+        _start_interactive_daemon_if_possible()
         _enter_chat(next_job_id, show_history=True, history_limit=history_limit)
 
 
@@ -647,7 +647,7 @@ def _first_run_click_action(x: int, y: int, *, view: str) -> int | None:
     if x < right_start:
         return None
     body_start_y = 4
-    action_body_index = 7
+    action_body_index = 8
     index = y - (body_start_y + action_body_index)
     actions = _first_run_actions(view)
     return index if 0 <= index < len(actions) else None
@@ -769,6 +769,7 @@ def _build_first_run_frame(
 
 def _enter_chat(job_id: str, *, show_history: bool, history_limit: int = 12) -> None:
     _install_readline_history()
+    startup_note = _start_interactive_daemon_if_possible()
     if _frame_chat_enabled():
         _enter_chat_frame(job_id, history_limit=history_limit)
         return
@@ -788,6 +789,8 @@ def _enter_chat(job_id: str, *, show_history: bool, history_limit: int = 12) -> 
     if show_history:
         _print_startup_history(job_id, limit=history_limit, chars=180)
         print()
+    if startup_note:
+        print(_one_line(startup_note, 180))
     _print_chat_composer(job)
     live_stop, live_thread = _start_chat_live_feed(job_id)
     try:
@@ -1352,6 +1355,18 @@ def _start_daemon_if_needed(
         start_fn=cmd_start,
         stop_fn=lambda config, wait, quiet: _stop_daemon_process(config, wait=wait, quiet=quiet),
     )
+
+
+def _start_interactive_daemon_if_possible() -> str:
+    """Best-effort daemon start for the full-screen UI without printing over the frame."""
+
+    stream = StringIO()
+    with redirect_stdout(stream):
+        try:
+            _start_daemon_if_needed(poll_seconds=0.0, quiet=True)
+        except SystemExit:
+            pass
+    return stream.getvalue()
 
 
 def cmd_restart(args: argparse.Namespace) -> None:
