@@ -133,10 +133,12 @@ def right_pane_lines(
     if spacious:
         info_lines.append("")
         info_lines.append(_bold("Progress"))
-    info_lines.extend(_metrics_grid_lines(metrics, width=width))
-    yield_line = _yield_line(metrics, width=width)
-    if yield_line:
-        info_lines.append(yield_line)
+        info_lines.extend(_metrics_grid_lines(metrics, width=width))
+        yield_line = _yield_line(metrics, width=width)
+        if yield_line:
+            info_lines.append(yield_line)
+    else:
+        info_lines.append(_metric_strip(metrics[:5], width=width))
     info_lines.append("")
     info_lines.append(_bold("Jobs"))
     info_lines.extend(

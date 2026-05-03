@@ -169,9 +169,9 @@ def slash_suggestion_lines(
         if description:
             body += f"  {_muted(description)}"
         return [
-            _fit_ansi(_bold("/ command"), width),
-            _fit_ansi(body, width),
-            _fit_ansi(_muted("enter sends"), width),
+            _muted("╭─ command " + "─" * max(0, width - 11)),
+            _fit_ansi(_muted("│ ") + body, width),
+            _fit_ansi(_muted("╰─ enter sends"), width),
         ]
     command_names = [cmd for cmd, _desc in commands]
     selected_command = f"/{token}" if token else ""
@@ -190,11 +190,12 @@ def slash_suggestion_lines(
         matches = all_matches[:limit]
     if not matches:
         return [
-            _fit_ansi(_bold("/ commands"), width),
-            _fit_ansi(_muted("no matches"), width),
+            _muted("╭─ commands " + "─" * max(0, width - 12)),
+            _fit_ansi(_muted("│ no matches"), width),
+            _muted("╰" + "─" * max(0, width - 1)),
         ]
     cmd_width = min(14, max(len(cmd) for cmd, _ in matches) + 2)
-    lines = [_fit_ansi(_bold("/ commands") + _muted(f" {len(all_matches)}"), width)]
+    lines = [_muted("╭─ commands ") + _fit_ansi(_muted(str(len(all_matches))), max(0, width - 12))]
     for index, (cmd, desc) in enumerate(matches):
         active = cmd == selected_command if exact_selection else index == 0
         marker = _accent("›") if active else _muted(" ")
@@ -202,13 +203,13 @@ def slash_suggestion_lines(
         command_text = cmd if not hint else f"{cmd} {hint}"
         command_width = cmd_width + (len(hint) + 1 if hint else 0)
         name = _bold(_accent(command_text)) if active else _accent(command_text)
-        body = f"{marker} {_fit_ansi(name, command_width)} {_muted(desc)}"
+        body = f"{_muted('│')} {marker} {_fit_ansi(name, command_width)} {_muted(desc)}"
         lines.append(_fit_ansi(body, width))
     hidden = max(0, len(all_matches) - len(matches))
     if hidden:
-        lines.append(_fit_ansi(_muted(f"+{hidden} more; type to filter"), width))
+        lines.append(_fit_ansi(_muted(f"╰─ +{hidden} more; type to filter"), width))
     else:
-        lines.append(_fit_ansi(_muted("tab fills · ↑↓ select"), width))
+        lines.append(_fit_ansi(_muted("╰─ tab fills · ↑↓ select"), width))
     return lines
 
 

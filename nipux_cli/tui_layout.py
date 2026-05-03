@@ -26,26 +26,28 @@ def _top_bar(
     base_url: str = "",
 ) -> list[str]:
     del state, daemon
-    title = _bold(_accent("Nipux CLI"))
+    title = _style("NIPUX", "38;5;159;1")
     usage_text = _token_usage_topline(token_usage or {}, context_length=context_length, model=model, base_url=base_url)
     model_line = f"{_muted('model')} {_style(_one_line(model, max(16, width // 3)), '36')}"
     if width >= 118:
         compact_model = f"{_muted('model')} {_style(_one_line(model, max(14, width // 5)), '36')}"
         return [
             _edge_line(title, f"{compact_model}  {usage_text}", width=width),
-            _muted("─" * width),
+            _muted("━" * width),
         ]
     first = _edge_line(title, model_line, width=width)
     second = _edge_line("", usage_text, width=width)
     return [
         first,
         second,
-        _muted("─" * width),
+        _muted("━" * width),
     ]
 
 
 def _two_col_title(left_width: int, right_width: int, left: str, right: str) -> str:
-    return _muted("╭─ ") + _fit_ansi(_bold(left), max(0, left_width - 3)) + _muted(" │ ") + _fit_ansi(_bold(right), right_width)
+    left_title = _style(left.upper(), "38;5;252;1")
+    right_title = _style(right.upper(), "38;5;252;1")
+    return _fit_ansi(left_title, left_width) + _muted(" │ ") + _fit_ansi(right_title, right_width)
 
 
 def _two_col_line(left: str, right: str, *, left_width: int, right_width: int) -> str:
@@ -79,13 +81,12 @@ def _compose_bar(
     lines = []
     if suggestions:
         lines.extend(suggestions)
-    lines.extend(
-        [
-            _muted("─" * width),
-            _fit_ansi(hint, width),
-            _fit_ansi(prompt, width),
-        ]
-    )
+    title = " message "
+    lines.extend([
+        _muted("╭─" + title + "─" * max(0, width - len(title) - 2)),
+        _fit_ansi(_muted("│ ") + prompt, width),
+        _fit_ansi(_muted("╰─ ") + hint, width),
+    ])
     return lines
 
 

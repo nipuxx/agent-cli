@@ -64,11 +64,11 @@ def build_chat_frame(
     state = job_display_state(job, bool(daemon["running"]))
     worker = worker_label(job, bool(daemon["running"]))
     latest_step = steps[-1] if steps else None
-    left_width = max(56, int(width * 0.64))
-    right_width = max(34, width - left_width - 3)
-    if right_width < 34:
-        right_width = 34
-        left_width = max(48, width - right_width - 3)
+    right_width = min(max(50, int(width * 0.36)), 72)
+    left_width = max(48, width - right_width - 3)
+    if left_width < 48:
+        left_width = 48
+        right_width = max(34, width - left_width - 3)
     latest_text = _step_line(latest_step, chars=right_width - 6) if latest_step else "no worker steps yet"
     daemon_text = _daemon_state_line(daemon)
     goal_text = " ".join(str(job.get("objective") or "").split())
@@ -97,7 +97,7 @@ def build_chat_frame(
         hint = edit_target_hint(editing_field)
         prompt_label = edit_target_label(editing_field)
     else:
-        hint = "Enter send  ·  / commands  ·  ←→ pages  ·  ↑↓ jobs"
+        hint = "Enter sends  ·  / commands  ·  ←→ worker pages  ·  ↑↓ jobs"
         prompt_label = "❯"
     suggestions = [] if editing_field else slash_suggestion_lines(input_buffer, CHAT_SLASH_COMMANDS, width=width)
     compose_lines = _compose_bar(
@@ -128,7 +128,7 @@ def build_chat_frame(
             width=right_width,
             rows=body_rows,
         )
-        right_title = "Work"
+        right_title = "Worker"
     else:
         right_lines = right_pane_lines(
             job=job,
@@ -152,8 +152,8 @@ def build_chat_frame(
             rows=body_rows,
             right_view=right_view,
         )
-        right_title = "Status"
-    lines = [*header, _two_col_title(left_width, right_width, "Chat", right_title)]
+        right_title = "Jobs"
+    lines = [*header, _two_col_title(left_width, right_width, "Conversation", right_title)]
     for index in range(body_rows):
         left = chat_lines[index] if index < len(chat_lines) else ""
         right = right_lines[index] if index < len(right_lines) else ""

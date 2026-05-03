@@ -291,9 +291,9 @@ def test_first_run_frame_uses_full_screen_ui_not_banner(monkeypatch, tmp_path):
 
     frame = _build_first_run_frame("", [], width=100, height=24)
 
-    assert "Nipux" in frame
-    assert "Install" in frame
-    assert "Setup" in frame
+    assert "NIPUX" in frame
+    assert "INSTALL" in frame
+    assert "SETUP" in frame
     assert "Set up once" in frame
     assert "Model" in frame
     assert "Connector" in frame
@@ -304,7 +304,7 @@ def test_first_run_frame_uses_full_screen_ui_not_banner(monkeypatch, tmp_path):
     assert "controls on the right" not in frame
     assert "Control" not in frame
     assert "daemon stopped" not in frame
-    assert "_   _" in frame
+    assert "███" in frame
     assert "FIRST RUN" not in frame
     assert "nipux menu >" not in frame
     assert "/shell" not in frame
@@ -333,7 +333,7 @@ def test_first_run_frame_has_no_settings_page(monkeypatch, tmp_path):
     assert "/base-url URL" not in frame
     assert "/api-key KEY" not in frame
     assert "/timeout SECONDS" not in frame
-    assert "Setup" in frame
+    assert "SETUP" in frame
     assert "Connector" in frame
     assert "/shell" not in frame
 
@@ -929,9 +929,9 @@ def test_chat_frame_is_bounded_and_has_composer():
     wide_frame = _build_chat_frame(snapshot, "", [], width=140, height=22)
 
     assert len(frame.splitlines()) <= 22
-    assert "Nipux CLI" in frame
-    assert "Chat" in frame
-    assert "Status" in frame
+    assert "NIPUX" in frame
+    assert "CONVERSATION" in frame
+    assert "JOBS" in frame
     assert "Outcome" in frame
     assert "#3" not in frame
     assert "Jobs" in frame
@@ -943,11 +943,11 @@ def test_chat_frame_is_bounded_and_has_composer():
     assert "tok" in frame
     assert "5.3K" in frame
     assert "$0.0123" in frame
-    assert "Nipux CLI" in wide_frame
+    assert "NIPUX" in wide_frame
     assert "model model/demo  ctx 4.1K/8.2K" in wide_frame
     assert "daemon running" not in wide_frame
-    assert wide_frame.splitlines()[1].startswith("─")
-    assert "Enter send" in frame
+    assert wide_frame.splitlines()[1].startswith("━")
+    assert "Enter sends" in frame
     assert "❯ hello" in frame
     task_frame = _build_chat_frame(snapshot, "", [], width=100, height=26)
     assert "Draft next deli" in task_frame
@@ -1031,7 +1031,7 @@ def test_chat_frame_empty_state_uses_sleek_hero():
 
     frame = _build_chat_frame(snapshot, "", [], width=120, height=28)
 
-    assert "_   _ ___" in frame
+    assert "███" in frame
     assert "Talk to create, steer, inspect" in frame
     assert "No chat yet." not in frame
 
