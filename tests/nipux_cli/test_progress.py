@@ -121,6 +121,41 @@ def test_progress_checkpoint_counts_existing_record_updates_as_progress():
     assert "~1 experiment updated" in checkpoint.message
 
 
+def test_progress_checkpoint_counts_roadmap_updates_and_validations():
+    metadata = {
+        "last_checkpoint_at": "2026-01-01T00:00:00+00:00",
+        "roadmap": {"milestones": [{"title": "Foundation", "status": "validating"}]},
+        "last_roadmap_record": {
+            "title": "Roadmap",
+            "created": False,
+            "updated_at": "2026-01-01T00:01:00+00:00",
+            "added_milestones": 0,
+            "updated_milestones": 1,
+            "added_features": 0,
+            "updated_features": 0,
+        },
+        "last_milestone_validation": {
+            "milestone": "Foundation",
+            "validation_status": "passed",
+            "validated_at": "2026-01-01T00:02:00+00:00",
+        },
+    }
+
+    checkpoint = build_progress_checkpoint(
+        metadata,
+        previous_counts={"findings": 0, "sources": 0, "tasks": 0, "experiments": 0, "lessons": 0, "milestones": 1},
+        step_no=70,
+        tool_name="record_milestone_validation",
+    )
+
+    assert checkpoint.category == "progress"
+    assert checkpoint.deltas["milestones"] == 0
+    assert checkpoint.updates["milestones"] == 2
+    assert checkpoint.resolutions["milestones"] == 1
+    assert "~2 milestones updated" in checkpoint.message
+    assert "1 milestone resolved" in checkpoint.message
+
+
 def test_progress_helpers_ignore_malformed_metadata():
     metadata = {
         "finding_ledger": "bad",

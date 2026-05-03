@@ -191,7 +191,7 @@ def _updated_existing_record(record: Any, *, since: str) -> bool:
 def _record_after_checkpoint(record: dict[str, Any], *, since: str) -> bool:
     if not since:
         return True
-    updated_at = str(record.get("updated_at") or record.get("validated_at") or record.get("last_seen") or "")
+    updated_at = str(record.get("updated_at") or record.get("validated_at") or record.get("last_seen") or record.get("at") or "")
     return bool(updated_at and updated_at > since)
 
 

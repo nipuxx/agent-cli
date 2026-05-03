@@ -1544,9 +1544,15 @@ class AgentDB:
             job_metadata["roadmap"] = roadmap
             job_metadata["last_roadmap_record"] = {
                 "at": now,
+                "updated_at": now,
                 "event_id": event["id"],
+                "created": created,
                 "title": roadmap.get("title"),
                 "status": roadmap.get("status"),
+                "added_milestones": added_milestones,
+                "updated_milestones": updated_milestones,
+                "added_features": added_features,
+                "updated_features": updated_features,
                 "milestones": touched[-10:],
             }
             conn.execute(
@@ -1661,6 +1667,7 @@ class AgentDB:
             job_metadata["roadmap"] = roadmap
             job_metadata["last_milestone_validation"] = {
                 "at": now,
+                "validated_at": now,
                 "event_id": event["id"],
                 "milestone": current.get("title"),
                 "validation_status": validation_status,

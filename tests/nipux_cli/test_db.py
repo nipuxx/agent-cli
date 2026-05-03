@@ -364,6 +364,40 @@ def test_task_queue_dedupes_and_updates(tmp_path):
         db.close()
 
 
+def test_roadmap_last_records_include_progress_accounting_metadata(tmp_path):
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Research topic")
+        db.append_roadmap_record(
+            job_id,
+            title="Roadmap",
+            milestones=[{"title": "Foundation", "status": "active", "priority": 5}],
+        )
+        db.append_roadmap_record(
+            job_id,
+            title="Roadmap",
+            milestones=[{"title": "Foundation", "status": "validating", "priority": 6}],
+        )
+        db.append_milestone_validation_record(
+            job_id,
+            milestone="Foundation",
+            validation_status="passed",
+            result="Evidence satisfies acceptance criteria.",
+        )
+        metadata = db.get_job(job_id)["metadata"]
+        roadmap_record = metadata["last_roadmap_record"]
+        validation_record = metadata["last_milestone_validation"]
+
+        assert roadmap_record["created"] is False
+        assert roadmap_record["updated_at"]
+        assert roadmap_record["added_milestones"] == 0
+        assert roadmap_record["updated_milestones"] == 1
+        assert validation_record["validated_at"]
+        assert validation_record["validation_status"] == "passed"
+    finally:
+        db.close()
+
+
 def test_timeline_events_cover_visible_activity(tmp_path):
     db = AgentDB(tmp_path / "state.db")
     try:
