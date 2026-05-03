@@ -207,18 +207,19 @@ def test_update_job_state_keeps_terminal_statuses_operator_only(tmp_path):
             assert result["kept_running"] is True
             assert db.get_job(job_id)["status"] == "running"
             if requested == "completed":
-                assert result["follow_up_task"]["title"] == "Continue improving from latest result"
+                assert result["follow_up_task"]["title"] == "Audit latest checkpoint against objective"
                 assert result["follow_up_task"]["status"] == "open"
                 assert result["follow_up_task"]["output_contract"] == "decision"
-                assert result["follow_up_task"]["acceptance_criteria"]
+                assert "prompt-to-artifact checklist" in result["follow_up_task"]["acceptance_criteria"]
                 assert result["follow_up_task"]["evidence_needed"]
                 assert result["follow_up_task"]["stall_behavior"]
                 assert result["follow_up_task"]["metadata"]["source"] == "update_job_state"
+                assert result["follow_up_task"]["metadata"]["completion_audit_required"] is True
             else:
                 assert "follow_up_task" not in result
 
         tasks = db.get_job(job_id)["metadata"]["task_queue"]
-        assert [task["title"] for task in tasks] == ["Continue improving from latest result"]
+        assert [task["title"] for task in tasks] == ["Audit latest checkpoint against objective"]
     finally:
         db.close()
 
@@ -621,6 +622,36 @@ def test_record_tasks_downgrades_done_artifact_without_delivery_evidence(tmp_pat
         assert task["status"] == "active"
         assert task["metadata"]["completion_validation"] == "missing_recent_deliverable_evidence"
         assert task["metadata"]["claimed_result"] == "Updated the report"
+    finally:
+        db.close()
+
+
+def test_record_tasks_downgrades_done_without_result_evidence(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Validate generic work")
+        run_id = db.start_run(job_id, model="fake")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="record_tasks")
+        ctx = ToolContext(config=config, db=db, artifacts=ArtifactStore(tmp_path, db), job_id=job_id, run_id=run_id, step_id=step_id)
+
+        raw = DEFAULT_REGISTRY.handle(
+            "record_tasks",
+            {
+                "tasks": [{
+                    "title": "Check current branch",
+                    "status": "done",
+                    "output_contract": "decision",
+                }]
+            },
+            ctx,
+        )
+        result = json.loads(raw)
+        task = db.get_job(job_id)["metadata"]["task_queue"][0]
+
+        assert result["success"] is True
+        assert task["status"] == "active"
+        assert task["metadata"]["completion_validation"] == "missing_result_evidence"
     finally:
         db.close()
 

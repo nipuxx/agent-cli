@@ -119,12 +119,21 @@ def right_pane_lines(
     defer_line = _defer_status_line(job, width=width)
     if defer_line:
         info_lines.append(defer_line)
+    spacious = rows >= 18
+    if spacious:
+        info_lines.append("")
+        info_lines.append(_bold("Now"))
     latest_hour = latest_hour_outcome_summary_line(events, width=width) if rows >= 18 else ""
     if latest_hour:
         info_lines.append(latest_hour)
     latest_outcome = latest_durable_outcome_line(events, width=width)
     if latest_outcome:
         info_lines.append(latest_outcome)
+    if spacious and not latest_hour and not latest_outcome:
+        info_lines.append(_muted("No durable outcome yet."))
+    if spacious:
+        info_lines.append("")
+        info_lines.append(_bold("Progress"))
     info_lines.extend(_metrics_grid_lines(metrics, width=width))
     yield_line = _yield_line(metrics, width=width)
     if yield_line:

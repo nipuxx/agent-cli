@@ -145,22 +145,11 @@ def _update_job_state(args: dict[str, Any], ctx: ToolContext) -> str:
         note = str(args.get("note") or "")
         follow_up_task = None
         if status == "completed":
-            follow_up_task = ctx.db.append_task_record(
-                ctx.job_id,
-                title="Continue improving from latest result",
-                status="open",
-                priority=5,
-                goal=(
-                    "Use the latest saved result as the baseline, choose the next useful improvement branch, "
-                    "validate it with evidence, and report what changed."
-                ),
-                output_contract="decision",
-                acceptance_criteria=(
-                    "A next branch is chosen from evidence, or the result is explicitly marked blocked with a reason."
-                ),
-                evidence_needed="Latest artifact, finding, experiment, or operator context used to choose the branch.",
-                stall_behavior="If no useful improvement path remains, record the blocker and keep monitoring or refining.",
-                metadata={"source": "update_job_state", "requested_status": status},
+            follow_up_task = _append_completion_audit_task(
+                ctx,
+                source="update_job_state",
+                requested_status=status,
+                claimed_message=note,
             )
         metadata = {"requested_status": status, "kept_running": True}
         if follow_up_task is not None:
@@ -256,21 +245,53 @@ def _report_update(args: dict[str, Any], ctx: ToolContext) -> str:
     if normalized_message != message:
         metadata = {**metadata, "original_message": message, "rewritten_completion_claim": True}
         message = normalized_message
-        follow_up_task = ctx.db.append_task_record(
-            ctx.job_id,
-            title="Continue improving from latest checkpoint",
-            status="open",
-            priority=6,
-            goal="Use the checkpoint as a baseline, choose the next useful improvement branch, and validate it with evidence.",
-            output_contract="decision",
-            acceptance_criteria="A next branch is selected from durable evidence, or the branch is marked blocked with a reason.",
-            evidence_needed="Latest checkpoint, artifact, finding, experiment, task, or operator context used to choose the branch.",
-            stall_behavior="If no immediate improvement path is available, create a monitor/review branch rather than declaring completion.",
-            metadata={"source": "report_update", "rewritten_completion_claim": True},
+        follow_up_task = _append_completion_audit_task(
+            ctx,
+            source="report_update",
+            requested_status="completed",
+            claimed_message=str(metadata.get("original_message") or ""),
         )
         metadata["follow_up_task"] = follow_up_task.get("key")
     entry = ctx.db.append_agent_update(ctx.job_id, message, category=category, metadata=metadata)
     return _json({"success": True, "job_id": ctx.job_id, "update": entry})
+
+
+def _append_completion_audit_task(
+    ctx: ToolContext,
+    *,
+    source: str,
+    requested_status: str,
+    claimed_message: str = "",
+) -> dict[str, Any]:
+    return ctx.db.append_task_record(
+        ctx.job_id,
+        title="Audit latest checkpoint against objective",
+        status="open",
+        priority=7,
+        goal=(
+            "Before treating the latest checkpoint as sufficient, compare the objective and operator context "
+            "against concrete artifacts, files, findings, measurements, validations, and task results."
+        ),
+        output_contract="decision",
+        acceptance_criteria=(
+            "A prompt-to-artifact checklist maps explicit requirements to evidence, identifies uncovered gaps, "
+            "and opens or continues the next branch from those gaps."
+        ),
+        evidence_needed=(
+            "Objective text, active operator context, latest durable outputs, recent tool/test results, "
+            "task queue state, roadmap validations, and measured results when applicable."
+        ),
+        stall_behavior=(
+            "If evidence is missing, mark the checkpoint incomplete, record the gap, and create the smallest "
+            "follow-up task instead of claiming completion."
+        ),
+        metadata={
+            "source": source,
+            "requested_status": requested_status,
+            "completion_audit_required": True,
+            "claimed_message": claimed_message[:1000],
+        },
+    )
 
 
 def _perpetual_checkpoint_message(message: str) -> str:
@@ -521,6 +542,10 @@ def _validated_task_status(
 ) -> tuple[str, dict[str, Any]]:
     normalized_status = status.strip().lower().replace(" ", "_") or "open"
     contract = output_contract.strip().lower().replace(" ", "_")
+    if normalized_status == "done" and not result.strip() and not _task_metadata_has_completion_evidence(metadata):
+        updated = dict(metadata)
+        updated["completion_validation"] = "missing_result_evidence"
+        return "active", updated
     if normalized_status != "done" or contract not in {"artifact", "report"}:
         return status, metadata
     if _recent_deliverable_evidence(ctx):
@@ -530,6 +555,18 @@ def _validated_task_status(
     if result:
         updated["claimed_result"] = result
     return "active", updated
+
+
+def _task_metadata_has_completion_evidence(metadata: dict[str, Any]) -> bool:
+    evidence_keys = {
+        "artifact_id",
+        "evidence_artifact",
+        "experiment_key",
+        "file_path",
+        "output_path",
+        "validation_event_id",
+    }
+    return any(str(metadata.get(key) or "").strip() for key in evidence_keys)
 
 
 def _recent_deliverable_evidence(ctx: ToolContext, *, limit: int = 12) -> bool:

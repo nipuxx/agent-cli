@@ -320,8 +320,8 @@ def chat_updates_pane_lines(
         f"{_muted('Page')}   {_page_indicator('updates', CHAT_RIGHT_PAGES)}",
         f"{_muted('Focus')}  {_bold(_one_line(job.get('title') or 'untitled', width - 8))}",
         "",
-        _bold("Outcome summary"),
-        _muted("Summaries of durable output, findings, measurements, decisions, and files."),
+        _bold("Summary"),
+        _muted("Durable output, findings, measurements, decisions, and files."),
         "",
     ]
     summary = visible_outcome_summary_line(events, width=width)

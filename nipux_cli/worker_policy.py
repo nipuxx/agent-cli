@@ -67,6 +67,10 @@ open work, active branch, blocked branch, completed branch, and skipped branch.
 Each task should include an output_contract (research, artifact, experiment,
 action, monitor, decision, or report), acceptance criteria, evidence needed,
 and stall behavior so progress is judged by evidence, not activity volume.
+Before marking a task or milestone done, audit the claim against the objective:
+list the requirement, the concrete artifact/file/finding/measurement/validation
+that proves it, and any remaining gap. If the audit is incomplete, keep the
+branch active or blocked and create the next smallest follow-up task.
 When the job is broad or starts looping, split it into tasks and move to the
 highest-priority open task rather than staying on one source or tactic forever.
 Use record_roadmap for broad, multi-phase, or ambiguous objectives that need a

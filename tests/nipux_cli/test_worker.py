@@ -1164,9 +1164,10 @@ def test_report_update_completion_claim_is_rewritten_as_checkpoint(tmp_path):
         assert update["metadata"]["follow_up_task"]
         tasks = db.get_job(job_id)["metadata"]["task_queue"]
         follow_up = next(task for task in tasks if task["key"] == update["metadata"]["follow_up_task"])
-        assert follow_up["title"] == "Continue improving from latest checkpoint"
+        assert follow_up["title"] == "Audit latest checkpoint against objective"
         assert follow_up["status"] == "open"
         assert follow_up["output_contract"] == "decision"
+        assert follow_up["metadata"]["completion_audit_required"] is True
     finally:
         db.close()
 
