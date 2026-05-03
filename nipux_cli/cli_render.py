@@ -242,7 +242,7 @@ def daemon_state_line(lock: dict[str, Any]) -> str:
         pid = metadata.get("pid") or "unknown"
         stale = " stale-runtime" if lock.get("stale") else ""
         return f"running pid={pid}{stale}"
-    return "stopped (start with: nipux start)"
+    return "ready when work starts"
 
 
 def daemon_event_line(event: dict[str, Any], *, chars: int, job_titles: dict[str, str] | None = None) -> str:

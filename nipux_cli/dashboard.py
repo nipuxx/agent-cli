@@ -393,12 +393,12 @@ def _daemon_text(daemon: dict[str, Any]) -> str:
         started = metadata.get("started_at") or "unknown start"
         stale = " stale-runtime" if daemon.get("stale") else ""
         return f"running pid={pid}{stale} started={started}"
-    return "stopped"
+    return "ready when work starts"
 
 
 def _daemon_health_text(daemon: dict[str, Any], *, latest_step: dict[str, Any] | None = None) -> str:
     if not daemon.get("running"):
-        return "stopped (job will not advance until you run: start)"
+        return "ready when work starts"
     metadata = daemon.get("metadata") or {}
     heartbeat = metadata.get("last_heartbeat")
     status = "running"

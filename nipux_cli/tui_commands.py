@@ -88,12 +88,12 @@ CHAT_SLASH_COMMANDS = [
 ]
 
 FIRST_RUN_ACTIONS = [
-    ("preset:local", "Local connector", "recommended"),
     ("edit:model.name", "Model", "choose model id"),
+    ("preset:local", "Connector", "local OpenAI-compatible"),
     ("edit:model.base_url", "Endpoint", "OpenAI-compatible /v1"),
     ("secret:model.api_key", "API key", "hosted providers only"),
-    ("new", "New job", "type a goal, then press enter"),
     ("doctor", "Doctor", "check setup"),
+    ("new", "First job", "type a goal, then enter"),
     ("exit", "Exit", "leave Nipux"),
 ]
 

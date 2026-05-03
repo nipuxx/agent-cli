@@ -52,7 +52,7 @@ def test_dashboard_collects_jobs_steps_and_artifacts(tmp_path):
         db.close()
 
 
-def test_overview_marks_stopped_daemon_as_not_advancing(tmp_path):
+def test_overview_marks_idle_daemon_as_ready_for_work(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")
     try:
@@ -60,7 +60,7 @@ def test_overview_marks_stopped_daemon_as_not_advancing(tmp_path):
         state = collect_dashboard_state(db, config)
         overview = render_overview(state, width=100)
 
-        assert "job will not advance" in overview
+        assert "ready when work starts" in overview
     finally:
         db.close()
 

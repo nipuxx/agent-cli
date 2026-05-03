@@ -478,6 +478,7 @@ def cmd_home(args: argparse.Namespace) -> None:
 
 
 def _enter_first_run_menu(*, history_limit: int = 12) -> None:
+    _start_interactive_daemon_if_possible()
     if _frame_chat_enabled():
         _enter_first_run_frame(history_limit=history_limit)
         return
@@ -501,10 +502,9 @@ def _enter_first_run_menu(*, history_limit: int = 12) -> None:
 
 def _print_first_run_menu() -> None:
     config = load_config()
-    daemon = daemon_lock_status(config.runtime.home / "agentd.lock")
     print("Start")
     print(f"  model   {config.model.model}")
-    print(f"  daemon  {'running' if daemon['running'] else 'stopped'}")
+    print("  status  ready when work starts")
     print(f"  home    {_short_path(config.runtime.home)}")
     print()
     print("Commands")
@@ -647,7 +647,7 @@ def _first_run_click_action(x: int, y: int, *, view: str) -> int | None:
     if x < right_start:
         return None
     body_start_y = 4
-    action_body_index = 8
+    action_body_index = 2
     index = y - (body_start_y + action_body_index)
     actions = _first_run_actions(view)
     return index if 0 <= index < len(actions) else None

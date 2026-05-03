@@ -292,15 +292,18 @@ def test_first_run_frame_uses_full_screen_ui_not_banner(monkeypatch, tmp_path):
     frame = _build_first_run_frame("", [], width=100, height=24)
 
     assert "Nipux" in frame
-    assert "Nipux Chat" in frame
-    assert "Workspace" in frame
-    assert "Set up the model" in frame
-    assert "Local connector" in frame
-    assert "OpenAI-compatible" in frame
-    assert "New job" in frame
-    assert "/ opens commands" in frame
+    assert "Install" in frame
+    assert "Setup" in frame
+    assert "Set up once" in frame
+    assert "Model" in frame
+    assert "Connector" in frame
+    assert "Endpoint" in frame
+    assert "API key" in frame
+    assert "First job" in frame
+    assert "Tab fills slash commands" in frame
     assert "controls on the right" not in frame
     assert "Control" not in frame
+    assert "daemon stopped" not in frame
     assert "_   _" in frame
     assert "FIRST RUN" not in frame
     assert "nipux menu >" not in frame
@@ -330,8 +333,8 @@ def test_first_run_frame_has_no_settings_page(monkeypatch, tmp_path):
     assert "/base-url URL" not in frame
     assert "/api-key KEY" not in frame
     assert "/timeout SECONDS" not in frame
-    assert "Workspace" in frame
     assert "Setup" in frame
+    assert "Connector" in frame
     assert "/shell" not in frame
 
 
@@ -404,9 +407,9 @@ def test_terminal_escape_decodes_arrows_and_mouse_click():
 def test_first_run_click_maps_right_pane_actions(monkeypatch):
     monkeypatch.setattr("shutil.get_terminal_size", lambda fallback=(100, 30): (100, 30))
 
-    assert _first_run_click_action(70, 12, view="start") == 0
-    assert _first_run_click_action(70, 14, view="start") == 2
-    assert _first_run_click_action(10, 12, view="start") is None
+    assert _first_run_click_action(70, 6, view="start") == 0
+    assert _first_run_click_action(70, 8, view="start") == 2
+    assert _first_run_click_action(10, 8, view="start") is None
 
 
 def test_frame_next_job_cycles_jobs():
