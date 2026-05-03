@@ -65,6 +65,36 @@ Or run without installing:
 uv run nipux --help
 ```
 
+## Local Test Drive
+
+Use the smoke script when you want to test the repo like a fresh user without
+touching your real `~/.nipux` profile or spending model credits:
+
+```bash
+cd agent-cli
+uv run python scripts/local_smoke.py
+```
+
+The smoke test creates a temporary profile in your system temp directory, writes
+starter config files, creates a generic job, runs one fake worker step, saves an
+artifact, and prints the status, saved output, and outcomes views. It does not
+call a real model. The exact `NIPUX_HOME` path is printed at the top of the
+smoke output.
+
+After the smoke test passes, open the full terminal UI against the same isolated
+profile:
+
+```bash
+NIPUX_HOME=/path/printed/by/local_smoke uv run nipux
+```
+
+When that feels right, switch to your real profile:
+
+```bash
+uv run nipux init
+uv run nipux
+```
+
 Install directly from git once the repository is public:
 
 ```bash
