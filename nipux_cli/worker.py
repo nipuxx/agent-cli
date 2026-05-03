@@ -2257,20 +2257,32 @@ def _auto_checkpoint_update(
         job_id,
         checkpoint.message,
         category=checkpoint.category,
-        metadata={"step_no": step_no, "tool": tool_name, "deltas": checkpoint.deltas},
+        metadata={
+            "step_no": step_no,
+            "tool": tool_name,
+            "deltas": checkpoint.deltas,
+            "updates": checkpoint.updates,
+            "resolutions": checkpoint.resolutions,
+        },
     )
     streak = _as_int(metadata.get("activity_checkpoint_streak"))
     streak = streak + 1 if checkpoint.category == "activity" else 0
-    task_only_progress = checkpoint.deltas.get("tasks", 0) > 0 and not any(
+    task_durable_change = checkpoint.deltas.get("tasks", 0) + checkpoint.updates.get("tasks", 0)
+    non_task_durable_change = any(
         checkpoint.deltas.get(key, 0) > 0
+        or checkpoint.updates.get(key, 0) > 0
+        or checkpoint.resolutions.get(key, 0) > 0
         for key in ("findings", "sources", "experiments", "lessons", "milestones")
     )
+    task_resolution = checkpoint.resolutions.get("tasks", 0) > 0
+    task_only_progress = task_durable_change > 0 and not non_task_durable_change and not task_resolution
     task_planning_streak = _as_int(metadata.get("task_planning_checkpoint_streak"))
     task_planning_streak = task_planning_streak + 1 if task_only_progress else 0
     db.update_job_metadata(
         job_id,
         {
             "last_checkpoint_counts": checkpoint.counts,
+            "last_checkpoint_at": datetime.now(timezone.utc).isoformat(),
             "activity_checkpoint_streak": streak,
             "task_planning_checkpoint_streak": task_planning_streak,
         },

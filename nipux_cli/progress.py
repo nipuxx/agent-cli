@@ -12,6 +12,8 @@ class ProgressCheckpoint:
     category: str
     counts: dict[str, int]
     deltas: dict[str, int]
+    updates: dict[str, int]
+    resolutions: dict[str, int]
     recent: str
 
 
@@ -31,6 +33,8 @@ def build_progress_checkpoint(
     counts = ledger_counts(metadata)
     previous = previous_counts or {}
     deltas = {key: counts[key] - _as_int(previous.get(key)) for key in LEDGER_KEYS}
+    updates = ledger_update_counts(metadata, since=str(metadata.get("last_checkpoint_at") or ""))
+    resolutions = ledger_resolution_counts(metadata, since=str(metadata.get("last_checkpoint_at") or ""))
     recent = recent_progress_bits(metadata)
     if is_finding_output:
         message = (
@@ -39,7 +43,14 @@ def build_progress_checkpoint(
         )
         category = "finding"
     else:
-        changed = ", ".join(f"+{value} {key}" for key, value in deltas.items() if value > 0)
+        changed_parts = [_count_phrase(value, key, prefix="+") for key, value in deltas.items() if value > 0]
+        changed_parts.extend(
+            _count_phrase(value, key, prefix="~", suffix="updated") for key, value in updates.items() if value > 0
+        )
+        changed_parts.extend(
+            _count_phrase(value, key, suffix="resolved") for key, value in resolutions.items() if value > 0
+        )
+        changed = ", ".join(changed_parts)
         made_progress = bool(changed)
         if not changed:
             changed = "no new durable ledger entries"
@@ -56,6 +67,8 @@ def build_progress_checkpoint(
         category=category,
         counts=counts,
         deltas=deltas,
+        updates=updates,
+        resolutions=resolutions,
         recent=recent,
     )
 
@@ -71,6 +84,50 @@ def ledger_counts(metadata: dict[str, Any]) -> dict[str, int]:
         "lessons": len(_metadata_list(metadata, "lessons")),
         "milestones": len(milestones),
     }
+
+
+def ledger_update_counts(metadata: dict[str, Any], *, since: str = "") -> dict[str, int]:
+    """Count durable ledger updates that do not increase ledger size."""
+    counts = {key: 0 for key in LEDGER_KEYS}
+    record_map = {
+        "findings": "last_finding_record",
+        "sources": "last_source_record",
+        "tasks": "last_task_record",
+        "experiments": "last_experiment_record",
+    }
+    for key, metadata_key in record_map.items():
+        record = metadata.get(metadata_key)
+        if _updated_existing_record(record, since=since):
+            counts[key] += 1
+    roadmap = metadata.get("last_roadmap_record")
+    if isinstance(roadmap, dict) and _record_after_checkpoint(roadmap, since=since):
+        updated = _as_int(roadmap.get("updated_milestones")) + _as_int(roadmap.get("updated_features"))
+        added = _as_int(roadmap.get("added_milestones")) + _as_int(roadmap.get("added_features"))
+        if updated > 0 and added <= 0:
+            counts["milestones"] += 1
+    validation = metadata.get("last_milestone_validation")
+    if isinstance(validation, dict) and _record_after_checkpoint(validation, since=since):
+        counts["milestones"] += 1
+    return counts
+
+
+def ledger_resolution_counts(metadata: dict[str, Any], *, since: str = "") -> dict[str, int]:
+    """Count durable branch resolutions so task updates do not look like empty churn."""
+    counts = {key: 0 for key in LEDGER_KEYS}
+    task = metadata.get("last_task_record")
+    if _updated_existing_record(task, since=since):
+        status = str(task.get("status") or "").lower() if isinstance(task, dict) else ""
+        if status in {"done", "blocked", "skipped"} and (task.get("result") or task.get("evidence_needed")):
+            counts["tasks"] += 1
+    experiment = metadata.get("last_experiment_record")
+    if _updated_existing_record(experiment, since=since):
+        status = str(experiment.get("status") or "").lower() if isinstance(experiment, dict) else ""
+        if status in {"measured", "failed", "blocked", "skipped"} or experiment.get("metric_value") is not None:
+            counts["experiments"] += 1
+    validation = metadata.get("last_milestone_validation")
+    if isinstance(validation, dict) and _record_after_checkpoint(validation, since=since):
+        counts["milestones"] += 1
+    return counts
 
 
 def recent_progress_bits(metadata: dict[str, Any]) -> str:
@@ -121,6 +178,29 @@ def _clip_text(value: str, limit: int) -> str:
     if len(text) <= limit:
         return text
     return text[: max(0, limit - 1)].rstrip() + "..."
+
+
+def _updated_existing_record(record: Any, *, since: str) -> bool:
+    return (
+        isinstance(record, dict)
+        and record.get("created") is False
+        and _record_after_checkpoint(record, since=since)
+    )
+
+
+def _record_after_checkpoint(record: dict[str, Any], *, since: str) -> bool:
+    if not since:
+        return True
+    updated_at = str(record.get("updated_at") or record.get("validated_at") or record.get("last_seen") or "")
+    return bool(updated_at and updated_at > since)
+
+
+def _count_phrase(value: int, key: str, *, prefix: str = "", suffix: str = "") -> str:
+    label = key[:-1] if value == 1 and key.endswith("s") else key
+    bits = [f"{prefix}{value} {label}"]
+    if suffix:
+        bits.append(suffix)
+    return " ".join(bits)
 
 
 def _as_int(value: Any) -> int:

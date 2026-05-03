@@ -850,6 +850,65 @@ def test_task_only_checkpoint_updates_planning_streak(tmp_path):
         db.close()
 
 
+def test_task_resolution_checkpoint_resets_planning_streak(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Resolve existing durable branches", title="task-resolution", kind="generic")
+        db.append_task_record(job_id, title="Existing branch", status="open", priority=5)
+        db.update_job_metadata(
+            job_id,
+            {
+                "last_checkpoint_counts": {
+                    "findings": 0,
+                    "sources": 0,
+                    "tasks": 1,
+                    "experiments": 0,
+                    "lessons": 0,
+                    "milestones": 0,
+                },
+                "last_checkpoint_at": "2026-01-01T00:00:00+00:00",
+                "task_planning_checkpoint_streak": 2,
+            },
+        )
+        for index in range(9):
+            run_id = db.start_run(job_id, model="test")
+            step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="web_search")
+            db.finish_step(step_id, status="completed", summary=f"search {index}", output_data={"success": True})
+            db.finish_run(run_id, "completed")
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(
+                        name="record_tasks",
+                        arguments={
+                            "tasks": [
+                                {
+                                    "title": "Existing branch",
+                                    "status": "done",
+                                    "result": "Resolved using the latest evidence.",
+                                }
+                            ]
+                        },
+                    )
+                ])
+            ]),
+        )
+
+        assert result.status == "completed"
+        job = db.get_job(job_id)
+        assert job["metadata"]["task_planning_checkpoint_streak"] == 0
+        assert job["metadata"]["last_agent_update"]["category"] == "progress"
+        assert job["metadata"]["last_agent_update"]["metadata"]["updates"]["tasks"] == 1
+        assert job["metadata"]["last_agent_update"]["metadata"]["resolutions"]["tasks"] == 1
+    finally:
+        db.close()
+
+
 def test_run_one_step_blocks_similar_artifact_search(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

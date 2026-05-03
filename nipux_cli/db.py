@@ -1171,6 +1171,7 @@ class AgentDB:
             job_metadata = json.loads(row["metadata_json"] or "{}")
             sources = _metadata_list(job_metadata, "source_ledger")
             current = next((entry for entry in sources if entry.get("key") == key), None)
+            created = current is None
             if current is None:
                 current = {
                     "key": key,
@@ -1202,6 +1203,7 @@ class AgentDB:
                 merged_metadata = current.get("metadata") if isinstance(current.get("metadata"), dict) else {}
                 merged_metadata.update(metadata)
                 current["metadata"] = merged_metadata
+            current["created"] = created
             current["last_seen"] = now
             event = _insert_event(
                 conn,
@@ -1210,6 +1212,7 @@ class AgentDB:
                 title=current.get("source") or text,
                 body=current.get("last_outcome") or outcome,
                 metadata={
+                    "created": created,
                     "source_type": current.get("source_type"),
                     "usefulness_score": current.get("usefulness_score"),
                     "yield_count": current.get("yield_count"),

@@ -319,6 +319,8 @@ def test_source_and_finding_ledgers_dedupe_and_update(tmp_path):
         job = db.get_job(job_id)
 
         assert source["key"] == updated_source["key"]
+        assert source["created"] is True
+        assert updated_source["created"] is False
         assert updated_source["yield_count"] == 5
         assert updated_source["fail_count"] == 1
         assert finding["created"] is True
