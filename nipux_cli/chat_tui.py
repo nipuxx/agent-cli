@@ -14,12 +14,11 @@ from nipux_cli.tui_layout import _compose_bar, _top_bar
 from nipux_cli.tui_outcomes import chat_updates_pane_lines
 from nipux_cli.tui_status import (
     chat_work_pane_lines,
-    chat_settings_pane_lines,
     job_display_state,
     right_pane_lines,
     worker_label,
 )
-from nipux_cli.tui_style import _accent, _bold, _fit_ansi, _muted, _one_line, _status_badge
+from nipux_cli.tui_style import _accent, _bold, _fit_ansi, _muted, _one_line, _strip_ansi
 
 
 def build_chat_frame(
@@ -32,6 +31,7 @@ def build_chat_frame(
     right_view: str = "status",
     selected_control: int = 0,
     editing_field: str | None = None,
+    modal_view: str | None = None,
 ) -> str:
     del selected_control
     width = max(92, width)
@@ -66,12 +66,11 @@ def build_chat_frame(
     state = job_display_state(job, bool(daemon["running"]))
     worker = worker_label(job, bool(daemon["running"]))
     latest_step = steps[-1] if steps else None
-    rail_width = 12 if width >= 118 else 0
     right_width = min(max(50, int(width * 0.34)), 72)
-    left_width = max(48, width - rail_width - right_width - (6 if rail_width else 3))
+    left_width = max(48, width - right_width - 3)
     if left_width < 48:
         left_width = 48
-        right_width = max(34, width - rail_width - left_width - (6 if rail_width else 3))
+        right_width = max(34, width - left_width - 3)
     latest_text = _step_line(latest_step, chars=right_width - 6) if latest_step else "no worker steps yet"
     daemon_text = _daemon_state_line(daemon)
     goal_text = " ".join(str(job.get("objective") or "").split())
@@ -132,13 +131,6 @@ def build_chat_frame(
             rows=body_rows,
         )
         right_title = "Worker"
-    elif right_view == "settings":
-        right_lines = chat_settings_pane_lines(
-            config=load_config(),
-            width=right_width,
-            rows=body_rows,
-        )
-        right_title = "Settings"
     else:
         right_lines = right_pane_lines(
             job=job,
@@ -163,25 +155,19 @@ def build_chat_frame(
             right_view=right_view,
         )
         right_title = "Jobs"
-    nav_lines = _chat_nav_lines(right_view=right_view, state=state, worker=worker, width=rail_width, rows=body_rows)
-    if rail_width:
-        lines = [*header, _three_col_title(rail_width, left_width, right_width, "Nav", "Conversation", right_title)]
-    else:
-        lines = [*header, _two_col_title(left_width, right_width, "Conversation", right_title)]
+    lines = [*header, _two_col_title(left_width, right_width, "Conversation", right_title)]
     for index in range(body_rows):
-        rail = nav_lines[index] if rail_width and index < len(nav_lines) else ""
         left = chat_lines[index] if index < len(chat_lines) else ""
         right = right_lines[index] if index < len(right_lines) else ""
-        if rail_width:
-            lines.append(_three_col_line(rail, left, right, rail_width=rail_width, left_width=left_width, right_width=right_width))
-        else:
-            lines.append(_two_col_line(left, right, left_width=left_width, right_width=right_width))
+        lines.append(_two_col_line(left, right, left_width=left_width, right_width=right_width))
     lines.extend(compose_lines)
     if len(lines) > height:
         keep_top = min(4, len(header) + 1)
         keep_bottom = footer_rows
         middle_budget = max(0, height - keep_top - keep_bottom)
         lines = lines[:keep_top] + lines[-(middle_budget + keep_bottom) : -keep_bottom] + lines[-keep_bottom:]
+    if modal_view == "settings":
+        lines = _overlay_settings_modal(lines[:height], width=width, height=height)
     return "\n".join(first_run_themed_lines(lines[:height], width=width))
 
 
@@ -193,57 +179,75 @@ def _two_col_line(left: str, right: str, *, left_width: int, right_width: int) -
     return _fit_ansi(left, left_width) + _muted(" │ ") + _fit_ansi(right, right_width)
 
 
-def _three_col_title(rail_width: int, left_width: int, right_width: int, rail: str, left: str, right: str) -> str:
-    return (
-        _fit_ansi(_bold(rail.upper()), rail_width)
-        + _muted(" │ ")
-        + _fit_ansi(_bold(left.upper()), left_width)
-        + _muted(" │ ")
-        + _fit_ansi(_bold(right.upper()), right_width)
-    )
-
-
-def _three_col_line(
-    rail: str,
-    left: str,
-    right: str,
-    *,
-    rail_width: int,
-    left_width: int,
-    right_width: int,
-) -> str:
-    return (
-        _fit_ansi(rail, rail_width)
-        + _muted(" │ ")
-        + _fit_ansi(left, left_width)
-        + _muted(" │ ")
-        + _fit_ansi(right, right_width)
-    )
-
-
-def _chat_nav_lines(*, right_view: str, state: str, worker: str, width: int, rows: int) -> list[str]:
-    if width <= 0:
-        return []
-    page_labels = [("status", "Jobs"), ("updates", "Out"), ("work", "Work"), ("settings", "Set")]
-    lines = [
-        _accent("● online") if worker == "active" else _muted("○ ready"),
+def _overlay_settings_modal(lines: list[str], *, width: int, height: int) -> list[str]:
+    config = load_config()
+    key_state = "set" if config.model.api_key else "missing"
+    input_cost = _rate_text(config.model.input_cost_per_million)
+    output_cost = _rate_text(config.model.output_cost_per_million)
+    content = [
+        _bold("Model"),
+        _settings_row("id", config.model.model, "/model MODEL"),
+        _settings_row("endpoint", config.model.base_url, "/base-url URL"),
+        _settings_row("key", f"{key_state} in {config.model.api_key_env}", "/api-key KEY"),
+        _settings_row(
+            "limits",
+            f"context {config.model.context_length}, timeout {config.model.request_timeout_seconds:g}s",
+            "/context TOKENS /timeout SECONDS",
+        ),
         "",
+        _bold("Runtime"),
+        _settings_row("home", str(config.runtime.home), "/home PATH"),
+        _settings_row(
+            "steps",
+            f"tool {config.runtime.max_step_seconds}s, preview {config.runtime.artifact_inline_char_limit} chars",
+            "/step-limit SECONDS /output-chars CHARS",
+        ),
+        _settings_row(
+            "digest",
+            f"{config.runtime.daily_digest_enabled} at {config.runtime.daily_digest_time}",
+            "/daily-digest BOOL /digest-time HH:MM",
+        ),
+        "",
+        _bold("Cost"),
+        _settings_row("rates", f"input {input_cost}, output {output_cost}", "/input-cost DOLLARS /output-cost DOLLARS"),
+        "",
+        _muted("Edit with slash commands in the composer. Esc closes."),
     ]
-    for key, label in page_labels:
-        marker = _accent("›") if key == right_view else _muted(" ")
-        name = _bold(label) if key == right_view else label
-        lines.append(_fit_ansi(f"{marker} {name}", width))
-    lines.extend([
-        "",
-        _muted("state"),
-        _fit_ansi(_status_badge(state), width),
-        "",
-        _muted("keys"),
-        _muted("← →"),
-        _muted("↑ ↓"),
-        _muted("/"),
-    ])
-    return [_fit_ansi(line, width) for line in lines[:rows]]
+    box_width = min(max(64, int(width * 0.58)), width - 8)
+    box_height = min(len(content) + 4, height - 6)
+    inner = max(20, box_width - 4)
+    title = f" Settings {_accent('●')} "
+    rule_width = max(2, box_width - len(_strip_ansi(title)) - 2)
+    left_rule = max(1, rule_width // 2)
+    right_rule = max(1, rule_width - left_rule)
+    top = "╭" + "─" * left_rule + title + "─" * right_rule + "╮"
+    box = [top]
+    for item in content[: box_height - 3]:
+        if item:
+            box.append("│ " + _fit_ansi(item, inner) + " │")
+        else:
+            box.append("│ " + " " * inner + " │")
+    while len(box) < box_height - 1:
+        box.append("│ " + " " * inner + " │")
+    box.append("╰" + "─" * (box_width - 2) + "╯")
+    output = [_fit_ansi(line, width) for line in lines]
+    start_y = max(2, (height - len(box)) // 2)
+    start_x = max(0, (width - box_width) // 2)
+    for offset, modal_line in enumerate(box):
+        target = start_y + offset
+        if target >= len(output):
+            break
+        output[target] = _fit_ansi(" " * start_x + modal_line, width)
+    return output
+
+
+def _settings_row(label: str, value: Any, command: str) -> str:
+    value_text = _one_line(value, 42)
+    return f"{_muted(label.ljust(9))} {_bold(value_text)}  {_muted(command)}"
+
+
+def _rate_text(value: float | None) -> str:
+    return "provider-reported" if value is None else f"${value:g}/1M"
 
 
 def _metadata_records(job: dict[str, Any], key: str) -> list[dict[str, Any]]:

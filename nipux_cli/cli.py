@@ -664,20 +664,17 @@ def _chat_page_click(x: int, y: int, *, right_view: str) -> str | None:
     del right_view
     width, _height = shutil.get_terminal_size((100, 30))
     width = max(92, width)
-    rail_width = 12 if width >= 118 else 0
     right_width = min(max(50, int(width * 0.34)), 72)
-    left_width = max(48, width - rail_width - right_width - (6 if rail_width else 3))
+    left_width = max(48, width - right_width - 3)
     if left_width < 48:
         left_width = 48
-        right_width = max(34, width - rail_width - left_width - (6 if rail_width else 3))
-    if rail_width and 4 <= y <= 9 and x <= rail_width:
-        return ["status", "updates", "work", "settings"][max(0, min(3, y - 6))]
-    right_start = rail_width + left_width + (7 if rail_width else 4)
+        right_width = max(34, width - left_width - 3)
+    right_start = left_width + 4
     if x < right_start or y > 8:
         return None
     relative = max(0, x - right_start)
-    quarter = max(1, right_width // 4)
-    return ["status", "updates", "work", "settings"][min(3, relative // quarter)]
+    third = max(1, right_width // 3)
+    return ["status", "updates", "work"][min(2, relative // third)]
 
 
 def _handle_first_run_frame_line(line: str) -> tuple[str, str | list[str] | None]:
@@ -843,13 +840,14 @@ def _enter_chat_frame(job_id: str, *, history_limit: int = 12) -> None:
 def _chat_frame_deps() -> ChatFrameDeps:
     return ChatFrameDeps(
         load_snapshot=lambda job_id, history_limit: _load_frame_snapshot(job_id, history_limit=history_limit),
-        render_frame=lambda snapshot, buffer, notices, right_view, selected, editing_field, previous: _render_chat_frame(
+        render_frame=lambda snapshot, buffer, notices, right_view, selected, editing_field, modal_view, previous: _render_chat_frame(
             snapshot,
             buffer,
             notices,
             right_view=right_view,
             selected_control=selected,
             editing_field=editing_field,
+            modal_view=modal_view,
             previous_frame=previous,
         ),
         handle_chat_message=lambda job_id, line: _handle_chat_message(job_id, line, quiet=True),
@@ -903,6 +901,7 @@ def _render_chat_frame(
     right_view: str = "status",
     selected_control: int = 0,
     editing_field: str | None = None,
+    modal_view: str | None = None,
     previous_frame: str = "",
 ) -> str:
     width, height = shutil.get_terminal_size((100, 30))
@@ -915,6 +914,7 @@ def _render_chat_frame(
         right_view=right_view,
         selected_control=selected_control,
         editing_field=editing_field,
+        modal_view=modal_view,
     )
     return _emit_frame_if_changed(frame, previous_frame)
 
@@ -929,6 +929,7 @@ def _build_chat_frame(
     right_view: str = "status",
     selected_control: int = 0,
     editing_field: str | None = None,
+    modal_view: str | None = None,
 ) -> str:
     return _build_chat_tui_frame(
         snapshot,
@@ -939,6 +940,7 @@ def _build_chat_frame(
         right_view=right_view,
         selected_control=selected_control,
         editing_field=editing_field,
+        modal_view=modal_view,
     )
 
 

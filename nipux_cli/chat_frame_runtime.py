@@ -30,7 +30,7 @@ ACTIVE_INPUT_REFRESH_SECONDS = 2.0
 @dataclass(frozen=True)
 class ChatFrameDeps:
     load_snapshot: Callable[[str, int], dict[str, Any]]
-    render_frame: Callable[[dict[str, Any], str, list[str], str, int, str | None, str], str]
+    render_frame: Callable[[dict[str, Any], str, list[str], str, int, str | None, str | None, str], str]
     handle_chat_message: Callable[[str, str], tuple[bool, str]]
     capture_chat_command: Callable[[str, str], tuple[bool, str]]
     write_shell_state: Callable[[dict[str, str]], None]
@@ -80,6 +80,7 @@ def run_chat_frame(job_id: str, *, history_limit: int, deps: ChatFrameDeps) -> N
     buffer = ""
     notices: list[str] = []
     right_view = "status"
+    modal_view: str | None = None
     selected_control = 0
     editing_field: str | None = None
     snapshot = deps.load_snapshot(job_id, history_limit)
@@ -111,6 +112,7 @@ def run_chat_frame(job_id: str, *, history_limit: int, deps: ChatFrameDeps) -> N
                     right_view,
                     selected_control,
                     editing_field,
+                    modal_view,
                     last_frame,
                 )
                 needs_render = False
@@ -131,13 +133,14 @@ def run_chat_frame(job_id: str, *, history_limit: int, deps: ChatFrameDeps) -> N
                 needs_render = True
                 continue
             if char in {"\r", "\n"}:
-                keep_running, snapshot, job_id, notices, right_view = _handle_chat_submit(
+                keep_running, snapshot, job_id, notices, right_view, modal_view = _handle_chat_submit(
                     buffer,
                     job_id=job_id,
                     history_limit=history_limit,
                     snapshot=snapshot,
                     notices=notices,
                     right_view=right_view,
+                    modal_view=modal_view,
                     deps=deps,
                 )
                 buffer = ""
@@ -161,12 +164,13 @@ def run_chat_frame(job_id: str, *, history_limit: int, deps: ChatFrameDeps) -> N
                 needs_render = True
                 continue
             if char == "\x1b":
-                snapshot, job_id, right_view, buffer = _handle_chat_escape(
+                snapshot, job_id, right_view, modal_view, buffer = _handle_chat_escape(
                     stdin_fd,
                     snapshot=snapshot,
                     job_id=job_id,
                     history_limit=history_limit,
                     right_view=right_view,
+                    modal_view=modal_view,
                     buffer=buffer,
                     notices=notices,
                     deps=deps,
@@ -250,39 +254,52 @@ def _handle_chat_submit(
     snapshot: dict[str, Any],
     notices: list[str],
     right_view: str,
+    modal_view: str | None,
     deps: ChatFrameDeps,
-) -> tuple[bool, dict[str, Any], str, list[str], str]:
+) -> tuple[bool, dict[str, Any], str, list[str], str, str | None]:
     line = buffer.strip()
     if not line:
-        return True, snapshot, job_id, notices, right_view
+        return True, snapshot, job_id, notices, right_view, modal_view
     if line in {"clear", "/clear"}:
         notices.clear()
-        return True, snapshot, job_id, notices, right_view
-    if line in {"settings", "/settings", "/config"}:
+        return True, snapshot, job_id, notices, right_view, None
+    if line in {"settings", "/settings"}:
         _append_notice(notices, "opened settings")
-        return True, snapshot, job_id, notices, "settings"
+        return True, snapshot, job_id, notices, right_view, "settings"
     if line in {"jobs", "/jobs", "status", "/status"}:
         _append_notice(notices, "opened jobs")
-        return True, snapshot, job_id, notices, "status"
+        return True, snapshot, job_id, notices, "status", None
     if line in {"work", "/work", "activity", "/activity"}:
         _append_notice(notices, "opened worker")
-        return True, snapshot, job_id, notices, "work"
+        return True, snapshot, job_id, notices, "work", None
     if line in {"outcomes", "/outcomes", "updates", "/updates"}:
         _append_notice(notices, "opened outcomes")
-        return True, snapshot, job_id, notices, "updates"
+        return True, snapshot, job_id, notices, "updates", None
     _append_notice(notices, f"> {line}")
-    if deps.is_plain_chat_line(line):
-        keep_running, message = deps.handle_chat_message(job_id, line)
-        notices = [notice for notice in notices if notice != f"> {line}"]
-        if message:
-            _append_notice(notices, message)
-    else:
-        keep_running, output = deps.capture_chat_command(job_id, line)
-        for output_line in compact_command_output(output):
-            _append_notice(notices, output_line)
-    snapshot = deps.load_snapshot(job_id, history_limit)
-    job_id = str(snapshot["job_id"])
-    return keep_running, snapshot, job_id, notices, right_view
+    keep_running = True
+    try:
+        if deps.is_plain_chat_line(line):
+            keep_running, message = deps.handle_chat_message(job_id, line)
+            notices = [notice for notice in notices if notice != f"> {line}"]
+            if message:
+                _append_notice(notices, message)
+            modal_view = None
+        else:
+            keep_running, output = deps.capture_chat_command(job_id, line)
+            for output_line in compact_command_output(output):
+                _append_notice(notices, output_line)
+            if line.startswith(("/model", "/base-url", "/api-key", "/api-key-env", "/context", "/input-cost", "/output-cost", "/timeout", "/home", "/step-limit", "/output-chars", "/daily-digest", "/digest-time", "/config")):
+                modal_view = "settings"
+            else:
+                modal_view = None
+    except Exception as exc:
+        _append_notice(notices, f"message failed: {type(exc).__name__}: {_one_line(exc, 120)}")
+    try:
+        snapshot = deps.load_snapshot(job_id, history_limit)
+        job_id = str(snapshot["job_id"])
+    except Exception as exc:
+        _append_notice(notices, f"refresh failed after message: {type(exc).__name__}: {_one_line(exc, 100)}")
+    return keep_running, snapshot, job_id, notices, right_view, modal_view
 
 
 def _handle_chat_escape(
@@ -292,18 +309,23 @@ def _handle_chat_escape(
     job_id: str,
     history_limit: int,
     right_view: str,
+    modal_view: str | None,
     buffer: str,
     notices: list[str],
     deps: ChatFrameDeps,
-) -> tuple[dict[str, Any], str, str, str]:
+) -> tuple[dict[str, Any], str, str, str | None, str]:
     key, payload = decode_terminal_escape(read_escape_sequence("\x1b", fd=stdin_fd))
+    if modal_view:
+        _append_notice(notices, "closed settings")
+        drain_pending_input(stdin_fd)
+        return snapshot, job_id, right_view, None, buffer
     if key in {"up", "down"} and buffer.startswith("/"):
         buffer = cycle_slash(buffer, CHAT_SLASH_COMMANDS, direction=-1 if key == "up" else 1)
-        return snapshot, job_id, right_view, buffer
+        return snapshot, job_id, right_view, modal_view, buffer
     if key == "right" and not buffer:
-        return snapshot, job_id, next_chat_right_view(right_view, 1), buffer
+        return snapshot, job_id, next_chat_right_view(right_view, 1), modal_view, buffer
     if key == "left" and not buffer:
-        return snapshot, job_id, next_chat_right_view(right_view, -1), buffer
+        return snapshot, job_id, next_chat_right_view(right_view, -1), modal_view, buffer
     if key in {"up", "down"} and not buffer:
         next_focus = frame_next_job_id(snapshot, job_id, direction=-1 if key == "up" else 1)
         if next_focus and next_focus != job_id:
@@ -312,10 +334,10 @@ def _handle_chat_escape(
             snapshot = deps.load_snapshot(job_id, history_limit)
             title = snapshot["job"].get("title") or job_id
             _append_notice(notices, f"focus {title}")
-        return snapshot, job_id, right_view, buffer
+        return snapshot, job_id, right_view, modal_view, buffer
     if key == "click" and isinstance(payload, tuple):
         clicked_view = deps.page_click(payload[0], payload[1], right_view)
         if clicked_view:
-            return snapshot, job_id, clicked_view, buffer
+            return snapshot, job_id, clicked_view, modal_view, buffer
     drain_pending_input(stdin_fd)
-    return snapshot, job_id, right_view, buffer
+    return snapshot, job_id, right_view, modal_view, buffer

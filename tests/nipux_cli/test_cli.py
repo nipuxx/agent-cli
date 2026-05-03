@@ -963,6 +963,7 @@ def test_chat_frame_is_bounded_and_has_composer():
     assert "NIPUX" in frame
     assert "CONVERSATION" in frame
     assert "JOBS" in frame
+    assert "NAV" not in frame
     assert "Outcome" in frame
     assert "#3" not in frame
     assert "Jobs" in frame
@@ -991,6 +992,14 @@ def test_chat_frame_is_bounded_and_has_composer():
     updates = _build_chat_frame(snapshot, "", [], width=100, height=24, right_view="updates")
     assert "Outcomes" in updates
     assert "Outcomes by hour" in updates
+
+    settings = _build_chat_frame(snapshot, "", [], width=120, height=30, modal_view="settings")
+    assert "Settings" in settings
+    assert "/model MODEL" in settings
+    assert "/api-key KEY" in settings
+    assert "/base-url URL" in settings
+    assert "Esc closes" in settings
+    assert "NAV" not in settings
 
     secret = _build_chat_frame(
         snapshot,
