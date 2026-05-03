@@ -1491,6 +1491,29 @@ def test_status_recent_outcomes_hide_plan_update_noise():
     assert "summarized current counts" not in rendered
 
 
+def test_status_recent_outcomes_show_durable_checkpoint_updates():
+    events = [
+        {
+            "event_type": "agent_message",
+            "title": "progress",
+            "body": "Checkpoint step #90: ~1 task updated, 1 task resolved.",
+            "metadata": {
+                "updates": {"tasks": 1},
+                "resolutions": {"tasks": 1},
+                "deltas": {"findings": 0},
+            },
+            "created_at": "2026-05-01T12:08:00+00:00",
+        }
+    ]
+
+    rendered = "\n".join(recent_model_update_lines(events, width=96, limit=4))
+
+    assert "TASK" in rendered
+    assert "~1 task updated" in rendered
+    assert "1 task resolved" in rendered
+    assert "Checkpoint step #90" in rendered
+
+
 def test_status_recent_outcomes_compact_repeated_updates():
     events = [
         {
@@ -1539,6 +1562,27 @@ def test_hourly_outcomes_hide_plan_update_noise():
     assert "Saved research draft" in rendered
     assert "Checkpoint at step" not in rendered
     assert "summarized current counts" not in rendered
+
+
+def test_hourly_outcomes_count_durable_checkpoint_updates():
+    events = [
+        {
+            "event_type": "agent_message",
+            "title": "progress",
+            "body": "Checkpoint step #110: ~1 experiment updated, 1 experiment resolved.",
+            "metadata": {
+                "updates": {"experiments": 1},
+                "resolutions": {"experiments": 1},
+            },
+            "created_at": "2026-05-01T12:08:00+00:00",
+        }
+    ]
+
+    rendered = "\n".join(hourly_update_lines(events, width=96, limit=6))
+
+    assert "1 measurements" in rendered
+    assert "~1 measurement updated" in rendered
+    assert "1 measurement resolved" in rendered
 
 
 def test_hourly_outcome_summary_uses_progress_order():

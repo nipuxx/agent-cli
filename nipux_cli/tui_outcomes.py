@@ -126,6 +126,9 @@ def model_update_event_parts(event: dict[str, Any], *, width: int, compact: bool
         detail = chat_agent_message_text(title, body) or event_title_body(title, body, fallback="error")
         return "FAIL", _outcome_text(detail, chars=chars, compact=compact), clock
     if kind == "agent_message" and title.lower() in {"progress", "update", "report", "plan", "planning"}:
+        durable_progress = _durable_progress_event_parts(metadata, body=body, chars=chars, compact=compact, clock=clock)
+        if durable_progress:
+            return durable_progress
         detail = chat_agent_message_text(title, body) or event_title_body(title, body, fallback="update")
         return "UPDATE", _outcome_text(detail, chars=chars, compact=compact), clock
     if kind == "tool_result" and status == "completed":
@@ -395,6 +398,91 @@ def hourly_outcome_summary(counts: dict[str, Any]) -> str:
         name = OUTCOME_SUMMARY_NAMES.get(label, label.lower())
         pieces.append(f"{count} {name}")
     return " ".join(pieces)
+
+
+def _durable_progress_event_parts(
+    metadata: dict[str, Any],
+    *,
+    body: str,
+    chars: int,
+    compact: bool,
+    clock: str,
+) -> tuple[str, str, str] | None:
+    deltas = _count_map(metadata.get("deltas"))
+    updates = _count_map(metadata.get("updates"))
+    resolutions = _count_map(metadata.get("resolutions"))
+    totals = {
+        key: int(deltas.get(key) or 0) + int(updates.get(key) or 0) + int(resolutions.get(key) or 0)
+        for key in set(deltas) | set(updates) | set(resolutions)
+    }
+    if not any(value > 0 for value in totals.values()):
+        return None
+    key = _dominant_progress_key(totals, resolutions=resolutions)
+    if not key:
+        return None
+    label = _progress_label_for_key(key, resolution=bool(resolutions.get(key)))
+    pieces: list[str] = []
+    for record_key in ("findings", "experiments", "sources", "tasks", "milestones", "lessons"):
+        if deltas.get(record_key):
+            pieces.append(_progress_count_phrase(int(deltas[record_key]), record_key, prefix="+"))
+        if updates.get(record_key):
+            pieces.append(_progress_count_phrase(int(updates[record_key]), record_key, prefix="~", suffix="updated"))
+        if resolutions.get(record_key):
+            pieces.append(_progress_count_phrase(int(resolutions[record_key]), record_key, suffix="resolved"))
+    detail = ", ".join(pieces)
+    if body:
+        detail = f"{detail} - {generic_display_text(body)}"
+    return label, _outcome_text(detail, chars=chars, compact=compact), clock
+
+
+def _count_map(value: Any) -> dict[str, int]:
+    if not isinstance(value, dict):
+        return {}
+    result: dict[str, int] = {}
+    for key, raw_count in value.items():
+        try:
+            count = int(raw_count)
+        except (TypeError, ValueError):
+            continue
+        if count > 0:
+            result[str(key)] = count
+    return result
+
+
+def _dominant_progress_key(totals: dict[str, int], *, resolutions: dict[str, int]) -> str:
+    for key in ("experiments", "milestones", "findings", "sources", "tasks", "lessons"):
+        if resolutions.get(key):
+            return key
+    for key in ("experiments", "findings", "milestones", "sources", "tasks", "lessons"):
+        if totals.get(key):
+            return key
+    return ""
+
+
+def _progress_label_for_key(key: str, *, resolution: bool) -> str:
+    if key == "findings":
+        return "FIND"
+    if key == "sources":
+        return "SOURCE"
+    if key == "experiments":
+        return "TEST"
+    if key == "tasks":
+        return "TASK"
+    if key == "milestones":
+        return "VALID" if resolution else "ROAD"
+    if key == "lessons":
+        return "LEARN"
+    return "UPDATE"
+
+
+def _progress_count_phrase(value: int, key: str, *, prefix: str = "", suffix: str = "") -> str:
+    label = OUTCOME_SUMMARY_NAMES.get(_progress_label_for_key(key, resolution=False), key)
+    if value == 1 and label.endswith("s"):
+        label = label[:-1]
+    parts = [f"{prefix}{value} {label}"]
+    if suffix:
+        parts.append(suffix)
+    return " ".join(parts)
 
 
 def _outcome_text(text: str, *, chars: int, compact: bool) -> str:
