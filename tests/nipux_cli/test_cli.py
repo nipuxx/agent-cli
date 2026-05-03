@@ -3,6 +3,9 @@ import subprocess
 
 from nipux_cli.artifacts import ArtifactStore
 from nipux_cli import __version__
+from nipux_cli.chat_frame_runtime import ChatFrameDeps as _ChatFrameDeps
+from nipux_cli.chat_frame_runtime import _handle_chat_submit
+from nipux_cli.chat_frame_runtime import _safe_render_frame as _safe_chat_render_frame
 from nipux_cli.chat_frame_runtime import frame_next_job_id as _frame_next_job_id
 from nipux_cli.chat_frame_runtime import frame_refresh_interval as _frame_refresh_interval
 from nipux_cli.cli import (
@@ -34,6 +37,9 @@ from nipux_cli.daemon import append_daemon_event
 from nipux_cli.db import AgentDB
 from nipux_cli.llm import LLMResponse
 from nipux_cli.settings import inline_setting_notice as _inline_setting_notice
+from nipux_cli.first_run_frame_runtime import FirstRunRuntimeDeps as _FirstRunRuntimeDeps
+from nipux_cli.first_run_frame_runtime import _safe_render_frame as _safe_first_run_render_frame
+from nipux_cli.first_run_frame_runtime import _submit_first_run_line as _submit_first_run_line
 from nipux_cli.first_run_frame_runtime import directional_first_run_action as _directional_first_run_action
 from nipux_cli.tui_commands import (
     CHAT_SLASH_COMMANDS,
@@ -455,6 +461,108 @@ def test_frame_next_job_cycles_jobs():
 
 def test_frame_refresh_slows_background_updates_while_typing():
     assert _frame_refresh_interval("") < _frame_refresh_interval("drafting a message")
+
+
+def test_first_run_empty_submit_without_actions_does_not_crash():
+    deps = _FirstRunRuntimeDeps(
+        render_frame=lambda _buffer, _notices, _selected, _view, _editing, _previous: "",
+        actions=lambda _view: [],
+        handle_action=lambda _action: ("notice", "unused"),
+        handle_line=lambda _line: ("notice", "unused"),
+        click_action=lambda _x, _y, _view: None,
+    )
+
+    assert _submit_first_run_line("", selected=0, view="empty", deps=deps) == (
+        "notice",
+        "No actions available on this screen.",
+    )
+
+
+def test_first_run_render_failure_uses_safe_mode(capsys):
+    deps = _FirstRunRuntimeDeps(
+        render_frame=lambda *_args: (_ for _ in ()).throw(RuntimeError("bad frame")),
+        actions=lambda _view: [],
+        handle_action=lambda _action: ("notice", "unused"),
+        handle_line=lambda _line: ("notice", "unused"),
+        click_action=lambda _x, _y, _view: None,
+    )
+    notices: list[str] = []
+
+    frame = _safe_first_run_render_frame(
+        deps,
+        buffer="hello",
+        notices=notices,
+        selected=0,
+        view="start",
+        editing_field=None,
+        previous_frame="",
+    )
+
+    assert "safe mode" in frame
+    assert "render failed" in "\n".join(notices)
+    assert "bad frame" in capsys.readouterr().out
+
+
+def test_chat_submit_failure_stays_in_frame():
+    snapshot = {"job_id": "job_demo", "job": {"id": "job_demo", "title": "demo"}, "jobs": []}
+
+    deps = _ChatFrameDeps(
+        load_snapshot=lambda _job_id, _history_limit: snapshot,
+        render_frame=lambda *_args: "",
+        handle_chat_message=lambda _job_id, _line: (_ for _ in ()).throw(RuntimeError("model blew up")),
+        capture_chat_command=lambda _job_id, _line: (True, ""),
+        write_shell_state=lambda _state: None,
+        is_plain_chat_line=lambda _line: True,
+        page_click=lambda _x, _y, _right_view: None,
+    )
+
+    keep_running, _snapshot, job_id, notices, right_view, modal = _handle_chat_submit(
+        "hello",
+        job_id="job_demo",
+        history_limit=12,
+        snapshot=snapshot,
+        notices=[],
+        right_view="status",
+        modal_view=None,
+        deps=deps,
+    )
+
+    assert keep_running is True
+    assert job_id == "job_demo"
+    assert right_view == "status"
+    assert modal is None
+    assert "message failed" in "\n".join(notices)
+    assert "model blew up" in "\n".join(notices)
+
+
+def test_chat_render_failure_uses_safe_mode(capsys):
+    snapshot = {"job_id": "job_demo", "job": {"id": "job_demo", "title": "demo"}, "jobs": []}
+    deps = _ChatFrameDeps(
+        load_snapshot=lambda _job_id, _history_limit: snapshot,
+        render_frame=lambda *_args: (_ for _ in ()).throw(RuntimeError("bad chat frame")),
+        handle_chat_message=lambda _job_id, _line: (True, ""),
+        capture_chat_command=lambda _job_id, _line: (True, ""),
+        write_shell_state=lambda _state: None,
+        is_plain_chat_line=lambda _line: True,
+        page_click=lambda _x, _y, _right_view: None,
+    )
+    notices: list[str] = []
+
+    frame = _safe_chat_render_frame(
+        deps,
+        snapshot=snapshot,
+        buffer="hello",
+        notices=notices,
+        right_view="status",
+        selected_control=0,
+        editing_field=None,
+        modal_view=None,
+        previous_frame="",
+    )
+
+    assert "safe mode" in frame
+    assert "render failed" in "\n".join(notices)
+    assert "bad chat frame" in capsys.readouterr().out
 
 
 def test_chat_help_has_config_slash_commands_without_settings_page(monkeypatch, tmp_path, capsys):

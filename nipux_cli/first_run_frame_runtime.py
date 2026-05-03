@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import select
+import shutil
 import sys
 import termios
 import time
@@ -49,29 +50,61 @@ def run_first_run_frame(*, deps: FirstRunRuntimeDeps) -> str | None:
             now = time.monotonic()
             if needs_render or now - last_render >= 1.0:
                 selected = clamp_selection(selected, deps.actions(view))
-                last_frame = deps.render_frame(buffer, notices, selected, view, editing_field, last_frame)
+                last_frame = _safe_render_frame(
+                    deps,
+                    buffer=buffer,
+                    notices=notices,
+                    selected=selected,
+                    view=view,
+                    editing_field=editing_field,
+                    previous_frame=last_frame,
+                )
                 needs_render = False
                 last_render = now
-            readable, _, _ = select.select([stdin_fd], [], [], 0.05)
+            try:
+                readable, _, _ = select.select([stdin_fd], [], [], 0.05)
+            except OSError as exc:
+                _append_notice(notices, f"terminal read failed: {type(exc).__name__}: {_one_line(exc, 90)}")
+                needs_render = True
+                continue
             if not readable:
                 continue
-            char = read_terminal_char(stdin_fd)
+            try:
+                char = read_terminal_char(stdin_fd)
+            except OSError as exc:
+                _append_notice(notices, f"terminal input failed: {type(exc).__name__}: {_one_line(exc, 90)}")
+                needs_render = True
+                continue
             if editing_field is not None:
-                buffer, editing_field, should_exit = _handle_edit_input(
-                    char,
-                    buffer=buffer,
-                    editing_field=editing_field,
-                    notices=notices,
-                    stdin_fd=stdin_fd,
-                )
+                try:
+                    buffer, editing_field, should_exit = _handle_edit_input(
+                        char,
+                        buffer=buffer,
+                        editing_field=editing_field,
+                        notices=notices,
+                        stdin_fd=stdin_fd,
+                    )
+                except Exception as exc:
+                    buffer = ""
+                    editing_field = None
+                    _append_notice(notices, f"edit failed: {type(exc).__name__}: {_one_line(exc, 90)}")
+                    needs_render = True
+                    continue
                 if should_exit:
                     return None
                 needs_render = True
                 continue
             if char in {"\r", "\n"}:
-                action, payload = _submit_first_run_line(buffer, selected=selected, view=view, deps=deps)
+                try:
+                    action, payload = _submit_first_run_line(buffer, selected=selected, view=view, deps=deps)
+                except Exception as exc:
+                    action, payload = "notice", f"input failed: {type(exc).__name__}: {_one_line(exc, 100)}"
                 buffer = ""
-                state = _apply_first_run_action(action, payload, view=view, selected=selected, notices=notices)
+                try:
+                    state = _apply_first_run_action(action, payload, view=view, selected=selected, notices=notices)
+                except Exception as exc:
+                    _append_notice(notices, f"action failed: {type(exc).__name__}: {_one_line(exc, 100)}")
+                    state = (view, selected, None, None, False)
                 view, selected, editing_field, next_job_id, should_exit = state
                 if should_exit:
                     return None
@@ -89,18 +122,25 @@ def run_first_run_frame(*, deps: FirstRunRuntimeDeps) -> str | None:
                 needs_render = True
                 continue
             if char == "\t":
-                buffer = autocomplete_slash(buffer, FIRST_RUN_SLASH_COMMANDS)
+                try:
+                    buffer = autocomplete_slash(buffer, FIRST_RUN_SLASH_COMMANDS)
+                except Exception as exc:
+                    _append_notice(notices, f"autocomplete failed: {type(exc).__name__}: {_one_line(exc, 90)}")
                 needs_render = True
                 continue
             if char == "\x1b":
-                view, selected, editing_field, next_job_id, should_exit, buffer = _handle_first_run_escape(
-                    stdin_fd,
-                    view=view,
-                    selected=selected,
-                    buffer=buffer,
-                    notices=notices,
-                    deps=deps,
-                )
+                try:
+                    view, selected, editing_field, next_job_id, should_exit, buffer = _handle_first_run_escape(
+                        stdin_fd,
+                        view=view,
+                        selected=selected,
+                        buffer=buffer,
+                        notices=notices,
+                        deps=deps,
+                    )
+                except Exception as exc:
+                    _append_notice(notices, f"navigation failed: {type(exc).__name__}: {_one_line(exc, 90)}")
+                    should_exit = False
                 if should_exit:
                     return None
                 needs_render = True
@@ -120,6 +160,41 @@ def clamp_selection(selected: int, actions: list[tuple[str, str, str]]) -> int:
     return max(0, min(selected, len(actions) - 1))
 
 
+def _safe_render_frame(
+    deps: FirstRunRuntimeDeps,
+    *,
+    buffer: str,
+    notices: list[str],
+    selected: int,
+    view: str,
+    editing_field: str | None,
+    previous_frame: str,
+) -> str:
+    try:
+        return deps.render_frame(buffer, notices, selected, view, editing_field, previous_frame)
+    except Exception as exc:
+        _append_notice(notices, f"render failed: {type(exc).__name__}: {_one_line(exc, 100)}")
+        frame = _fallback_first_run_frame(buffer=buffer, notices=notices, view=view)
+        print("\033[H" + frame, end="", flush=True)
+        return frame
+
+
+def _fallback_first_run_frame(*, buffer: str, notices: list[str], view: str) -> str:
+    width, height = shutil.get_terminal_size((100, 30))
+    width = max(60, width)
+    lines = [
+        _fit_plain("NIPUX - setup safe mode", width),
+        _fit_plain("=" * width, width),
+        _fit_plain(f"Screen: {view}", width),
+        _fit_plain("A UI render error was caught. You can keep typing; /exit leaves.", width),
+        "",
+        "Recent notices:",
+    ]
+    lines.extend(f"- {_one_line(notice, width - 3)}" for notice in notices[-8:])
+    lines.extend(["", f"> {_one_line(buffer, width - 3)}"])
+    return "\n".join(_fit_plain(line, width) for line in lines[:height])
+
+
 def _submit_first_run_line(
     buffer: str,
     *,
@@ -129,7 +204,10 @@ def _submit_first_run_line(
 ) -> tuple[str, str | list[str] | None]:
     line = buffer.strip()
     if not line:
-        return deps.handle_action(deps.actions(view)[selected][0])
+        actions = deps.actions(view)
+        if not actions:
+            return "notice", "No actions available on this screen."
+        return deps.handle_action(actions[clamp_selection(selected, actions)][0])
     return deps.handle_line(line)
 
 
@@ -148,9 +226,13 @@ def _handle_first_run_escape(
         return view, selected, None, None, False, buffer
     if key == "up":
         actions = deps.actions(view)
+        if not actions:
+            return view, selected, None, None, False, buffer
         return view, (selected - 1) % len(actions), None, None, False, buffer
     if key == "down":
         actions = deps.actions(view)
+        if not actions:
+            return view, selected, None, None, False, buffer
         return view, (selected + 1) % len(actions), None, None, False, buffer
     if key in {"left", "right"}:
         next_action = directional_first_run_action(deps.actions(view), direction=1 if key == "right" else -1)
@@ -168,7 +250,10 @@ def _handle_first_run_escape(
     if key == "click" and isinstance(payload, tuple):
         clicked = deps.click_action(payload[0], payload[1], view)
         if clicked is not None:
-            action, payload = deps.handle_action(deps.actions(view)[clicked][0])
+            actions = deps.actions(view)
+            if not actions:
+                return view, selected, None, None, False, buffer
+            action, payload = deps.handle_action(actions[clamp_selection(clicked, actions)][0])
             next_view, next_selected, editing_field, next_job_id, should_exit = _apply_first_run_action(
                 action,
                 payload,
@@ -258,3 +343,17 @@ def _handle_edit_input(
 def _append_notice(notices: list[str], message: str, *, limit: int = 10) -> None:
     notices.append(message)
     notices[:] = notices[-limit:]
+
+
+def _one_line(value: object, width: int) -> str:
+    text = " ".join(str(value).split())
+    if len(text) <= width:
+        return text
+    return text[: max(0, width - 3)] + "..."
+
+
+def _fit_plain(text: object, width: int) -> str:
+    content = str(text)
+    if len(content) > width:
+        content = _one_line(content, width)
+    return content + " " * max(0, width - len(content))

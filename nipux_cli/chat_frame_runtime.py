@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import select
+import shutil
 import sys
 import termios
 import time
@@ -105,44 +106,66 @@ def run_chat_frame(job_id: str, *, history_limit: int, deps: ChatFrameDeps) -> N
                     _append_notice(notices, f"frame refresh failed: {type(exc).__name__}")
             if needs_render:
                 selected_control = 0
-                last_frame = deps.render_frame(
-                    snapshot,
-                    buffer,
-                    notices,
-                    right_view,
-                    selected_control,
-                    editing_field,
-                    modal_view,
-                    last_frame,
+                last_frame = _safe_render_frame(
+                    deps,
+                    snapshot=snapshot,
+                    buffer=buffer,
+                    notices=notices,
+                    right_view=right_view,
+                    selected_control=selected_control,
+                    editing_field=editing_field,
+                    modal_view=modal_view,
+                    previous_frame=last_frame,
                 )
                 needs_render = False
-            readable, _, _ = select.select([stdin_fd], [], [], 0.05)
+            try:
+                readable, _, _ = select.select([stdin_fd], [], [], 0.05)
+            except OSError as exc:
+                _append_notice(notices, f"terminal read failed: {type(exc).__name__}: {_one_line(exc, 90)}")
+                needs_render = True
+                continue
             if not readable:
                 continue
-            char = read_terminal_char(stdin_fd)
+            try:
+                char = read_terminal_char(stdin_fd)
+            except OSError as exc:
+                _append_notice(notices, f"terminal input failed: {type(exc).__name__}: {_one_line(exc, 90)}")
+                needs_render = True
+                continue
             if editing_field is not None:
-                buffer, editing_field, should_exit = _handle_edit_input(
-                    char,
-                    buffer=buffer,
-                    editing_field=editing_field,
-                    notices=notices,
-                    stdin_fd=stdin_fd,
-                )
+                try:
+                    buffer, editing_field, should_exit = _handle_edit_input(
+                        char,
+                        buffer=buffer,
+                        editing_field=editing_field,
+                        notices=notices,
+                        stdin_fd=stdin_fd,
+                    )
+                except Exception as exc:
+                    buffer = ""
+                    editing_field = None
+                    _append_notice(notices, f"edit failed: {type(exc).__name__}: {_one_line(exc, 90)}")
+                    needs_render = True
+                    continue
                 if should_exit:
                     return
                 needs_render = True
                 continue
             if char in {"\r", "\n"}:
-                keep_running, snapshot, job_id, notices, right_view, modal_view = _handle_chat_submit(
-                    buffer,
-                    job_id=job_id,
-                    history_limit=history_limit,
-                    snapshot=snapshot,
-                    notices=notices,
-                    right_view=right_view,
-                    modal_view=modal_view,
-                    deps=deps,
-                )
+                try:
+                    keep_running, snapshot, job_id, notices, right_view, modal_view = _handle_chat_submit(
+                        buffer,
+                        job_id=job_id,
+                        history_limit=history_limit,
+                        snapshot=snapshot,
+                        notices=notices,
+                        right_view=right_view,
+                        modal_view=modal_view,
+                        deps=deps,
+                    )
+                except Exception as exc:
+                    keep_running = True
+                    _append_notice(notices, f"submit failed: {type(exc).__name__}: {_one_line(exc, 100)}")
                 buffer = ""
                 needs_render = True
                 if not keep_running:
@@ -160,21 +183,28 @@ def run_chat_frame(job_id: str, *, history_limit: int, deps: ChatFrameDeps) -> N
                 needs_render = True
                 continue
             if char == "\t":
-                buffer = autocomplete_slash(buffer, CHAT_SLASH_COMMANDS)
+                try:
+                    buffer = autocomplete_slash(buffer, CHAT_SLASH_COMMANDS)
+                except Exception as exc:
+                    _append_notice(notices, f"autocomplete failed: {type(exc).__name__}: {_one_line(exc, 90)}")
                 needs_render = True
                 continue
             if char == "\x1b":
-                snapshot, job_id, right_view, modal_view, buffer = _handle_chat_escape(
-                    stdin_fd,
-                    snapshot=snapshot,
-                    job_id=job_id,
-                    history_limit=history_limit,
-                    right_view=right_view,
-                    modal_view=modal_view,
-                    buffer=buffer,
-                    notices=notices,
-                    deps=deps,
-                )
+                try:
+                    snapshot, job_id, right_view, modal_view, buffer = _handle_chat_escape(
+                        stdin_fd,
+                        snapshot=snapshot,
+                        job_id=job_id,
+                        history_limit=history_limit,
+                        right_view=right_view,
+                        modal_view=modal_view,
+                        buffer=buffer,
+                        notices=notices,
+                        deps=deps,
+                    )
+                except Exception as exc:
+                    modal_view = None
+                    _append_notice(notices, f"navigation failed: {type(exc).__name__}: {_one_line(exc, 90)}")
                 needs_render = True
                 continue
             if char.isprintable():
@@ -194,6 +224,54 @@ def emit_frame_if_changed(frame: str, previous_frame: str = "") -> str:
     return frame
 
 
+def _safe_render_frame(
+    deps: ChatFrameDeps,
+    *,
+    snapshot: dict[str, Any],
+    buffer: str,
+    notices: list[str],
+    right_view: str,
+    selected_control: int,
+    editing_field: str | None,
+    modal_view: str | None,
+    previous_frame: str,
+) -> str:
+    try:
+        return deps.render_frame(
+            snapshot,
+            buffer,
+            notices,
+            right_view,
+            selected_control,
+            editing_field,
+            modal_view,
+            previous_frame,
+        )
+    except Exception as exc:
+        _append_notice(notices, f"render failed: {type(exc).__name__}: {_one_line(exc, 100)}")
+        frame = _fallback_chat_frame(snapshot=snapshot, buffer=buffer, notices=notices)
+        print("\033[H" + frame, end="", flush=True)
+        return frame
+
+
+def _fallback_chat_frame(*, snapshot: dict[str, Any], buffer: str, notices: list[str]) -> str:
+    width, height = shutil.get_terminal_size((100, 30))
+    width = max(60, width)
+    job = snapshot.get("job") if isinstance(snapshot.get("job"), dict) else {}
+    title = str(job.get("title") or snapshot.get("job_id") or "Nipux")
+    lines = [
+        _fit_plain("NIPUX - safe mode", width),
+        _fit_plain("=" * width, width),
+        _fit_plain(f"Job: {title}", width),
+        _fit_plain("A UI render error was caught. You can keep typing; /exit leaves.", width),
+        "",
+        "Recent notices:",
+    ]
+    lines.extend(f"- {_one_line(notice, width - 3)}" for notice in notices[-8:])
+    lines.extend(["", f"> {_one_line(buffer, width - 3)}"])
+    return "\n".join(_fit_plain(line, width) for line in lines[:height])
+
+
 def _diff_frame_update(frame: str, previous_frame: str) -> str:
     current_lines = frame.splitlines()
     previous_lines = previous_frame.splitlines()
@@ -210,6 +288,13 @@ def _diff_frame_update(frame: str, previous_frame: str) -> str:
             current += " " * (previous_width - current_width)
         output.append(f"\033[{index + 1};1H{current}")
     return "".join(output)
+
+
+def _fit_plain(text: Any, width: int) -> str:
+    content = _strip_ansi(str(text))
+    if len(content) > width:
+        content = _one_line(content, width)
+    return content + " " * max(0, width - len(content))
 
 
 def _append_notice(notices: list[str], message: str, *, limit: int = 12) -> None:
