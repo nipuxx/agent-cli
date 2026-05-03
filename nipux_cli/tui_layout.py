@@ -26,13 +26,13 @@ def _top_bar(
     base_url: str = "",
 ) -> list[str]:
     del state, daemon
-    title = _style("NIPUX", "38;5;159;1")
+    title = _style("NIPUX", "38;5;123;1")
     usage_text = _token_usage_topline(token_usage or {}, context_length=context_length, model=model, base_url=base_url)
     model_line = f"{_muted('model')} {_style(_one_line(model, max(16, width // 3)), '36')}"
     if width >= 118:
         compact_model = f"{_muted('model')} {_style(_one_line(model, max(14, width // 5)), '36')}"
         return [
-            _edge_line(title, f"{compact_model}  {usage_text}", width=width),
+            _triple_line(_muted("workspace"), title, f"{compact_model}  {usage_text}", width=width),
             _muted("━" * width),
         ]
     first = _edge_line(title, model_line, width=width)
@@ -60,6 +60,24 @@ def _edge_line(left: str, right: str, *, width: int) -> str:
     left_text = _fit_ansi(left, left_width)
     gap = max(1, width - len(_strip_ansi(left_text)) - right_len)
     return _fit_ansi(left_text + " " * gap + right, width)
+
+
+def _triple_line(left: str, center: str, right: str, *, width: int) -> str:
+    right_len = len(_strip_ansi(right))
+    center_len = len(_strip_ansi(center))
+    left_len = len(_strip_ansi(left))
+    center_start = max(left_len + 2, (width - center_len) // 2)
+    right_start = max(center_start + center_len + 1, width - right_len)
+    if right_start >= width:
+        return _edge_line(center, right, width=width)
+    parts = [
+        left,
+        " " * max(1, center_start - left_len),
+        center,
+        " " * max(1, right_start - center_start - center_len),
+        right,
+    ]
+    return _fit_ansi("".join(parts), width)
 
 
 def _compose_bar(

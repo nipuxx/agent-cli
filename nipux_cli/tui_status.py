@@ -5,6 +5,7 @@ from __future__ import annotations
 import textwrap
 from typing import Any
 
+from nipux_cli.config import AppConfig
 from nipux_cli.operator_context import active_prompt_operator_entries
 from nipux_cli.scheduling import job_deferred_until, job_provider_blocked
 from nipux_cli.tui_event_format import experiment_metric_text
@@ -213,6 +214,44 @@ def chat_work_pane_lines(
             title = _one_line(str(experiment.get("title") or "experiment"), max(10, width - 16))
             suffix = f" {_muted(metric)}" if metric else ""
             lines.append(_fit_ansi(f"{_event_badge('TEST')} {title}{suffix}", width))
+    return [_fit_ansi(line, width) for line in lines[:rows]]
+
+
+def chat_settings_pane_lines(
+    *,
+    config: AppConfig,
+    width: int,
+    rows: int,
+) -> list[str]:
+    key_state = "set" if config.model.api_key else "missing"
+    input_cost = _rate_text(config.model.input_cost_per_million)
+    output_cost = _rate_text(config.model.output_cost_per_million)
+    lines = [
+        f"{_muted('Page')}   {_page_indicator('settings', CHAT_RIGHT_PAGES)}",
+        _bold("Model"),
+        _setting_line("id", config.model.model, command="/model MODEL", width=width),
+        _setting_line("endpoint", config.model.base_url, command="/base-url URL", width=width),
+        _setting_line("key", f"{key_state} via {config.model.api_key_env}", command="/api-key KEY", width=width),
+        _setting_line("context", str(config.model.context_length), command="/context TOKENS", width=width),
+        "",
+        _bold("Runtime"),
+        _setting_line("home", str(config.runtime.home), command="/home PATH", width=width),
+        _setting_line("step", f"{config.runtime.max_step_seconds}s", command="/step-limit SECONDS", width=width),
+        _setting_line("preview", f"{config.runtime.artifact_inline_char_limit} chars", command="/output-chars CHARS", width=width),
+        "",
+        _bold("Cost"),
+        _setting_line("input", input_cost, command="/input-cost DOLLARS", width=width),
+        _setting_line("output", output_cost, command="/output-cost DOLLARS", width=width),
+        "",
+        _bold("Digest"),
+        _setting_line(
+            "daily",
+            f"{config.runtime.daily_digest_enabled} at {config.runtime.daily_digest_time}",
+            command="/daily-digest true|false",
+            width=width,
+        ),
+        _muted("Type a command in the composer to edit."),
+    ]
     return [_fit_ansi(line, width) for line in lines[:rows]]
 
 
@@ -462,6 +501,17 @@ def _yield_line(metrics: list[tuple[str, Any]], *, width: int) -> str:
         return ""
     detail = f"{actions_per:.1f} actions/outcome"
     return _fit_ansi(f"{_muted('Yield')}  {_status_badge(label)} {detail}", width)
+
+
+def _setting_line(label: str, value: str, *, command: str, width: int) -> str:
+    left = f"{_muted(label)} {_bold(_one_line(value, max(8, width - 24)))}"
+    if width < 46:
+        return _fit_ansi(left, width)
+    return _fit_ansi(left + "  " + _muted(command), width)
+
+
+def _rate_text(value: float | None) -> str:
+    return "provider-reported" if value is None else f"${value:g}/1M"
 
 
 def _safe_int(value: Any) -> int:

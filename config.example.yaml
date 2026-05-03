@@ -1,7 +1,7 @@
 model:
-  name: qwen/qwen3.6-27b
-  base_url: https://openrouter.ai/api/v1
-  api_key_env: OPENROUTER_API_KEY
+  name: local-model
+  base_url: http://localhost:8000/v1
+  api_key_env: OPENAI_API_KEY
   context_length: 262144
   input_cost_per_million: null
   output_cost_per_million: null

@@ -137,17 +137,17 @@ def test_init_openrouter_writes_secret_free_config_and_env_template(monkeypatch,
     assert _mode(tmp_path / ".env") == 0o600
 
 
-def test_init_defaults_to_qwen_openrouter(monkeypatch, tmp_path):
+def test_init_defaults_to_local_endpoint(monkeypatch, tmp_path):
     monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
 
     main(["init"])
 
     config_text = (tmp_path / "config.yaml").read_text(encoding="utf-8")
     env_text = (tmp_path / ".env").read_text(encoding="utf-8")
-    assert "name: qwen/qwen3.6-27b" in config_text
-    assert "base_url: https://openrouter.ai/api/v1" in config_text
-    assert "api_key_env: OPENROUTER_API_KEY" in config_text
-    assert env_text.strip().endswith("OPENROUTER_API_KEY" + "=")
+    assert "name: local-model" in config_text
+    assert "base_url: http://localhost:8000/v1" in config_text
+    assert "api_key_env: OPENAI_API_KEY" in config_text
+    assert env_text.strip().endswith("OPENAI_API_KEY" + "=")
 
 
 def test_init_openrouter_defaults_to_qwen36(monkeypatch, tmp_path):
@@ -292,15 +292,16 @@ def test_first_run_frame_uses_full_screen_ui_not_banner(monkeypatch, tmp_path):
     frame = _build_first_run_frame("", [], width=100, height=24)
 
     assert "NIPUX" in frame
-    assert "INSTALL" in frame
+    assert "WELCOME" in frame
     assert "SETUP" in frame
-    assert "Set up once" in frame
+    assert "Begin setup" in frame
+    assert "Long-running work, installed in-session." in frame
     assert "Model" in frame
     assert "Connector" in frame
     assert "Endpoint" in frame
     assert "API key" in frame
     assert "First job" in frame
-    assert "Tab fills slash commands" in frame
+    assert "Enter selects" in frame
     assert "controls on the right" not in frame
     assert "Control" not in frame
     assert "daemon stopped" not in frame
@@ -324,18 +325,22 @@ def test_first_run_frame_has_slash_command_popup(monkeypatch, tmp_path):
     assert "type to filter" in frame
 
 
-def test_first_run_frame_has_no_settings_page(monkeypatch, tmp_path):
+def test_first_run_frame_walks_setup_screens(monkeypatch, tmp_path):
     monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
 
-    frame = _build_first_run_frame("", [], width=100, height=26, view="settings", selected=1)
+    model = _build_first_run_frame("", [], width=100, height=26, view="model", selected=0)
+    endpoint = _build_first_run_frame("", [], width=100, height=26, view="endpoint", selected=0)
+    api = _build_first_run_frame("", [], width=100, height=26, view="api", selected=0)
+    invalid = _build_first_run_frame("", [], width=100, height=26, view="settings", selected=1)
 
-    assert "Settings" not in frame
-    assert "/base-url URL" not in frame
-    assert "/api-key KEY" not in frame
-    assert "/timeout SECONDS" not in frame
-    assert "SETUP" in frame
-    assert "Connector" in frame
-    assert "/shell" not in frame
+    assert "CHOOSE MODEL" in model
+    assert "Edit model" in model
+    assert "CONNECT ENDPOINT" in endpoint
+    assert "Edit endpoint" in endpoint
+    assert "ADD API KEY" in api
+    assert "Save API key" in api
+    assert "WELCOME" in invalid
+    assert "/shell" not in model
 
 
 def test_first_run_frame_uses_command_palette_for_config(monkeypatch, tmp_path):
@@ -407,9 +412,9 @@ def test_terminal_escape_decodes_arrows_and_mouse_click():
 def test_first_run_click_maps_right_pane_actions(monkeypatch):
     monkeypatch.setattr("shutil.get_terminal_size", lambda fallback=(100, 30): (100, 30))
 
-    assert _first_run_click_action(70, 6, view="start") == 0
-    assert _first_run_click_action(70, 8, view="start") == 2
-    assert _first_run_click_action(10, 8, view="start") is None
+    assert _first_run_click_action(70, 13, view="start") == 0
+    assert _first_run_click_action(70, 15, view="start") == 2
+    assert _first_run_click_action(10, 13, view="start") is None
 
 
 def test_frame_next_job_cycles_jobs():
@@ -435,7 +440,7 @@ def test_chat_help_has_config_slash_commands_without_settings_page(monkeypatch, 
     assert _chat_handle_line(job_id, "/help") is True
 
     out = capsys.readouterr().out
-    assert "/settings" not in out
+    assert "/settings" in out
     assert "/usage" in out
     assert "/config" in out
     assert "/outcomes" in out
@@ -464,6 +469,7 @@ def test_chat_slash_palette_matches_public_chat_commands():
         "/status",
         "/usage",
         "/config",
+        "/settings",
         "/health",
         "/artifacts",
         "/artifact",
@@ -507,7 +513,6 @@ def test_chat_slash_palette_matches_public_chat_commands():
     }
 
     assert advertised <= palette
-    assert "/settings" not in palette
     assert "/shell" not in palette
 
 

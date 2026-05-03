@@ -11,9 +11,10 @@ import yaml
 
 
 DEFAULT_OPENROUTER_MODEL = "qwen/qwen3.6-27b"
-DEFAULT_MODEL = DEFAULT_OPENROUTER_MODEL
-DEFAULT_BASE_URL = "https://openrouter.ai/api/v1"
-DEFAULT_API_KEY_ENV = "OPENROUTER_API_KEY"
+DEFAULT_OPENROUTER_API_KEY_ENV = "OPENROUTER_API_KEY"
+DEFAULT_MODEL = "local-model"
+DEFAULT_BASE_URL = "http://localhost:8000/v1"
+DEFAULT_API_KEY_ENV = "OPENAI_API_KEY"
 DEFAULT_CONTEXT_LENGTH = 262_144
 
 
@@ -166,7 +167,7 @@ def _optional_float(value: Any) -> float | None:
 
 
 def load_config(path: str | Path | None = None) -> AppConfig:
-    """Load config.yaml, falling back to the default OpenAI-compatible provider."""
+    """Load config.yaml, falling back to a local OpenAI-compatible endpoint."""
 
     home = get_agent_home()
     load_env_file(home / ".env")

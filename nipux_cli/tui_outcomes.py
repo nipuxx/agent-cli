@@ -21,7 +21,7 @@ from nipux_cli.tui_event_format import (
 from nipux_cli.tui_style import _bold, _event_badge, _fit_ansi, _muted, _one_line, _page_indicator, _strip_ansi
 
 
-CHAT_RIGHT_PAGES = [("status", "Status"), ("updates", "Outcomes"), ("work", "Work")]
+CHAT_RIGHT_PAGES = [("status", "Jobs"), ("updates", "Outcomes"), ("work", "Work"), ("settings", "Settings")]
 
 DURABLE_OUTCOME_LABELS = {
     "SAVE",

@@ -76,6 +76,7 @@ from nipux_cli.config import (
     DEFAULT_API_KEY_ENV,
     DEFAULT_CONTEXT_LENGTH,
     DEFAULT_MODEL,
+    DEFAULT_OPENROUTER_API_KEY_ENV,
     DEFAULT_OPENROUTER_MODEL,
     default_config_yaml,
     load_config,
@@ -94,6 +95,7 @@ from nipux_cli.digest import render_job_digest, write_daily_digest
 from nipux_cli.doctor import run_doctor
 from nipux_cli.first_run_tui import (
     build_first_run_frame as _build_first_run_tui_frame,
+    first_run_actions as _first_run_tui_actions,
     first_run_columns as _first_run_columns,
 )
 from nipux_cli.first_run_controller import (
@@ -136,10 +138,7 @@ from nipux_cli.service_install import launch_agent_path as _launch_agent_path
 from nipux_cli.service_install import launch_agent_plist as _service_launch_agent_plist
 from nipux_cli.service_install import systemd_service_text as _service_systemd_service_text
 from nipux_cli.templates import program_for_job
-from nipux_cli.tui_commands import (
-    FIRST_RUN_ACTIONS,
-    slash_suggestion_lines,
-)
+from nipux_cli.tui_commands import slash_suggestion_lines
 from nipux_cli.settings import (
     config_field_value,
     save_config_field,
@@ -270,7 +269,7 @@ def cmd_init(args: argparse.Namespace) -> None:
     api_key_env = args.api_key_env or DEFAULT_API_KEY_ENV
     if args.openrouter:
         base_url = args.base_url or "https://openrouter.ai/api/v1"
-        api_key_env = args.api_key_env or DEFAULT_API_KEY_ENV
+        api_key_env = args.api_key_env or DEFAULT_OPENROUTER_API_KEY_ENV
         model = args.model or DEFAULT_OPENROUTER_MODEL
     write_private_text(
         path,
@@ -629,7 +628,7 @@ def _first_run_runtime_deps() -> FirstRunRuntimeDeps:
 
 
 def _first_run_actions(view: str) -> list[tuple[str, str, str]]:
-    return FIRST_RUN_ACTIONS
+    return _first_run_tui_actions(view)
 
 
 def _clamp_first_run_selection(selected: int, view: str) -> int:
@@ -647,7 +646,7 @@ def _first_run_click_action(x: int, y: int, *, view: str) -> int | None:
     if x < right_start:
         return None
     body_start_y = 4
-    action_body_index = 2
+    action_body_index = 9
     index = y - (body_start_y + action_body_index)
     actions = _first_run_actions(view)
     return index if 0 <= index < len(actions) else None
@@ -657,20 +656,20 @@ def _chat_page_click(x: int, y: int, *, right_view: str) -> str | None:
     del right_view
     width, _height = shutil.get_terminal_size((100, 30))
     width = max(92, width)
-    left_width = max(56, int(width * 0.64))
-    right_width = max(34, width - left_width - 3)
-    if right_width < 34:
-        left_width = max(48, width - right_width - 3)
-    right_start = left_width + 4
+    rail_width = 12 if width >= 118 else 0
+    right_width = min(max(50, int(width * 0.34)), 72)
+    left_width = max(48, width - rail_width - right_width - (6 if rail_width else 3))
+    if left_width < 48:
+        left_width = 48
+        right_width = max(34, width - rail_width - left_width - (6 if rail_width else 3))
+    if rail_width and 4 <= y <= 9 and x <= rail_width:
+        return ["status", "updates", "work", "settings"][max(0, min(3, y - 6))]
+    right_start = rail_width + left_width + (7 if rail_width else 4)
     if x < right_start or y > 8:
         return None
     relative = max(0, x - right_start)
-    third = max(1, right_width // 3)
-    if relative < third:
-        return "status"
-    if relative < third * 2:
-        return "updates"
-    return "work"
+    quarter = max(1, right_width // 4)
+    return ["status", "updates", "work", "settings"][min(3, relative // quarter)]
 
 
 def _handle_first_run_frame_line(line: str) -> tuple[str, str | list[str] | None]:
@@ -2128,7 +2127,7 @@ def _chat_handle_line(job_id: str, line: str, *, reply_fn=None) -> bool:
     if line in {"/help", "help"}:
         print("Chat commands:")
         print("  /jobs /focus JOB_TITLE /switch JOB_TITLE /new OBJECTIVE /delete [JOB_TITLE]")
-        print("  /history /events /activity /outputs /updates /outcomes [all] /status /usage /config /health")
+        print("  /history /events /activity /outputs /updates /outcomes [all] /status /usage /config /settings /health")
         print("  /artifacts /artifact QUERY /findings /tasks /roadmap /experiments /sources /memory /metrics /lessons")
         print("  /model MODEL /base-url URL /api-key KEY /api-key-env ENV /context TOKENS")
         print("  /input-cost DOLLARS_PER_1M_INPUT_TOKENS /output-cost DOLLARS_PER_1M_OUTPUT_TOKENS")

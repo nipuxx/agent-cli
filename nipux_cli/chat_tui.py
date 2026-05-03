@@ -4,20 +4,22 @@ from __future__ import annotations
 
 from typing import Any
 
+from nipux_cli.config import load_config
 from nipux_cli.first_run_tui import first_run_themed_lines
 from nipux_cli.settings import edit_target_hint, edit_target_label, edit_target_masks_input
 from nipux_cli.tui_commands import CHAT_SLASH_COMMANDS, slash_suggestion_lines
 from nipux_cli.tui_event_format import clean_step_summary
 from nipux_cli.tui_events import chat_pane_lines
-from nipux_cli.tui_layout import _compose_bar, _top_bar, _two_col_line, _two_col_title
+from nipux_cli.tui_layout import _compose_bar, _top_bar
 from nipux_cli.tui_outcomes import chat_updates_pane_lines
 from nipux_cli.tui_status import (
     chat_work_pane_lines,
+    chat_settings_pane_lines,
     job_display_state,
     right_pane_lines,
     worker_label,
 )
-from nipux_cli.tui_style import _one_line
+from nipux_cli.tui_style import _accent, _bold, _fit_ansi, _muted, _one_line, _status_badge
 
 
 def build_chat_frame(
@@ -64,11 +66,12 @@ def build_chat_frame(
     state = job_display_state(job, bool(daemon["running"]))
     worker = worker_label(job, bool(daemon["running"]))
     latest_step = steps[-1] if steps else None
-    right_width = min(max(50, int(width * 0.36)), 72)
-    left_width = max(48, width - right_width - 3)
+    rail_width = 12 if width >= 118 else 0
+    right_width = min(max(50, int(width * 0.34)), 72)
+    left_width = max(48, width - rail_width - right_width - (6 if rail_width else 3))
     if left_width < 48:
         left_width = 48
-        right_width = max(34, width - left_width - 3)
+        right_width = max(34, width - rail_width - left_width - (6 if rail_width else 3))
     latest_text = _step_line(latest_step, chars=right_width - 6) if latest_step else "no worker steps yet"
     daemon_text = _daemon_state_line(daemon)
     goal_text = " ".join(str(job.get("objective") or "").split())
@@ -129,6 +132,13 @@ def build_chat_frame(
             rows=body_rows,
         )
         right_title = "Worker"
+    elif right_view == "settings":
+        right_lines = chat_settings_pane_lines(
+            config=load_config(),
+            width=right_width,
+            rows=body_rows,
+        )
+        right_title = "Settings"
     else:
         right_lines = right_pane_lines(
             job=job,
@@ -153,11 +163,19 @@ def build_chat_frame(
             right_view=right_view,
         )
         right_title = "Jobs"
-    lines = [*header, _two_col_title(left_width, right_width, "Conversation", right_title)]
+    nav_lines = _chat_nav_lines(right_view=right_view, state=state, worker=worker, width=rail_width, rows=body_rows)
+    if rail_width:
+        lines = [*header, _three_col_title(rail_width, left_width, right_width, "Nav", "Conversation", right_title)]
+    else:
+        lines = [*header, _two_col_title(left_width, right_width, "Conversation", right_title)]
     for index in range(body_rows):
+        rail = nav_lines[index] if rail_width and index < len(nav_lines) else ""
         left = chat_lines[index] if index < len(chat_lines) else ""
         right = right_lines[index] if index < len(right_lines) else ""
-        lines.append(_two_col_line(left, right, left_width=left_width, right_width=right_width))
+        if rail_width:
+            lines.append(_three_col_line(rail, left, right, rail_width=rail_width, left_width=left_width, right_width=right_width))
+        else:
+            lines.append(_two_col_line(left, right, left_width=left_width, right_width=right_width))
     lines.extend(compose_lines)
     if len(lines) > height:
         keep_top = min(4, len(header) + 1)
@@ -165,6 +183,67 @@ def build_chat_frame(
         middle_budget = max(0, height - keep_top - keep_bottom)
         lines = lines[:keep_top] + lines[-(middle_budget + keep_bottom) : -keep_bottom] + lines[-keep_bottom:]
     return "\n".join(first_run_themed_lines(lines[:height], width=width))
+
+
+def _two_col_title(left_width: int, right_width: int, left: str, right: str) -> str:
+    return _fit_ansi(_bold(left.upper()), left_width) + _muted(" │ ") + _fit_ansi(_bold(right.upper()), right_width)
+
+
+def _two_col_line(left: str, right: str, *, left_width: int, right_width: int) -> str:
+    return _fit_ansi(left, left_width) + _muted(" │ ") + _fit_ansi(right, right_width)
+
+
+def _three_col_title(rail_width: int, left_width: int, right_width: int, rail: str, left: str, right: str) -> str:
+    return (
+        _fit_ansi(_bold(rail.upper()), rail_width)
+        + _muted(" │ ")
+        + _fit_ansi(_bold(left.upper()), left_width)
+        + _muted(" │ ")
+        + _fit_ansi(_bold(right.upper()), right_width)
+    )
+
+
+def _three_col_line(
+    rail: str,
+    left: str,
+    right: str,
+    *,
+    rail_width: int,
+    left_width: int,
+    right_width: int,
+) -> str:
+    return (
+        _fit_ansi(rail, rail_width)
+        + _muted(" │ ")
+        + _fit_ansi(left, left_width)
+        + _muted(" │ ")
+        + _fit_ansi(right, right_width)
+    )
+
+
+def _chat_nav_lines(*, right_view: str, state: str, worker: str, width: int, rows: int) -> list[str]:
+    if width <= 0:
+        return []
+    page_labels = [("status", "Jobs"), ("updates", "Out"), ("work", "Work"), ("settings", "Set")]
+    lines = [
+        _accent("● online") if worker == "active" else _muted("○ ready"),
+        "",
+    ]
+    for key, label in page_labels:
+        marker = _accent("›") if key == right_view else _muted(" ")
+        name = _bold(label) if key == right_view else label
+        lines.append(_fit_ansi(f"{marker} {name}", width))
+    lines.extend([
+        "",
+        _muted("state"),
+        _fit_ansi(_status_badge(state), width),
+        "",
+        _muted("keys"),
+        _muted("← →"),
+        _muted("↑ ↓"),
+        _muted("/"),
+    ])
+    return [_fit_ansi(line, width) for line in lines[:rows]]
 
 
 def _metadata_records(job: dict[str, Any], key: str) -> list[dict[str, Any]]:

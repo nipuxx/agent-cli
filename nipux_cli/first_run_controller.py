@@ -22,6 +22,8 @@ class FirstRunFrameDeps:
 
 
 def handle_first_run_action(action: str, *, deps: FirstRunFrameDeps) -> tuple[str, str | list[str] | None]:
+    if action.startswith("view:"):
+        return "view", action.split(":", 1)[1]
     if action == "preset:local":
         notices = [
             *deps.capture_setting_command("model local-model"),

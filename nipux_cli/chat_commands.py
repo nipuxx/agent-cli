@@ -152,6 +152,9 @@ def handle_chat_slash_command(job_id: str, command: str, rest: list[str], *, dep
     if command == "usage":
         deps.usage(argparse.Namespace(job_id=job_id, json=False))
         return True
+    if command == "settings":
+        deps.handle_setting("config", [])
+        return True
     if deps.handle_setting(command, rest):
         return True
     if command == "doctor":

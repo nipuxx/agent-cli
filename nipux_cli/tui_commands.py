@@ -54,6 +54,7 @@ CHAT_SLASH_COMMANDS = [
     ("/lessons", "lessons"),
     ("/usage", "tokens/cost"),
     ("/config", "runtime config"),
+    ("/settings", "open settings"),
     ("/status", "job state"),
     ("/health", "daemon health"),
     ("/start", "start daemon"),

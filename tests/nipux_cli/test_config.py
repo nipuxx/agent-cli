@@ -7,15 +7,15 @@ def _mode(path):
     return path.stat().st_mode & 0o777
 
 
-def test_load_config_defaults_to_qwen_openrouter(tmp_path, monkeypatch):
+def test_load_config_defaults_to_local_endpoint(tmp_path, monkeypatch):
     monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
 
     config = load_config()
 
     assert config.runtime.home == tmp_path
-    assert config.model.model == "qwen/qwen3.6-27b"
-    assert config.model.base_url == "https://openrouter.ai/api/v1"
-    assert config.model.api_key_env == "OPENROUTER_API_KEY"
+    assert config.model.model == "local-model"
+    assert config.model.base_url == "http://localhost:8000/v1"
+    assert config.model.api_key_env == "OPENAI_API_KEY"
     assert config.model.context_length == DEFAULT_CONTEXT_LENGTH
     assert config.runtime.state_db_path == tmp_path / "state.db"
     assert config.runtime.daily_digest_enabled is True
@@ -108,12 +108,12 @@ def test_default_config_yaml_allows_provider_template_without_secret():
     assert "sk-" not in text
 
 
-def test_config_example_matches_default_provider():
+def test_config_example_matches_default_local_endpoint():
     root = Path(__file__).resolve().parents[2]
     text = (root / "config.example.yaml").read_text(encoding="utf-8")
 
-    assert "name: qwen/qwen3.6-27b" in text
-    assert "base_url: https://openrouter.ai/api/v1" in text
-    assert "api_key_env: OPENROUTER_API_KEY" in text
+    assert "name: local-model" in text
+    assert "base_url: http://localhost:8000/v1" in text
+    assert "api_key_env: OPENAI_API_KEY" in text
     assert "input_cost_per_million: null" in text
     assert "output_cost_per_million: null" in text

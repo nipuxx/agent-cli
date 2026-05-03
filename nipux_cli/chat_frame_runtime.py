@@ -131,12 +131,13 @@ def run_chat_frame(job_id: str, *, history_limit: int, deps: ChatFrameDeps) -> N
                 needs_render = True
                 continue
             if char in {"\r", "\n"}:
-                keep_running, snapshot, job_id, notices = _handle_chat_submit(
+                keep_running, snapshot, job_id, notices, right_view = _handle_chat_submit(
                     buffer,
                     job_id=job_id,
                     history_limit=history_limit,
                     snapshot=snapshot,
                     notices=notices,
+                    right_view=right_view,
                     deps=deps,
                 )
                 buffer = ""
@@ -248,14 +249,27 @@ def _handle_chat_submit(
     history_limit: int,
     snapshot: dict[str, Any],
     notices: list[str],
+    right_view: str,
     deps: ChatFrameDeps,
-) -> tuple[bool, dict[str, Any], str, list[str]]:
+) -> tuple[bool, dict[str, Any], str, list[str], str]:
     line = buffer.strip()
     if not line:
-        return True, snapshot, job_id, notices
+        return True, snapshot, job_id, notices, right_view
     if line in {"clear", "/clear"}:
         notices.clear()
-        return True, snapshot, job_id, notices
+        return True, snapshot, job_id, notices, right_view
+    if line in {"settings", "/settings", "/config"}:
+        _append_notice(notices, "opened settings")
+        return True, snapshot, job_id, notices, "settings"
+    if line in {"jobs", "/jobs", "status", "/status"}:
+        _append_notice(notices, "opened jobs")
+        return True, snapshot, job_id, notices, "status"
+    if line in {"work", "/work", "activity", "/activity"}:
+        _append_notice(notices, "opened worker")
+        return True, snapshot, job_id, notices, "work"
+    if line in {"outcomes", "/outcomes", "updates", "/updates"}:
+        _append_notice(notices, "opened outcomes")
+        return True, snapshot, job_id, notices, "updates"
     _append_notice(notices, f"> {line}")
     if deps.is_plain_chat_line(line):
         keep_running, message = deps.handle_chat_message(job_id, line)
@@ -268,7 +282,7 @@ def _handle_chat_submit(
             _append_notice(notices, output_line)
     snapshot = deps.load_snapshot(job_id, history_limit)
     job_id = str(snapshot["job_id"])
-    return keep_running, snapshot, job_id, notices
+    return keep_running, snapshot, job_id, notices, right_view
 
 
 def _handle_chat_escape(

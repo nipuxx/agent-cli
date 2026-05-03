@@ -25,11 +25,11 @@ def _style(text: Any, code: str) -> str:
 
 
 def _accent(text: Any) -> str:
-    return _style(text, "38;5;159")
+    return _style(text, "38;5;123")
 
 
 def _muted(text: Any) -> str:
-    return _style(text, "38;5;245")
+    return _style(text, "38;5;248")
 
 
 def _bold(text: Any) -> str:
@@ -68,13 +68,13 @@ def _center_ansi(text: str, width: int) -> str:
 def _themed_lines(lines: list[str], *, width: int) -> list[str]:
     if not _fancy_ui():
         return [_fit_ansi(line, width) for line in lines]
-    bg = "\033[48;5;236m\033[38;5;252m"
+    bg = "\033[48;5;234m\033[38;5;252m"
     reset = "\033[0m"
     return [bg + _fit_ansi(line, width).replace(reset, reset + bg) + reset for line in lines]
 
 
 def _frame_enter_sequence() -> str:
-    theme = "\033[48;5;236m\033[38;5;252m" if _fancy_ui() else ""
+    theme = "\033[48;5;234m\033[38;5;252m" if _fancy_ui() else ""
     return f"\033[?1049h{theme}\033[2J\033[H\033[?25l\033[?1000h\033[?1002h\033[?1006h"
 
 
