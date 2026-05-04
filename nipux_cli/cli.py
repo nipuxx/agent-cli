@@ -983,6 +983,8 @@ def _is_plain_chat_line(line: str) -> bool:
     lowered = stripped.lower()
     if lowered in {"help", "jobs", "ls", "clear", "exit", "quit"}:
         return False
+    if chat_control_command(stripped):
+        return False
     try:
         first = shlex.split(stripped)[0].lower()
     except (IndexError, ValueError):

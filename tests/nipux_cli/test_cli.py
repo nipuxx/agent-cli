@@ -23,6 +23,7 @@ from nipux_cli.cli import (
     _handle_first_run_menu_line,
     _handle_first_run_frame_line,
     _handle_chat_message,
+    _is_plain_chat_line,
     _launch_agent_plist,
     _load_frame_snapshot,
     _minimal_live_event_line,
@@ -1570,6 +1571,13 @@ def test_plain_chat_control_intents_map_to_commands():
     assert _chat_control_command("how many tokens did it use") == "/usage"
     assert _chat_control_command("restart daemon") == "/restart"
     assert _chat_control_command("prefer artifact-backed findings") == ""
+
+
+def test_plain_chat_classifier_keeps_natural_controls_out_of_model_path():
+    assert _is_plain_chat_line("hello there") is True
+    assert _is_plain_chat_line("stop the job") is False
+    assert _is_plain_chat_line("what has it done") is False
+    assert _is_plain_chat_line("show me the saved files") is False
 
 
 def test_plain_chat_control_intent_does_not_queue_operator_context(monkeypatch, tmp_path):
