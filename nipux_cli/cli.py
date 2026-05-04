@@ -21,6 +21,8 @@ from nipux_cli.artifacts import ArtifactStore
 from nipux_cli.chat_intent import (
     chat_control_command,
     extract_job_objective_from_message as _extract_job_objective_from_message,
+    message_requests_immediate_run,
+    message_requests_queued_job,
     natural_command_for,
 )
 from nipux_cli.cli_state import (
@@ -93,7 +95,7 @@ from nipux_cli.daemon_control import start_daemon_if_needed_impl as _start_daemo
 from nipux_cli.daemon_control import stop_daemon_process_impl as _stop_daemon_process_impl
 from nipux_cli.daemon import Daemon, DaemonAlreadyRunning, daemon_lock_status, read_daemon_events
 from nipux_cli.dashboard import collect_dashboard_state, render_dashboard, render_overview
-from nipux_cli.db import AgentDB
+from nipux_cli.db import AgentDB, utc_now
 from nipux_cli.digest import render_job_digest, write_daily_digest
 from nipux_cli.doctor import run_doctor
 from nipux_cli.first_run_tui import (
@@ -116,7 +118,7 @@ from nipux_cli.first_run_frame_runtime import (
     run_first_run_frame as _run_first_run_frame,
 )
 from nipux_cli.event_render import event_line as _event_line
-from nipux_cli.frame_snapshot import load_frame_snapshot
+from nipux_cli.frame_snapshot import WORKSPACE_CHAT_ID, load_frame_snapshot
 from nipux_cli.parser_builder import build_arg_parser
 from nipux_cli.planning import (
     format_initial_plan,
@@ -567,7 +569,7 @@ def cmd_home(args: argparse.Namespace) -> None:
         _enter_chat(job_id, show_history=True, history_limit=args.history_limit)
         return
 
-    _enter_empty_workspace(history_limit=args.history_limit)
+    _enter_workspace_chat(history_limit=args.history_limit)
 
 
 def _enter_first_run_setup(*, history_limit: int = 12) -> None:
@@ -587,6 +589,13 @@ def _enter_empty_workspace(*, history_limit: int = 12) -> None:
     print("Create a job with: nipux create \"objective\"")
     print("Edit settings with slash commands inside a job, or use: nipux init --force")
     print("Check setup with: nipux doctor")
+
+
+def _enter_workspace_chat(*, history_limit: int = 12) -> None:
+    if _frame_chat_enabled():
+        _enter_chat_frame(WORKSPACE_CHAT_ID, history_limit=history_limit)
+        return
+    _enter_empty_workspace(history_limit=history_limit)
 
 
 def _print_first_run_menu() -> None:
@@ -697,7 +706,9 @@ def _first_token(line: str) -> str:
 
 def _enter_first_run_frame(*, history_limit: int = 12) -> None:
     next_job_id = _run_first_run_frame(deps=_first_run_runtime_deps())
-    if next_job_id:
+    if next_job_id == WORKSPACE_CHAT_ID:
+        _enter_workspace_chat(history_limit=history_limit)
+    elif next_job_id:
         _start_interactive_daemon_if_possible()
         _enter_chat(next_job_id, show_history=True, history_limit=history_limit)
 
@@ -957,7 +968,11 @@ def _chat_frame_deps() -> ChatFrameDeps:
 def _capture_chat_command(job_id: str, line: str) -> tuple[bool, str]:
     stream = StringIO()
     with redirect_stdout(stream):
-        keep_running = _chat_handle_line(job_id, line)
+        if job_id == WORKSPACE_CHAT_ID:
+            command = line[1:].strip() if line.strip().startswith("/") else line.strip()
+            keep_running = _run_shell_line(command) if command else True
+        else:
+            keep_running = _chat_handle_line(job_id, line)
     return keep_running, stream.getvalue()
 
 
@@ -984,6 +999,7 @@ def _load_frame_snapshot(job_id: str, *, history_limit: int = 12) -> dict[str, A
             job_id,
             default_job_id=_default_job_id(db),
             history_limit=history_limit,
+            workspace_events=_workspace_chat_events() if job_id == WORKSPACE_CHAT_ID else None,
         )
     finally:
         db.close()
@@ -2301,6 +2317,8 @@ def _handle_chat_message(job_id: str, line: str, *, reply_fn=None, quiet: bool =
         if not quiet:
             print(message)
         return True, message
+    if job_id == WORKSPACE_CHAT_ID:
+        return _handle_workspace_chat_message(line, quiet=quiet)
     return _controller_handle_chat_message(
         job_id,
         line,
@@ -2312,6 +2330,172 @@ def _handle_chat_message(job_id: str, line: str, *, reply_fn=None, quiet: bool =
 
 def _chat_reply_text_and_metadata(reply: Any) -> tuple[str, dict[str, Any]]:
     return _controller_reply_text_and_metadata(reply)
+
+
+def _workspace_chat_events() -> list[dict[str, Any]]:
+    events = _read_shell_state().get("workspace_chat_events")
+    if not isinstance(events, list):
+        return []
+    return [event for event in events if isinstance(event, dict)][-120:]
+
+
+def _append_workspace_chat_event(event_type: str, title: str, body: str, metadata: dict[str, Any] | None = None) -> None:
+    events = _workspace_chat_events()
+    events.append(
+        {
+            "id": f"workspace_{len(events) + 1}_{int(time.time() * 1000)}",
+            "job_id": WORKSPACE_CHAT_ID,
+            "event_type": event_type,
+            "created_at": utc_now(),
+            "title": title,
+            "body": body,
+            "metadata": metadata or {},
+        }
+    )
+    _write_shell_state({"workspace_chat_events": events[-120:]})
+
+
+def _handle_workspace_chat_message(line: str, *, quiet: bool = False) -> tuple[bool, str]:
+    _append_workspace_chat_event("operator_message", "chat", line, {"source": "workspace"})
+    objective = _extract_job_objective_from_message(line)
+    if objective:
+        message = _create_workspace_job_from_chat(line, objective)
+        _append_workspace_chat_event("agent_message", "chat", message, {"source": "workspace"})
+        if not quiet:
+            print(message)
+        return True, message
+    try:
+        reply = _reply_to_workspace_chat(line)
+    except Exception as exc:
+        message = _friendly_error_text(f"{type(exc).__name__}: {exc}")
+        _append_workspace_chat_event("agent_message", "chat", message, {"source": "workspace", "error": True})
+        if not quiet:
+            print(message)
+        return True, message
+    reply_text, reply_metadata = _chat_reply_text_and_metadata(reply)
+    text = reply_text.strip() or "I did not get a usable model reply."
+    _append_workspace_chat_event("agent_message", "chat", text, {"source": "workspace", **reply_metadata})
+    if not quiet:
+        print(text)
+    return True, text
+
+
+def _create_workspace_job_from_chat(message: str, objective: str) -> str:
+    refined = _refine_job_objective_for_worker(message=message, objective=objective)
+    job_id, title = _create_job(objective=refined, title=None, kind="generic", cadence=None)
+    _write_shell_state({"focus_job_id": job_id})
+    db, _config = _db()
+    try:
+        db.append_operator_message(job_id, message, source="workspace_chat", mode="steer")
+        db.append_agent_update(
+            job_id,
+            "Created from Nipux workspace chat with an expanded long-running objective.",
+            category="chat",
+        )
+    finally:
+        db.close()
+    run_now = not message_requests_queued_job(message) or message_requests_immediate_run(message)
+    text = f"Created worker job: {title}."
+    if run_now:
+        _start_daemon_if_needed(poll_seconds=0.0, quiet=True)
+        text += " Started worker."
+    else:
+        text += " It is queued; tell me to run it when ready."
+    return text
+
+
+def _refine_job_objective_for_worker(*, message: str, objective: str) -> str:
+    fallback = _durable_job_objective(objective)
+    try:
+        from nipux_cli.llm import OpenAIChatLLM
+
+        _db_handle, config = _db()
+        _db_handle.close()
+        prompt = [
+            {
+                "role": "system",
+                "content": (
+                    "You rewrite operator requests into strong, generic Nipux worker objectives. "
+                    "Nipux workers are long-running autonomous jobs with browser, web, CLI, file, artifact, "
+                    "memory, roadmap, task, source, finding, and experiment tools. "
+                    "Return only the objective text for the worker. Start with one concise title line, then add "
+                    "clear success criteria, output expectations, constraints, evidence requirements, progress "
+                    "reporting expectations, and instructions to keep improving until no useful progress remains. "
+                    "Do not invent hosts, credentials, accounts, domains, models, or private details that the operator did not provide."
+                ),
+            },
+            {
+                "role": "user",
+                "content": f"Operator message:\n{message}\n\nExtracted objective:\n{objective}",
+            },
+        ]
+        refined = OpenAIChatLLM(config.model).complete(messages=prompt).strip()
+    except Exception:
+        return fallback
+    if len(refined) < 20:
+        return fallback
+    return refined[:8000]
+
+
+def _durable_job_objective(objective: str) -> str:
+    cleaned = " ".join(str(objective or "").split()).strip() or "Long-running Nipux job"
+    title = _one_line(cleaned, 96)
+    return (
+        f"{title}\n\n"
+        "Run this as a durable long-running Nipux worker job.\n"
+        "- Clarify and preserve the operator's actual goal, constraints, and success criteria.\n"
+        "- Build a roadmap before deep work, then keep the task queue current as evidence changes.\n"
+        "- Produce concrete outputs as artifacts or files when the work creates something useful.\n"
+        "- Record findings, sources, lessons, experiments, and measurable results when they apply.\n"
+        "- Separate activity from progress: report what changed, what was learned, what failed, and what branch is next.\n"
+        "- Keep improving autonomously until no useful progress remains, the operator pauses the job, or a real blocker needs operator input."
+    )
+
+
+def _reply_to_workspace_chat(message: str) -> Any:
+    from nipux_cli.llm import OpenAIChatLLM
+
+    db, config = _db()
+    try:
+        jobs = db.list_jobs()[:12]
+        job_lines = []
+        for index, job in enumerate(jobs, start=1):
+            job_lines.append(
+                f"{index}. {job.get('title') or job.get('id')} "
+                f"status={job.get('status')} kind={job.get('kind')} objective={_one_line(job.get('objective') or '', 180)}"
+            )
+        workspace_events = _workspace_chat_events()[-12:]
+        history_lines = [
+            f"- {event.get('event_type')} {event.get('title')}: {_one_line(event.get('body') or '', 220)}"
+            for event in workspace_events
+        ]
+        messages = [
+            {
+                "role": "system",
+                "content": (
+                    "You are Nipux, the workspace chat model for a generic long-running agent CLI. "
+                    "Your job is to help the operator create, start, inspect, pause, resume, and steer worker jobs. "
+                    "You know the CLI concepts: jobs are long-running workers; artifacts are saved outputs; outcomes summarize durable progress; "
+                    "the work page shows tool/console calls; the jobs page shows state, outputs, tasks, memory, findings, sources, experiments, and cost. "
+                    "When the operator asks you to do new work, explain that Nipux will spin up a worker job; the harness will create the job from plain language. "
+                    "Keep replies concise, concrete, and operator-facing. Do not expose hidden chain-of-thought."
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"Model: {config.model.model}\n"
+                    f"Endpoint: {config.model.base_url}\n"
+                    f"Tools: browser={config.tools.browser}, web={config.tools.web}, CLI={config.tools.shell}, files={config.tools.files}\n\n"
+                    f"Jobs:\n{chr(10).join(job_lines) or 'No worker jobs yet.'}\n\n"
+                    f"Recent workspace chat:\n{chr(10).join(history_lines) or 'None yet.'}\n\n"
+                    f"Operator message:\n{message}"
+                ),
+            },
+        ]
+    finally:
+        db.close()
+    return OpenAIChatLLM(config.model).complete_response(messages=messages)
 
 
 def _handle_chat_control_intent(job_id: str, line: str, *, quiet: bool = False) -> tuple[bool, str] | None:

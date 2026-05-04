@@ -10,6 +10,7 @@ from typing import Callable
 
 from nipux_cli.settings import config_field_value
 from nipux_cli.tui_commands import CHAT_SETTING_COMMANDS
+from nipux_cli.frame_snapshot import WORKSPACE_CHAT_ID
 
 
 TOGGLE_SETTING_COMMANDS = {
@@ -33,8 +34,10 @@ class FirstRunFrameDeps:
 
 
 def handle_first_run_action(action: str, *, deps: FirstRunFrameDeps) -> tuple[str, str | list[str] | None]:
-    if action == "view:job" and not deps.model_setup_verified():
+    if action == "open_workspace" and not deps.model_setup_verified():
         return "notice", "Run Doctor first. The workspace opens only after the configured model accepts a chat request."
+    if action == "open_workspace":
+        return "open", WORKSPACE_CHAT_ID
     if action.startswith("view:"):
         return "view", action.split(":", 1)[1]
     if action == "preset:local":
@@ -87,7 +90,7 @@ def handle_first_run_frame_line(line: str, *, deps: FirstRunFrameDeps) -> tuple[
             "Doctor must verify the configured model before the workspace opens.",
         ]
     if lowered in {"1", "new"}:
-        return "notice", "Type the first job objective when the setup reaches the final step."
+        return "notice", "Finish setup first. Then tell Nipux what job to create from the chat workspace."
     if lowered.startswith("new "):
         result = create_first_run_job(original[4:].strip(), deps=deps)
         return ("open", result) if isinstance(result, str) else ("notice", result)

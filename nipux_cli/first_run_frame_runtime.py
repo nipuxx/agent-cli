@@ -78,23 +78,6 @@ def run_first_run_frame(*, deps: FirstRunRuntimeDeps) -> str | None:
                 needs_render = True
                 continue
             if editing_field is not None:
-                if editing_field == "job.objective" and char in {"\r", "\n"}:
-                    if not buffer.strip():
-                        _append_notice(notices, "First job objective is required.", limit=10)
-                        needs_render = True
-                        continue
-                    try:
-                        action, payload = deps.handle_line(f"new {buffer.strip()}")
-                    except Exception as exc:
-                        action, payload = "notice", f"job creation failed: {type(exc).__name__}: {_one_line(exc, 100)}"
-                    buffer = ""
-                    state = _apply_first_run_action(action, payload, view=view, selected=selected, notices=notices)
-                    view, selected, editing_field, next_job_id, should_exit = state
-                    if should_exit:
-                        return None
-                    editing_field = editing_field or required_first_run_edit_field(view)
-                    needs_render = True
-                    continue
                 previous_edit = editing_field
                 try:
                     buffer, editing_field, should_exit = _handle_edit_input(
@@ -240,7 +223,7 @@ def _submit_first_run_line(
         if not actions:
             return "notice", "This setup step requires an explicit value."
         return deps.handle_action(actions[clamp_selection(selected, actions)][0])
-    if view not in {"job"} and not line.startswith("/"):
+    if not line.startswith("/"):
         return "notice", "Complete the active setup field before continuing."
     return deps.handle_line(line)
 
@@ -383,7 +366,6 @@ def required_first_run_edit_field(view: str) -> str | None:
         "endpoint": "model.base_url",
         "api": "secret:model.api_key",
         "model": "model.name",
-        "job": "job.objective",
     }.get(view)
 
 

@@ -31,7 +31,6 @@ INSTALL_FLOW = [
     ("model", "Model", "choose the model id"),
     ("access", "Tools", "browser, web, CLI, files"),
     ("doctor", "Doctor", "check setup"),
-    ("job", "First job", "describe long-running work"),
 ]
 
 
@@ -48,9 +47,8 @@ FIRST_RUN_ACTIONS_BY_VIEW: dict[str, list[tuple[str, str, str]]] = {
     ],
     "doctor": [
         ("doctor", "Run doctor", "verify setup"),
-        ("view:job", "Continue", "create work"),
+        ("open_workspace", "Open chat", "talk to Nipux"),
     ],
-    "job": [],
 }
 
 
@@ -147,15 +145,6 @@ def _wizard_body_lines(
         lines = _access_page_lines(config=config, selected=selected, width=width)
     elif view == "doctor":
         lines = _doctor_page_lines(config=config, selected=selected, width=width)
-    elif view == "job":
-        lines = _job_page_lines(
-            jobs=jobs,
-            config=config,
-            home=home,
-            config_path=config_path,
-            selected=selected,
-            width=width,
-        )
     else:
         lines = _endpoint_page_lines(config=config, selected=selected, width=width)
     if notices:
@@ -272,39 +261,6 @@ def _doctor_page_lines(*, config: AppConfig, selected: int, width: int) -> list[
         *_panel("DOCTOR", rows, width=min(90, width - 8), page_width=width),
         "",
         *_action_cards(first_run_actions("doctor"), selected=selected, config=config, width=width),
-    ]
-
-
-def _job_page_lines(
-    *,
-    jobs: list[dict[str, Any]],
-    config: AppConfig,
-    home: str,
-    config_path: str,
-    selected: int,
-    width: int,
-) -> list[str]:
-    job_state = f"{len(jobs)} saved job" + ("" if len(jobs) == 1 else "s")
-    return [
-        *_step_header("job", width=width),
-        "",
-        _center_ansi(_muted(_step_count_label("job")), width),
-        _center_ansi(_bold("Enter the first job"), width),
-        _center_ansi(_muted("Describe durable work for the agent. Blank input is not accepted."), width),
-        "",
-        *_panel(
-            "READY",
-            [
-                f"{_muted('model')}  {_bold(config.model.model)}",
-                f"{_muted('home')}   {_one_line(home, 64)}",
-                f"{_muted('config')} {_one_line(config_path, 64)}",
-                f"{_muted('jobs')}   {job_state}",
-            ],
-            width=min(86, width - 8),
-            page_width=width,
-        ),
-        "",
-        _center_ansi(_muted("Press Enter after typing the objective. The workspace opens only after creation."), width),
     ]
 
 
@@ -480,11 +436,6 @@ def _screen_value_lines(view: str, *, config: AppConfig, width: int) -> list[str
             _large_value("check", "ready to run", width=width),
             _muted("Doctor verifies runtime checks, then sends a small chat request to the configured model."),
         ]
-    if view == "job":
-        return [
-            _large_value("goal", "type it below", width=width),
-            _muted("Paste an objective or type new OBJECTIVE. Nipux opens the main workspace after creation."),
-        ]
     return []
 
 
@@ -521,8 +472,6 @@ def _step_state(key: str, *, config: AppConfig) -> str:
         return f"{enabled}/4 enabled"
     if key == "doctor":
         return "pending"
-    if key == "job":
-        return "next"
     return ""
 
 
@@ -533,12 +482,10 @@ def _first_run_hint(view: str) -> str:
         return "Required: type an API key, or type skip for a local endpoint."
     if view == "model":
         return "Required: type the model id accepted by this endpoint."
-    if view == "job":
-        return "Required: type the first long-running objective."
     if view == "access":
         return "Use arrows/clicks to toggle tools, then choose Continue."
     if view == "doctor":
-        return "Run Doctor. Continue unlocks only after the model responds."
+        return "Run Doctor, then open the chat workspace."
     return "Complete setup before the workspace opens."
 
 
@@ -549,8 +496,6 @@ def _first_run_edit_hint(field: str, config: AppConfig) -> str:
         return "API key required for hosted endpoints. For local endpoints, type skip."
     if field == "model.name":
         return "Model id required. Enter saves and advances. Blank input is blocked."
-    if field == "job.objective":
-        return "First job objective required. Enter creates the workspace."
     return edit_target_hint(field, config)
 
 
@@ -561,8 +506,6 @@ def _first_run_prompt_label(field: str) -> str:
         return "API key"
     if field == "model.name":
         return "Model"
-    if field == "job.objective":
-        return "Objective"
     return edit_target_label(field)
 
 
@@ -577,7 +520,6 @@ def _screen_heading(view: str) -> str:
         "api": "Add API key",
         "access": "Choose tools",
         "doctor": "Run checks",
-        "job": "Create first job",
     }.get(view, "Connect endpoint")
 
 
@@ -587,8 +529,7 @@ def _screen_copy(view: str) -> str:
         "endpoint": "Use any OpenAI-compatible /v1 endpoint. This stays generic and provider-neutral.",
         "api": "Hosted providers need a secret. Local endpoints can continue without one.",
         "access": "Enable the generic tools this worker can use for any job.",
-        "doctor": "Run a setup check before opening the workspace.",
-        "job": "The first job opens the main chat/workspace screen.",
+        "doctor": "Verify the configured model, then open the main chat workspace.",
     }.get(view, "Nipux installs through this full-screen setup.")
 
 

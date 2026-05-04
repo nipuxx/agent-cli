@@ -44,6 +44,7 @@ from nipux_cli.first_run_frame_runtime import FirstRunRuntimeDeps as _FirstRunRu
 from nipux_cli.first_run_frame_runtime import _safe_render_frame as _safe_first_run_render_frame
 from nipux_cli.first_run_frame_runtime import _submit_first_run_line as _submit_first_run_line
 from nipux_cli.first_run_frame_runtime import directional_first_run_action as _directional_first_run_action
+from nipux_cli.frame_snapshot import WORKSPACE_CHAT_ID
 from nipux_cli.tui_commands import (
     CHAT_SLASH_COMMANDS,
     FIRST_RUN_SLASH_COMMANDS,
@@ -1009,6 +1010,27 @@ def test_first_run_access_action_toggles_generic_tools(monkeypatch, tmp_path):
     assert isinstance(payload, list)
     assert any("saved tools.shell = False" in line for line in payload)
     assert _config_field_value("tools.shell") is False
+
+
+def test_first_run_doctor_continue_opens_workspace_chat(monkeypatch, tmp_path):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    _mark_test_model_ready()
+
+    action, payload = _handle_first_run_action("open_workspace")
+
+    assert action == "open"
+    assert payload == WORKSPACE_CHAT_ID
+
+
+def test_workspace_frame_snapshot_exists_without_jobs(monkeypatch, tmp_path):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    _mark_test_model_ready()
+
+    snapshot = _load_frame_snapshot(WORKSPACE_CHAT_ID, history_limit=4)
+
+    assert snapshot["job_id"] == WORKSPACE_CHAT_ID
+    assert snapshot["job"]["kind"] == "workspace"
+    assert snapshot["jobs"] == []
 
 
 def test_shell_ls_alias_lists_jobs_instead_of_steering(monkeypatch, tmp_path, capsys):
@@ -2686,6 +2708,42 @@ def test_chat_can_spawn_new_job_from_plain_message(monkeypatch, tmp_path, capsys
         assert "Started worker" in out
         assert started["poll_seconds"] == 0.0
         assert started["quiet"] is True
+    finally:
+        db.close()
+
+
+def test_workspace_chat_can_create_refined_worker_job(monkeypatch, tmp_path):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    _mark_test_model_ready()
+    started = {}
+
+    def fake_start(**kwargs):
+        started.update(kwargs)
+
+    monkeypatch.setattr("nipux_cli.cli._start_daemon_if_needed", fake_start)
+    monkeypatch.setattr(
+        "nipux_cli.cli._refine_job_objective_for_worker",
+        lambda *, message, objective: f"{objective}\n\nRefined durable objective with success criteria and artifacts.",
+    )
+
+    ok, message = _handle_chat_message(
+        WORKSPACE_CHAT_ID,
+        "create a job to research browser automation libraries",
+        quiet=True,
+    )
+
+    assert ok is True
+    assert "Created worker job" in message
+    assert started["quiet"] is True
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        jobs = db.list_jobs()
+        assert len(jobs) == 1
+        assert "Refined durable objective" in jobs[0]["objective"]
+        snapshot = _load_frame_snapshot(WORKSPACE_CHAT_ID, history_limit=4)
+        bodies = "\n".join(str(event.get("body") or "") for event in snapshot["events"])
+        assert "create a job" in bodies
+        assert "Created worker job" in bodies
     finally:
         db.close()
 

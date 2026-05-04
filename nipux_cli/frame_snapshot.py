@@ -10,6 +10,9 @@ from nipux_cli.db import AgentDB
 from nipux_cli.tui_outcomes import SUMMARY_EVENT_TYPES, SUMMARY_TOOL_EVENT_TYPES, is_summary_event_candidate
 
 
+WORKSPACE_CHAT_ID = "__workspace__"
+
+
 def load_frame_snapshot(
     db: AgentDB,
     config: AppConfig,
@@ -17,10 +20,18 @@ def load_frame_snapshot(
     *,
     default_job_id: str | None = None,
     history_limit: int = 12,
+    workspace_events: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Return the compact state bundle rendered by the chat TUI."""
 
     resolved_job_id = job_id or default_job_id
+    if resolved_job_id == WORKSPACE_CHAT_ID:
+        return load_workspace_frame_snapshot(
+            db,
+            config,
+            history_limit=history_limit,
+            workspace_events=workspace_events or [],
+        )
     job = db.get_job(resolved_job_id)
     jobs = db.list_jobs()
     token_usage = db.job_token_usage(resolved_job_id)
@@ -57,6 +68,66 @@ def load_frame_snapshot(
         "context_length": config.model.context_length,
         "token_usage": token_usage,
         "counts": db.job_record_counts(resolved_job_id),
+    }
+
+
+def load_workspace_frame_snapshot(
+    db: AgentDB,
+    config: AppConfig,
+    *,
+    history_limit: int = 12,
+    workspace_events: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Return the chat/control frame before any worker job is focused."""
+
+    jobs = db.list_jobs()
+    events = list(workspace_events or [])[-max(history_limit * 8, 80) :]
+    return {
+        "job_id": WORKSPACE_CHAT_ID,
+        "job": {
+            "id": WORKSPACE_CHAT_ID,
+            "title": "Nipux",
+            "objective": "Chat with Nipux to create, start, inspect, and steer long-running worker jobs.",
+            "kind": "workspace",
+            "status": "ready",
+            "metadata": {},
+        },
+        "jobs": jobs,
+        "steps": [],
+        "artifacts": [],
+        "job_artifacts": {
+            str(item["id"]): db.list_artifacts(str(item["id"]), limit=3)
+            for item in jobs[:6]
+            if item.get("id")
+        },
+        "job_summary_events": {
+            str(item["id"]): _summary_events(db, str(item["id"]), history_limit=3)
+            for item in jobs[:6]
+            if item.get("id")
+        },
+        "job_counts": {
+            str(item["id"]): db.job_record_counts(str(item["id"]))
+            for item in jobs[:6]
+            if item.get("id")
+        },
+        "memory_entries": [],
+        "events": events,
+        "summary_events": [],
+        "daemon": daemon_lock_status(config.runtime.home / "agentd.lock"),
+        "model": config.model.model,
+        "base_url": config.model.base_url,
+        "context_length": config.model.context_length,
+        "token_usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "cost": 0.0,
+            "calls": 0,
+            "has_cost": False,
+            "input_cost_per_million": config.model.input_cost_per_million,
+            "output_cost_per_million": config.model.output_cost_per_million,
+        },
+        "counts": {"steps": 0, "artifacts": 0, "memory": 0, "events": len(events)},
     }
 
 
