@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
 from collections.abc import Callable, Sequence
 from pathlib import Path
 
 
 GitRunner = Callable[[Sequence[str], Path], subprocess.CompletedProcess[str]]
+CommandRunner = Callable[[Sequence[str]], subprocess.CompletedProcess[str]]
 
 
 def find_checkout_root(start: str | Path | None = None) -> Path | None:
@@ -28,16 +30,19 @@ def update_checkout(
     path: str | Path | None = None,
     allow_dirty: bool = False,
     runner: GitRunner | None = None,
+    command_runner: CommandRunner | None = None,
 ) -> tuple[int, list[str]]:
     """Fast-forward the current Nipux git checkout and return output lines."""
 
     root = Path(path).expanduser().resolve() if path else find_checkout_root()
     if not root or not (root / ".git").exists():
+        if path is None:
+            return _update_uv_tool_install(runner=command_runner)
         return (
             1,
             [
                 "Cannot update: this Nipux install is not a git checkout.",
-                "Run from a cloned repository, or update with your package manager.",
+                "Run from a cloned repository, or update the installed package with your package manager.",
             ],
         )
     run = runner or _run_git
@@ -72,10 +77,41 @@ def update_checkout(
     return 0, lines
 
 
+def _update_uv_tool_install(*, runner: CommandRunner | None = None) -> tuple[int, list[str]]:
+    uv = shutil.which("uv")
+    if not uv:
+        return (
+            1,
+            [
+                "Cannot update: this Nipux install is not a git checkout and `uv` was not found.",
+                "Run from a cloned repository, or update the installed package with your package manager.",
+            ],
+        )
+    run = runner or _run_command
+    lines = ["No git checkout found for this install.", "Updating installed Nipux tool with `uv tool upgrade nipux`."]
+    upgraded = run([uv, "tool", "upgrade", "nipux"])
+    lines.extend(_process_lines(upgraded))
+    if upgraded.returncode != 0:
+        return upgraded.returncode, ["Update failed.", *lines]
+    lines.append("Updated installed Nipux tool.")
+    lines.append("If the daemon is running, run `nipux restart` so it loads the new code.")
+    return 0, lines
+
+
 def _run_git(command: Sequence[str], cwd: Path) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         list(command),
         cwd=cwd,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        check=False,
+    )
+
+
+def _run_command(command: Sequence[str]) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        list(command),
         text=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,

@@ -1163,6 +1163,24 @@ def test_update_checkout_refuses_non_git_path(tmp_path):
     assert "not a git checkout" in " ".join(lines)
 
 
+def test_update_checkout_upgrades_uv_tool_when_installed_package(monkeypatch):
+    monkeypatch.setattr("nipux_cli.updater.find_checkout_root", lambda: None)
+    monkeypatch.setattr("shutil.which", lambda name: "/usr/bin/uv" if name == "uv" else None)
+    calls: list[tuple[str, ...]] = []
+
+    def runner(command):
+        calls.append(tuple(command))
+        return subprocess.CompletedProcess(command, 0, stdout="Resolved 1 package\nInstalled nipux\n")
+
+    code, lines = _update_checkout(command_runner=runner)
+
+    assert code == 0
+    assert calls == [("/usr/bin/uv", "tool", "upgrade", "nipux")]
+    rendered = "\n".join(lines)
+    assert "No git checkout found" in rendered
+    assert "Updated installed Nipux tool" in rendered
+
+
 def test_update_checkout_fast_forwards_git_checkout(tmp_path):
     repo = tmp_path / "repo"
     repo.mkdir()
