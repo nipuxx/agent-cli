@@ -27,9 +27,10 @@ from nipux_cli.cli_state import (
     configured_focus_job_id as _configured_focus_job_id,
     default_job_id as _default_job_id,
     find_job as _find_job,
-    mark_setup_completed as _mark_setup_completed,
+    clear_model_setup_verified as _clear_model_setup_verified,
+    mark_model_setup_verified as _mark_model_setup_verified,
+    model_setup_verified as _model_setup_verified,
     read_shell_state as _read_shell_state,
-    setup_completed as _setup_completed,
     write_shell_state as _write_shell_state,
 )
 from nipux_cli.cli_render import (
@@ -349,6 +350,8 @@ def cmd_uninstall(args: argparse.Namespace) -> None:
 
 
 def cmd_create(args: argparse.Namespace) -> None:
+    if not _ensure_model_setup_verified_for_workspace():
+        raise SystemExit(1)
     job_id, title = _create_job(
         objective=args.objective,
         title=args.title,
@@ -356,6 +359,15 @@ def cmd_create(args: argparse.Namespace) -> None:
         cadence=args.cadence,
     )
     print(f"created {title}")
+
+
+def _ensure_model_setup_verified_for_workspace() -> bool:
+    if _model_setup_verified(load_config()):
+        return True
+    print("Model setup is not verified.")
+    print("Run `nipux` and finish setup, or run `nipux doctor --check-model` after configuring a provider.")
+    print("Jobs and chat stay locked until the configured model accepts a chat request.")
+    return False
 
 
 def _create_job(
@@ -397,7 +409,6 @@ def _create_job(
             encoding="utf-8",
         )
         _write_shell_state({"focus_job_id": job_id})
-        _mark_setup_completed()
         return job_id, title
     finally:
         db.close()
@@ -507,6 +518,8 @@ def cmd_delete(args: argparse.Namespace) -> None:
 
 
 def cmd_chat(args: argparse.Namespace) -> None:
+    if not _ensure_model_setup_verified_for_workspace():
+        return
     db, _ = _db()
     try:
         job_id = _resolve_job_id(db, args.job_id)
@@ -523,6 +536,9 @@ def cmd_chat(args: argparse.Namespace) -> None:
 
 def cmd_home(args: argparse.Namespace) -> None:
     _install_readline_history()
+    if not _model_setup_verified(load_config()):
+        _enter_first_run_setup(history_limit=args.history_limit)
+        return
     db, _ = _db()
     try:
         job_id = _default_job_id(db)
@@ -532,11 +548,7 @@ def cmd_home(args: argparse.Namespace) -> None:
         _enter_chat(job_id, show_history=True, history_limit=args.history_limit)
         return
 
-    if _setup_completed():
-        _enter_empty_workspace(history_limit=args.history_limit)
-        return
-
-    _enter_first_run_setup(history_limit=args.history_limit)
+    _enter_empty_workspace(history_limit=args.history_limit)
 
 
 def _enter_first_run_setup(*, history_limit: int = 12) -> None:
@@ -651,9 +663,10 @@ def _prompt_first_run_value(label: str) -> str:
 
 
 def _first_run_create_and_open(objective: str, *, history_limit: int = 12) -> None:
+    if not _ensure_model_setup_verified_for_workspace():
+        return
     job_id, title = _create_job(objective=objective, title=None, kind="generic", cadence=None)
     print(f"created {title}")
-    _mark_setup_completed()
     _start_interactive_daemon_if_possible()
     print("Opening workspace.")
     _enter_chat(job_id, show_history=True, history_limit=history_limit)
@@ -773,6 +786,8 @@ def _first_run_frame_deps() -> FirstRunFrameDeps:
         create_job=_create_job,
         current_default_job_id=_current_default_job_id,
         extract_objective=_extract_job_objective_from_message,
+        model_setup_verified=lambda: _model_setup_verified(load_config()),
+        verify_model_setup=_verify_model_setup_from_first_run,
         shell_command_names=SHELL_COMMAND_NAMES,
     )
 
@@ -845,6 +860,8 @@ def _build_first_run_frame(
 
 
 def _enter_chat(job_id: str, *, show_history: bool, history_limit: int = 12) -> None:
+    if not _ensure_model_setup_verified_for_workspace():
+        return
     _install_readline_history()
     startup_note = _start_interactive_daemon_if_possible()
     if _frame_chat_enabled():
@@ -2003,6 +2020,9 @@ def cmd_run_one(args: argparse.Namespace) -> None:
         if not job_id:
             print(f"No job matched: {_job_ref_text(args.job_id)}")
             return
+        if not args.fake and not _model_setup_verified(config):
+            _ensure_model_setup_verified_for_workspace()
+            return
         _activate_job_if_planning(db, job_id)
         llm = None
         if args.fake:
@@ -2039,6 +2059,9 @@ def cmd_work(args: argparse.Namespace) -> None:
         job_id = _resolve_job_id(db, args.job_id)
         if not job_id:
             print('No jobs found. Create one with: nipux create "objective"')
+            return
+        if not args.fake and not _model_setup_verified(config):
+            _ensure_model_setup_verified_for_workspace()
             return
         _activate_job_if_planning(db, job_id)
         job = db.get_job(job_id)
@@ -2090,6 +2113,9 @@ def cmd_work(args: argparse.Namespace) -> None:
 
 
 def cmd_run(args: argparse.Namespace) -> None:
+    if not args.fake and not _model_setup_verified(load_config()):
+        _ensure_model_setup_verified_for_workspace()
+        return
     requested = _job_ref_text(args.job_id)
     if requested:
         db, _ = _db()
@@ -2185,12 +2211,32 @@ def cmd_daemon(args: argparse.Namespace) -> None:
 
 
 def cmd_doctor(args: argparse.Namespace) -> None:
-    checks = run_doctor(check_model=args.check_model)
+    config = load_config()
+    checks = run_doctor(config=config, check_model=args.check_model)
     for check in checks:
         status = "ok" if check.ok else "fail"
         print(f"{status}\t{check.name}\t{check.detail}")
-    if not all(check.ok for check in checks):
+    ok = all(check.ok for check in checks)
+    if args.check_model:
+        if ok:
+            _mark_model_setup_verified(config)
+            print("ok\tmodel_setup\tverified for workspace and chat")
+        else:
+            _clear_model_setup_verified()
+    if not ok:
         raise SystemExit(1)
+
+
+def _verify_model_setup_from_first_run() -> list[str]:
+    stream = StringIO()
+    with redirect_stdout(stream):
+        try:
+            cmd_doctor(argparse.Namespace(check_model=True))
+        except SystemExit as exc:
+            if exc.code not in (None, 0):
+                print("Model setup is not ready. Fix the failed check above before creating a job.")
+    lines = [" ".join(item.split()) for item in stream.getvalue().splitlines() if item.strip()]
+    return lines[-12:] or ["done"]
 
 
 def _chat_handle_line(job_id: str, line: str, *, reply_fn=None) -> bool:
@@ -2242,6 +2288,13 @@ def _chat_handle_line(job_id: str, line: str, *, reply_fn=None) -> bool:
 
 
 def _handle_chat_message(job_id: str, line: str, *, reply_fn=None, quiet: bool = False) -> tuple[bool, str]:
+    if not _model_setup_verified(load_config()):
+        message = (
+            "Model setup is not verified. Complete setup or run /doctor after configuring a working provider."
+        )
+        if not quiet:
+            print(message)
+        return True, message
     return _controller_handle_chat_message(
         job_id,
         line,

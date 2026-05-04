@@ -27,10 +27,14 @@ class FirstRunFrameDeps:
     create_job: Callable[..., tuple[str, str]]
     current_default_job_id: Callable[[], str | None]
     extract_objective: Callable[[str], str]
+    model_setup_verified: Callable[[], bool]
+    verify_model_setup: Callable[[], list[str]]
     shell_command_names: set[str]
 
 
 def handle_first_run_action(action: str, *, deps: FirstRunFrameDeps) -> tuple[str, str | list[str] | None]:
+    if action == "view:job" and not deps.model_setup_verified():
+        return "notice", "Run Doctor first. The workspace opens only after the configured model accepts a chat request."
     if action.startswith("view:"):
         return "view", action.split(":", 1)[1]
     if action == "preset:local":
@@ -59,7 +63,7 @@ def handle_first_run_action(action: str, *, deps: FirstRunFrameDeps) -> tuple[st
     if action == "jobs":
         return "notice", deps.capture_command("jobs")
     if action == "doctor":
-        return "notice", deps.capture_command("doctor")
+        return "notice", deps.verify_model_setup()
     if action == "init":
         return "notice", deps.capture_command("init")
     if action == "exit":
@@ -85,7 +89,8 @@ def handle_first_run_frame_line(line: str, *, deps: FirstRunFrameDeps) -> tuple[
     if lowered in {"1", "new"}:
         return "notice", "Type `new OBJECTIVE` or paste the objective directly."
     if lowered.startswith("new "):
-        return "open", create_first_run_job(original[4:].strip(), deps=deps)
+        result = create_first_run_job(original[4:].strip(), deps=deps)
+        return ("open", result) if isinstance(result, str) else ("notice", result)
     if lowered in {"2", "jobs", "ls"}:
         return "notice", deps.capture_command("jobs")
     if lowered == "settings":
@@ -93,7 +98,7 @@ def handle_first_run_frame_line(line: str, *, deps: FirstRunFrameDeps) -> tuple[
     if lowered in {"back"}:
         return "view", "start"
     if lowered in {"3", "doctor"}:
-        return "notice", deps.capture_command("doctor")
+        return "notice", deps.verify_model_setup()
     if lowered in {"4", "init"}:
         return "notice", deps.capture_command("init")
     if lowered == "shell":
@@ -112,7 +117,8 @@ def handle_first_run_frame_line(line: str, *, deps: FirstRunFrameDeps) -> tuple[
         return "notice", output
     objective = deps.extract_objective(original)
     if objective:
-        return "open", create_first_run_job(objective, deps=deps)
+        result = create_first_run_job(objective, deps=deps)
+        return ("open", result) if isinstance(result, str) else ("notice", result)
     return "notice", first_run_chat_reply(original)
 
 
@@ -129,6 +135,12 @@ def create_first_run_job(objective: str, *, deps: FirstRunFrameDeps) -> str | li
     objective = objective.strip()
     if not objective:
         return ["No job created. Type an objective first."]
+    if not deps.model_setup_verified():
+        return [
+            "No job created.",
+            "Finish model setup first: choose a connector, set the endpoint/key if needed, then run Doctor.",
+            "Doctor must confirm that the configured model accepts a chat request.",
+        ]
     job_id, _title = deps.create_job(objective=objective, title=None, kind="generic", cadence=None)
     return job_id
 

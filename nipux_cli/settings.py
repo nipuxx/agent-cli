@@ -9,6 +9,7 @@ from typing import Any
 import yaml
 
 from nipux_cli.config import default_config_yaml, get_agent_home, load_config, write_private_text
+from nipux_cli.cli_state import clear_model_setup_verified
 from nipux_cli.tui_commands import SETTINGS_FIELD_TYPES
 
 
@@ -56,11 +57,13 @@ def inline_setting_notice(field: str, raw_value: str) -> str:
         config = load_config()
         name = config.model.api_key_env
         _save_env_secret(name, value)
+        clear_model_setup_verified()
         return f"saved {name} in {_short_path(get_agent_home() / '.env')}"
     try:
         saved = save_config_field(field, value)
     except ValueError as exc:
         return f"{field}: {exc}"
+    clear_model_setup_verified()
     return f"saved {field} = {saved}"
 
 

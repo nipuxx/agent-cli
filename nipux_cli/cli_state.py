@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from nipux_cli.config import load_config
+from nipux_cli.config import AppConfig, load_config
 from nipux_cli.db import AgentDB
 
 
@@ -81,3 +83,44 @@ def setup_completed() -> bool:
 
 def mark_setup_completed() -> None:
     write_shell_state({"setup_completed": True})
+
+
+def model_setup_fingerprint(config: AppConfig | None = None) -> str:
+    config = config or load_config()
+    key_hash = hashlib.sha256(config.model.api_key.encode("utf-8")).hexdigest() if config.model.api_key else ""
+    payload = {
+        "model": config.model.model,
+        "base_url": config.model.base_url,
+        "api_key_env": config.model.api_key_env,
+        "api_key_hash": key_hash,
+    }
+    return hashlib.sha256(json.dumps(payload, sort_keys=True).encode("utf-8")).hexdigest()
+
+
+def model_setup_verified(config: AppConfig | None = None) -> bool:
+    state = read_shell_state()
+    marker = state.get("model_setup_verified")
+    if not isinstance(marker, dict) or not marker.get("ok"):
+        return False
+    return marker.get("fingerprint") == model_setup_fingerprint(config)
+
+
+def mark_model_setup_verified(config: AppConfig | None = None) -> None:
+    config = config or load_config()
+    write_shell_state(
+        {
+            "setup_completed": True,
+            "model_setup_verified": {
+                "ok": True,
+                "fingerprint": model_setup_fingerprint(config),
+                "checked_at": datetime.now(timezone.utc).isoformat(),
+                "model": config.model.model,
+                "base_url": config.model.base_url,
+                "api_key_env": config.model.api_key_env,
+            },
+        }
+    )
+
+
+def clear_model_setup_verified() -> None:
+    write_shell_state({"model_setup_verified": {}})

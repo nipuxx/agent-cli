@@ -10,9 +10,9 @@ import sys
 import time
 from pathlib import Path
 from typing import Any, Callable
-from urllib.parse import urlparse
 
 from nipux_cli.config import AppConfig, load_config
+from nipux_cli.cli_state import clear_model_setup_verified, mark_model_setup_verified
 from nipux_cli.daemon import daemon_lock_status
 from nipux_cli.doctor import run_doctor
 
@@ -24,10 +24,6 @@ PidAliveFn = Callable[[int], bool]
 
 
 def remote_model_preflight_failures(config: Any, *, doctor_fn: Callable[..., list[Any]] = run_doctor) -> list[str]:
-    host = (urlparse(config.model.base_url).hostname or "").lower()
-    local_hosts = {"", "localhost", "127.0.0.1", "::1", "0.0.0.0"}
-    if host in local_hosts or host.endswith(".local"):
-        return []
     blocking = {"model_config", "model_auth", "model_endpoint", "model_generation"}
     checks = doctor_fn(config=config, check_model=True)
     return [f"{check.name}: {check.detail}" for check in checks if not check.ok and check.name in blocking]
@@ -43,7 +39,9 @@ def ensure_remote_model_ready_for_worker(
         return True
     failures = remote_model_preflight_failures(config, doctor_fn=doctor_fn)
     if not failures:
+        mark_model_setup_verified(config)
         return True
+    clear_model_setup_verified()
     print("model is not ready; daemon not started")
     for failure in failures:
         print(f"  fail {failure}")

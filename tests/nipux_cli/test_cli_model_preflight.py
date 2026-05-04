@@ -5,7 +5,14 @@ from nipux_cli.doctor import Check
 
 
 def _config(base_url: str):
-    return SimpleNamespace(model=SimpleNamespace(base_url=base_url))
+    return SimpleNamespace(
+        model=SimpleNamespace(
+            model="provider/model",
+            base_url=base_url,
+            api_key="",
+            api_key_env="TEST_API_KEY",
+        )
+    )
 
 
 def test_remote_model_preflight_blocks_rejected_auth(monkeypatch, capsys):
@@ -32,13 +39,17 @@ def test_remote_model_preflight_skips_fake_runs(monkeypatch):
     assert _ensure_remote_model_ready_for_worker(_config("https://openrouter.ai/api/v1"), fake=True) is True
 
 
-def test_remote_model_preflight_does_not_block_local_endpoints(monkeypatch):
+def test_model_preflight_checks_local_endpoints(monkeypatch):
+    called = {}
+
     def fake_doctor(*, config, check_model):
-        raise AssertionError("local endpoints are checked by the worker, not daemon preflight")
+        called["check_model"] = check_model
+        return []
 
     monkeypatch.setattr("nipux_cli.cli.run_doctor", fake_doctor)
 
     assert _ensure_remote_model_ready_for_worker(_config("http://localhost:11434/v1"), fake=False) is True
+    assert called["check_model"] is True
 
 
 def test_start_does_not_spawn_daemon_when_model_preflight_fails(monkeypatch, tmp_path):

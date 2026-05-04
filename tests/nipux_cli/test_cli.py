@@ -33,9 +33,11 @@ from nipux_cli.cli import (
     main,
 )
 from nipux_cli.config import load_config
-from nipux_cli.cli_state import write_shell_state as _write_shell_state_direct
+from nipux_cli.cli_state import mark_model_setup_verified as _mark_model_setup_verified
+from nipux_cli.cli_state import model_setup_verified as _model_setup_verified
 from nipux_cli.daemon import append_daemon_event
 from nipux_cli.db import AgentDB
+from nipux_cli.doctor import Check
 from nipux_cli.llm import LLMResponse
 from nipux_cli.settings import inline_setting_notice as _inline_setting_notice
 from nipux_cli.first_run_frame_runtime import FirstRunRuntimeDeps as _FirstRunRuntimeDeps
@@ -57,6 +59,11 @@ from nipux_cli.updater import update_checkout as _update_checkout
 
 def _mode(path):
     return path.stat().st_mode & 0o777
+
+
+def _mark_test_model_ready() -> None:
+    load_config().ensure_dirs()
+    _mark_model_setup_verified(load_config())
 
 
 def test_cli_has_operator_commands():
@@ -198,6 +205,7 @@ def test_shell_freeform_text_adds_operator_message(monkeypatch, tmp_path, capsys
 
 def test_main_no_args_enters_chat_first_home(monkeypatch, tmp_path, capsys):
     monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    _mark_test_model_ready()
     db = AgentDB(tmp_path / "state.db")
     try:
         job_id = db.create_job("Research topic", title="research")
@@ -238,10 +246,23 @@ def test_main_no_args_with_no_jobs_requires_setup_frame(monkeypatch, tmp_path, c
     assert "nipux menu >" not in out
 
 
-def test_main_no_args_after_setup_complete_does_not_reopen_setup(monkeypatch, tmp_path, capsys):
+def test_main_no_args_with_old_setup_marker_still_requires_model_verification(monkeypatch, tmp_path, capsys):
     monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
     load_config().ensure_dirs()
-    _write_shell_state_direct({"setup_completed": True})
+    from nipux_cli.cli_state import write_shell_state as write_shell_state
+
+    write_shell_state({"setup_completed": True})
+
+    main([])
+
+    out = capsys.readouterr().out
+    assert "Nipux setup requires an interactive terminal." in out
+    assert "No jobs are saved in this profile." not in out
+
+
+def test_main_no_args_after_setup_complete_does_not_reopen_setup(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    _mark_test_model_ready()
 
     main([])
 
@@ -251,8 +272,55 @@ def test_main_no_args_after_setup_complete_does_not_reopen_setup(monkeypatch, tm
     assert "Begin setup" not in out
 
 
+def test_first_run_refuses_job_before_model_is_verified(monkeypatch, tmp_path):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+
+    result = _handle_first_run_frame_line("new Build a durable workflow")
+
+    assert result[0] == "notice"
+    assert "No job created." in result[1]
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        assert db.list_jobs() == []
+    finally:
+        db.close()
+
+
+def test_doctor_check_model_marks_model_setup_verified(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+
+    def fake_doctor(*, config, check_model):
+        assert check_model is True
+        return [
+            Check("state_dir_writable", True, "ok"),
+            Check("sqlite", True, "ok"),
+            Check("model_config", True, "ok"),
+            Check("model_endpoint", True, "ok"),
+            Check("model_generation", True, "ok"),
+        ]
+
+    monkeypatch.setattr("nipux_cli.cli.run_doctor", fake_doctor)
+    args = build_parser().parse_args(["doctor", "--check-model"])
+    args.func(args)
+
+    out = capsys.readouterr().out
+    assert "model_setup\tverified" in out
+    assert _model_setup_verified(load_config())
+
+
+def test_setting_change_clears_model_setup_verification(monkeypatch, tmp_path):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    _mark_test_model_ready()
+
+    assert _model_setup_verified(load_config())
+    _inline_setting_notice("model.name", "provider/other-model")
+
+    assert not _model_setup_verified(load_config())
+
+
 def test_first_run_menu_can_create_job_and_open_workspace(monkeypatch, tmp_path, capsys):
     monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    _mark_test_model_ready()
     opened = {}
     started = {}
 
@@ -1364,6 +1432,7 @@ def test_plain_chat_control_intents_map_to_commands():
 
 def test_plain_chat_control_intent_does_not_queue_operator_context(monkeypatch, tmp_path):
     monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    _mark_test_model_ready()
     db = AgentDB(tmp_path / "state.db")
     try:
         job_id = db.create_job("Research topic", title="research")
@@ -1394,6 +1463,7 @@ def test_plain_chat_control_intent_does_not_queue_operator_context(monkeypatch, 
 
 def test_plain_chat_reply_usage_is_recorded(monkeypatch, tmp_path):
     monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    _mark_test_model_ready()
     db = AgentDB(tmp_path / "state.db")
     try:
         job_id = db.create_job("Research topic", title="research")
@@ -2305,6 +2375,7 @@ def test_work_pane_uses_badges_without_duplicate_action_verbs():
 
 def test_run_reopens_completed_focused_job(monkeypatch, tmp_path, capsys):
     monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    _mark_test_model_ready()
     parser = build_parser()
     db = AgentDB(tmp_path / "state.db")
     try:
@@ -2336,6 +2407,7 @@ def test_run_reopens_completed_focused_job(monkeypatch, tmp_path, capsys):
 
 def test_create_sets_new_job_as_shell_focus(monkeypatch, tmp_path, capsys):
     monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    _mark_test_model_ready()
     parser = build_parser()
     args = parser.parse_args(["create", "Research new topic", "--title", "new research", "--kind", "generic"])
 
@@ -2475,6 +2547,7 @@ def test_shell_pause_splits_note_after_longest_matching_job_title(monkeypatch, t
 
 def test_chat_handle_line_adds_operator_message(monkeypatch, tmp_path, capsys):
     monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    _mark_test_model_ready()
     db = AgentDB(tmp_path / "state.db")
     try:
         job_id = db.create_job("Research topic", title="nightly research")
@@ -2503,6 +2576,7 @@ def test_chat_handle_line_adds_operator_message(monkeypatch, tmp_path, capsys):
 
 def test_chat_can_spawn_new_job_from_plain_message(monkeypatch, tmp_path, capsys):
     monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    _mark_test_model_ready()
     db = AgentDB(tmp_path / "state.db")
     try:
         original_id = db.create_job("Research topic", title="nightly research")
@@ -2544,6 +2618,7 @@ def test_chat_can_spawn_new_job_from_plain_message(monkeypatch, tmp_path, capsys
 
 def test_chat_can_queue_new_job_without_starting(monkeypatch, tmp_path, capsys):
     monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    _mark_test_model_ready()
     db = AgentDB(tmp_path / "state.db")
     try:
         original_id = db.create_job("Research topic", title="nightly research")
@@ -2573,6 +2648,7 @@ def test_chat_can_queue_new_job_without_starting(monkeypatch, tmp_path, capsys):
 
 def test_chat_can_spawn_generic_deliverable_job_from_plain_message(monkeypatch, tmp_path):
     monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    _mark_test_model_ready()
     db = AgentDB(tmp_path / "state.db")
     try:
         original_id = db.create_job("Research topic", title="nightly research")
@@ -2607,6 +2683,7 @@ def test_chat_can_spawn_generic_deliverable_job_from_plain_message(monkeypatch, 
 
 def test_chat_start_job_message_starts_daemon(monkeypatch, tmp_path, capsys):
     monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    _mark_test_model_ready()
     db = AgentDB(tmp_path / "state.db")
     try:
         original_id = db.create_job("Research topic", title="nightly research")
@@ -2636,6 +2713,7 @@ def test_chat_start_job_message_starts_daemon(monkeypatch, tmp_path, capsys):
 
 def test_chat_create_job_and_run_it_starts_daemon(monkeypatch, tmp_path, capsys):
     monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    _mark_test_model_ready()
     db = AgentDB(tmp_path / "state.db")
     try:
         original_id = db.create_job("Research topic", title="nightly research")
@@ -2710,6 +2788,7 @@ def test_chat_command_inside_chat_is_not_queued(monkeypatch, tmp_path, capsys):
 
 def test_chat_run_accepts_initial_plan_before_starting(monkeypatch, tmp_path):
     monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    _mark_test_model_ready()
     parser = build_parser()
     args = parser.parse_args(["create", "Research new topic", "--title", "new research", "--kind", "generic"])
     args.func(args)

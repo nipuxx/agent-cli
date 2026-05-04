@@ -343,7 +343,7 @@ def _doctor_page_lines(*, config: AppConfig, selected: int, width: int) -> list[
         "",
         _center_ansi(_muted(_step_count_label("doctor")), width),
         _center_ansi(_bold("Run checks"), width),
-        _center_ansi(_muted("Doctor verifies the local runtime before the first job opens."), width),
+        _center_ansi(_muted("Doctor calls the configured model before the first job opens."), width),
         "",
         *_panel("DOCTOR", rows, width=min(90, width - 8), page_width=width),
         "",
@@ -560,7 +560,7 @@ def _screen_value_lines(view: str, *, config: AppConfig, width: int) -> list[str
     if view == "doctor":
         return [
             _large_value("check", "ready to run", width=width),
-            _muted("Doctor verifies the state directory, SQLite, model config, tools, and browser runtime."),
+            _muted("Doctor verifies runtime checks, then sends a small chat request to the configured model."),
         ]
     if view == "job":
         return [
