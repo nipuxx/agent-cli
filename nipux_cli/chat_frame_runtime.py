@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import queue
 import select
 import shutil
 import sys
 import termios
+import threading
 import time
 import tty
 from dataclasses import dataclass
@@ -84,6 +86,7 @@ def run_chat_frame(job_id: str, *, history_limit: int, deps: ChatFrameDeps) -> N
     modal_view: str | None = None
     selected_control = 0
     editing_field: str | None = None
+    async_messages: queue.Queue[str] = queue.Queue()
     snapshot = deps.load_snapshot(job_id, history_limit)
     job_id = str(snapshot["job_id"])
     old_attrs = termios.tcgetattr(sys.stdin)
@@ -96,6 +99,8 @@ def run_chat_frame(job_id: str, *, history_limit: int, deps: ChatFrameDeps) -> N
         last_frame = ""
         while True:
             now = time.monotonic()
+            if _drain_async_notices(async_messages, notices):
+                needs_render = True
             if now - last_snapshot >= frame_refresh_interval(buffer):
                 try:
                     snapshot = deps.load_snapshot(job_id, history_limit)
@@ -166,6 +171,7 @@ def run_chat_frame(job_id: str, *, history_limit: int, deps: ChatFrameDeps) -> N
                         right_view=right_view,
                         modal_view=modal_view,
                         deps=deps,
+                        async_messages=async_messages,
                     )
                 except Exception as exc:
                     keep_running = True
@@ -345,6 +351,7 @@ def _handle_chat_submit(
     right_view: str,
     modal_view: str | None,
     deps: ChatFrameDeps,
+    async_messages: queue.Queue[str] | None = None,
 ) -> tuple[bool, dict[str, Any], str, list[str], str, str | None]:
     line = buffer.strip()
     if not line:
@@ -368,10 +375,13 @@ def _handle_chat_submit(
     keep_running = True
     try:
         if deps.is_plain_chat_line(line):
-            keep_running, message = deps.handle_chat_message(job_id, line)
-            notices = [notice for notice in notices if notice != f"> {line}"]
-            if message:
-                _append_notice(notices, message)
+            _append_notice(notices, "sent; waiting for model")
+            _start_chat_message_worker(
+                job_id,
+                line,
+                deps=deps,
+                async_messages=async_messages,
+            )
             modal_view = None
         else:
             keep_running, output = deps.capture_chat_command(job_id, line)
@@ -389,6 +399,38 @@ def _handle_chat_submit(
     except Exception as exc:
         _append_notice(notices, f"refresh failed after message: {type(exc).__name__}: {_one_line(exc, 100)}")
     return keep_running, snapshot, job_id, notices, right_view, modal_view
+
+
+def _start_chat_message_worker(
+    job_id: str,
+    line: str,
+    *,
+    deps: ChatFrameDeps,
+    async_messages: queue.Queue[str] | None,
+) -> None:
+    def run() -> None:
+        try:
+            _keep_running, message = deps.handle_chat_message(job_id, line)
+            if message and async_messages is not None:
+                async_messages.put(message)
+        except Exception as exc:
+            if async_messages is not None:
+                async_messages.put(f"message failed: {type(exc).__name__}: {_one_line(exc, 120)}")
+
+    thread = threading.Thread(target=run, name="nipux-chat-submit", daemon=True)
+    thread.start()
+
+
+def _drain_async_notices(async_messages: queue.Queue[str], notices: list[str]) -> bool:
+    changed = False
+    while True:
+        try:
+            message = async_messages.get_nowait()
+        except queue.Empty:
+            return changed
+        if message:
+            _append_notice(notices, message)
+            changed = True
 
 
 def _handle_chat_escape(

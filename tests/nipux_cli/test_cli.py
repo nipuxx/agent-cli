@@ -1,5 +1,7 @@
 import json
+import queue
 import subprocess
+import time
 
 from nipux_cli.artifacts import ArtifactStore
 from nipux_cli import __version__
@@ -656,6 +658,7 @@ def test_first_run_render_failure_uses_safe_mode(capsys):
 
 def test_chat_submit_failure_stays_in_frame():
     snapshot = {"job_id": "job_demo", "job": {"id": "job_demo", "title": "demo"}, "jobs": []}
+    async_messages: queue.Queue[str] = queue.Queue()
 
     deps = _ChatFrameDeps(
         load_snapshot=lambda _job_id, _history_limit: snapshot,
@@ -676,14 +679,54 @@ def test_chat_submit_failure_stays_in_frame():
         right_view="status",
         modal_view=None,
         deps=deps,
+        async_messages=async_messages,
     )
 
     assert keep_running is True
     assert job_id == "job_demo"
     assert right_view == "status"
     assert modal is None
-    assert "message failed" in "\n".join(notices)
-    assert "model blew up" in "\n".join(notices)
+    assert "sent; waiting for model" in "\n".join(notices)
+    queued = async_messages.get(timeout=1)
+    assert "message failed" in queued
+    assert "model blew up" in queued
+
+
+def test_chat_submit_plain_message_returns_without_waiting_for_model():
+    snapshot = {"job_id": "job_demo", "job": {"id": "job_demo", "title": "demo"}, "jobs": []}
+    async_messages: queue.Queue[str] = queue.Queue()
+
+    def slow_chat(_job_id, _line):
+        time.sleep(0.3)
+        return True, "done later"
+
+    deps = _ChatFrameDeps(
+        load_snapshot=lambda _job_id, _history_limit: snapshot,
+        render_frame=lambda *_args: "",
+        handle_chat_message=slow_chat,
+        capture_chat_command=lambda _job_id, _line: (True, ""),
+        write_shell_state=lambda _state: None,
+        is_plain_chat_line=lambda _line: True,
+        page_click=lambda _x, _y, _right_view: None,
+    )
+
+    started = time.monotonic()
+    keep_running, _snapshot, _job_id, notices, _right_view, _modal = _handle_chat_submit(
+        "hello",
+        job_id="job_demo",
+        history_limit=12,
+        snapshot=snapshot,
+        notices=[],
+        right_view="status",
+        modal_view=None,
+        deps=deps,
+        async_messages=async_messages,
+    )
+
+    assert keep_running is True
+    assert time.monotonic() - started < 0.1
+    assert "sent; waiting for model" in "\n".join(notices)
+    assert async_messages.get(timeout=1) == "done later"
 
 
 def test_chat_render_failure_uses_safe_mode(capsys):
@@ -1507,6 +1550,9 @@ def test_plain_chat_control_intents_map_to_commands():
     assert _chat_control_command("what is blocking it?") == "/status"
     assert _chat_control_command("start working") == "/run"
     assert _chat_control_command("pause this job") == "/pause"
+    assert _chat_control_command("pause the job") == "/pause"
+    assert _chat_control_command("stop the job") == "/pause"
+    assert _chat_control_command("resume the job") == "/resume"
     assert _chat_control_command("show jobs") == "/jobs"
     assert _chat_control_command("change model") == "/model"
     assert _chat_control_command("how much did it cost") == "/usage"

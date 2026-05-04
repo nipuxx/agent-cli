@@ -143,10 +143,14 @@ def chat_control_command(line: str) -> str:
     if lowered in {
         "run",
         "start",
+        "run job",
+        "start job",
         "start working",
         "start work",
         "run this",
+        "run the job",
         "run this job",
+        "start the job",
         "start this job",
         "continue",
         "keep going",
@@ -154,9 +158,24 @@ def chat_control_command(line: str) -> str:
         "resume work",
     }:
         return "/run"
-    if lowered in {"pause", "pause work", "pause this job", "stop", "stop work", "stop working", "stop this job"}:
+    if lowered in {
+        "pause",
+        "pause job",
+        "pause the job",
+        "pause work",
+        "pause this job",
+        "stop",
+        "stop job",
+        "stop the job",
+        "stop work",
+        "stop working",
+        "stop this job",
+        "halt",
+        "halt job",
+        "halt the job",
+    }:
         return "/pause"
-    if lowered in {"resume", "resume this job", "reopen this job"}:
+    if lowered in {"resume", "resume job", "resume the job", "resume this job", "reopen this job"}:
         return "/resume"
     if lowered in {"history", "show history", "timeline", "show timeline"}:
         return "/history"
