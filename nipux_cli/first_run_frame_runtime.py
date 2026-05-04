@@ -10,7 +10,9 @@ import time
 import tty
 from dataclasses import dataclass
 from typing import Callable
+from urllib.parse import urlparse
 
+from nipux_cli.config import load_config
 from nipux_cli.settings import inline_setting_notice
 from nipux_cli.tui_commands import FIRST_RUN_SLASH_COMMANDS, autocomplete_slash, cycle_slash, slash_completion_for_submit
 from nipux_cli.tui_input import (
@@ -35,9 +37,9 @@ def run_first_run_frame(*, deps: FirstRunRuntimeDeps) -> str | None:
     buffer = ""
     notices: list[str] = []
     next_job_id: str | None = None
-    view = "start"
+    view = "endpoint"
     selected = 0
-    editing_field: str | None = None
+    editing_field: str | None = required_first_run_edit_field(view)
     old_attrs = termios.tcgetattr(sys.stdin)
     print(_frame_enter_sequence(), end="", flush=True)
     try:
@@ -76,6 +78,24 @@ def run_first_run_frame(*, deps: FirstRunRuntimeDeps) -> str | None:
                 needs_render = True
                 continue
             if editing_field is not None:
+                if editing_field == "job.objective" and char in {"\r", "\n"}:
+                    if not buffer.strip():
+                        _append_notice(notices, "First job objective is required.", limit=10)
+                        needs_render = True
+                        continue
+                    try:
+                        action, payload = deps.handle_line(f"new {buffer.strip()}")
+                    except Exception as exc:
+                        action, payload = "notice", f"job creation failed: {type(exc).__name__}: {_one_line(exc, 100)}"
+                    buffer = ""
+                    state = _apply_first_run_action(action, payload, view=view, selected=selected, notices=notices)
+                    view, selected, editing_field, next_job_id, should_exit = state
+                    if should_exit:
+                        return None
+                    editing_field = editing_field or required_first_run_edit_field(view)
+                    needs_render = True
+                    continue
+                previous_edit = editing_field
                 try:
                     buffer, editing_field, should_exit = _handle_edit_input(
                         char,
@@ -92,6 +112,12 @@ def run_first_run_frame(*, deps: FirstRunRuntimeDeps) -> str | None:
                     continue
                 if should_exit:
                     return None
+                if previous_edit and editing_field is None:
+                    next_view = next_first_run_view_after_edit(view)
+                    if next_view:
+                        view = next_view
+                        selected = 0
+                        editing_field = required_first_run_edit_field(view)
                 needs_render = True
                 continue
             if char in {"\r", "\n"}:
@@ -110,6 +136,7 @@ def run_first_run_frame(*, deps: FirstRunRuntimeDeps) -> str | None:
                     _append_notice(notices, f"action failed: {type(exc).__name__}: {_one_line(exc, 100)}")
                     state = (view, selected, None, None, False)
                 view, selected, editing_field, next_job_id, should_exit = state
+                editing_field = editing_field or required_first_run_edit_field(view)
                 if should_exit:
                     return None
                 needs_render = True
@@ -147,6 +174,7 @@ def run_first_run_frame(*, deps: FirstRunRuntimeDeps) -> str | None:
                     should_exit = False
                 if should_exit:
                     return None
+                editing_field = editing_field or required_first_run_edit_field(view)
                 needs_render = True
                 continue
             if char.isprintable():
@@ -210,8 +238,10 @@ def _submit_first_run_line(
     if not line:
         actions = deps.actions(view)
         if not actions:
-            return "notice", "No actions available on this screen."
+            return "notice", "This setup step requires an explicit value."
         return deps.handle_action(actions[clamp_selection(selected, actions)][0])
+    if view not in {"job"} and not line.startswith("/"):
+        return "notice", "Complete the active setup field before continuing."
     return deps.handle_line(line)
 
 
@@ -327,8 +357,9 @@ def _handle_edit_input(
     stdin_fd: int,
 ) -> tuple[str, str | None, bool]:
     if char in {"\r", "\n"}:
-        _append_notice(notices, inline_setting_notice(editing_field, buffer), limit=10)
-        return "", None, False
+        saved, notice = _save_first_run_edit(editing_field, buffer)
+        _append_notice(notices, notice, limit=10)
+        return ("", None, False) if saved else (buffer, editing_field, False)
     if char in {"\x04"}:
         return buffer, editing_field, True
     if char == "\x03":
@@ -345,6 +376,55 @@ def _handle_edit_input(
     if char.isprintable():
         return buffer + char, editing_field, False
     return buffer, editing_field, False
+
+
+def required_first_run_edit_field(view: str) -> str | None:
+    return {
+        "endpoint": "model.base_url",
+        "api": "secret:model.api_key",
+        "model": "model.name",
+        "job": "job.objective",
+    }.get(view)
+
+
+def next_first_run_view_after_edit(view: str) -> str | None:
+    return {
+        "endpoint": "api",
+        "api": "model",
+        "model": "access",
+    }.get(view)
+
+
+def _save_first_run_edit(field: str, raw_value: str) -> tuple[bool, str]:
+    value = raw_value.strip()
+    if field == "model.base_url":
+        if not value:
+            return False, "Endpoint URL is required."
+        parsed = urlparse(value)
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+            return False, "Endpoint must be a full http:// or https:// URL."
+        if not parsed.path.rstrip("/").endswith("/v1"):
+            return False, "Endpoint must point at an OpenAI-compatible /v1 path."
+        return True, inline_setting_notice(field, value)
+    if field == "model.name":
+        if not value:
+            return False, "Model id is required."
+        return True, inline_setting_notice(field, value)
+    if field == "secret:model.api_key":
+        if not value:
+            return False, "API key is required, or type skip for a local endpoint."
+        if value.lower() in {"skip", "none", "local"}:
+            config = load_config()
+            if not _is_local_endpoint(config.model.base_url):
+                return False, "Only local endpoints can skip the API key."
+            return True, "skipped API key for local endpoint"
+        return True, inline_setting_notice(field, value)
+    return True, inline_setting_notice(field, value)
+
+
+def _is_local_endpoint(value: str) -> bool:
+    host = (urlparse(value).hostname or "").lower()
+    return host in {"localhost", "127.0.0.1", "::1", "0.0.0.0"} or host.endswith(".local")
 
 
 def _append_notice(notices: list[str], message: str, *, limit: int = 10) -> None:

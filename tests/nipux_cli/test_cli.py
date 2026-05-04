@@ -367,7 +367,7 @@ def test_first_run_plain_greeting_does_not_create_job(monkeypatch, tmp_path, cap
         assert db.list_jobs() == []
     finally:
         db.close()
-    assert "long-running work" in out
+    assert "Setup must be completed" in out
 
 
 def test_first_run_frame_uses_full_screen_ui_not_banner(monkeypatch, tmp_path):
@@ -376,36 +376,34 @@ def test_first_run_frame_uses_full_screen_ui_not_banner(monkeypatch, tmp_path):
     frame = _build_first_run_frame("", [], width=100, height=24)
     lines = frame.splitlines()
 
-    assert "███" in frame
     assert "workspace" not in lines[0].lower()
-    assert "Begin setup" in frame
-    assert "Long-running work, installed in-session." in frame
-    assert "local-first setup flow" in frame
-    assert "Enter selects" in frame
-    assert "←→" in frame
+    assert "Endpoint" in lines[0]
+    assert "Enter the endpoint first" in frame
+    assert "Begin setup" not in frame
+    assert "Long-running work, installed in-session." not in frame
+    assert "Required: type an OpenAI-compatible endpoint URL" in frame
     assert "controls on the right" not in frame
     assert "Control" not in frame
     assert "SETUP" not in frame
     assert "│ SETUP" not in frame
     assert "daemon stopped" not in frame
-    assert "███" in frame
     assert "FIRST RUN" not in frame
     assert "nipux menu >" not in frame
     assert "/shell" not in frame
 
 
-def test_first_run_frame_has_slash_command_popup(monkeypatch, tmp_path):
+def test_first_run_frame_hides_command_popup_during_setup(monkeypatch, tmp_path):
     monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
 
     frame = _build_first_run_frame("/", [], width=100, height=26)
 
-    assert "commands" in frame
-    assert "/new" in frame
-    assert "/jobs" in frame
-    assert "/model" in frame
+    assert "commands" not in frame
+    assert "/new" not in frame
+    assert "/jobs" not in frame
+    assert "/model" not in frame
     assert "/settings" not in frame
     assert "/shell" not in frame
-    assert "enter fills" in frame
+    assert "Enter the endpoint first" in frame
 
 
 def test_first_run_frame_walks_setup_screens(monkeypatch, tmp_path):
@@ -417,29 +415,30 @@ def test_first_run_frame_walks_setup_screens(monkeypatch, tmp_path):
     access = _build_first_run_frame("", [], width=100, height=26, view="access", selected=0)
     invalid = _build_first_run_frame("", [], width=100, height=26, view="settings", selected=1)
 
-    assert "Choose the model" in model
-    assert "Edit model" in model
-    assert "Connect an endpoint" in endpoint
-    assert "Edit endpoint" in endpoint
-    assert "Add a secret" in api
-    assert "Save API key" in api
+    assert "Enter the model id" in model
+    assert "Blank input is not accepted" in model
+    assert "Enter the endpoint first" in endpoint
+    assert "BASE URL" in endpoint
+    assert "Enter the API key" in api
+    assert "type skip" in api
     assert "Choose tool access" in access
     assert "Browser" in access
     assert "CLI" in access
-    assert "Choose the model" not in endpoint
-    assert "Connect an endpoint" not in api
-    assert "Long-running work, installed in-session." in invalid
+    assert "Enter the model id" not in endpoint
+    assert "Enter the endpoint first" not in api
+    assert "Enter the endpoint first" in invalid
     assert "/shell" not in model
 
 
-def test_first_run_frame_uses_command_palette_for_config(monkeypatch, tmp_path):
+def test_first_run_frame_does_not_use_command_palette_for_setup(monkeypatch, tmp_path):
     monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
 
     frame = _build_first_run_frame("/model", [], width=100, height=26)
 
     assert "/model" in frame
-    assert "set model" in frame
+    assert "set model" not in frame
     assert "Settings" not in frame
+    assert "Enter the endpoint first" in frame
 
 
 def test_settings_editor_persists_model_config(monkeypatch, tmp_path):
@@ -511,12 +510,11 @@ def test_terminal_escape_decodes_arrows_and_mouse_click():
 def test_first_run_click_maps_right_pane_actions(monkeypatch):
     monkeypatch.setattr("shutil.get_terminal_size", lambda fallback=(100, 30): (100, 30))
 
-    assert _first_run_click_action(5, 15, view="start") == 0
-    assert _first_run_click_action(36, 15, view="start") == 1
-    assert _first_run_click_action(68, 15, view="start") == 2
-    assert _first_run_click_action(1, 4, view="start") is None
-    assert _first_run_click_action(5, 1, view="model") == "view:model"
-    assert _first_run_click_action(22, 1, view="model") == "view:connector"
+    assert _first_run_click_action(5, 15, view="endpoint") is None
+    assert _first_run_click_action(5, 15, view="access") == 0
+    assert _first_run_click_action(25, 15, view="access") == 1
+    assert _first_run_click_action(1, 4, view="access") is None
+    assert _first_run_click_action(5, 1, view="model") is None
 
 
 def test_first_run_arrow_navigation_changes_setup_screens():
@@ -568,7 +566,7 @@ def test_first_run_empty_submit_without_actions_does_not_crash():
 
     assert _submit_first_run_line("", selected=0, view="empty", deps=deps) == (
         "notice",
-        "No actions available on this screen.",
+        "This setup step requires an explicit value.",
     )
 
 

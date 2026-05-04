@@ -97,7 +97,6 @@ from nipux_cli.db import AgentDB
 from nipux_cli.digest import render_job_digest, write_daily_digest
 from nipux_cli.doctor import run_doctor
 from nipux_cli.first_run_tui import (
-    INSTALL_FLOW as _FIRST_RUN_INSTALL_FLOW,
     build_first_run_frame as _build_first_run_tui_frame,
     first_run_actions as _first_run_tui_actions,
     first_run_columns as _first_run_columns,
@@ -715,10 +714,6 @@ def _handle_first_run_action(action: str) -> tuple[str, str | list[str] | None]:
 def _first_run_click_action(x: int, y: int, *, view: str) -> int | str | None:
     width, height = shutil.get_terminal_size((100, 30))
     width = max(92, width)
-    if y <= 2 and view != "start":
-        target = _first_run_step_click_target(x, width=width)
-        if target:
-            return target
     actions = _first_run_actions(view)
     if not actions or y < 10 or y > max(10, height - 4):
         return None
@@ -735,15 +730,6 @@ def _first_run_click_action(x: int, y: int, *, view: str) -> int | str | None:
     if not within_card:
         return None
     return index if 0 <= index < len(actions) else None
-
-
-def _first_run_step_click_target(x: int, *, width: int) -> str | None:
-    keys = [key for key, _label, _detail in _FIRST_RUN_INSTALL_FLOW]
-    if not keys:
-        return None
-    segment = max(1, width // len(keys))
-    index = min(len(keys) - 1, max(0, (max(1, x) - 1) // segment))
-    return f"view:{keys[index]}"
 
 
 def _chat_page_click(x: int, y: int, *, right_view: str) -> str | None:

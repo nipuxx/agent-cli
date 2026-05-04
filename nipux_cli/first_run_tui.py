@@ -11,8 +11,6 @@ from nipux_cli.settings import (
     edit_target_label,
     edit_target_masks_input,
 )
-from nipux_cli.tui_commands import FIRST_RUN_SLASH_COMMANDS, slash_suggestion_lines
-from nipux_cli.tui_events import NIPUX_HERO
 from nipux_cli.tui_layout import _compose_bar
 from nipux_cli.tui_style import (
     _accent,
@@ -28,10 +26,9 @@ from nipux_cli.tui_style import (
 
 
 INSTALL_FLOW = [
-    ("model", "Model", "choose the model id"),
-    ("connector", "Connector", "local or hosted endpoint"),
     ("endpoint", "Endpoint", "OpenAI-compatible /v1"),
     ("api", "API key", "secret stored in .env"),
+    ("model", "Model", "choose the model id"),
     ("access", "Tools", "browser, web, CLI, files"),
     ("doctor", "Doctor", "check setup"),
     ("job", "First job", "describe long-running work"),
@@ -39,31 +36,9 @@ INSTALL_FLOW = [
 
 
 FIRST_RUN_ACTIONS_BY_VIEW: dict[str, list[tuple[str, str, str]]] = {
-    "start": [
-        ("view:model", "Begin setup", "walk through model, endpoint, key"),
-        ("doctor", "Doctor", "check current environment"),
-        ("exit", "Exit", "leave Nipux"),
-    ],
-    "model": [
-        ("edit:model.name", "Edit model", "set provider/model id"),
-        ("view:connector", "Continue", "choose connector"),
-        ("view:start", "Back", "intro"),
-    ],
-    "connector": [
-        ("preset:local", "Use local", "recommended first run"),
-        ("view:endpoint", "Continue", "edit endpoint"),
-        ("view:model", "Back", "model"),
-    ],
-    "endpoint": [
-        ("edit:model.base_url", "Edit endpoint", "OpenAI-compatible /v1"),
-        ("view:api", "Continue", "API key"),
-        ("view:connector", "Back", "connector"),
-    ],
-    "api": [
-        ("secret:model.api_key", "Save API key", "hidden input"),
-        ("view:access", "Continue", "choose tool access"),
-        ("view:endpoint", "Back", "endpoint"),
-    ],
+    "endpoint": [],
+    "api": [],
+    "model": [],
     "access": [
         ("toggle:tools.browser", "Browser", "automation"),
         ("toggle:tools.web", "Web", "search/extract"),
@@ -74,13 +49,8 @@ FIRST_RUN_ACTIONS_BY_VIEW: dict[str, list[tuple[str, str, str]]] = {
     "doctor": [
         ("doctor", "Run doctor", "verify setup"),
         ("view:job", "Continue", "create work"),
-        ("view:access", "Back", "tool access"),
     ],
-    "job": [
-        ("new", "Create job", "type the goal below"),
-        ("view:doctor", "Back", "doctor"),
-        ("exit", "Exit", "leave Nipux"),
-    ],
+    "job": [],
 }
 
 
@@ -106,18 +76,19 @@ def build_first_run_frame(
     selected = _clamp_first_run_selection(selected, view)
     header: list[str] = []
     if editing_field:
-        hint = edit_target_hint(editing_field, config)
-        prompt_label = edit_target_label(editing_field)
+        hint = _first_run_edit_hint(editing_field, config)
+        prompt_label = _first_run_prompt_label(editing_field)
     else:
         hint = _first_run_hint(view)
-        prompt_label = "❯"
-    suggestions = [] if editing_field else slash_suggestion_lines(input_buffer, FIRST_RUN_SLASH_COMMANDS, width=width)
+        prompt_label = "Setup"
+    suggestions: list[str] = []
     compose_lines = _compose_bar(
         input_buffer,
         width=width,
         hint=hint,
         suggestions=suggestions,
         prompt_label=prompt_label,
+        title="setup",
         mask_input=edit_target_masks_input(editing_field),
     )
     footer_rows = len(compose_lines)
@@ -166,12 +137,8 @@ def _wizard_body_lines(
     width: int,
     rows: int,
 ) -> list[str]:
-    if view == "start":
-        lines = _start_page_lines(config=config, selected=selected, width=width, rows=rows)
-    elif view == "model":
+    if view == "model":
         lines = _model_page_lines(config=config, selected=selected, width=width)
-    elif view == "connector":
-        lines = _connector_page_lines(config=config, selected=selected, width=width)
     elif view == "endpoint":
         lines = _endpoint_page_lines(config=config, selected=selected, width=width)
     elif view == "api":
@@ -190,28 +157,10 @@ def _wizard_body_lines(
             width=width,
         )
     else:
-        lines = _start_page_lines(config=config, selected=selected, width=width, rows=rows)
+        lines = _endpoint_page_lines(config=config, selected=selected, width=width)
     if notices:
         lines = _append_notice_block(lines, notices, width=width, rows=rows)
     return _fit_page(lines, width=width, rows=rows)
-
-
-def _start_page_lines(*, config: AppConfig, selected: int, width: int, rows: int) -> list[str]:
-    actions = first_run_actions("start")
-    content = [
-        *[_center_ansi(_style(line, "37;1"), width) for line in NIPUX_HERO],
-        "",
-        _center_ansi(_bold("Long-running work, installed in-session."), width),
-        _center_ansi(_muted("A local-first setup flow opens before any workspace exists."), width),
-        "",
-        _center_ansi(_install_summary(config, width=max(24, width - 12)), width),
-        "",
-        *_action_cards(actions, selected=selected, config=config, width=width),
-        "",
-        _center_ansi(_muted("Enter selects  ·  ←→ moves  ·  / opens commands"), width),
-    ]
-    top_pad = max(0, (rows - len(content)) // 2 - 1)
-    return [""] * top_pad + content
 
 
 def _model_page_lines(*, config: AppConfig, selected: int, width: int) -> list[str]:
@@ -219,46 +168,21 @@ def _model_page_lines(*, config: AppConfig, selected: int, width: int) -> list[s
         *_step_header("model", width=width),
         "",
         _center_ansi(_muted(_step_count_label("model")), width),
-        _center_ansi(_bold("Choose the model"), width),
-        _center_ansi(_muted("This model powers chat replies and background workers until you change it."), width),
+        _center_ansi(_bold("Enter the model id"), width),
+        _center_ansi(_muted("This exact model powers chat replies and background workers."), width),
         "",
         *_panel(
             "MODEL ID",
-            [_bold(_accent(config.model.model)), _muted("Use any provider/model name your endpoint accepts.")],
+            [
+                _bold(_accent("waiting for input")),
+                _muted(f"current config: {_one_line(config.model.model, max(16, width - 30))}"),
+                _muted("Type the model id below. Blank input is not accepted."),
+            ],
             width=min(84, width - 8),
             page_width=width,
         ),
         "",
-        *_action_cards(first_run_actions("model"), selected=selected, config=config, width=width),
-    ]
-
-
-def _connector_page_lines(*, config: AppConfig, selected: int, width: int) -> list[str]:
-    connector = "local" if _is_local_endpoint(config.model.base_url) else "hosted"
-    local_card = _choice_card(
-        "LOCAL",
-        "Use an OpenAI-compatible server on this machine.",
-        "http://localhost:8000/v1",
-        active=connector == "local",
-        width=max(30, (width - 10) // 2),
-    )
-    hosted_card = _choice_card(
-        "HOSTED",
-        "Use OpenRouter, OpenAI, or another compatible provider.",
-        "requires endpoint + key",
-        active=connector != "local",
-        width=max(30, (width - 10) // 2),
-    )
-    return [
-        *_step_header("connector", width=width),
-        "",
-        _center_ansi(_muted(_step_count_label("connector")), width),
-        _center_ansi(_bold("Choose a connector"), width),
-        _center_ansi(_muted("Pick local for first install, or keep a hosted endpoint if you already configured one."), width),
-        "",
-        *_join_cards(local_card, hosted_card, width=width),
-        "",
-        *_action_cards(first_run_actions("connector"), selected=selected, config=config, width=width),
+        _center_ansi(_muted("Press Enter after typing the model. Setup moves forward automatically."), width),
     ]
 
 
@@ -267,18 +191,18 @@ def _endpoint_page_lines(*, config: AppConfig, selected: int, width: int) -> lis
         *_step_header("endpoint", width=width),
         "",
         _center_ansi(_muted(_step_count_label("endpoint")), width),
-        _center_ansi(_bold("Connect an endpoint"), width),
-        _center_ansi(_muted("Nipux talks to OpenAI-compatible /v1 APIs. Nothing here is tied to one provider."), width),
+        _center_ansi(_bold("Enter the endpoint first"), width),
+        _center_ansi(_muted("Use an OpenAI-compatible /v1 endpoint. Local or hosted both work."), width),
         "",
         *_form_panel(
             "BASE URL",
-            config.model.base_url,
-            "/base-url URL",
+            f"waiting for input · current config: {config.model.base_url}",
+            "required",
             width=min(90, width - 8),
             page_width=width,
         ),
         "",
-        *_action_cards(first_run_actions("endpoint"), selected=selected, config=config, width=width),
+        _center_ansi(_muted("Example formats: http://localhost:8000/v1 or https://provider.example/v1"), width),
     ]
 
 
@@ -289,8 +213,8 @@ def _api_page_lines(*, config: AppConfig, selected: int, width: int) -> list[str
         *_step_header("api", width=width),
         "",
         _center_ansi(_muted(_step_count_label("api")), width),
-        _center_ansi(_bold("Add a secret"), width),
-        _center_ansi(_muted("Local endpoints can continue without a key. Hosted providers usually need one."), width),
+        _center_ansi(_bold("Enter the API key"), width),
+        _center_ansi(_muted("Hosted endpoints need a key. For a local endpoint, type skip."), width),
         "",
         *_panel(
             "API KEY",
@@ -303,7 +227,7 @@ def _api_page_lines(*, config: AppConfig, selected: int, width: int) -> list[str
             page_width=width,
         ),
         "",
-        *_action_cards(first_run_actions("api"), selected=selected, config=config, width=width),
+        _center_ansi(_muted("Blank input is not accepted; type skip only when the endpoint is local."), width),
     ]
 
 
@@ -365,8 +289,8 @@ def _job_page_lines(
         *_step_header("job", width=width),
         "",
         _center_ansi(_muted(_step_count_label("job")), width),
-        _center_ansi(_bold("Create the first job"), width),
-        _center_ansi(_muted("Type a real objective in the composer. Nipux opens chat/workspace after creation."), width),
+        _center_ansi(_bold("Enter the first job"), width),
+        _center_ansi(_muted("Describe durable work for the agent. Blank input is not accepted."), width),
         "",
         *_panel(
             "READY",
@@ -380,7 +304,7 @@ def _job_page_lines(
             page_width=width,
         ),
         "",
-        *_action_cards(first_run_actions("job"), selected=selected, config=config, width=width),
+        _center_ansi(_muted("Press Enter after typing the objective. The workspace opens only after creation."), width),
     ]
 
 
@@ -460,7 +384,7 @@ def _form_panel(title: str, value: str, command: str, *, width: int, page_width:
         title,
         [
             _bold(_accent(_one_line(value, max(16, width - 10)))),
-            _muted(f"edit with {command} or press Enter on Edit endpoint"),
+            _muted(f"{command}; type the value in the setup input below"),
         ],
         width=width,
         page_width=page_width,
@@ -543,12 +467,6 @@ def _action_line(
 def _screen_value_lines(view: str, *, config: AppConfig, width: int) -> list[str]:
     if view == "model":
         return [_large_value("model", config.model.model, width=width)]
-    if view == "connector":
-        connector = "local" if _is_local_endpoint(config.model.base_url) else "hosted"
-        return [
-            _large_value("connector", connector, width=width),
-            _muted("Enter on Use local to switch to http://localhost:8000/v1."),
-        ]
     if view == "endpoint":
         return [_large_value("endpoint", config.model.base_url, width=width)]
     if view == "api":
@@ -594,8 +512,6 @@ def _action_value(key: str, detail: str, *, config: AppConfig) -> str:
 def _step_state(key: str, *, config: AppConfig) -> str:
     if key == "model":
         return _one_line(config.model.model, 20)
-    if key == "connector":
-        return "local" if _is_local_endpoint(config.model.base_url) else "hosted"
     if key == "endpoint":
         return _one_line(config.model.base_url, 20)
     if key == "api":
@@ -611,31 +527,63 @@ def _step_state(key: str, *, config: AppConfig) -> str:
 
 
 def _first_run_hint(view: str) -> str:
+    if view == "endpoint":
+        return "Required: type an OpenAI-compatible endpoint URL, then Enter."
+    if view == "api":
+        return "Required: type an API key, or type skip for a local endpoint."
+    if view == "model":
+        return "Required: type the model id accepted by this endpoint."
     if view == "job":
-        return "Type the first objective  ·  Enter creates work  ·  ←→ actions"
-    return "Enter selects  ·  ←→ actions  ·  / commands"
+        return "Required: type the first long-running objective."
+    if view == "access":
+        return "Use arrows/clicks to toggle tools, then choose Continue."
+    if view == "doctor":
+        return "Run Doctor. Continue unlocks only after the model responds."
+    return "Complete setup before the workspace opens."
+
+
+def _first_run_edit_hint(field: str, config: AppConfig) -> str:
+    if field == "model.base_url":
+        return "Endpoint URL required. Enter saves and advances. Blank input is blocked."
+    if field == "secret:model.api_key":
+        return "API key required for hosted endpoints. For local endpoints, type skip."
+    if field == "model.name":
+        return "Model id required. Enter saves and advances. Blank input is blocked."
+    if field == "job.objective":
+        return "First job objective required. Enter creates the workspace."
+    return edit_target_hint(field, config)
+
+
+def _first_run_prompt_label(field: str) -> str:
+    if field == "model.base_url":
+        return "Endpoint"
+    if field == "secret:model.api_key":
+        return "API key"
+    if field == "model.name":
+        return "Model"
+    if field == "job.objective":
+        return "Objective"
+    return edit_target_label(field)
 
 
 def _left_title(view: str) -> str:
-    return "Welcome" if view == "start" else _screen_heading(view)
+    return _screen_heading(view)
 
 
 def _screen_heading(view: str) -> str:
     return {
         "model": "Choose model",
-        "connector": "Choose connector",
         "endpoint": "Connect endpoint",
         "api": "Add API key",
         "access": "Choose tools",
         "doctor": "Run checks",
         "job": "Create first job",
-    }.get(view, "Welcome")
+    }.get(view, "Connect endpoint")
 
 
 def _screen_copy(view: str) -> str:
     return {
         "model": "The chat controller and workers use this model unless you change it later.",
-        "connector": "Local OpenAI-compatible servers are easiest to test; hosted providers need a key.",
         "endpoint": "Use any OpenAI-compatible /v1 endpoint. This stays generic and provider-neutral.",
         "api": "Hosted providers need a secret. Local endpoints can continue without one.",
         "access": "Enable the generic tools this worker can use for any job.",
@@ -651,7 +599,7 @@ def _install_summary(config: AppConfig, *, width: int) -> str:
 
 
 def _normalize_first_run_view(view: str) -> str:
-    return view if view in FIRST_RUN_ACTIONS_BY_VIEW else "start"
+    return view if view in FIRST_RUN_ACTIONS_BY_VIEW else "endpoint"
 
 
 def _step_count_label(view: str) -> str:

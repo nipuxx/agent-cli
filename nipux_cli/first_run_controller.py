@@ -57,9 +57,9 @@ def handle_first_run_action(action: str, *, deps: FirstRunFrameDeps) -> tuple[st
     if action.startswith("secret:"):
         return "edit", action
     if action == "new":
-        return "notice", "Type the goal in the input line, then press Enter."
+        return "notice", "Type the first job objective in the setup input, then press Enter."
     if action == "back":
-        return "view", "start"
+        return "view", "endpoint"
     if action == "jobs":
         return "notice", deps.capture_command("jobs")
     if action == "doctor":
@@ -82,12 +82,12 @@ def handle_first_run_frame_line(line: str, *, deps: FirstRunFrameDeps) -> tuple[
         return "clear", None
     if lowered in {"help", "?", "commands"}:
         return "notice", [
-            "Talk normally here, or ask Nipux to create a job with a concrete goal.",
-            "Use the right pane for jobs, setup checks, and exit.",
-            "When a job exists, the left pane becomes its chat and output stream.",
+            "Finish setup before chat or jobs are available.",
+            "Enter endpoint, API key, and model id when prompted.",
+            "Doctor must verify the configured model before the workspace opens.",
         ]
     if lowered in {"1", "new"}:
-        return "notice", "Type `new OBJECTIVE` or paste the objective directly."
+        return "notice", "Type the first job objective when the setup reaches the final step."
     if lowered.startswith("new "):
         result = create_first_run_job(original[4:].strip(), deps=deps)
         return ("open", result) if isinstance(result, str) else ("notice", result)
@@ -96,7 +96,7 @@ def handle_first_run_frame_line(line: str, *, deps: FirstRunFrameDeps) -> tuple[
     if lowered == "settings":
         return "notice", "Config is changed with slash commands: /model, /api-key, /base-url, /context."
     if lowered in {"back"}:
-        return "view", "start"
+        return "notice", "Setup is linear during first run. Continue forward, then edit settings later if needed."
     if lowered in {"3", "doctor"}:
         return "notice", deps.verify_model_setup()
     if lowered in {"4", "init"}:
@@ -123,12 +123,8 @@ def handle_first_run_frame_line(line: str, *, deps: FirstRunFrameDeps) -> tuple[
 
 
 def first_run_chat_reply(message: str) -> str:
-    lowered = message.strip().lower()
-    if lowered in {"hi", "hello", "hey", "yo"}:
-        return "Hi. Tell me what long-running work you want, or type /new followed by an objective."
-    if "what can" in lowered or "help" in lowered:
-        return "I can spin up long-running jobs, keep their output on the left, and let you monitor work from the right."
-    return "I can chat here, but I only create a job when you give me a concrete goal like 'create a job to monitor nightly benchmarks'."
+    del message
+    return "Setup must be completed before chat is available."
 
 
 def create_first_run_job(objective: str, *, deps: FirstRunFrameDeps) -> str | list[str]:

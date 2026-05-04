@@ -87,6 +87,7 @@ def _compose_bar(
     hint: str | None = None,
     suggestions: list[str] | None = None,
     prompt_label: str = "❯",
+    title: str = "message",
     mask_input: bool = False,
 ) -> list[str]:
     if mask_input:
@@ -99,7 +100,7 @@ def _compose_bar(
     lines = []
     if suggestions:
         lines.extend(suggestions)
-    title = " message "
+    title = f" {title.strip()} "
     lines.extend([
         _muted("╭─" + title + "─" * max(0, width - len(title) - 2)),
         _fit_ansi(_muted("│ ") + prompt, width),
