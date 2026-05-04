@@ -27,6 +27,10 @@ def config_field_value(field: str, config: Any | None = None) -> Any:
         "runtime.artifact_inline_char_limit": config.runtime.artifact_inline_char_limit,
         "runtime.daily_digest_enabled": config.runtime.daily_digest_enabled,
         "runtime.daily_digest_time": config.runtime.daily_digest_time,
+        "tools.browser": config.tools.browser,
+        "tools.web": config.tools.web,
+        "tools.shell": config.tools.shell,
+        "tools.files": config.tools.files,
     }
     return values.get(field, "")
 

@@ -10,7 +10,7 @@ from typing import Any
 import yaml
 
 
-DEFAULT_OPENROUTER_MODEL = "qwen/qwen3.6-27b"
+DEFAULT_OPENROUTER_MODEL = "openrouter/auto"
 DEFAULT_OPENROUTER_API_KEY_ENV = "OPENROUTER_API_KEY"
 DEFAULT_MODEL = "local-model"
 DEFAULT_BASE_URL = "http://localhost:8000/v1"
@@ -124,6 +124,14 @@ class RuntimeConfig:
 
 
 @dataclass(frozen=True)
+class ToolAccessConfig:
+    browser: bool = True
+    web: bool = True
+    shell: bool = True
+    files: bool = True
+
+
+@dataclass(frozen=True)
 class EmailConfig:
     enabled: bool = False
     smtp_host: str = ""
@@ -143,6 +151,7 @@ class EmailConfig:
 class AppConfig:
     runtime: RuntimeConfig = field(default_factory=RuntimeConfig)
     model: ModelConfig = field(default_factory=ModelConfig)
+    tools: ToolAccessConfig = field(default_factory=ToolAccessConfig)
     email: EmailConfig = field(default_factory=EmailConfig)
 
     def ensure_dirs(self) -> None:
@@ -179,6 +188,7 @@ def load_config(path: str | Path | None = None) -> AppConfig:
 
     runtime_raw = _as_dict(raw.get("runtime"))
     model_raw = _as_dict(raw.get("model"))
+    tools_raw = _as_dict(raw.get("tools"))
     email_raw = _as_dict(raw.get("email"))
 
     runtime_home = Path(runtime_raw.get("home") or home).expanduser()
@@ -199,6 +209,12 @@ def load_config(path: str | Path | None = None) -> AppConfig:
         input_cost_per_million=_optional_float(model_raw.get("input_cost_per_million")),
         output_cost_per_million=_optional_float(model_raw.get("output_cost_per_million")),
     )
+    tools = ToolAccessConfig(
+        browser=bool(tools_raw.get("browser", True)),
+        web=bool(tools_raw.get("web", True)),
+        shell=bool(tools_raw.get("shell", True)),
+        files=bool(tools_raw.get("files", True)),
+    )
     email = EmailConfig(
         enabled=bool(email_raw.get("enabled", False)),
         smtp_host=str(email_raw.get("smtp_host") or ""),
@@ -209,7 +225,7 @@ def load_config(path: str | Path | None = None) -> AppConfig:
         to_addr=str(email_raw.get("to_addr") or ""),
         use_tls=bool(email_raw.get("use_tls", True)),
     )
-    return AppConfig(runtime=runtime, model=model, email=email)
+    return AppConfig(runtime=runtime, model=model, tools=tools, email=email)
 
 
 def default_config_yaml(
@@ -235,6 +251,11 @@ def default_config_yaml(
         "  artifact_inline_char_limit: 12000\n"
         "  daily_digest_enabled: true\n"
         "  daily_digest_time: \"08:00\"\n"
+        "tools:\n"
+        "  browser: true\n"
+        "  web: true\n"
+        "  shell: true\n"
+        "  files: true\n"
         "email:\n"
         "  enabled: false\n"
         "  smtp_host: \"\"\n"

@@ -11,6 +11,11 @@ runtime:
   artifact_inline_char_limit: 12000
   daily_digest_enabled: true
   daily_digest_time: "08:00"
+tools:
+  browser: true
+  web: true
+  shell: true
+  files: true
 email:
   enabled: false
   smtp_host: ""

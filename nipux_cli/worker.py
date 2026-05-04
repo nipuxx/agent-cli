@@ -2437,6 +2437,13 @@ def _execute_tool_call(
         )
 
 
+def _registry_tools(registry: ToolRegistry, config: AppConfig) -> list[dict[str, Any]]:
+    try:
+        return registry.openai_tools(config=config)
+    except TypeError:
+        return registry.openai_tools()
+
+
 def run_one_step(
     job_id: str,
     *,
@@ -2478,7 +2485,7 @@ def run_one_step(
         )
         llm = llm or OpenAIChatLLM(config.model)
         try:
-            response: LLMResponse = llm.next_action(messages=messages, tools=registry.openai_tools())
+            response: LLMResponse = llm.next_action(messages=messages, tools=_registry_tools(registry, config))
         except Exception as exc:
             step_id = db.add_step(
                 job_id=job_id,

@@ -46,6 +46,7 @@ from nipux_cli.tui_commands import (
     FIRST_RUN_SLASH_COMMANDS,
     autocomplete_slash as _autocomplete_slash,
     cycle_slash as _cycle_slash,
+    slash_completion_for_submit as _slash_completion_for_submit,
 )
 from nipux_cli.tui_events import chat_pane_lines
 from nipux_cli.tui_input import decode_terminal_escape as _decode_terminal_escape
@@ -68,6 +69,7 @@ def test_cli_has_operator_commands():
     assert parser.parse_args(["activity", "--follow"]).func.__name__ == "cmd_activity"
     assert parser.parse_args(["feed"]).func.__name__ == "cmd_activity"
     assert parser.parse_args(["update"]).func.__name__ == "cmd_update"
+    assert parser.parse_args(["uninstall", "--dry-run"]).func.__name__ == "cmd_uninstall"
     assert parser.parse_args(["updates"]).func.__name__ == "cmd_updates"
     assert parser.parse_args(["outcomes"]).func.__name__ == "cmd_updates"
     assert parser.parse_args(["outcomes", "--all"]).all is True
@@ -159,13 +161,13 @@ def test_init_defaults_to_local_endpoint(monkeypatch, tmp_path):
     assert env_text.strip().endswith("OPENAI_API_KEY" + "=")
 
 
-def test_init_openrouter_defaults_to_qwen36(monkeypatch, tmp_path):
+def test_init_openrouter_defaults_to_generic_route(monkeypatch, tmp_path):
     monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
 
     main(["init", "--openrouter"])
 
     config_text = (tmp_path / "config.yaml").read_text(encoding="utf-8")
-    assert "name: qwen/qwen3.6-27b" in config_text
+    assert "name: openrouter/auto" in config_text
     assert "base_url: https://openrouter.ai/api/v1" in config_text
     assert "api_key_env: OPENROUTER_API_KEY" in config_text
 
@@ -327,7 +329,7 @@ def test_first_run_frame_has_slash_command_popup(monkeypatch, tmp_path):
     assert "/model" in frame
     assert "/settings" not in frame
     assert "/shell" not in frame
-    assert "type to filter" in frame
+    assert "enter fills" in frame
 
 
 def test_first_run_frame_walks_setup_screens(monkeypatch, tmp_path):
@@ -336,6 +338,7 @@ def test_first_run_frame_walks_setup_screens(monkeypatch, tmp_path):
     model = _build_first_run_frame("", [], width=100, height=26, view="model", selected=0)
     endpoint = _build_first_run_frame("", [], width=100, height=26, view="endpoint", selected=0)
     api = _build_first_run_frame("", [], width=100, height=26, view="api", selected=0)
+    access = _build_first_run_frame("", [], width=100, height=26, view="access", selected=0)
     invalid = _build_first_run_frame("", [], width=100, height=26, view="settings", selected=1)
 
     assert "Choose the model" in model
@@ -344,6 +347,9 @@ def test_first_run_frame_walks_setup_screens(monkeypatch, tmp_path):
     assert "Edit endpoint" in endpoint
     assert "Add a secret" in api
     assert "Save API key" in api
+    assert "Choose tool access" in access
+    assert "Browser" in access
+    assert "CLI" in access
     assert "Choose the model" not in endpoint
     assert "Connect an endpoint" not in api
     assert "Long-running work, installed in-session." in invalid
@@ -387,6 +393,13 @@ def test_slash_autocomplete_filters_commands():
     assert _cycle_slash("/work ", CHAT_SLASH_COMMANDS, direction=1) == "/work "
     assert _cycle_slash("/out", CHAT_SLASH_COMMANDS, direction=1) == "/outcomes"
     assert _cycle_slash("/out", CHAT_SLASH_COMMANDS, direction=-1) == "/output-cost"
+    assert _slash_completion_for_submit("/", CHAT_SLASH_COMMANDS) == ("/run", False)
+    assert _slash_completion_for_submit("/", FIRST_RUN_SLASH_COMMANDS) == ("/new ", False)
+    assert _slash_completion_for_submit("/ne", FIRST_RUN_SLASH_COMMANDS) == ("/new ", False)
+    assert _slash_completion_for_submit("/new", FIRST_RUN_SLASH_COMMANDS) == ("/new ", False)
+    assert _slash_completion_for_submit("/run", CHAT_SLASH_COMMANDS) == ("/run", True)
+    assert _slash_completion_for_submit("/settings", CHAT_SLASH_COMMANDS) == ("/settings", True)
+    assert _slash_completion_for_submit("/model demo/model", CHAT_SLASH_COMMANDS) == ("/model demo/model", True)
     assert _autocomplete_slash("plain text", CHAT_SLASH_COMMANDS) == "plain text"
     lines = _slash_suggestion_lines("/art", CHAT_SLASH_COMMANDS, width=80)
     text = "\n".join(lines)
@@ -400,7 +413,7 @@ def test_slash_autocomplete_filters_commands():
     assert "/model MODEL" in partial_hint_text
     assert "↑↓ select" in partial_hint_text
     full_palette_text = "\n".join(_slash_suggestion_lines("/", CHAT_SLASH_COMMANDS, width=80, limit=5))
-    assert "type to filter" in full_palette_text
+    assert "enter fills" in full_palette_text
     assert "/shell" not in "\n".join(_slash_suggestion_lines("/", CHAT_SLASH_COMMANDS, width=80, limit=20))
     assert "/restart" in "\n".join(_slash_suggestion_lines("/re", CHAT_SLASH_COMMANDS, width=80, limit=20))
 
@@ -583,6 +596,8 @@ def test_chat_help_has_config_slash_commands_without_settings_page(monkeypatch, 
     assert "/model MODEL" in out
     assert "/api-key KEY" in out
     assert "/timeout SECONDS" in out
+    assert "/browser true|false" in out
+    assert "/cli-access true|false" in out
     assert "/home PATH" in out
     assert "/digest-time HH:MM" in out
     assert "/shell" not in out
@@ -625,6 +640,10 @@ def test_chat_slash_palette_matches_public_chat_commands():
         "/input-cost",
         "/output-cost",
         "/timeout",
+        "/browser",
+        "/web",
+        "/cli-access",
+        "/file-access",
         "/home",
         "/step-limit",
         "/output-chars",
@@ -667,6 +686,10 @@ def test_chat_settings_slash_commands_persist_config(monkeypatch, tmp_path, caps
     assert _chat_handle_line(job_id, "/input-cost 0.10") is True
     assert _chat_handle_line(job_id, "/output-cost 0.20") is True
     assert _chat_handle_line(job_id, "/timeout 45") is True
+    assert _chat_handle_line(job_id, "/browser false") is True
+    assert _chat_handle_line(job_id, "/web false") is True
+    assert _chat_handle_line(job_id, "/cli-access false") is True
+    assert _chat_handle_line(job_id, "/file-access false") is True
     assert _chat_handle_line(job_id, "/step-limit 90") is True
     assert _chat_handle_line(job_id, "/output-chars 4096") is True
     assert _chat_handle_line(job_id, "/daily-digest false") is True
@@ -681,6 +704,10 @@ def test_chat_settings_slash_commands_persist_config(monkeypatch, tmp_path, caps
     assert "saved model.input_cost_per_million = 0.1" in out
     assert "saved model.output_cost_per_million = 0.2" in out
     assert "saved model.request_timeout_seconds = 45.0" in out
+    assert "saved tools.browser = False" in out
+    assert "saved tools.web = False" in out
+    assert "saved tools.shell = False" in out
+    assert "saved tools.files = False" in out
     assert "saved runtime.max_step_seconds = 90" in out
     assert "saved runtime.artifact_inline_char_limit = 4096" in out
     assert "saved runtime.daily_digest_enabled = False" in out
@@ -696,6 +723,10 @@ def test_chat_settings_slash_commands_persist_config(monkeypatch, tmp_path, caps
     assert _config_field_value("model.input_cost_per_million") == 0.1
     assert _config_field_value("model.output_cost_per_million") == 0.2
     assert _config_field_value("model.request_timeout_seconds") == 45.0
+    assert _config_field_value("tools.browser") is False
+    assert _config_field_value("tools.web") is False
+    assert _config_field_value("tools.shell") is False
+    assert _config_field_value("tools.files") is False
     assert _config_field_value("runtime.max_step_seconds") == 90
     assert _config_field_value("runtime.artifact_inline_char_limit") == 4096
     assert _config_field_value("runtime.daily_digest_enabled") is False
@@ -830,6 +861,17 @@ def test_first_run_local_connector_action_sets_generic_local_endpoint(monkeypatc
     assert any("saved model.base_url = http://localhost:8000/v1" in line for line in payload)
     assert _config_field_value("model.name") == "local-model"
     assert _config_field_value("model.base_url") == "http://localhost:8000/v1"
+
+
+def test_first_run_access_action_toggles_generic_tools(monkeypatch, tmp_path):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+
+    action, payload = _handle_first_run_action("toggle:tools.shell")
+
+    assert action == "notice"
+    assert isinstance(payload, list)
+    assert any("saved tools.shell = False" in line for line in payload)
+    assert _config_field_value("tools.shell") is False
 
 
 def test_shell_ls_alias_lists_jobs_instead_of_steering(monkeypatch, tmp_path, capsys):

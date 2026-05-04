@@ -1225,13 +1225,41 @@ class ToolRegistry:
     def names(self) -> list[str]:
         return sorted(self._specs)
 
-    def openai_tools(self) -> list[dict[str, Any]]:
-        return [self._specs[name].as_openai_tool() for name in self.names()]
+    def openai_tools(self, config: AppConfig | None = None) -> list[dict[str, Any]]:
+        return [self._specs[name].as_openai_tool() for name in self.names() if _tool_enabled(name, config)]
 
     def handle(self, name: str, args: dict[str, Any], ctx: ToolContext) -> str:
         if name not in self._specs:
             return _json({"success": False, "error": f"unknown tool: {name}"})
+        if not _tool_enabled(name, ctx.config):
+            group = _tool_access_group(name) or "tool"
+            return _json({
+                "success": False,
+                "error": f"{name} is disabled by tool access config",
+                "tool_access": group,
+            })
         return self._specs[name].handler(args, ctx)
+
+
+def _tool_enabled(name: str, config: AppConfig | None) -> bool:
+    if config is None:
+        return True
+    group = _tool_access_group(name)
+    if group is None:
+        return True
+    return bool(getattr(config.tools, group))
+
+
+def _tool_access_group(name: str) -> str | None:
+    if name.startswith("browser_"):
+        return "browser"
+    if name.startswith("web_"):
+        return "web"
+    if name == "shell_exec":
+        return "shell"
+    if name == "write_file":
+        return "files"
+    return None
 
 
 DEFAULT_REGISTRY = ToolRegistry()

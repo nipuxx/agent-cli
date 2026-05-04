@@ -8,7 +8,16 @@ from dataclasses import dataclass
 from io import StringIO
 from typing import Callable
 
+from nipux_cli.settings import config_field_value
 from nipux_cli.tui_commands import CHAT_SETTING_COMMANDS
+
+
+TOGGLE_SETTING_COMMANDS = {
+    "tools.browser": "browser",
+    "tools.web": "web",
+    "tools.shell": "cli-access",
+    "tools.files": "file-access",
+}
 
 
 @dataclass(frozen=True)
@@ -32,6 +41,13 @@ def handle_first_run_action(action: str, *, deps: FirstRunFrameDeps) -> tuple[st
             "Local connector selected. Start your OpenAI-compatible server, then create a job.",
         ]
         return "notice", notices
+    if action.startswith("toggle:"):
+        field = action.split(":", 1)[1]
+        command = TOGGLE_SETTING_COMMANDS.get(field)
+        if not command:
+            return "notice", f"Unknown setup toggle: {field}"
+        next_value = "false" if bool(config_field_value(field)) else "true"
+        return "notice", deps.capture_setting_command(f"{command} {next_value}")
     if action.startswith("edit:"):
         return "edit", action.split(":", 1)[1]
     if action.startswith("secret:"):

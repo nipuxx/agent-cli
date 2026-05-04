@@ -16,6 +16,10 @@ FIRST_RUN_SLASH_COMMANDS = [
     ("/context", "token budget"),
     ("/input-cost", "input $/1M"),
     ("/timeout", "request timeout"),
+    ("/browser", "browser on/off"),
+    ("/web", "web on/off"),
+    ("/cli-access", "CLI on/off"),
+    ("/file-access", "files on/off"),
     ("/home", "state directory"),
     ("/step-limit", "worker timeout"),
     ("/output-chars", "output preview size"),
@@ -66,6 +70,10 @@ CHAT_SLASH_COMMANDS = [
     ("/context", "token budget"),
     ("/input-cost", "input $/1M"),
     ("/timeout", "request timeout"),
+    ("/browser", "browser on/off"),
+    ("/web", "web on/off"),
+    ("/cli-access", "CLI on/off"),
+    ("/file-access", "files on/off"),
     ("/home", "state directory"),
     ("/step-limit", "worker timeout"),
     ("/output-chars", "output preview size"),
@@ -111,6 +119,10 @@ SETTINGS_FIELD_TYPES = {
     "runtime.artifact_inline_char_limit": "int",
     "runtime.daily_digest_enabled": "bool",
     "runtime.daily_digest_time": "str",
+    "tools.browser": "bool",
+    "tools.web": "bool",
+    "tools.shell": "bool",
+    "tools.files": "bool",
 }
 
 CHAT_SETTING_COMMANDS = {
@@ -121,6 +133,10 @@ CHAT_SETTING_COMMANDS = {
     "input-cost": ("model.input_cost_per_million", "DOLLARS_PER_1M_INPUT_TOKENS"),
     "output-cost": ("model.output_cost_per_million", "DOLLARS_PER_1M_OUTPUT_TOKENS"),
     "timeout": ("model.request_timeout_seconds", "SECONDS"),
+    "browser": ("tools.browser", "true|false"),
+    "web": ("tools.web", "true|false"),
+    "cli-access": ("tools.shell", "true|false"),
+    "file-access": ("tools.files", "true|false"),
     "home": ("runtime.home", "PATH"),
     "step-limit": ("runtime.max_step_seconds", "SECONDS"),
     "output-chars": ("runtime.artifact_inline_char_limit", "CHARS"),
@@ -208,9 +224,9 @@ def slash_suggestion_lines(
         lines.append(_fit_ansi(body, width))
     hidden = max(0, len(all_matches) - len(matches))
     if hidden:
-        lines.append(_fit_ansi(_muted(f"╰─ +{hidden} more; type to filter"), width))
+        lines.append(_fit_ansi(_muted(f"╰─ +{hidden} more; enter fills first match"), width))
     else:
-        lines.append(_fit_ansi(_muted("╰─ tab fills · ↑↓ select"), width))
+        lines.append(_fit_ansi(_muted("╰─ enter/tab fills · ↑↓ select"), width))
     return lines
 
 
@@ -221,6 +237,28 @@ def autocomplete_slash(input_buffer: str, commands: list[tuple[str, str]]) -> st
     if not matches:
         return input_buffer
     return matches[0] + " "
+
+
+def slash_completion_for_submit(input_buffer: str, commands: list[tuple[str, str]]) -> tuple[str, bool]:
+    """Return the buffer to use and whether Enter should submit it now."""
+
+    if not input_buffer.startswith("/") or " " in input_buffer[1:]:
+        return input_buffer, True
+    current = input_buffer.rstrip()
+    if not current:
+        return input_buffer, True
+    command_names = {cmd for cmd, _desc in commands}
+    token = current[1:].lower()
+    exact = current in command_names
+    if exact and token not in SLASH_ARGUMENT_HINTS:
+        return input_buffer, True
+    matches = _slash_command_matches(input_buffer, commands)
+    if not matches:
+        return input_buffer, True
+    selected = current if exact else matches[0]
+    suffix = " " if selected[1:] in SLASH_ARGUMENT_HINTS else ""
+    completed = selected + suffix
+    return completed, completed == input_buffer
 
 
 def cycle_slash(input_buffer: str, commands: list[tuple[str, str]], *, direction: int) -> str:

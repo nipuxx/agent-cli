@@ -20,6 +20,10 @@ def test_load_config_defaults_to_local_endpoint(tmp_path, monkeypatch):
     assert config.runtime.state_db_path == tmp_path / "state.db"
     assert config.runtime.daily_digest_enabled is True
     assert config.runtime.daily_digest_time == "08:00"
+    assert config.tools.browser is True
+    assert config.tools.web is True
+    assert config.tools.shell is True
+    assert config.tools.files is True
 
 
 def test_load_config_from_yaml(tmp_path, monkeypatch):
@@ -38,6 +42,11 @@ runtime:
   max_step_seconds: 42
   daily_digest_enabled: false
   daily_digest_time: "07:30"
+tools:
+  browser: false
+  web: true
+  shell: false
+  files: true
 email:
   enabled: true
   to_addr: kai@example.com
@@ -56,6 +65,10 @@ email:
     assert config.runtime.max_step_seconds == 42
     assert config.runtime.daily_digest_enabled is False
     assert config.runtime.daily_digest_time == "07:30"
+    assert config.tools.browser is False
+    assert config.tools.web is True
+    assert config.tools.shell is False
+    assert config.tools.files is True
     assert config.email.enabled is True
     assert config.email.to_addr == "kai@example.com"
 
@@ -105,6 +118,9 @@ def test_default_config_yaml_allows_provider_template_without_secret():
     assert "context_length: 8192" in text
     assert "input_cost_per_million: null" in text
     assert "output_cost_per_million: null" in text
+    assert "tools:" in text
+    assert "browser: true" in text
+    assert "shell: true" in text
     assert "sk-" not in text
 
 
@@ -117,3 +133,6 @@ def test_config_example_matches_default_local_endpoint():
     assert "api_key_env: OPENAI_API_KEY" in text
     assert "input_cost_per_million: null" in text
     assert "output_cost_per_million: null" in text
+    assert "tools:" in text
+    assert "browser: true" in text
+    assert "shell: true" in text

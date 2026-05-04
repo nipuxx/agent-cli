@@ -48,6 +48,11 @@ def config_summary_lines() -> list[str]:
         f"context: {config.model.context_length}",
         f"request timeout: {config.model.request_timeout_seconds}s",
         f"cost rates: input {input_cost} / output {output_cost} per 1M tokens",
+        (
+            "tools: "
+            f"browser {config.tools.browser}, web {config.tools.web}, "
+            f"CLI {config.tools.shell}, files {config.tools.files}"
+        ),
         f"home: {config.runtime.home}",
         f"step timeout: {config.runtime.max_step_seconds}s",
         f"output preview: {config.runtime.artifact_inline_char_limit} chars",

@@ -166,6 +166,7 @@ from nipux_cli.tui_style import (
     _one_line,
     _status_badge,
 )
+from nipux_cli.uninstall import build_uninstall_plan, uninstall_runtime
 from nipux_cli.updater import update_checkout
 from nipux_cli.updates import render_all_updates_report, render_updates_report
 
@@ -186,6 +187,7 @@ def _systemd_service_text(*, poll_seconds: float, quiet: bool) -> str:
 SHELL_BUILTINS = {"help", "?", "commands", "exit", "quit", ":q", "clear"}
 SHELL_COMMAND_NAMES = {
     "init",
+    "uninstall",
     "create",
     "jobs",
     "ls",
@@ -297,6 +299,50 @@ def cmd_update(args: argparse.Namespace) -> None:
         print(line)
     if code:
         raise SystemExit(code)
+
+
+def cmd_uninstall(args: argparse.Namespace) -> None:
+    config = load_config()
+    plan = build_uninstall_plan(runtime_home=config.runtime.home, include_legacy=not args.keep_legacy)
+    if not args.yes and not args.dry_run:
+        print("This will stop Nipux and remove local runtime state:")
+        for path in (*plan.service_paths, *plan.paths):
+            print(f"  {path.expanduser()}")
+        if args.remove_tool:
+            print("It will also run: uv tool uninstall nipux")
+        try:
+            answer = input("Type 'uninstall' to continue: ").strip().lower()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            print("uninstall aborted")
+            return
+        if answer != "uninstall":
+            print("uninstall aborted")
+            return
+    if not args.dry_run:
+        try:
+            _stop_daemon_process(config, wait=float(args.wait), quiet=True)
+        except (OSError, SystemExit) as exc:
+            print(f"daemon stop skipped: {exc}")
+    for line in uninstall_runtime(
+        runtime_home=config.runtime.home,
+        dry_run=bool(args.dry_run),
+        include_legacy=not args.keep_legacy,
+    ):
+        print(line)
+    if args.remove_tool and not args.dry_run:
+        uv = shutil.which("uv")
+        if not uv:
+            print("uv not found; remove the installed CLI with your package manager")
+            return
+        result = subprocess.run([uv, "tool", "uninstall", "nipux"], check=False, capture_output=True, text=True)
+        for line in (result.stdout + result.stderr).splitlines():
+            if line.strip():
+                print(line)
+        if result.returncode:
+            raise SystemExit(result.returncode)
+    elif not args.dry_run:
+        print("runtime removed. If installed with uv tool, remove the CLI binary with: uv tool uninstall nipux")
 
 
 def cmd_create(args: argparse.Namespace) -> None:
@@ -655,7 +701,7 @@ def _first_run_click_action(x: int, y: int, *, view: str) -> int | None:
     if not actions or y < 10 or y > max(10, height - 4):
         return None
     gap = 2
-    card_width = max(24, min(34, (width - (len(actions) - 1) * gap - 4) // len(actions)))
+    card_width = max(18, min(34, (width - (len(actions) - 1) * gap - 4) // len(actions)))
     total_width = len(actions) * card_width + (len(actions) - 1) * gap
     start_x = max(1, (width - total_width) // 2 + 1)
     relative = x - start_x
@@ -2150,6 +2196,7 @@ def _chat_handle_line(job_id: str, line: str, *, reply_fn=None) -> bool:
         print("  /artifacts /artifact QUERY /findings /tasks /roadmap /experiments /sources /memory /metrics /lessons")
         print("  /model MODEL /base-url URL /api-key KEY /api-key-env ENV /context TOKENS")
         print("  /input-cost DOLLARS_PER_1M_INPUT_TOKENS /output-cost DOLLARS_PER_1M_OUTPUT_TOKENS")
+        print("  /browser true|false /web true|false /cli-access true|false /file-access true|false")
         print("  /timeout SECONDS /home PATH /step-limit SECONDS /output-chars CHARS /daily-digest BOOL /digest-time HH:MM /doctor")
         print("  /run /start /restart /work N /work-verbose N /stop /pause [note] /resume /cancel [note]")
         print("  /learn LESSON /note MESSAGE /follow MESSAGE /digest /clear /exit")
@@ -2426,6 +2473,7 @@ def build_parser() -> argparse.ArgumentParser:
         handlers={
             "init": cmd_init,
             "update": cmd_update,
+            "uninstall": cmd_uninstall,
             "create": cmd_create,
             "jobs": cmd_jobs,
             "focus": cmd_focus,

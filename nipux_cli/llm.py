@@ -131,7 +131,7 @@ class OpenAIChatLLM:
 
 
 class ScriptedLLM:
-    """Tiny deterministic LLM used by smoke tests and CLI dry runs."""
+    """Tiny deterministic LLM used by tests and CLI dry runs."""
 
     def __init__(self, responses: list[LLMResponse]):
         self.responses = list(responses)

@@ -32,6 +32,7 @@ INSTALL_FLOW = [
     ("connector", "Connector", "local or hosted endpoint"),
     ("endpoint", "Endpoint", "OpenAI-compatible /v1"),
     ("api", "API key", "secret stored in .env"),
+    ("access", "Tools", "browser, web, CLI, files"),
     ("doctor", "Doctor", "check setup"),
     ("job", "First job", "describe long-running work"),
 ]
@@ -60,13 +61,20 @@ FIRST_RUN_ACTIONS_BY_VIEW: dict[str, list[tuple[str, str, str]]] = {
     ],
     "api": [
         ("secret:model.api_key", "Save API key", "hidden input"),
-        ("view:doctor", "Continue", "run doctor"),
+        ("view:access", "Continue", "choose tool access"),
         ("view:endpoint", "Back", "endpoint"),
+    ],
+    "access": [
+        ("toggle:tools.browser", "Browser", "automation"),
+        ("toggle:tools.web", "Web", "search/extract"),
+        ("toggle:tools.shell", "CLI", "terminal commands"),
+        ("toggle:tools.files", "Files", "write files"),
+        ("view:doctor", "Continue", "run checks"),
     ],
     "doctor": [
         ("doctor", "Run doctor", "verify setup"),
         ("view:job", "Continue", "create work"),
-        ("view:api", "Back", "API key"),
+        ("view:access", "Back", "tool access"),
     ],
     "job": [
         ("new", "Create job", "type the goal below"),
@@ -175,6 +183,8 @@ def _wizard_body_lines(
         lines = _endpoint_page_lines(config=config, selected=selected, width=width)
     elif view == "api":
         lines = _api_page_lines(config=config, selected=selected, width=width)
+    elif view == "access":
+        lines = _access_page_lines(config=config, selected=selected, width=width)
     elif view == "doctor":
         lines = _doctor_page_lines(config=config, selected=selected, width=width)
     elif view == "job":
@@ -216,7 +226,7 @@ def _model_page_lines(*, config: AppConfig, selected: int, width: int) -> list[s
     return [
         *_step_header("model", width=width),
         "",
-        _center_ansi(_muted("STEP 1 / 6"), width),
+        _center_ansi(_muted(_step_count_label("model")), width),
         _center_ansi(_bold("Choose the model"), width),
         _center_ansi(_muted("This model powers chat replies and background workers until you change it."), width),
         "",
@@ -250,7 +260,7 @@ def _connector_page_lines(*, config: AppConfig, selected: int, width: int) -> li
     return [
         *_step_header("connector", width=width),
         "",
-        _center_ansi(_muted("STEP 2 / 6"), width),
+        _center_ansi(_muted(_step_count_label("connector")), width),
         _center_ansi(_bold("Choose a connector"), width),
         _center_ansi(_muted("Pick local for first install, or keep a hosted endpoint if you already configured one."), width),
         "",
@@ -264,7 +274,7 @@ def _endpoint_page_lines(*, config: AppConfig, selected: int, width: int) -> lis
     return [
         *_step_header("endpoint", width=width),
         "",
-        _center_ansi(_muted("STEP 3 / 6"), width),
+        _center_ansi(_muted(_step_count_label("endpoint")), width),
         _center_ansi(_bold("Connect an endpoint"), width),
         _center_ansi(_muted("Nipux talks to OpenAI-compatible /v1 APIs. Nothing here is tied to one provider."), width),
         "",
@@ -286,7 +296,7 @@ def _api_page_lines(*, config: AppConfig, selected: int, width: int) -> list[str
     return [
         *_step_header("api", width=width),
         "",
-        _center_ansi(_muted("STEP 4 / 6"), width),
+        _center_ansi(_muted(_step_count_label("api")), width),
         _center_ansi(_bold("Add a secret"), width),
         _center_ansi(_muted("Local endpoints can continue without a key. Hosted providers usually need one."), width),
         "",
@@ -305,18 +315,41 @@ def _api_page_lines(*, config: AppConfig, selected: int, width: int) -> list[str
     ]
 
 
+def _access_page_lines(*, config: AppConfig, selected: int, width: int) -> list[str]:
+    rows = [
+        _access_row("browser", config.tools.browser, "persistent browser automation"),
+        _access_row("web", config.tools.web, "web search and page extraction"),
+        _access_row("CLI", config.tools.shell, "bounded terminal commands"),
+        _access_row("files", config.tools.files, "write deliverables into the workspace"),
+    ]
+    return [
+        *_step_header("access", width=width),
+        "",
+        _center_ansi(_muted(_step_count_label("access")), width),
+        _center_ansi(_bold("Choose tool access"), width),
+        _center_ansi(_muted("These switches control the generic tools workers can call for any job."), width),
+        "",
+        *_panel("TOOL ACCESS", rows, width=min(90, width - 8), page_width=width),
+        "",
+        *_action_cards(first_run_actions("access"), selected=selected, config=config, width=width),
+    ]
+
+
 def _doctor_page_lines(*, config: AppConfig, selected: int, width: int) -> list[str]:
     checks = [
         ("state directory", "writable under ~/.nipux or NIPUX_HOME"),
         ("database", "SQLite state store can open"),
         ("model config", f"{config.model.model} at {config.model.base_url}"),
-        ("tools", "browser, web, files, memory, shell surface"),
+        (
+            "tools",
+            f"browser={config.tools.browser} web={config.tools.web} CLI={config.tools.shell} files={config.tools.files}",
+        ),
     ]
     rows = [f"{_accent('✓')} {_fit_ansi(name, 18)} {_muted(detail)}" for name, detail in checks]
     return [
         *_step_header("doctor", width=width),
         "",
-        _center_ansi(_muted("STEP 5 / 6"), width),
+        _center_ansi(_muted(_step_count_label("doctor")), width),
         _center_ansi(_bold("Run checks"), width),
         _center_ansi(_muted("Doctor verifies the local runtime before the first job opens."), width),
         "",
@@ -339,7 +372,7 @@ def _job_page_lines(
     return [
         *_step_header("job", width=width),
         "",
-        _center_ansi(_muted("STEP 6 / 6"), width),
+        _center_ansi(_muted(_step_count_label("job")), width),
         _center_ansi(_bold("Create the first job"), width),
         _center_ansi(_muted("Type a real objective in the composer. Nipux opens chat/workspace after creation."), width),
         "",
@@ -390,7 +423,7 @@ def _action_cards(
     if not actions:
         return []
     gap = 2
-    card_width = max(24, min(34, (width - (len(actions) - 1) * gap - 4) // len(actions)))
+    card_width = max(18, min(34, (width - (len(actions) - 1) * gap - 4) // len(actions)))
     cards = [_action_tile(index, action, selected=selected, config=config, width=card_width) for index, action in enumerate(actions)]
     rows = _join_many_cards(cards, gap=gap, width=width)
     return [_center_ansi(row.rstrip(), width) for row in rows]
@@ -556,6 +589,9 @@ def _action_value(key: str, detail: str, *, config: AppConfig) -> str:
     if key.startswith("edit:"):
         field = key.split(":", 1)[1]
         return str(config_field_value(field, config))
+    if key.startswith("toggle:"):
+        field = key.split(":", 1)[1]
+        return "enabled" if bool(config_field_value(field, config)) else "disabled"
     if key == "secret:model.api_key":
         return "stored in .env" if config.model.api_key else f"uses {config.model.api_key_env}"
     if key == "preset:local":
@@ -572,6 +608,9 @@ def _step_state(key: str, *, config: AppConfig) -> str:
         return _one_line(config.model.base_url, 20)
     if key == "api":
         return "ready" if config.model.api_key or _is_local_endpoint(config.model.base_url) else "missing"
+    if key == "access":
+        enabled = sum(bool(value) for value in (config.tools.browser, config.tools.web, config.tools.shell, config.tools.files))
+        return f"{enabled}/4 enabled"
     if key == "doctor":
         return "pending"
     if key == "job":
@@ -595,6 +634,7 @@ def _screen_heading(view: str) -> str:
         "connector": "Choose connector",
         "endpoint": "Connect endpoint",
         "api": "Add API key",
+        "access": "Choose tools",
         "doctor": "Run checks",
         "job": "Create first job",
     }.get(view, "Welcome")
@@ -606,6 +646,7 @@ def _screen_copy(view: str) -> str:
         "connector": "Local OpenAI-compatible servers are easiest to test; hosted providers need a key.",
         "endpoint": "Use any OpenAI-compatible /v1 endpoint. This stays generic and provider-neutral.",
         "api": "Hosted providers need a secret. Local endpoints can continue without one.",
+        "access": "Enable the generic tools this worker can use for any job.",
         "doctor": "Run a setup check before opening the workspace.",
         "job": "The first job opens the main chat/workspace screen.",
     }.get(view, "Nipux installs through this full-screen setup.")
@@ -619,6 +660,20 @@ def _install_summary(config: AppConfig, *, width: int) -> str:
 
 def _normalize_first_run_view(view: str) -> str:
     return view if view in FIRST_RUN_ACTIONS_BY_VIEW else "start"
+
+
+def _step_count_label(view: str) -> str:
+    keys = [key for key, _label, _detail in INSTALL_FLOW]
+    try:
+        index = keys.index(view) + 1
+    except ValueError:
+        index = 1
+    return f"STEP {index} / {len(INSTALL_FLOW)}"
+
+
+def _access_row(name: str, enabled: bool, detail: str) -> str:
+    marker = _accent("on ") if enabled else _muted("off")
+    return f"{_fit_ansi(name, 10)} {marker} {_muted(detail)}"
 
 
 def _is_local_endpoint(value: str) -> bool:

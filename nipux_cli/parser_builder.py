@@ -39,6 +39,14 @@ def build_arg_parser(
     update.add_argument("--allow-dirty", action="store_true", help="Attempt git pull even when local changes exist")
     update.set_defaults(func=_handler(handlers, "update"))
 
+    uninstall = sub.add_parser("uninstall")
+    uninstall.add_argument("--yes", action="store_true", help="Confirm removal without an interactive prompt")
+    uninstall.add_argument("--dry-run", action="store_true", help="Show what would be removed")
+    uninstall.add_argument("--keep-legacy", action="store_true", help="Keep legacy ~/.kneepucks state if present")
+    uninstall.add_argument("--remove-tool", action="store_true", help="Also run `uv tool uninstall nipux`")
+    uninstall.add_argument("--wait", type=float, default=5.0, help="Seconds to wait for daemon shutdown")
+    uninstall.set_defaults(func=_handler(handlers, "uninstall"))
+
     create = sub.add_parser("create")
     create.add_argument("objective")
     create.add_argument("--title")

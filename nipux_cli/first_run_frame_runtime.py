@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from typing import Callable
 
 from nipux_cli.settings import inline_setting_notice
-from nipux_cli.tui_commands import FIRST_RUN_SLASH_COMMANDS, autocomplete_slash, cycle_slash
+from nipux_cli.tui_commands import FIRST_RUN_SLASH_COMMANDS, autocomplete_slash, cycle_slash, slash_completion_for_submit
 from nipux_cli.tui_input import (
     decode_terminal_escape,
     drain_pending_input,
@@ -95,6 +95,10 @@ def run_first_run_frame(*, deps: FirstRunRuntimeDeps) -> str | None:
                 needs_render = True
                 continue
             if char in {"\r", "\n"}:
+                buffer, should_submit = slash_completion_for_submit(buffer, FIRST_RUN_SLASH_COMMANDS)
+                if not should_submit:
+                    needs_render = True
+                    continue
                 try:
                     action, payload = _submit_first_run_line(buffer, selected=selected, view=view, deps=deps)
                 except Exception as exc:

@@ -13,7 +13,7 @@ from typing import Callable
 from typing import Any
 
 from nipux_cli.settings import inline_setting_notice
-from nipux_cli.tui_commands import CHAT_SLASH_COMMANDS, autocomplete_slash, cycle_slash
+from nipux_cli.tui_commands import CHAT_SLASH_COMMANDS, autocomplete_slash, cycle_slash, slash_completion_for_submit
 from nipux_cli.tui_input import (
     decode_terminal_escape,
     drain_pending_input,
@@ -152,6 +152,10 @@ def run_chat_frame(job_id: str, *, history_limit: int, deps: ChatFrameDeps) -> N
                 needs_render = True
                 continue
             if char in {"\r", "\n"}:
+                buffer, should_submit = slash_completion_for_submit(buffer, CHAT_SLASH_COMMANDS)
+                if not should_submit:
+                    needs_render = True
+                    continue
                 try:
                     keep_running, snapshot, job_id, notices, right_view, modal_view = _handle_chat_submit(
                         buffer,

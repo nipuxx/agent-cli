@@ -1,7 +1,7 @@
 import json
 
 from nipux_cli.artifacts import ArtifactStore
-from nipux_cli.config import AppConfig, RuntimeConfig
+from nipux_cli.config import AppConfig, RuntimeConfig, ToolAccessConfig
 from nipux_cli.db import AgentDB
 from nipux_cli.tools import APPROVED_TOOL_NAMES, DEFAULT_REGISTRY, ToolContext
 
@@ -25,6 +25,27 @@ def test_static_tool_surface_is_focused():
     assert "record_milestone_validation" in DEFAULT_REGISTRY.names()
     assert "record_experiment" in DEFAULT_REGISTRY.names()
     assert "acknowledge_operator_context" in DEFAULT_REGISTRY.names()
+
+
+def test_tool_access_config_filters_worker_schema_and_blocks_calls(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path), tools=ToolAccessConfig(browser=False, web=False, shell=False, files=False))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Restricted tools")
+        ctx = ToolContext(config=config, db=db, artifacts=ArtifactStore(tmp_path, db), job_id=job_id)
+
+        names = {tool["function"]["name"] for tool in DEFAULT_REGISTRY.openai_tools(config=config)}
+        assert "browser_navigate" not in names
+        assert "web_search" not in names
+        assert "shell_exec" not in names
+        assert "write_file" not in names
+        assert "write_artifact" in names
+
+        result = json.loads(DEFAULT_REGISTRY.handle("shell_exec", {"command": "printf no"}, ctx))
+        assert result["success"] is False
+        assert result["tool_access"] == "shell"
+    finally:
+        db.close()
 
 
 def test_artifact_tools_roundtrip(tmp_path):

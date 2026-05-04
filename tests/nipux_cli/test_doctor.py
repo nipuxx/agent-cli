@@ -83,7 +83,7 @@ def test_doctor_reports_generation_limit_after_model_listing(tmp_path, monkeypat
     config = AppConfig(
         runtime=RuntimeConfig(home=tmp_path),
         model=ModelConfig(
-            model="qwen/qwen3.6-27b",
+            model="provider/test-model",
             base_url="https://openrouter.ai/api/v1",
             api_key_env="TEST_OPENROUTER_KEY",
         ),
@@ -94,7 +94,7 @@ def test_doctor_reports_generation_limit_after_model_listing(tmp_path, monkeypat
         if url.endswith("/key"):
             return FakeHTTPResponse({})
         if url.endswith("/models"):
-            return FakeHTTPResponse({"data": [{"id": "qwen/qwen3.6-27b"}]})
+            return FakeHTTPResponse({"data": [{"id": "provider/test-model"}]})
         if url.endswith("/chat/completions"):
             body = b'{"error":{"message":"Key limit exceeded (total limit).","code":403}}'
             raise urllib.error.HTTPError(url, 403, "Forbidden", hdrs=None, fp=io.BytesIO(body))

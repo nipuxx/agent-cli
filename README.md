@@ -9,11 +9,10 @@
 ```
 
 Nipux CLI is a small, restartable worker for long-running browser, web research,
-and command-line jobs. It defaults to Qwen 3.6 27B through OpenRouter, while
-still supporting any OpenAI-compatible local or remote endpoint. It is maintained
-for Nipux and built around one practical idea: keep a worker moving in bounded
-steps, save exact evidence, learn from each branch, and recover cleanly when a
-process or model call fails.
+and command-line jobs. It supports any OpenAI-compatible local or remote model
+endpoint. It is maintained for Nipux and built around one practical idea: keep a
+worker moving in bounded steps, save exact evidence, learn from each branch, and
+recover cleanly when a process or model call fails.
 
 - Website: [Nipux.com](https://nipux.com)
 - Source: [github.com/nipuxx/agent-cli](https://github.com/nipuxx/agent-cli)
@@ -28,7 +27,7 @@ continue through a daemon loop until the operator pauses or cancels it.
 
 The default runtime is intentionally narrow:
 
-- one OpenAI-compatible model endpoint, defaulting to `qwen/qwen3.6-27b`
+- one OpenAI-compatible model endpoint chosen during setup
 - one SQLite state store under `~/.nipux`
 - one restartable daemon with a single-instance lock
 - per-job artifact files for exact evidence
@@ -38,9 +37,8 @@ The default runtime is intentionally narrow:
 - durable ledgers for lessons, sources, findings, tasks, roadmap, and experiments
 
 Nipux does not include a messaging gateway, plugin marketplace, skills manager,
-multi-provider setup wizard, RL environment, voice stack, image stack, or broad
-web application. The public surface is the `nipux` CLI and the focused
-`nipux_cli/` Python package.
+RL environment, voice stack, image stack, or broad web application. The public
+surface is the `nipux` CLI and the focused `nipux_cli/` Python package.
 
 ## Install
 
@@ -50,49 +48,23 @@ Requirements:
 - an OpenAI-compatible chat completions endpoint, local or remote
 - optional browser automation: `npm install -g agent-browser && agent-browser install`
 
+Install and open the full-screen setup wizard with one command:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/nipuxx/agent-cli/main/scripts/install.sh | bash
+```
+
+The first-run wizard asks for the provider/model, endpoint, API key location,
+tool access, and the first long-running job. It stores secrets outside the git
+repo and writes runtime state under `~/.nipux` unless `NIPUX_HOME` is set.
+
 Install from a local checkout while developing:
 
 ```bash
 git clone https://github.com/nipuxx/agent-cli.git
 cd agent-cli
 uv tool install --editable .
-nipux --help
-```
-
-Or run without installing:
-
-```bash
-uv run nipux --help
-```
-
-## Local Test Drive
-
-Use the smoke script when you want to test the repo like a fresh user without
-touching your real `~/.nipux` profile or spending model credits:
-
-```bash
-cd agent-cli
-uv run python scripts/local_smoke.py
-```
-
-The smoke test creates a temporary profile in your system temp directory, writes
-starter config files, creates a generic job, runs one fake worker step, saves an
-artifact, and prints the status, saved output, and outcomes views. It does not
-call a real model. The exact `NIPUX_HOME` path is printed at the top of the
-smoke output.
-
-After the smoke test passes, open the full terminal UI against the same isolated
-profile:
-
-```bash
-NIPUX_HOME=/path/printed/by/local_smoke uv run nipux
-```
-
-When that feels right, switch to your real profile:
-
-```bash
-uv run nipux init
-uv run nipux
+nipux
 ```
 
 Install directly from git once the repository is public:
@@ -103,9 +75,9 @@ uv tool install git+https://github.com/nipuxx/agent-cli.git
 
 ## First Run
 
-Initialize local state under `~/.nipux`. This writes `config.yaml` for the
-default OpenRouter/Qwen setup and a local `.env` template. Real API keys stay in
-the environment or `~/.nipux/.env`, not in the git repo.
+Initialize local state under `~/.nipux`. The first-run wizard can write
+`config.yaml` and a local `.env` template. Real API keys stay in the environment
+or `~/.nipux/.env`, not in the git repo.
 
 ```bash
 nipux init
@@ -122,14 +94,6 @@ For a local OpenAI-compatible server:
 ```bash
 nipux init --model local-model --base-url http://localhost:8000/v1 --api-key-env OPENAI_API_KEY
 nipux doctor
-```
-
-Create a job and run a deterministic no-model smoke step:
-
-```bash
-nipux create "Research inference optimization ideas and save useful evidence." --title "nightly research"
-nipux daemon --once --fake
-nipux digest "nightly research"
 ```
 
 Open the focused chat UI:
@@ -160,6 +124,17 @@ nipux service install
 nipux service status
 ```
 
+Fully remove local runtime state when you want a fresh user install:
+
+```bash
+nipux uninstall --yes
+```
+
+This stops the daemon, removes launchd/systemd service files, deletes
+`~/.nipux`, and removes legacy `~/.kneepucks` state if it exists. If the CLI was
+installed with `uv tool`, add `--remove-tool` to remove the installed command
+after state cleanup.
+
 ## Secrets
 
 Nipux never needs an API key in `config.yaml`. The config stores only the name
@@ -167,9 +142,9 @@ of the environment variable to read:
 
 ```yaml
 model:
-  name: qwen/qwen3.6-27b
-  base_url: https://openrouter.ai/api/v1
-  api_key_env: OPENROUTER_API_KEY
+  name: provider/model
+  base_url: https://provider.example/v1
+  api_key_env: PROVIDER_API_KEY
   # Optional fallback pricing when the provider does not return cost metadata.
   input_cost_per_million: null
   output_cost_per_million: null
@@ -179,12 +154,29 @@ Put secrets in your shell, your process manager, or `~/.nipux/.env`:
 
 ```bash
 # ~/.nipux/.env
-OPENROUTER_API_KEY=
+PROVIDER_API_KEY=
 ```
 
 The repository includes `.env.example` and `config.example.yaml` as templates.
 Do not commit real `.env`, state databases, logs, artifacts, or browser
 profiles. The default `.gitignore` excludes those local runtime files.
+
+## Tool Access
+
+The first-run wizard and config slash commands control which generic tool groups
+the worker can use:
+
+```yaml
+tools:
+  browser: true
+  web: true
+  shell: true
+  files: true
+```
+
+Use `/browser`, `/web`, `/cli-access`, and `/file-access` in the terminal UI to
+change those switches later. Disabled tools are removed from the worker tool
+schema and blocked if an old daemon tries to call them.
 
 ## Local Model Examples
 
@@ -314,6 +306,8 @@ without burning model calls on repeated polling.
 
 ```bash
 nipux init [--force] [--openrouter] [--model MODEL] [--base-url URL] [--api-key-env ENV]
+nipux update [--path PATH] [--allow-dirty]
+nipux uninstall [--yes] [--dry-run] [--keep-legacy] [--remove-tool]
 nipux doctor [--check-model]
 nipux shell [--status]
 nipux create "objective" [--title TITLE] [--kind KIND] [--cadence CADENCE]
