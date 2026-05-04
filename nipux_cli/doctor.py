@@ -186,8 +186,57 @@ def _extract_error_message(body: str) -> str:
         return body.strip()
     error = data.get("error") if isinstance(data, dict) else None
     if isinstance(error, dict):
-        return str(error.get("message") or error.get("code") or "").strip()
+        message = str(error.get("message") or "").strip()
+        code = str(error.get("code") or "").strip()
+        metadata = error.get("metadata")
+        raw = _extract_error_raw(metadata)
+        provider = _metadata_value(metadata, "provider_name")
+        byok = _metadata_value(metadata, "is_byok")
+
+        primary = message or code
+        if raw and raw != primary:
+            primary = f"{primary}: {raw}" if primary else raw
+        details = []
+        if code and code not in primary:
+            details.append(f"code={code}")
+        if provider:
+            details.append(f"provider={provider}")
+        if byok not in {"", None}:
+            details.append(f"byok={byok}")
+        if details:
+            primary = f"{primary} ({'; '.join(details)})" if primary else "; ".join(details)
+        return primary.strip()
     return ""
+
+
+def _metadata_value(metadata: Any, key: str) -> str:
+    if not isinstance(metadata, dict):
+        return ""
+    value = metadata.get(key)
+    if value is None:
+        return ""
+    return str(value).strip()
+
+
+def _extract_error_raw(metadata: Any) -> str:
+    if not isinstance(metadata, dict):
+        return ""
+    raw = metadata.get("raw")
+    if raw is None:
+        return ""
+    if isinstance(raw, dict):
+        return _extract_error_message(json.dumps(raw))
+    raw_text = str(raw).strip()
+    if not raw_text:
+        return ""
+    try:
+        raw_json = json.loads(raw_text)
+    except json.JSONDecodeError:
+        return raw_text
+    if isinstance(raw_json, dict):
+        nested = _extract_error_message(json.dumps(raw_json))
+        return nested or raw_text
+    return raw_text
 
 
 def _model_available(data: Any, model: str) -> bool | None:
