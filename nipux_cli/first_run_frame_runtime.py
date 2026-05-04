@@ -28,7 +28,7 @@ class FirstRunRuntimeDeps:
     actions: Callable[[str], list[tuple[str, str, str]]]
     handle_action: Callable[[str], tuple[str, str | list[str] | None]]
     handle_line: Callable[[str], tuple[str, str | list[str] | None]]
-    click_action: Callable[[int, int, str], int | None]
+    click_action: Callable[[int, int, str], int | str | None]
 
 
 def run_first_run_frame(*, deps: FirstRunRuntimeDeps) -> str | None:
@@ -239,21 +239,24 @@ def _handle_first_run_escape(
             return view, selected, None, None, False, buffer
         return view, (selected + 1) % len(actions), None, None, False, buffer
     if key in {"left", "right"}:
-        next_action = directional_first_run_action(deps.actions(view), direction=1 if key == "right" else -1)
-        if next_action:
-            action, payload = deps.handle_action(next_action)
-            next_view, next_selected, editing_field, next_job_id, should_exit = _apply_first_run_action(
-                action,
-                payload,
-                view=view,
-                selected=selected,
-                notices=notices,
-            )
-            return next_view, next_selected, editing_field, next_job_id, should_exit, buffer
-        return view, selected, None, None, False, buffer
+        actions = deps.actions(view)
+        if not actions:
+            return view, selected, None, None, False, buffer
+        delta = 1 if key == "right" else -1
+        return view, (selected + delta) % len(actions), None, None, False, buffer
     if key == "click" and isinstance(payload, tuple):
         clicked = deps.click_action(payload[0], payload[1], view)
         if clicked is not None:
+            if isinstance(clicked, str):
+                action, payload = deps.handle_action(clicked)
+                next_view, next_selected, editing_field, next_job_id, should_exit = _apply_first_run_action(
+                    action,
+                    payload,
+                    view=view,
+                    selected=selected,
+                    notices=notices,
+                )
+                return next_view, next_selected, editing_field, next_job_id, should_exit, buffer
             actions = deps.actions(view)
             if not actions:
                 return view, selected, None, None, False, buffer

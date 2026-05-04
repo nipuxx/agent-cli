@@ -33,6 +33,7 @@ from nipux_cli.cli import (
     main,
 )
 from nipux_cli.config import load_config
+from nipux_cli.cli_state import write_shell_state as _write_shell_state_direct
 from nipux_cli.daemon import append_daemon_event
 from nipux_cli.db import AgentDB
 from nipux_cli.llm import LLMResponse
@@ -219,7 +220,7 @@ def test_main_no_args_enters_chat_first_home(monkeypatch, tmp_path, capsys):
     assert "visible agent update" in out
 
 
-def test_main_no_args_with_no_jobs_shows_first_run_menu(monkeypatch, tmp_path, capsys):
+def test_main_no_args_with_no_jobs_requires_setup_frame(monkeypatch, tmp_path, capsys):
     monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
 
     def eof_input(_prompt):
@@ -230,25 +231,30 @@ def test_main_no_args_with_no_jobs_shows_first_run_menu(monkeypatch, tmp_path, c
     main([])
 
     out = capsys.readouterr().out
-    assert "Start" in out
-    assert "FIRST RUN" not in out
-    assert "new       create a long-running job" in out
-    assert "Create or manage jobs" not in out
-    assert "settings" not in out.lower()
-    assert "shell     open the full command console" not in out
-    assert "doctor    check local setup" in out
-    assert "init      write config/env template" in out
+    assert "Nipux setup requires an interactive terminal." in out
+    assert "new       create a long-running job" not in out
+    assert "doctor    check local setup" not in out
     assert "_   _" not in out
     assert "nipux menu >" not in out
+
+
+def test_main_no_args_after_setup_complete_does_not_reopen_setup(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    load_config().ensure_dirs()
+    _write_shell_state_direct({"setup_completed": True})
+
+    main([])
+
+    out = capsys.readouterr().out
+    assert "No jobs are saved in this profile." in out
+    assert "Nipux setup requires" not in out
+    assert "Begin setup" not in out
 
 
 def test_first_run_menu_can_create_job_and_open_workspace(monkeypatch, tmp_path, capsys):
     monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
     opened = {}
     started = {}
-
-    def fake_input(_prompt):
-        return "new Build a durable workflow"
 
     def fake_enter_chat(job_id, *, show_history, history_limit):
         opened["job_id"] = job_id
@@ -259,11 +265,10 @@ def test_first_run_menu_can_create_job_and_open_workspace(monkeypatch, tmp_path,
     def fake_start(**kwargs):
         started.update(kwargs)
 
-    monkeypatch.setattr("builtins.input", fake_input)
     monkeypatch.setattr("nipux_cli.cli._enter_chat", fake_enter_chat)
     monkeypatch.setattr("nipux_cli.cli._start_daemon_if_needed", fake_start)
 
-    main([])
+    assert _handle_first_run_menu_line("new Build a durable workflow") is False
 
     out = capsys.readouterr().out
     db = AgentDB(tmp_path / "state.db")
@@ -301,12 +306,15 @@ def test_first_run_frame_uses_full_screen_ui_not_banner(monkeypatch, tmp_path):
     monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
 
     frame = _build_first_run_frame("", [], width=100, height=24)
+    lines = frame.splitlines()
 
-    assert "NIPUX" in frame
+    assert "███" in frame
+    assert "workspace" not in lines[0].lower()
     assert "Begin setup" in frame
     assert "Long-running work, installed in-session." in frame
     assert "local-first setup flow" in frame
     assert "Enter selects" in frame
+    assert "←→" in frame
     assert "controls on the right" not in frame
     assert "Control" not in frame
     assert "SETUP" not in frame
@@ -391,6 +399,9 @@ def test_slash_autocomplete_filters_commands():
     assert _cycle_slash("/", CHAT_SLASH_COMMANDS, direction=1) == "/run"
     assert _cycle_slash("/", CHAT_SLASH_COMMANDS, direction=-1) == "/exit"
     assert _cycle_slash("/work ", CHAT_SLASH_COMMANDS, direction=1) == "/work "
+    assert _cycle_slash("/run", CHAT_SLASH_COMMANDS, direction=1) == "/work"
+    assert _cycle_slash("/new", FIRST_RUN_SLASH_COMMANDS, direction=1) == "/jobs"
+    assert _cycle_slash("/new", FIRST_RUN_SLASH_COMMANDS, direction=-1) == "/exit"
     assert _cycle_slash("/out", CHAT_SLASH_COMMANDS, direction=1) == "/outcomes"
     assert _cycle_slash("/out", CHAT_SLASH_COMMANDS, direction=-1) == "/output-cost"
     assert _slash_completion_for_submit("/", CHAT_SLASH_COMMANDS) == ("/run", False)
@@ -436,6 +447,8 @@ def test_first_run_click_maps_right_pane_actions(monkeypatch):
     assert _first_run_click_action(36, 15, view="start") == 1
     assert _first_run_click_action(68, 15, view="start") == 2
     assert _first_run_click_action(1, 4, view="start") is None
+    assert _first_run_click_action(5, 1, view="model") == "view:model"
+    assert _first_run_click_action(22, 1, view="model") == "view:connector"
 
 
 def test_first_run_arrow_navigation_changes_setup_screens():

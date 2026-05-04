@@ -73,3 +73,11 @@ def write_shell_state(patch: dict[str, Any]) -> None:
     shell_state_path().write_text(
         json.dumps(state, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
+
+
+def setup_completed() -> bool:
+    return bool(read_shell_state().get("setup_completed"))
+
+
+def mark_setup_completed() -> None:
+    write_shell_state({"setup_completed": True})

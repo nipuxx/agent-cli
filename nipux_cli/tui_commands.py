@@ -264,10 +264,11 @@ def slash_completion_for_submit(input_buffer: str, commands: list[tuple[str, str
 def cycle_slash(input_buffer: str, commands: list[tuple[str, str]], *, direction: int) -> str:
     if not input_buffer.startswith("/") or " " in input_buffer[1:]:
         return input_buffer
-    matches = _slash_command_matches(input_buffer, commands)
+    current = input_buffer.rstrip()
+    command_names = [cmd for cmd, _desc in commands]
+    matches = command_names if current in command_names else _slash_command_matches(input_buffer, commands)
     if not matches:
         return input_buffer
-    current = input_buffer.rstrip()
     try:
         index = matches.index(current)
     except ValueError:

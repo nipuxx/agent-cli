@@ -13,7 +13,7 @@ from nipux_cli.settings import (
 )
 from nipux_cli.tui_commands import FIRST_RUN_SLASH_COMMANDS, slash_suggestion_lines
 from nipux_cli.tui_events import NIPUX_HERO
-from nipux_cli.tui_layout import _compose_bar, _top_bar
+from nipux_cli.tui_layout import _compose_bar
 from nipux_cli.tui_style import (
     _accent,
     _bold,
@@ -104,14 +104,7 @@ def build_first_run_frame(
     height = max(22, height)
     view = _normalize_first_run_view(view)
     selected = _clamp_first_run_selection(selected, view)
-    header = _top_bar(
-        width,
-        state="setup",
-        daemon="",
-        model=config.model.model,
-        base_url=config.model.base_url,
-        context_length=config.model.context_length,
-    )
+    header: list[str] = []
     if editing_field:
         hint = edit_target_hint(editing_field, config)
         prompt_label = edit_target_label(editing_field)
@@ -206,7 +199,6 @@ def _wizard_body_lines(
 def _start_page_lines(*, config: AppConfig, selected: int, width: int, rows: int) -> list[str]:
     actions = first_run_actions("start")
     content = [
-        "",
         *[_center_ansi(_style(line, "37;1"), width) for line in NIPUX_HERO],
         "",
         _center_ansi(_bold("Long-running work, installed in-session."), width),
@@ -216,7 +208,7 @@ def _start_page_lines(*, config: AppConfig, selected: int, width: int, rows: int
         "",
         *_action_cards(actions, selected=selected, config=config, width=width),
         "",
-        _center_ansi(_muted("Enter selects  ·  → begins setup  ·  / opens the command palette"), width),
+        _center_ansi(_muted("Enter selects  ·  ←→ moves  ·  / opens commands"), width),
     ]
     top_pad = max(0, (rows - len(content)) // 2 - 1)
     return [""] * top_pad + content
@@ -620,8 +612,8 @@ def _step_state(key: str, *, config: AppConfig) -> str:
 
 def _first_run_hint(view: str) -> str:
     if view == "job":
-        return "Type the first objective  ·  Enter creates work  ·  ↑↓ actions"
-    return "Enter selects  ·  ↑↓ actions  ·  / commands"
+        return "Type the first objective  ·  Enter creates work  ·  ←→ actions"
+    return "Enter selects  ·  ←→ actions  ·  / commands"
 
 
 def _left_title(view: str) -> str:

@@ -27,7 +27,9 @@ from nipux_cli.cli_state import (
     configured_focus_job_id as _configured_focus_job_id,
     default_job_id as _default_job_id,
     find_job as _find_job,
+    mark_setup_completed as _mark_setup_completed,
     read_shell_state as _read_shell_state,
+    setup_completed as _setup_completed,
     write_shell_state as _write_shell_state,
 )
 from nipux_cli.cli_render import (
@@ -94,6 +96,7 @@ from nipux_cli.db import AgentDB
 from nipux_cli.digest import render_job_digest, write_daily_digest
 from nipux_cli.doctor import run_doctor
 from nipux_cli.first_run_tui import (
+    INSTALL_FLOW as _FIRST_RUN_INSTALL_FLOW,
     build_first_run_frame as _build_first_run_tui_frame,
     first_run_actions as _first_run_tui_actions,
     first_run_columns as _first_run_columns,
@@ -394,6 +397,7 @@ def _create_job(
             encoding="utf-8",
         )
         _write_shell_state({"focus_job_id": job_id})
+        _mark_setup_completed()
         return job_id, title
     finally:
         db.close()
@@ -528,30 +532,30 @@ def cmd_home(args: argparse.Namespace) -> None:
         _enter_chat(job_id, show_history=True, history_limit=args.history_limit)
         return
 
-    _enter_first_run_menu(history_limit=args.history_limit)
+    if _setup_completed():
+        _enter_empty_workspace(history_limit=args.history_limit)
+        return
+
+    _enter_first_run_setup(history_limit=args.history_limit)
 
 
-def _enter_first_run_menu(*, history_limit: int = 12) -> None:
-    _start_interactive_daemon_if_possible()
+def _enter_first_run_setup(*, history_limit: int = 12) -> None:
     if _frame_chat_enabled():
         _enter_first_run_frame(history_limit=history_limit)
         return
 
-    print("Nipux CLI")
+    print("Nipux setup requires an interactive terminal.")
+    print("Run `nipux` in a terminal window to choose model, endpoint, tools, and first job.")
+
+
+def _enter_empty_workspace(*, history_limit: int = 12) -> None:
+    del history_limit
+    print("Nipux")
     print(_rule("="))
-    _print_first_run_menu()
-    print(_rule("="))
-    while True:
-        try:
-            line = input("nipux > ").strip()
-        except EOFError:
-            print()
-            return
-        except KeyboardInterrupt:
-            print()
-            continue
-        if not _handle_first_run_menu_line(line, history_limit=history_limit):
-            return
+    print("No jobs are saved in this profile.")
+    print("Create a job with: nipux create \"objective\"")
+    print("Edit settings with slash commands inside a job, or use: nipux init --force")
+    print("Check setup with: nipux doctor")
 
 
 def _print_first_run_menu() -> None:
@@ -649,6 +653,7 @@ def _prompt_first_run_value(label: str) -> str:
 def _first_run_create_and_open(objective: str, *, history_limit: int = 12) -> None:
     job_id, title = _create_job(objective=objective, title=None, kind="generic", cadence=None)
     print(f"created {title}")
+    _mark_setup_completed()
     _start_interactive_daemon_if_possible()
     print("Opening workspace.")
     _enter_chat(job_id, show_history=True, history_limit=history_limit)
@@ -694,9 +699,13 @@ def _handle_first_run_action(action: str) -> tuple[str, str | list[str] | None]:
     return _controller_handle_first_run_action(action, deps=_first_run_frame_deps())
 
 
-def _first_run_click_action(x: int, y: int, *, view: str) -> int | None:
+def _first_run_click_action(x: int, y: int, *, view: str) -> int | str | None:
     width, height = shutil.get_terminal_size((100, 30))
     width = max(92, width)
+    if y <= 2 and view != "start":
+        target = _first_run_step_click_target(x, width=width)
+        if target:
+            return target
     actions = _first_run_actions(view)
     if not actions or y < 10 or y > max(10, height - 4):
         return None
@@ -713,6 +722,15 @@ def _first_run_click_action(x: int, y: int, *, view: str) -> int | None:
     if not within_card:
         return None
     return index if 0 <= index < len(actions) else None
+
+
+def _first_run_step_click_target(x: int, *, width: int) -> str | None:
+    keys = [key for key, _label, _detail in _FIRST_RUN_INSTALL_FLOW]
+    if not keys:
+        return None
+    segment = max(1, width // len(keys))
+    index = min(len(keys) - 1, max(0, (max(1, x) - 1) // segment))
+    return f"view:{keys[index]}"
 
 
 def _chat_page_click(x: int, y: int, *, right_view: str) -> str | None:
