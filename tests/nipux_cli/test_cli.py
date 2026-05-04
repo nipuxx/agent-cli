@@ -272,6 +272,64 @@ def test_main_no_args_after_setup_complete_does_not_reopen_setup(monkeypatch, tm
     assert "Begin setup" not in out
 
 
+def test_main_no_args_autoverifies_existing_model_config(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    monkeypatch.setenv("TEST_MODEL_KEY", "working-key")
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    (tmp_path / "config.yaml").write_text(
+        "model:\n"
+        "  name: provider/model\n"
+        "  base_url: https://provider.example/v1\n"
+        "  api_key_env: TEST_MODEL_KEY\n",
+        encoding="utf-8",
+    )
+
+    def fake_doctor(*, config, check_model):
+        assert check_model is True
+        assert config.model.model == "provider/model"
+        return [
+            Check("state_dir_writable", True, "ok"),
+            Check("sqlite", True, "ok"),
+            Check("model_config", True, "ok"),
+            Check("model_endpoint", True, "ok"),
+            Check("model_generation", True, "ok"),
+        ]
+
+    monkeypatch.setattr("nipux_cli.cli.run_doctor", fake_doctor)
+
+    main([])
+
+    out = capsys.readouterr().out
+    assert "No jobs are saved in this profile." in out
+    assert "Model setup is not verified." not in out
+    assert _model_setup_verified(load_config())
+
+
+def test_main_no_args_enters_setup_when_existing_model_config_fails(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    (tmp_path / "config.yaml").write_text(
+        "model:\n"
+        "  name: provider/model\n"
+        "  base_url: https://provider.example/v1\n"
+        "  api_key_env: TEST_MODEL_KEY\n",
+        encoding="utf-8",
+    )
+
+    def fake_doctor(*, config, check_model):
+        assert check_model is True
+        return [Check("model_generation", False, "provider rejected request")]
+
+    monkeypatch.setattr("nipux_cli.cli.run_doctor", fake_doctor)
+
+    main([])
+
+    out = capsys.readouterr().out
+    assert "Nipux setup requires an interactive terminal." in out
+    assert "No jobs are saved in this profile." not in out
+    assert not _model_setup_verified(load_config())
+
+
 def test_first_run_refuses_job_before_model_is_verified(monkeypatch, tmp_path):
     monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
 

@@ -361,11 +361,28 @@ def cmd_create(args: argparse.Namespace) -> None:
 
 
 def _ensure_model_setup_verified_for_workspace() -> bool:
-    if _model_setup_verified(load_config()):
+    config = load_config()
+    if _model_setup_verified(config):
+        return True
+    if _workspace_has_model_config(config) and _auto_verify_model_setup(config):
         return True
     print("Model setup is not verified.")
     print("Run `nipux` and finish setup, or run `nipux doctor --check-model` after configuring a provider.")
     print("Jobs and chat stay locked until the configured model accepts a chat request.")
+    return False
+
+
+def _workspace_has_model_config(config: Any) -> bool:
+    return bool(_read_shell_state().get("setup_completed")) or (config.runtime.home / "config.yaml").exists()
+
+
+def _auto_verify_model_setup(config: Any) -> bool:
+    checks = run_doctor(config=config, check_model=True)
+    ok = all(check.ok for check in checks)
+    if ok:
+        _mark_model_setup_verified(config)
+        return True
+    _clear_model_setup_verified()
     return False
 
 
@@ -535,6 +552,9 @@ def cmd_chat(args: argparse.Namespace) -> None:
 
 def cmd_home(args: argparse.Namespace) -> None:
     _install_readline_history()
+    config = load_config()
+    if not _model_setup_verified(config) and _workspace_has_model_config(config):
+        _auto_verify_model_setup(config)
     if not _model_setup_verified(load_config()):
         _enter_first_run_setup(history_limit=args.history_limit)
         return
