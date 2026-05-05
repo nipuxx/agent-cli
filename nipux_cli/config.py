@@ -129,6 +129,7 @@ class ToolAccessConfig:
     web: bool = True
     shell: bool = True
     files: bool = True
+    search_provider: str = "duckduckgo"
 
 
 @dataclass(frozen=True)
@@ -214,6 +215,7 @@ def load_config(path: str | Path | None = None) -> AppConfig:
         web=bool(tools_raw.get("web", True)),
         shell=bool(tools_raw.get("shell", True)),
         files=bool(tools_raw.get("files", True)),
+        search_provider=str(tools_raw.get("search_provider") or "duckduckgo"),
     )
     email = EmailConfig(
         enabled=bool(email_raw.get("enabled", False)),
@@ -256,6 +258,7 @@ def default_config_yaml(
         "  web: true\n"
         "  shell: true\n"
         "  files: true\n"
+        "  # search_provider: duckduckgo  # 'duckduckgo' (default) or 'tavily'\n"
         "email:\n"
         "  enabled: false\n"
         "  smtp_host: \"\"\n"
