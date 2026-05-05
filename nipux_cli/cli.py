@@ -970,10 +970,29 @@ def _capture_chat_command(job_id: str, line: str) -> tuple[bool, str]:
     with redirect_stdout(stream):
         if job_id == WORKSPACE_CHAT_ID:
             command = line[1:].strip() if line.strip().startswith("/") else line.strip()
-            keep_running = _run_shell_line(command) if command else True
+            keep_running = _run_workspace_command_line(command) if command else True
         else:
             keep_running = _chat_handle_line(job_id, line)
     return keep_running, stream.getvalue()
+
+
+def _run_workspace_command_line(command: str) -> bool:
+    try:
+        tokens = shlex.split(command)
+    except ValueError as exc:
+        print(f"parse error: {exc}")
+        return True
+    if tokens and tokens[0] == "new":
+        objective = command[len("new") :].strip()
+        if not objective:
+            print("usage: /new OBJECTIVE")
+            return True
+        _job_id, title = _create_job(objective=objective, title=None, kind="generic", cadence=None)
+        print(f"created {title}")
+        _start_daemon_if_needed(poll_seconds=0.0, quiet=True)
+        print(f"focus set to {title}; worker started.")
+        return True
+    return _run_shell_line(command)
 
 
 def _is_plain_chat_line(line: str) -> bool:
@@ -2696,6 +2715,8 @@ def _run_shell_line(line: str) -> bool:
         tokens = [natural]
     if tokens[0] == "ls":
         tokens[0] = "jobs"
+    if tokens[0] == "new":
+        tokens[0] = "create"
     if tokens[0] == "focus" and len(tokens) > 1 and tokens[1].lower() in {"on", "more", "only"}:
         _steer_default_job(line)
         return True

@@ -16,6 +16,7 @@ from nipux_cli.cli import (
     _build_chat_messages,
     _chat_handle_line,
     _chat_control_command,
+    _capture_chat_command,
     _config_field_value,
     _emit_frame_if_changed,
     _first_run_click_action,
@@ -38,6 +39,7 @@ from nipux_cli.cli import (
 from nipux_cli.config import load_config
 from nipux_cli.cli_state import mark_model_setup_verified as _mark_model_setup_verified
 from nipux_cli.cli_state import model_setup_verified as _model_setup_verified
+from nipux_cli.cli_state import read_shell_state as _read_shell_state
 from nipux_cli.daemon import append_daemon_event
 from nipux_cli.db import AgentDB
 from nipux_cli.doctor import Check
@@ -406,6 +408,7 @@ def test_first_run_menu_can_create_job_and_open_workspace(monkeypatch, tmp_path,
         jobs = db.list_jobs()
         assert len(jobs) == 1
         assert jobs[0]["title"] == "Build a durable workflow"
+        assert _read_shell_state().get("focus_job_id") == jobs[0]["id"]
         assert opened["job_id"] == jobs[0]["id"]
         assert opened["show_history"] is True
         assert opened["history_limit"] == 12
@@ -1077,6 +1080,33 @@ def test_workspace_frame_snapshot_exists_without_jobs(monkeypatch, tmp_path):
     assert snapshot["job_id"] == WORKSPACE_CHAT_ID
     assert snapshot["job"]["kind"] == "workspace"
     assert snapshot["jobs"] == []
+
+
+def test_workspace_slash_new_creates_and_focuses_job(monkeypatch, tmp_path):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    _mark_test_model_ready()
+    started = {}
+
+    def fake_start(**kwargs):
+        started.update(kwargs)
+
+    monkeypatch.setattr("nipux_cli.cli._start_daemon_if_needed", fake_start)
+
+    keep_running, output = _capture_chat_command(WORKSPACE_CHAT_ID, "/new Build a durable workflow")
+
+    assert keep_running is True
+    assert "created Build a durable workflow" in output
+    assert "worker started" in output
+    assert started["poll_seconds"] == 0.0
+    assert started["quiet"] is True
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        jobs = db.list_jobs()
+        assert len(jobs) == 1
+        assert jobs[0]["title"] == "Build a durable workflow"
+        assert _read_shell_state().get("focus_job_id") == jobs[0]["id"]
+    finally:
+        db.close()
 
 
 def test_shell_ls_alias_lists_jobs_instead_of_steering(monkeypatch, tmp_path, capsys):
