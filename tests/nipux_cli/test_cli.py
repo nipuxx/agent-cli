@@ -525,15 +525,15 @@ def test_slash_autocomplete_filters_commands():
     assert _autocomplete_slash("/rest", CHAT_SLASH_COMMANDS) == "/restart "
     assert _autocomplete_slash("/step", CHAT_SLASH_COMMANDS) == "/step-limit "
     assert _autocomplete_slash("/out", FIRST_RUN_SLASH_COMMANDS) == "/output-chars "
-    assert _cycle_slash("/", CHAT_SLASH_COMMANDS, direction=1) == "/run"
+    assert _cycle_slash("/", CHAT_SLASH_COMMANDS, direction=1) == "/new"
     assert _cycle_slash("/", CHAT_SLASH_COMMANDS, direction=-1) == "/exit"
     assert _cycle_slash("/work ", CHAT_SLASH_COMMANDS, direction=1) == "/work "
-    assert _cycle_slash("/run", CHAT_SLASH_COMMANDS, direction=1) == "/work"
+    assert _cycle_slash("/run", CHAT_SLASH_COMMANDS, direction=1) == "/jobs"
     assert _cycle_slash("/new", FIRST_RUN_SLASH_COMMANDS, direction=1) == "/jobs"
     assert _cycle_slash("/new", FIRST_RUN_SLASH_COMMANDS, direction=-1) == "/exit"
     assert _cycle_slash("/out", CHAT_SLASH_COMMANDS, direction=1) == "/outcomes"
     assert _cycle_slash("/out", CHAT_SLASH_COMMANDS, direction=-1) == "/output-cost"
-    assert _slash_completion_for_submit("/", CHAT_SLASH_COMMANDS) == ("/run", False)
+    assert _slash_completion_for_submit("/", CHAT_SLASH_COMMANDS) == ("/new ", False)
     assert _slash_completion_for_submit("/", FIRST_RUN_SLASH_COMMANDS) == ("/new ", False)
     assert _slash_completion_for_submit("/ne", FIRST_RUN_SLASH_COMMANDS) == ("/new ", False)
     assert _slash_completion_for_submit("/new", FIRST_RUN_SLASH_COMMANDS) == ("/new ", False)
@@ -554,6 +554,8 @@ def test_slash_autocomplete_filters_commands():
     assert "↑↓ select" in partial_hint_text
     full_palette_text = "\n".join(_slash_suggestion_lines("/", CHAT_SLASH_COMMANDS, width=80, limit=5))
     assert "enter fills" in full_palette_text
+    assert "/new OBJECTIVE" in full_palette_text
+    assert "/run" in full_palette_text
     assert "/shell" not in "\n".join(_slash_suggestion_lines("/", CHAT_SLASH_COMMANDS, width=80, limit=20))
     assert "/restart" in "\n".join(_slash_suggestion_lines("/re", CHAT_SLASH_COMMANDS, width=80, limit=20))
 
