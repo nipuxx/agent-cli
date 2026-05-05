@@ -84,6 +84,7 @@ def test_cli_has_operator_commands():
     assert parser.parse_args(["feed"]).func.__name__ == "cmd_activity"
     assert parser.parse_args(["update"]).func.__name__ == "cmd_update"
     assert parser.parse_args(["uninstall", "--dry-run"]).func.__name__ == "cmd_uninstall"
+    assert parser.parse_args(["new", "Research topic"]).func.__name__ == "cmd_create"
     assert parser.parse_args(["updates"]).func.__name__ == "cmd_updates"
     assert parser.parse_args(["outcomes"]).func.__name__ == "cmd_updates"
     assert parser.parse_args(["outcomes", "--all"]).all is True

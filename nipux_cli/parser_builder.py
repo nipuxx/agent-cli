@@ -47,7 +47,7 @@ def build_arg_parser(
     uninstall.add_argument("--wait", type=float, default=5.0, help="Seconds to wait for daemon shutdown")
     uninstall.set_defaults(func=_handler(handlers, "uninstall"))
 
-    create = sub.add_parser("create")
+    create = sub.add_parser("create", aliases=["new"])
     create.add_argument("objective")
     create.add_argument("--title")
     create.add_argument("--kind", default="generic")
