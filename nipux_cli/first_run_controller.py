@@ -66,7 +66,10 @@ def handle_first_run_action(action: str, *, deps: FirstRunFrameDeps) -> tuple[st
     if action == "jobs":
         return "notice", deps.capture_command("jobs")
     if action == "doctor":
-        return "notice", deps.verify_model_setup()
+        notices = deps.verify_model_setup()
+        if deps.model_setup_verified():
+            return "open", WORKSPACE_CHAT_ID
+        return "notice", notices
     if action == "init":
         return "notice", deps.capture_command("init")
     if action == "exit":
@@ -101,7 +104,10 @@ def handle_first_run_frame_line(line: str, *, deps: FirstRunFrameDeps) -> tuple[
     if lowered in {"back"}:
         return "notice", "Setup is linear during first run. Continue forward, then edit settings later if needed."
     if lowered in {"3", "doctor"}:
-        return "notice", deps.verify_model_setup()
+        notices = deps.verify_model_setup()
+        if deps.model_setup_verified():
+            return "open", WORKSPACE_CHAT_ID
+        return "notice", notices
     if lowered in {"4", "init"}:
         return "notice", deps.capture_command("init")
     if lowered == "shell":

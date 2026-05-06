@@ -1062,7 +1062,31 @@ def test_first_run_access_action_toggles_generic_tools(monkeypatch, tmp_path):
     assert _config_field_value("tools.shell") is False
 
 
-def test_first_run_doctor_continue_opens_workspace_chat(monkeypatch, tmp_path):
+def test_first_run_doctor_success_opens_workspace_chat(monkeypatch, tmp_path):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+
+    def fake_verify():
+        _mark_test_model_ready()
+        return ["ok model_setup verified"]
+
+    monkeypatch.setattr("nipux_cli.cli._verify_model_setup_from_first_run", fake_verify)
+
+    action, payload = _handle_first_run_action("doctor")
+
+    assert action == "open"
+    assert payload == WORKSPACE_CHAT_ID
+
+
+def test_first_run_open_workspace_action_requires_verified_model(monkeypatch, tmp_path):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+
+    action, payload = _handle_first_run_action("open_workspace")
+
+    assert action == "notice"
+    assert "Run Doctor first" in str(payload)
+
+
+def test_first_run_open_workspace_action_opens_after_verified_model(monkeypatch, tmp_path):
     monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
     _mark_test_model_ready()
 
