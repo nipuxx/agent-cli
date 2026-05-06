@@ -61,7 +61,6 @@ CHAT_SLASH_COMMANDS = [
     ("/usage", "tokens/cost"),
     ("/config", "runtime config"),
     ("/settings", "open settings"),
-    ("/status", "job state"),
     ("/health", "daemon health"),
     ("/start", "start daemon"),
     ("/restart", "restart daemon"),

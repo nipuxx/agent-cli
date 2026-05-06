@@ -2300,7 +2300,17 @@ def _chat_handle_line(job_id: str, line: str, *, reply_fn=None) -> bool:
     if line in {"/exit", "/quit", "exit", "quit"}:
         return False
     if line in {"/help", "help"}:
-        print("Chat commands:")
+        print("Core workflow:")
+        print("  /new OBJECTIVE       create a job and start work")
+        print("  /run                 resume/start the focused job")
+        print("  /jobs                switch or inspect jobs")
+        print("  /status              current job state")
+        print("  /outcomes            durable progress")
+        print("  /artifacts           saved files")
+        print("  /activity            tool calls")
+        print("  /pause /resume       control the focused job")
+        print()
+        print("All commands:")
         print("  /jobs /focus JOB_TITLE /switch JOB_TITLE /new OBJECTIVE /delete [JOB_TITLE]")
         print("  /history /events /activity /outputs /updates /outcomes [all] /status /usage /config /settings /health")
         print("  /artifacts /artifact QUERY /findings /tasks /roadmap /experiments /sources /memory /metrics /lessons")

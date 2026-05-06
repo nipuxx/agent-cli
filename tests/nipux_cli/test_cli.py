@@ -814,6 +814,10 @@ def test_chat_help_has_config_slash_commands_without_settings_page(monkeypatch, 
     assert _chat_handle_line(job_id, "/help") is True
 
     out = capsys.readouterr().out
+    assert "Core workflow:" in out
+    assert "/new OBJECTIVE       create a job and start work" in out
+    assert "/run                 resume/start the focused job" in out
+    assert "/activity            tool calls" in out
     assert "/settings" in out
     assert "/usage" in out
     assert "/config" in out
@@ -830,6 +834,7 @@ def test_chat_help_has_config_slash_commands_without_settings_page(monkeypatch, 
 
 def test_chat_slash_palette_matches_public_chat_commands():
     palette = {command for command, _description in CHAT_SLASH_COMMANDS}
+    assert len(palette) == len(CHAT_SLASH_COMMANDS)
     advertised = {
         "/jobs",
         "/focus",
