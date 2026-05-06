@@ -16,6 +16,7 @@ tools:
   web: true
   shell: true
   files: true
+  # search_provider: duckduckgo  # 'duckduckgo' (default) or 'tavily'
 email:
   enabled: false
   smtp_host: ""

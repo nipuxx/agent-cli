@@ -853,14 +853,14 @@ def _browser_call(name: str, args: dict[str, Any], ctx: ToolContext) -> str:
 
 
 def _web_call(name: str, args: dict[str, Any], ctx: ToolContext) -> str:
-    del ctx
     from nipux_cli.web import web_extract, web_search
 
+    search_provider = ctx.config.tools.search_provider
     if name == "web_search":
-        return _json(web_search(str(args.get("query") or ""), limit=int(args.get("limit") or 5)))
+        return _json(web_search(str(args.get("query") or ""), limit=int(args.get("limit") or 5), search_provider=search_provider))
     if name == "web_extract":
         urls = args.get("urls") if isinstance(args.get("urls"), list) else []
-        return _json(web_extract(urls[:5]))
+        return _json(web_extract(urls[:5], search_provider=search_provider))
     raise KeyError(name)
 
 
