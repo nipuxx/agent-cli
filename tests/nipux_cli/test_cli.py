@@ -24,6 +24,7 @@ from nipux_cli.cli import (
     _handle_first_run_menu_line,
     _handle_first_run_frame_line,
     _handle_chat_message,
+    _handle_workspace_chat_message,
     _is_plain_chat_line,
     _launch_agent_plist,
     _load_frame_snapshot,
@@ -1130,6 +1131,34 @@ def test_workspace_slash_new_creates_and_focuses_job(monkeypatch, tmp_path):
         assert len(jobs) == 1
         assert jobs[0]["title"] == "Build a durable workflow"
         assert _read_shell_state().get("focus_job_id") == jobs[0]["id"]
+    finally:
+        db.close()
+
+
+def test_workspace_chat_control_phrase_runs_job_command(monkeypatch, tmp_path):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    _mark_test_model_ready()
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Research topic", title="research")
+    finally:
+        db.close()
+
+    keep_running, message = _handle_workspace_chat_message("stop the job", quiet=True)
+
+    assert keep_running is True
+    assert "paused research" in message
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job = db.get_job(job_id)
+        assert job["status"] == "paused"
+        events = _read_shell_state().get("workspace_chat_events") or []
+        assert any(
+            event["event_type"] == "agent_message"
+            and event["metadata"].get("command") == "/pause"
+            and "paused research" in event["body"]
+            for event in events
+        )
     finally:
         db.close()
 

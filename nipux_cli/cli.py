@@ -2385,6 +2385,20 @@ def _handle_workspace_chat_message(line: str, *, quiet: bool = False) -> tuple[b
         if not quiet:
             print(message)
         return True, message
+    control_command = chat_control_command(line)
+    if control_command:
+        keep_running, output = _capture_chat_command(WORKSPACE_CHAT_ID, control_command)
+        compact = _compact_command_output(output)
+        message = " | ".join(compact[-4:]) if compact else f"{control_command.lstrip('/')} done"
+        _append_workspace_chat_event(
+            "agent_message",
+            "chat",
+            message,
+            {"source": "workspace", "command": control_command},
+        )
+        if not quiet:
+            print(message)
+        return keep_running, message
     try:
         reply = _reply_to_workspace_chat(line)
     except Exception as exc:
