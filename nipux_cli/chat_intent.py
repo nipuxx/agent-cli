@@ -51,9 +51,15 @@ NATURAL_COMMANDS = {
     "token usage": "usage",
     "how much did it cost": "usage",
     "how many tokens did it use": "usage",
+    "status": "status",
+    "check status": "status",
+    "job status": "status",
     "what is going on": "status",
     "whats going on": "status",
     "what's going on": "status",
+    "what is happening": "status",
+    "whats happening": "status",
+    "what's happening": "status",
     "what are you doing": "status",
     "what is it doing": "status",
     "how is it going": "status",
@@ -143,8 +149,12 @@ def chat_control_command(line: str) -> str:
     if lowered in {
         "run",
         "start",
+        "run it",
+        "start it",
         "run job",
+        "run worker",
         "start job",
+        "start worker",
         "start working",
         "start work",
         "run this",
@@ -153,6 +163,7 @@ def chat_control_command(line: str) -> str:
         "start the job",
         "start this job",
         "continue",
+        "continue it",
         "keep going",
         "keep working",
         "resume work",
@@ -160,12 +171,16 @@ def chat_control_command(line: str) -> str:
         return "/run"
     if lowered in {
         "pause",
+        "pause it",
         "pause job",
+        "pause worker",
         "pause the job",
         "pause work",
         "pause this job",
         "stop",
+        "stop it",
         "stop job",
+        "stop worker",
         "stop the job",
         "stop work",
         "stop working",
@@ -175,7 +190,15 @@ def chat_control_command(line: str) -> str:
         "halt the job",
     }:
         return "/pause"
-    if lowered in {"resume", "resume job", "resume the job", "resume this job", "reopen this job"}:
+    if lowered in {
+        "resume",
+        "resume it",
+        "resume job",
+        "resume worker",
+        "resume the job",
+        "resume this job",
+        "reopen this job",
+    }:
         return "/resume"
     if lowered in {"history", "show history", "timeline", "show timeline"}:
         return "/history"
