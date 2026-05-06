@@ -2181,6 +2181,9 @@ def cmd_run(args: argparse.Namespace) -> None:
             job_id = _default_job_id(db)
             if job_id:
                 _ensure_job_runnable(db, job_id)
+            else:
+                print("No jobs found. Create one with /new OBJECTIVE.")
+                return
         finally:
             db.close()
     _start_daemon_if_needed(

@@ -3126,6 +3126,23 @@ def test_chat_run_accepts_initial_plan_before_starting(monkeypatch, tmp_path):
         db.close()
 
 
+def test_run_without_jobs_does_not_start_empty_daemon(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    _mark_test_model_ready()
+    started = {}
+
+    def fake_start(**kwargs):
+        started.update(kwargs)
+
+    monkeypatch.setattr("nipux_cli.cli._start_daemon_if_needed", fake_start)
+
+    assert _run_shell_line("run") is True
+
+    out = capsys.readouterr().out
+    assert "No jobs found. Create one with /new OBJECTIVE." in out
+    assert started == {}
+
+
 def test_build_chat_messages_includes_recent_job_state(tmp_path):
     db = AgentDB(tmp_path / "state.db")
     try:
