@@ -901,6 +901,43 @@ def test_chat_slash_palette_matches_public_chat_commands():
     assert "/shell" not in palette
 
 
+def test_first_run_slash_palette_matches_setup_commands():
+    palette = {command for command, _description in FIRST_RUN_SLASH_COMMANDS}
+    assert len(palette) == len(FIRST_RUN_SLASH_COMMANDS)
+
+    advertised = {
+        "/new",
+        "/jobs",
+        "/model",
+        "/base-url",
+        "/api-key",
+        "/api-key-env",
+        "/config",
+        "/context",
+        "/input-cost",
+        "/output-cost",
+        "/timeout",
+        "/browser",
+        "/web",
+        "/cli-access",
+        "/file-access",
+        "/home",
+        "/step-limit",
+        "/output-chars",
+        "/daily-digest",
+        "/digest-time",
+        "/doctor",
+        "/init",
+        "/help",
+        "/clear",
+        "/exit",
+    }
+
+    assert advertised <= palette
+    assert "/shell" not in palette
+    assert "/settings" not in palette
+
+
 def test_chat_settings_slash_commands_persist_config(monkeypatch, tmp_path, capsys):
     monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
     monkeypatch.setenv("NIPUX_TEST_KEY", "")
