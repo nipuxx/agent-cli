@@ -737,6 +737,42 @@ def test_chat_submit_plain_message_returns_without_waiting_for_model():
     assert async_messages.get(timeout=1) == "done later"
 
 
+def test_chat_submit_new_refreshes_focused_job_from_shell_state():
+    old_snapshot = {"job_id": "old", "job": {"id": "old", "title": "old"}, "jobs": []}
+    new_snapshot = {"job_id": "new", "job": {"id": "new", "title": "new"}, "jobs": []}
+    loaded: list[str] = []
+
+    def load_snapshot(job_id, _history_limit):
+        loaded.append(job_id)
+        return new_snapshot if job_id == "" else old_snapshot
+
+    deps = _ChatFrameDeps(
+        load_snapshot=load_snapshot,
+        render_frame=lambda *_args: "",
+        handle_chat_message=lambda _job_id, _line: (True, ""),
+        capture_chat_command=lambda _job_id, _line: (True, "created new\nfocus set to new"),
+        write_shell_state=lambda _state: None,
+        is_plain_chat_line=lambda _line: False,
+        page_click=lambda _x, _y, _right_view: None,
+    )
+
+    keep_running, _snapshot, job_id, notices, _right_view, _modal = _handle_chat_submit(
+        "/new Build a durable workflow",
+        job_id="old",
+        history_limit=12,
+        snapshot=old_snapshot,
+        notices=[],
+        right_view="status",
+        modal_view=None,
+        deps=deps,
+    )
+
+    assert keep_running is True
+    assert job_id == "new"
+    assert loaded == [""]
+    assert "focus set to new" in "\n".join(notices)
+
+
 def test_chat_render_failure_uses_safe_mode(capsys):
     snapshot = {"job_id": "job_demo", "job": {"id": "job_demo", "title": "demo"}, "jobs": []}
     deps = _ChatFrameDeps(

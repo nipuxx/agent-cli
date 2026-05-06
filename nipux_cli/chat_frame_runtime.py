@@ -394,11 +394,24 @@ def _handle_chat_submit(
     except Exception as exc:
         _append_notice(notices, f"message failed: {type(exc).__name__}: {_one_line(exc, 120)}")
     try:
-        snapshot = deps.load_snapshot(job_id, history_limit)
+        refresh_job_id = _post_submit_snapshot_job_id(line, job_id)
+        snapshot = deps.load_snapshot(refresh_job_id, history_limit)
         job_id = str(snapshot["job_id"])
     except Exception as exc:
         _append_notice(notices, f"refresh failed after message: {type(exc).__name__}: {_one_line(exc, 100)}")
     return keep_running, snapshot, job_id, notices, right_view, modal_view
+
+
+def _post_submit_snapshot_job_id(line: str, current_job_id: str) -> str:
+    """Return the job id to refresh after a submitted command or message."""
+
+    text = line.strip()
+    if not text.startswith("/"):
+        return current_job_id
+    command = text[1:].split(maxsplit=1)[0].lower()
+    if command in {"new", "focus", "switch"}:
+        return ""
+    return current_job_id
 
 
 def _start_chat_message_worker(
