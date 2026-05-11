@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from nipux_cli.memory_graph import memory_graph_for_prompt
 from nipux_cli.metric_format import format_metric_value
 from nipux_cli.operator_context import active_prompt_operator_entries, operator_entry_is_prompt_relevant
 from nipux_cli.tui_outcomes import hourly_outcome_summary, model_update_event_parts, outcome_counts
@@ -138,6 +139,10 @@ def _lessons_for_prompt(job: dict[str, Any]) -> str:
         if lesson:
             lines.append(f"- {category}: {_clip_text(lesson, SECTION_ITEM_CHARS)}")
     return "\n".join(lines) if lines else "No durable lessons yet."
+
+
+def _memory_graph_for_prompt(job: dict[str, Any]) -> str:
+    return memory_graph_for_prompt(job, limit=10)
 
 
 def _roadmap_for_prompt(job: dict[str, Any]) -> str:

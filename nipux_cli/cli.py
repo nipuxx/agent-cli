@@ -143,7 +143,7 @@ from nipux_cli.service_install import launch_agent_path as _launch_agent_path
 from nipux_cli.service_install import launch_agent_plist as _service_launch_agent_plist
 from nipux_cli.service_install import systemd_service_text as _service_systemd_service_text
 from nipux_cli.templates import program_for_job
-from nipux_cli.tui_commands import slash_suggestion_lines
+from nipux_cli.tui_commands import CHAT_SETTING_COMMANDS, slash_suggestion_lines
 from nipux_cli.settings import (
     config_field_value,
     save_config_field,
@@ -171,7 +171,7 @@ from nipux_cli.tui_style import (
     _one_line,
     _status_badge,
 )
-from nipux_cli.uninstall import build_uninstall_plan, uninstall_runtime
+from nipux_cli.uninstall import build_uninstall_plan, uninstall_installed_tool, uninstall_runtime
 from nipux_cli.updater import update_checkout
 from nipux_cli.updates import render_all_updates_report, render_updates_report
 
@@ -285,7 +285,7 @@ def cmd_init(args: argparse.Namespace) -> None:
             model=model,
             base_url=base_url,
             api_key_env=api_key_env,
-            context_length=args.context_length,
+            context_length=getattr(args, "context_length", DEFAULT_CONTEXT_LENGTH),
         ),
     )
     print(f"Wrote {path}")
@@ -299,22 +299,47 @@ def cmd_init(args: argparse.Namespace) -> None:
 
 
 def cmd_update(args: argparse.Namespace) -> None:
+    config = load_config()
+    config.ensure_dirs()
+    daemon_before = daemon_lock_status(config.runtime.home / "agentd.lock")
     code, lines = update_checkout(path=args.path, allow_dirty=args.allow_dirty)
     for line in lines:
         print(line)
     if code:
         raise SystemExit(code)
+    if getattr(args, "no_restart", False):
+        print("Daemon restart skipped by --no-restart.")
+        return
+    daemon_after = daemon_lock_status(config.runtime.home / "agentd.lock")
+    if not daemon_before.get("running") and not daemon_after.get("running"):
+        print("No daemon is running; no restart needed.")
+        return
+    print("Restarting running daemon so it uses the updated code.")
+    try:
+        cmd_restart(
+            argparse.Namespace(
+                poll_seconds=0.0,
+                wait=5.0,
+                fake=False,
+                quiet=True,
+                log_file=None,
+            )
+        )
+    except SystemExit as exc:
+        detail = str(exc) if str(exc) else "restart failed"
+        print(f"Update succeeded, but daemon restart failed: {_one_line(detail, 160)}")
 
 
 def cmd_uninstall(args: argparse.Namespace) -> None:
     config = load_config()
     plan = build_uninstall_plan(runtime_home=config.runtime.home, include_legacy=not args.keep_legacy)
+    remove_tool = bool(getattr(args, "remove_tool", False)) or not bool(getattr(args, "keep_tool", False))
     if not args.yes and not args.dry_run:
         print("This will stop Nipux and remove local runtime state:")
         for path in (*plan.service_paths, *plan.paths):
             print(f"  {path.expanduser()}")
-        if args.remove_tool:
-            print("It will also run: uv tool uninstall nipux")
+        if remove_tool:
+            print("It will also remove the installed `nipux` command with: uv tool uninstall nipux")
         try:
             answer = input("Type 'uninstall' to continue: ").strip().lower()
         except (EOFError, KeyboardInterrupt):
@@ -335,19 +360,14 @@ def cmd_uninstall(args: argparse.Namespace) -> None:
         include_legacy=not args.keep_legacy,
     ):
         print(line)
-    if args.remove_tool and not args.dry_run:
-        uv = shutil.which("uv")
-        if not uv:
-            print("uv not found; remove the installed CLI with your package manager")
-            return
-        result = subprocess.run([uv, "tool", "uninstall", "nipux"], check=False, capture_output=True, text=True)
-        for line in (result.stdout + result.stderr).splitlines():
-            if line.strip():
-                print(line)
-        if result.returncode:
-            raise SystemExit(result.returncode)
+    if remove_tool:
+        code, lines = uninstall_installed_tool(dry_run=bool(args.dry_run))
+        for line in lines:
+            print(line)
+        if code:
+            print("installed command removal failed; runtime state was still removed")
     elif not args.dry_run:
-        print("runtime removed. If installed with uv tool, remove the CLI binary with: uv tool uninstall nipux")
+        print("runtime removed. Installed `nipux` command kept by --keep-tool.")
 
 
 def cmd_create(args: argparse.Namespace) -> None:
@@ -560,15 +580,9 @@ def cmd_home(args: argparse.Namespace) -> None:
     if not _model_setup_verified(load_config()):
         _enter_first_run_setup(history_limit=args.history_limit)
         return
-    db, _ = _db()
-    try:
-        job_id = _default_job_id(db)
-    finally:
-        db.close()
-    if job_id:
-        _enter_chat(job_id, show_history=True, history_limit=args.history_limit)
-        return
 
+    if _has_saved_jobs():
+        _start_interactive_daemon_if_possible()
     _enter_workspace_chat(history_limit=args.history_limit)
 
 
@@ -578,17 +592,38 @@ def _enter_first_run_setup(*, history_limit: int = 12) -> None:
         return
 
     print("Nipux setup requires an interactive terminal.")
-    print("Run `nipux` in a terminal window to choose model, endpoint, tools, and first job.")
+    print("Run `nipux` in a terminal window to choose model, endpoint, and tool access.")
 
 
 def _enter_empty_workspace(*, history_limit: int = 12) -> None:
     del history_limit
-    print("Nipux")
+    db, _ = _db()
+    try:
+        jobs = db.list_jobs()[:12]
+    finally:
+        db.close()
+    print("NIPUX WORKSPACE")
     print(_rule("="))
-    print("No jobs are saved in this profile.")
-    print("Create a job with: nipux create \"objective\"")
-    print("Edit settings with slash commands inside a job, or use: nipux init --force")
-    print("Check setup with: nipux doctor")
+    if jobs:
+        print("Jobs")
+        for job in jobs:
+            marker = "*" if str(job.get("id") or "") == _read_shell_state().get("focus_job_id") else " "
+            title = _one_line(job.get("title") or job.get("id") or "untitled", 44)
+            print(f"{marker} {title:44} {job.get('status') or 'unknown'}")
+        print()
+        print("Run in a terminal to use the full-screen workspace, or use: nipux chat JOB_TITLE")
+    else:
+        print("No jobs are saved in this profile.")
+        print("Create a job with: nipux create \"objective\"")
+    print("Settings: nipux init --force | Check setup: nipux doctor --check-model")
+
+
+def _has_saved_jobs() -> bool:
+    db, _ = _db()
+    try:
+        return bool(db.list_jobs()[:1])
+    finally:
+        db.close()
 
 
 def _enter_workspace_chat(*, history_limit: int = 12) -> None:
@@ -606,13 +641,11 @@ def _print_first_run_menu() -> None:
     print(f"  home    {_short_path(config.runtime.home)}")
     print()
     print("Commands")
-    print("  1  new       create a long-running job")
-    print("  2  jobs      list saved jobs")
-    print("  3  doctor    check local setup")
-    print("  4  init      write config/env template")
-    print("  5  exit      leave")
+    print("  1  doctor    verify provider/model")
+    print("  2  init      write config/env template")
+    print("  3  exit      leave")
     print()
-    print('Type an objective, `new OBJECTIVE`, or a command.')
+    print("Finish setup before chat or job creation is available.")
 
 
 def _handle_first_run_menu_line(line: str, *, history_limit: int = 12) -> bool:
@@ -623,61 +656,37 @@ def _handle_first_run_menu_line(line: str, *, history_limit: int = 12) -> bool:
     if line.startswith("/"):
         line = line[1:].strip()
     lowered = line.lower()
-    if lowered in {"exit", "quit", ":q", "5"}:
+    if lowered in {"exit", "quit", ":q", "3", "5"}:
         return False
     if lowered in {"help", "?", "commands"}:
         _print_first_run_menu()
         return True
-    if lowered in {"1", "new"}:
-        objective = _prompt_first_run_value("objective")
-        if not objective:
-            print("No job created.")
-            return True
-        _first_run_create_and_open(objective, history_limit=history_limit)
-        return False
-    if lowered.startswith("new "):
-        objective = line[4:].strip()
-        if not objective:
-            print("usage: new OBJECTIVE")
-            return True
-        _first_run_create_and_open(objective, history_limit=history_limit)
-        return False
-    if lowered in {"2", "jobs", "ls"}:
+    if lowered in {"new"} or lowered.startswith("new "):
+        print("Finish setup first. Then describe worker jobs in the chat workspace.")
+        return True
+    if lowered in {"jobs", "ls"}:
         cmd_jobs(argparse.Namespace())
         return True
-    if lowered in {"3", "doctor"}:
+    if lowered in {"1", "doctor"}:
         try:
             cmd_doctor(argparse.Namespace(check_model=False))
         except SystemExit:
             pass
         return True
-    if lowered in {"4", "init"}:
+    if lowered in {"2", "init"}:
         cmd_init(argparse.Namespace(path=None, force=False))
         return True
     first = _first_token(line)
+    if first in {"create", "new"}:
+        print("Finish setup first. Then describe worker jobs in the chat workspace.")
+        return True
     if first in SHELL_COMMAND_NAMES:
-        before_job_id = None
-        if first == "create":
-            db, _ = _db()
-            try:
-                before_job_id = _default_job_id(db)
-            finally:
-                db.close()
         _run_shell_line(line)
-        if first == "create":
-            db, _ = _db()
-            try:
-                after_job_id = _default_job_id(db)
-            finally:
-                db.close()
-            if after_job_id and after_job_id != before_job_id:
-                _enter_chat(after_job_id, show_history=True, history_limit=history_limit)
-                return False
         return True
     objective = _extract_job_objective_from_message(line)
     if objective:
-        _first_run_create_and_open(objective, history_limit=history_limit)
-        return False
+        print("Finish setup first. Then describe worker jobs in the chat workspace.")
+        return True
     print(_first_run_chat_reply(line))
     return True
 
@@ -694,10 +703,11 @@ def _first_run_create_and_open(objective: str, *, history_limit: int = 12) -> No
     if not _ensure_model_setup_verified_for_workspace():
         return
     job_id, title = _create_job(objective=objective, title=None, kind="generic", cadence=None)
+    _write_shell_state({"focus_job_id": job_id})
     print(f"created {title}")
     _start_interactive_daemon_if_possible()
     print("Opening workspace.")
-    _enter_chat(job_id, show_history=True, history_limit=history_limit)
+    _enter_workspace_chat(history_limit=history_limit)
 
 
 def _first_token(line: str) -> str:
@@ -710,7 +720,8 @@ def _enter_first_run_frame(*, history_limit: int = 12) -> None:
         _enter_workspace_chat(history_limit=history_limit)
     elif next_job_id:
         _start_interactive_daemon_if_possible()
-        _enter_chat(next_job_id, show_history=True, history_limit=history_limit)
+        _write_shell_state({"focus_job_id": next_job_id})
+        _enter_workspace_chat(history_limit=history_limit)
 
 
 def _first_run_runtime_deps() -> FirstRunRuntimeDeps:
@@ -767,7 +778,7 @@ def _chat_page_click(x: int, y: int, *, right_view: str) -> str | None:
     del right_view
     width, _height = shutil.get_terminal_size((100, 30))
     width = max(92, width)
-    right_width = min(max(50, int(width * 0.34)), 72)
+    right_width = min(max(52, int(width * 0.36)), 72)
     left_width = max(48, width - right_width - 3)
     if left_width < 48:
         left_width = 48
@@ -777,7 +788,7 @@ def _chat_page_click(x: int, y: int, *, right_view: str) -> str | None:
         return None
     relative = max(0, x - right_start)
     third = max(1, right_width // 3)
-    return ["status", "updates", "work"][min(2, relative // third)]
+    return ["updates", "status", "work"][min(2, relative // third)]
 
 
 def _handle_first_run_frame_line(line: str) -> tuple[str, str | list[str] | None]:
@@ -969,7 +980,8 @@ def _capture_chat_command(job_id: str, line: str) -> tuple[bool, str]:
     stream = StringIO()
     with redirect_stdout(stream):
         if job_id == WORKSPACE_CHAT_ID:
-            command = line[1:].strip() if line.strip().startswith("/") else line.strip()
+            raw = line.strip()
+            command = raw[1:].strip() if raw.startswith("/") else (chat_control_command(raw).lstrip("/") or raw)
             keep_running = _run_workspace_command_line(command) if command else True
         else:
             keep_running = _chat_handle_line(job_id, line)
@@ -982,17 +994,131 @@ def _run_workspace_command_line(command: str) -> bool:
     except ValueError as exc:
         print(f"parse error: {exc}")
         return True
+    if tokens and tokens[0] == "help":
+        _print_workspace_chat_help()
+        return True
+    if tokens and _run_workspace_setting_command(tokens[0], tokens[1:]):
+        return True
     if tokens and tokens[0] == "new":
         objective = command[len("new") :].strip()
         if not objective:
             print("usage: /new OBJECTIVE")
             return True
-        _job_id, title = _create_job(objective=objective, title=None, kind="generic", cadence=None)
-        print(f"created {title}")
-        _start_daemon_if_needed(poll_seconds=0.0, quiet=True)
-        print(f"focus set to {title}; worker started.")
+        operator_line = f"/new {objective}"
+        _append_workspace_chat_event("operator_message", "command", operator_line, {"source": "workspace"})
+        message = _create_workspace_job_from_chat(operator_line, objective)
+        _append_workspace_chat_event("agent_message", "chat", message, {"source": "workspace"})
+        print(message)
         return True
+    if tokens and tokens[0] == "run":
+        if len(tokens) > 1 and not tokens[1].startswith("-") and _workspace_command_should_create_worker(command, " ".join(tokens[1:])):
+            objective = _extract_job_objective_from_message(command)
+            operator_line = f"/{tokens[0]} {objective}"
+            _append_workspace_chat_event("operator_message", "command", operator_line, {"source": "workspace"})
+            message = _create_workspace_job_from_chat(operator_line, objective)
+            _append_workspace_chat_event("agent_message", "chat", message, {"source": "workspace"})
+            print(message)
+            return True
+        return _run_workspace_run_command(tokens)
+    if tokens and tokens[0] in {"start", "launch"} and len(tokens) > 1 and not tokens[1].startswith("-"):
+        target_text = " ".join(tokens[1:])
+        if _workspace_command_should_create_worker(command, target_text):
+            objective = _extract_job_objective_from_message(command)
+            operator_line = f"/{tokens[0]} {objective}"
+            _append_workspace_chat_event("operator_message", "command", operator_line, {"source": "workspace"})
+            message = _create_workspace_job_from_chat(operator_line, objective)
+            _append_workspace_chat_event("agent_message", "chat", message, {"source": "workspace"})
+            print(message)
+            return True
+        return _run_workspace_run_command(["run", target_text])
     return _run_shell_line(command)
+
+
+def _run_workspace_setting_command(command: str, rest: list[str]) -> bool:
+    if command == "settings":
+        command = "config"
+    if command in {"config", "key", "api-key"} or command in CHAT_SETTING_COMMANDS:
+        return _handle_chat_setting_command(command, rest)
+    return False
+
+
+def _workspace_command_should_create_worker(command: str, target_text: str) -> bool:
+    objective = _extract_job_objective_from_message(command)
+    if not objective:
+        return False
+    db, _config = _db()
+    try:
+        return _find_job(db, target_text) is None
+    finally:
+        db.close()
+
+
+def _run_workspace_run_command(tokens: list[str]) -> bool:
+    try:
+        parsed = build_parser().parse_args(tokens)
+    except SystemExit as exc:
+        if exc.code:
+            print(f"command exited with status {exc.code}")
+        return True
+    parsed.no_follow = True
+    parsed.quiet = True
+    parsed.func(parsed)
+    return True
+
+
+def _print_workspace_chat_help() -> None:
+    print("Create: type a goal, or /new OBJECTIVE.")
+    print("Run: /run, /pause, /resume. Inspect: /jobs, /outcomes, /artifacts, /activity.")
+    print("Config: /settings, /model, /base-url, /api-key. Navigate: ←→ pages, ↑↓ jobs.")
+
+
+def _start_worker_from_chat_context(
+    *,
+    poll_seconds: float = 0.0,
+    fake: bool = False,
+    quiet: bool = True,
+    log_file: str | None = None,
+) -> bool:
+    """Start the daemon from the TUI without dumping preflight internals into chat."""
+
+    def report(message: str) -> None:
+        if not quiet:
+            print(message)
+
+    stream = StringIO()
+    try:
+        with redirect_stdout(stream):
+            _start_daemon_if_needed(poll_seconds=poll_seconds, fake=fake, quiet=True, log_file=log_file)
+    except SystemExit as exc:
+        detail = _one_line(str(exc) or "daemon start failed", 120)
+        report(f"worker not started: {detail}")
+        return False
+    except Exception as exc:
+        detail = _one_line(f"{type(exc).__name__}: {exc}", 120)
+        report(f"worker not started: {detail}")
+        return False
+    output = stream.getvalue()
+    lowered = output.lower()
+    if (
+        "model is not ready" in lowered
+        or "model setup is not verified" in lowered
+        or "model_generation:" in lowered
+        or "model_endpoint:" in lowered
+        or "model_auth:" in lowered
+        or "model_config:" in lowered
+    ):
+        report("worker not started: model provider is not ready. Use /settings, then /doctor.")
+        return False
+    return True
+
+
+def _start_worker_from_chat_namespace(args: argparse.Namespace) -> bool:
+    return _start_worker_from_chat_context(
+        poll_seconds=float(getattr(args, "poll_seconds", 0.0) or 0.0),
+        fake=bool(getattr(args, "fake", False)),
+        quiet=bool(getattr(args, "quiet", True)),
+        log_file=getattr(args, "log_file", None),
+    )
 
 
 def _is_plain_chat_line(line: str) -> bool:
@@ -1031,7 +1157,7 @@ def _render_chat_frame(
     input_buffer: str,
     notices: list[str],
     *,
-    right_view: str = "status",
+    right_view: str = "updates",
     selected_control: int = 0,
     editing_field: str | None = None,
     modal_view: str | None = None,
@@ -1059,7 +1185,7 @@ def _build_chat_frame(
     *,
     width: int,
     height: int,
-    right_view: str = "status",
+    right_view: str = "updates",
     selected_control: int = 0,
     editing_field: str | None = None,
     modal_view: str | None = None,
@@ -2281,6 +2407,8 @@ def _verify_model_setup_from_first_run() -> list[str]:
         except SystemExit as exc:
             if exc.code not in (None, 0):
                 print("Model setup is not ready. Fix the failed check above before creating a job.")
+                print("Use /base-url URL, /api-key KEY, or /model MODEL here, then run Doctor again.")
+                print("For a local endpoint, start the local server or change the endpoint.")
     lines = [" ".join(item.split()) for item in stream.getvalue().splitlines() if item.strip()]
     return lines[-12:] or ["done"]
 
@@ -2445,8 +2573,10 @@ def _create_workspace_job_from_chat(message: str, objective: str) -> str:
     run_now = not message_requests_queued_job(message) or message_requests_immediate_run(message)
     text = f"Created worker job: {title}."
     if run_now:
-        _start_daemon_if_needed(poll_seconds=0.0, quiet=True)
-        text += " Started worker."
+        if _start_worker_from_chat_context():
+            text += " Started worker."
+        else:
+            text += " Worker is waiting for a working model."
     else:
         text += " It is queued; tell me to run it when ready."
     return text
@@ -2564,7 +2694,7 @@ def _chat_controller_deps() -> ChatControllerDeps:
         reply_fn=_reply_to_chat,
         create_job=_create_job,
         write_shell_state=_write_shell_state,
-        start_daemon=_start_daemon_if_needed,
+        start_daemon=_start_worker_from_chat_context,
         capture_command=_capture_chat_command,
         compact_command_output=_compact_command_output,
         friendly_error_text=_friendly_error_text,
@@ -2597,7 +2727,7 @@ def _chat_command_deps() -> ChatCommandDeps:
         doctor=cmd_doctor,
         init=cmd_init,
         health=cmd_health,
-        start=cmd_start,
+        start=_start_worker_from_chat_namespace,
         ensure_job_runnable=_ensure_job_runnable,
         run=cmd_run,
         restart=cmd_restart,
@@ -2838,12 +2968,16 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> None:
     argv = sys.argv[1:] if argv is None else argv
-    if not argv:
-        cmd_home(argparse.Namespace(history_limit=12))
+    try:
+        if not argv:
+            cmd_home(argparse.Namespace(history_limit=12))
+            return
+        parser = build_parser()
+        args = parser.parse_args(argv)
+        args.func(args)
+    except KeyboardInterrupt:
+        print()
         return
-    parser = build_parser()
-    args = parser.parse_args(argv)
-    args.func(args)
 
 
 if __name__ == "__main__":

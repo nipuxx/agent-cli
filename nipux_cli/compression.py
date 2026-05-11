@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from nipux_cli.db import AgentDB
+from nipux_cli.memory_graph import rank_memory_nodes
 from nipux_cli.operator_context import active_prompt_operator_entries
 
 
@@ -78,6 +79,9 @@ def refresh_memory_index(db: AgentDB, job_id: str, *, max_steps: int = 8, max_ar
     sources = _metadata_list(metadata, "source_ledger")
     experiments = _metadata_list(metadata, "experiment_ledger")
     roadmap = metadata.get("roadmap") if isinstance(metadata.get("roadmap"), dict) else {}
+    memory_graph = metadata.get("memory_graph") if isinstance(metadata.get("memory_graph"), dict) else {}
+    memory_nodes = _metadata_list(memory_graph, "nodes")
+    memory_edges = _metadata_list(memory_graph, "edges")
     pending_measurement = (
         metadata.get("pending_measurement_obligation")
         if isinstance(metadata.get("pending_measurement_obligation"), dict)
@@ -95,10 +99,20 @@ def refresh_memory_index(db: AgentDB, job_id: str, *, max_steps: int = 8, max_ar
                 f"findings={len(findings)}",
                 f"sources={len(sources)}",
                 f"experiments={len(experiments)}",
+                f"memory_nodes={len(memory_nodes)}",
                 f"roadmap={'yes' if roadmap else 'no'}",
             ]
         )
     )
+    for node in rank_memory_nodes(memory_nodes, limit=4):
+        lines.append(
+            "- memory "
+            f"{node.get('status') or 'active'} "
+            f"{node.get('kind') or 'fact'} "
+            f"{_clip_text(node.get('title') or node.get('key') or '', 120)}"
+        )
+    if memory_edges:
+        lines.append(f"- memory_links={len(memory_edges)}")
     for task in _rank_tasks(tasks)[:4]:
         lines.append(
             "- task "

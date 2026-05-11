@@ -76,6 +76,15 @@ def observation_for_prompt(tool_name: str | None, output: dict[str, Any]) -> str
     if tool_name == "record_lesson":
         lesson = output.get("lesson") if isinstance(output.get("lesson"), dict) else {}
         return clip_text(f"lesson={lesson.get('category') or 'memory'}: {lesson.get('lesson') or ''}", 420)
+    if tool_name == "record_memory_graph":
+        return (
+            f"memory_graph added_nodes={output.get('added_nodes')} "
+            f"updated_nodes={output.get('updated_nodes')} added_edges={output.get('added_edges')}"
+        )[:520]
+    if tool_name == "search_memory_graph":
+        nodes = output.get("nodes") if isinstance(output.get("nodes"), list) else []
+        titles = [str(node.get("title") or node.get("key") or "memory") for node in nodes[:5] if isinstance(node, dict)]
+        return clip_text(f"memory_query={output.get('query')!r}; nodes={'; '.join(titles)}", 520)
     if tool_name == "record_source":
         source = output.get("source") if isinstance(output.get("source"), dict) else {}
         return (

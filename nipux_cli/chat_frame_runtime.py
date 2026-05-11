@@ -28,6 +28,12 @@ from nipux_cli.tui_style import _frame_enter_sequence, _frame_exit_sequence, _on
 
 IDLE_REFRESH_SECONDS = 0.75
 ACTIVE_INPUT_REFRESH_SECONDS = 2.0
+THINKING_REFRESH_SECONDS = 0.18
+WORKSPACE_CHAT_ID = "__workspace__"
+THINKING_NOTICE = "__nipux_thinking__"
+THINKING_FRAMES = ("◐ thinking", "◓ thinking", "◑ thinking", "◒ thinking")
+WAITING_NOTICE = "__nipux_waiting__"
+WAITING_FRAMES = ("∙ waiting", "· waiting", "• waiting", "· waiting")
 
 
 @dataclass(frozen=True)
@@ -74,15 +80,18 @@ def next_chat_right_view(current: str, direction: int) -> str:
     return keys[(index + direction) % len(keys)]
 
 
-def frame_refresh_interval(input_buffer: str) -> float:
+def frame_refresh_interval(input_buffer: str, *, thinking: bool = False) -> float:
+    if thinking:
+        return THINKING_REFRESH_SECONDS
     return ACTIVE_INPUT_REFRESH_SECONDS if input_buffer else IDLE_REFRESH_SECONDS
 
 
 def run_chat_frame(job_id: str, *, history_limit: int, deps: ChatFrameDeps) -> None:
-    deps.write_shell_state({"focus_job_id": job_id})
+    if job_id != WORKSPACE_CHAT_ID:
+        deps.write_shell_state({"focus_job_id": job_id})
     buffer = ""
     notices: list[str] = []
-    right_view = "status"
+    right_view = "updates"
     modal_view: str | None = None
     selected_control = 0
     editing_field: str | None = None
@@ -100,8 +109,9 @@ def run_chat_frame(job_id: str, *, history_limit: int, deps: ChatFrameDeps) -> N
         while True:
             now = time.monotonic()
             if _drain_async_notices(async_messages, notices):
+                last_snapshot = 0.0
                 needs_render = True
-            if now - last_snapshot >= frame_refresh_interval(buffer):
+            if now - last_snapshot >= frame_refresh_interval(buffer, thinking=_has_active_state_notice(notices)):
                 try:
                     snapshot = deps.load_snapshot(job_id, history_limit)
                     job_id = str(snapshot["job_id"])
@@ -188,6 +198,10 @@ def run_chat_frame(job_id: str, *, history_limit: int, deps: ChatFrameDeps) -> N
                 _append_notice(notices, "cancelled input")
                 needs_render = True
                 continue
+            if char == "\x15":
+                buffer = ""
+                needs_render = True
+                continue
             if char in {"\x7f", "\b"}:
                 buffer = buffer[:-1]
                 needs_render = True
@@ -220,6 +234,8 @@ def run_chat_frame(job_id: str, *, history_limit: int, deps: ChatFrameDeps) -> N
             if char.isprintable():
                 buffer += char
                 needs_render = True
+    except KeyboardInterrupt:
+        return
     finally:
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_attrs)
         print(_frame_exit_sequence(), flush=True)
@@ -250,7 +266,7 @@ def _safe_render_frame(
         return deps.render_frame(
             snapshot,
             buffer,
-            notices,
+            _display_notices(notices),
             right_view,
             selected_control,
             editing_field,
@@ -292,11 +308,7 @@ def _diff_frame_update(frame: str, previous_frame: str) -> str:
         previous = previous_lines[index] if index < len(previous_lines) else ""
         if current == previous:
             continue
-        current_width = len(_strip_ansi(current))
-        previous_width = len(_strip_ansi(previous))
-        if current_width < previous_width:
-            current += " " * (previous_width - current_width)
-        output.append(f"\033[{index + 1};1H{current}")
+        output.append(f"\033[{index + 1};1H\033[2K{current}")
     return "".join(output)
 
 
@@ -310,6 +322,53 @@ def _fit_plain(text: Any, width: int) -> str:
 def _append_notice(notices: list[str], message: str, *, limit: int = 12) -> None:
     notices.append(message)
     notices[:] = notices[-limit:]
+
+
+def _append_thinking_notice(notices: list[str]) -> None:
+    if not _has_thinking_notice(notices):
+        _append_notice(notices, THINKING_NOTICE)
+
+
+def _append_waiting_notice(notices: list[str]) -> None:
+    if not _has_waiting_notice(notices):
+        _append_notice(notices, WAITING_NOTICE)
+
+
+def _has_thinking_notice(notices: list[str]) -> bool:
+    return any(notice == THINKING_NOTICE or notice.startswith(f"{THINKING_NOTICE}:") for notice in notices)
+
+
+def _has_waiting_notice(notices: list[str]) -> bool:
+    return any(notice == WAITING_NOTICE or notice.startswith(f"{WAITING_NOTICE}:") for notice in notices)
+
+
+def _has_active_state_notice(notices: list[str]) -> bool:
+    return _has_thinking_notice(notices) or _has_waiting_notice(notices)
+
+
+def _clear_thinking_notices(notices: list[str]) -> None:
+    notices[:] = [
+        notice
+        for notice in notices
+        if notice != THINKING_NOTICE and not notice.startswith(f"{THINKING_NOTICE}:")
+    ]
+
+
+def _display_notices(notices: list[str]) -> list[str]:
+    if not notices:
+        return []
+    index = int(time.monotonic() / THINKING_REFRESH_SECONDS)
+    thinking_frame = THINKING_FRAMES[index % len(THINKING_FRAMES)]
+    waiting_frame = WAITING_FRAMES[index % len(WAITING_FRAMES)]
+    rendered = []
+    for notice in notices:
+        if notice == THINKING_NOTICE:
+            rendered.append(f"{THINKING_NOTICE}:{thinking_frame}")
+        elif notice == WAITING_NOTICE:
+            rendered.append(f"{WAITING_NOTICE}:{waiting_frame}")
+        else:
+            rendered.append(notice)
+    return rendered
 
 
 def _handle_edit_input(
@@ -328,6 +387,8 @@ def _handle_edit_input(
     if char == "\x03":
         _append_notice(notices, "cancelled edit")
         return "", None, False
+    if char == "\x15":
+        return "", editing_field, False
     if char in {"\x7f", "\b"}:
         return buffer[:-1], editing_field, False
     if char == "\x1b":
@@ -371,11 +432,10 @@ def _handle_chat_submit(
     if line in {"outcomes", "/outcomes", "updates", "/updates"}:
         _append_notice(notices, "opened outcomes")
         return True, snapshot, job_id, notices, "updates", None
-    _append_notice(notices, f"> {line}")
     keep_running = True
     try:
         if deps.is_plain_chat_line(line):
-            _append_notice(notices, "sent; waiting for model")
+            _append_thinking_notice(notices)
             _start_chat_message_worker(
                 job_id,
                 line,
@@ -384,9 +444,15 @@ def _handle_chat_submit(
             )
             modal_view = None
         else:
+            _append_notice(notices, f"> {line}")
             keep_running, output = deps.capture_chat_command(job_id, line)
-            for output_line in compact_command_output(output):
-                _append_notice(notices, output_line)
+            output_lines = compact_command_output(output)
+            if output_lines:
+                output_text = "\n".join(output_lines)
+                if _looks_like_waiting_output(output_text):
+                    _append_waiting_notice(notices)
+                else:
+                    _append_notice(notices, output_text)
             if line.startswith(("/model", "/base-url", "/api-key", "/api-key-env", "/context", "/input-cost", "/output-cost", "/timeout", "/home", "/step-limit", "/output-chars", "/daily-digest", "/digest-time", "/config")):
                 modal_view = "settings"
             else:
@@ -410,7 +476,7 @@ def _post_submit_snapshot_job_id(line: str, current_job_id: str) -> str:
         return current_job_id
     command = text[1:].split(maxsplit=1)[0].lower()
     if command in {"new", "focus", "switch"}:
-        return ""
+        return WORKSPACE_CHAT_ID if current_job_id == WORKSPACE_CHAT_ID else ""
     return current_job_id
 
 
@@ -423,9 +489,9 @@ def _start_chat_message_worker(
 ) -> None:
     def run() -> None:
         try:
-            _keep_running, message = deps.handle_chat_message(job_id, line)
-            if message and async_messages is not None:
-                async_messages.put(message)
+            deps.handle_chat_message(job_id, line)
+            if async_messages is not None:
+                async_messages.put("__refresh__")
         except Exception as exc:
             if async_messages is not None:
                 async_messages.put(f"message failed: {type(exc).__name__}: {_one_line(exc, 120)}")
@@ -442,8 +508,29 @@ def _drain_async_notices(async_messages: queue.Queue[str], notices: list[str]) -
         except queue.Empty:
             return changed
         if message:
-            _append_notice(notices, message)
+            if message == "__refresh__":
+                _clear_thinking_notices(notices)
+                changed = True
+                continue
+            _clear_thinking_notices(notices)
+            if _looks_like_waiting_output(message):
+                _append_waiting_notice(notices)
+            else:
+                _append_notice(notices, message)
             changed = True
+
+
+def _looks_like_waiting_output(message: str) -> bool:
+    normalized = " ".join(str(message or "").lower().split())
+    if not normalized:
+        return False
+    return (
+        normalized.startswith("waiting:")
+        or normalized.startswith("waiting for ")
+        or "waiting for model" in normalized
+        or "waiting for the next worker step" in normalized
+        or "message saved for the worker" in normalized
+    )
 
 
 def _handle_chat_escape(

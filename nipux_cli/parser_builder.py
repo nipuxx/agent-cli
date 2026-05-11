@@ -37,13 +37,15 @@ def build_arg_parser(
     update = sub.add_parser("update")
     update.add_argument("--path", help="Git checkout to update. Defaults to the current Nipux install.")
     update.add_argument("--allow-dirty", action="store_true", help="Attempt git pull even when local changes exist")
+    update.add_argument("--no-restart", action="store_true", help="Do not restart a running daemon after updating")
     update.set_defaults(func=_handler(handlers, "update"))
 
     uninstall = sub.add_parser("uninstall")
     uninstall.add_argument("--yes", action="store_true", help="Confirm removal without an interactive prompt")
     uninstall.add_argument("--dry-run", action="store_true", help="Show what would be removed")
     uninstall.add_argument("--keep-legacy", action="store_true", help="Keep legacy ~/.kneepucks state if present")
-    uninstall.add_argument("--remove-tool", action="store_true", help="Also run `uv tool uninstall nipux`")
+    uninstall.add_argument("--keep-tool", action="store_true", help="Keep the installed nipux command")
+    uninstall.add_argument("--remove-tool", action="store_true", help=argparse.SUPPRESS)
     uninstall.add_argument("--wait", type=float, default=5.0, help="Seconds to wait for daemon shutdown")
     uninstall.set_defaults(func=_handler(handlers, "uninstall"))
 
@@ -251,6 +253,9 @@ def build_arg_parser(
     memory.add_argument("job_id", nargs="*")
     memory.add_argument("--limit", type=int, default=10)
     memory.add_argument("--chars", type=int, default=260)
+    memory.add_argument("--json", action="store_true", help="Print memory graph JSON")
+    memory.add_argument("--graph", action="store_true", help="Write a clickable HTML memory graph")
+    memory.add_argument("--output", help="Path for --graph HTML output")
     memory.set_defaults(func=_handler(handlers, "memory"))
 
     metrics = sub.add_parser("metrics")

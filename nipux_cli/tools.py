@@ -14,6 +14,7 @@ from nipux_cli.config import AppConfig
 from nipux_cli.db import AgentDB
 from nipux_cli.metric_format import format_metric_value
 from nipux_cli.digest import send_digest_email
+from nipux_cli.memory_graph import memory_graph_from_job, search_memory_graph
 from nipux_cli.shell_tools import shell_exec as _shell_exec
 from nipux_cli.shell_tools import write_file as _write_file
 
@@ -334,6 +335,39 @@ def _record_lesson(args: dict[str, Any], ctx: ToolContext) -> str:
             via_tool="record_lesson",
         )
     return _json({"success": True, "job_id": ctx.job_id, "lesson": entry})
+
+
+def _record_memory_graph(args: dict[str, Any], ctx: ToolContext) -> str:
+    nodes = args.get("nodes") if isinstance(args.get("nodes"), list) else []
+    edges = args.get("edges") if isinstance(args.get("edges"), list) else []
+    if not nodes and not edges:
+        return _json({"success": False, "error": "nodes or edges are required"})
+    record = ctx.db.append_memory_graph_records(ctx.job_id, nodes=nodes, edges=edges)
+    ctx.db.append_agent_update(
+        ctx.job_id,
+        (
+            "Memory graph updated: "
+            f"{record.get('added_nodes')} new nodes, {record.get('updated_nodes')} updated, "
+            f"{record.get('added_edges')} new links."
+        ),
+        category="progress",
+        metadata={
+            "memory_graph_event_id": record.get("event_id"),
+            "added_nodes": record.get("added_nodes"),
+            "updated_nodes": record.get("updated_nodes"),
+            "added_edges": record.get("added_edges"),
+        },
+    )
+    return _json({"success": True, "job_id": ctx.job_id, **record})
+
+
+def _search_memory_graph(args: dict[str, Any], ctx: ToolContext) -> str:
+    query = str(args.get("query") or "")
+    limit = int(args.get("limit") or 10)
+    job = ctx.db.get_job(ctx.job_id)
+    graph = memory_graph_from_job(job)
+    results = search_memory_graph(graph, query=query, limit=limit)
+    return _json({"success": True, "job_id": ctx.job_id, "query": query, **results})
 
 
 def _acknowledge_operator_context(args: dict[str, Any], ctx: ToolContext) -> str:
@@ -1018,6 +1052,77 @@ SUPPORT_SCHEMAS: list[ToolSpec] = [
         },
         "required": ["lesson"],
     }, _record_lesson),
+    ToolSpec("record_memory_graph", "Create or update the job's connected memory graph: reusable episodes, facts, strategies, skills, questions, decisions, constraints, and links between them. Use this to build a durable brain for long-running work instead of relying on raw history.", {
+        "type": "object",
+        "properties": {
+            "nodes": {
+                "type": "array",
+                "maxItems": 50,
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "key": {"type": "string"},
+                        "title": {"type": "string"},
+                        "kind": {
+                            "type": "string",
+                            "enum": [
+                                "artifact",
+                                "constraint",
+                                "decision",
+                                "episode",
+                                "experiment",
+                                "fact",
+                                "milestone",
+                                "question",
+                                "skill",
+                                "source",
+                                "strategy",
+                                "task",
+                            ],
+                        },
+                        "status": {
+                            "type": "string",
+                            "enum": ["active", "blocked", "deprecated", "open", "resolved", "stable"],
+                            "default": "active",
+                        },
+                        "summary": {"type": "string"},
+                        "salience": {"type": "number"},
+                        "confidence": {"type": "number"},
+                        "tags": {"type": "array", "items": {"type": "string"}},
+                        "parent_key": {"type": "string"},
+                        "links": {"type": "array", "items": {"type": "string"}},
+                        "evidence_refs": {"type": "array", "items": {"type": "string"}},
+                        "metadata": {"type": "object"},
+                    },
+                    "required": ["title"],
+                },
+            },
+            "edges": {
+                "type": "array",
+                "maxItems": 100,
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "from_key": {"type": "string"},
+                        "to_key": {"type": "string"},
+                        "relation": {"type": "string"},
+                        "evidence_refs": {"type": "array", "items": {"type": "string"}},
+                        "metadata": {"type": "object"},
+                    },
+                    "required": ["from_key", "to_key", "relation"],
+                },
+            },
+        },
+        "required": [],
+    }, _record_memory_graph),
+    ToolSpec("search_memory_graph", "Search the job's connected memory graph for reusable facts, decisions, strategies, skills, questions, constraints, and related links.", {
+        "type": "object",
+        "properties": {
+            "query": {"type": "string"},
+            "limit": {"type": "integer", "default": 10},
+        },
+        "required": ["query"],
+    }, _search_memory_graph),
     ToolSpec("acknowledge_operator_context", "Acknowledge that durable operator steering has been incorporated or superseded. Use this after acting on a chat correction so it can leave the active context while remaining in history.", {
         "type": "object",
         "properties": {

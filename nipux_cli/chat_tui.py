@@ -28,7 +28,7 @@ def build_chat_frame(
     *,
     width: int,
     height: int,
-    right_view: str = "status",
+    right_view: str = "updates",
     selected_control: int = 0,
     editing_field: str | None = None,
     modal_view: str | None = None,
@@ -37,10 +37,12 @@ def build_chat_frame(
     width = max(92, width)
     height = max(22, height)
     job = snapshot["job"]
+    right_job = snapshot.get("right_job") if isinstance(snapshot.get("right_job"), dict) else job
     jobs = snapshot["jobs"]
     steps = snapshot["steps"]
     artifacts = snapshot["artifacts"]
     job_id = str(snapshot["job_id"])
+    right_job_id = str(snapshot.get("right_job_id") or job_id)
     job_artifacts = snapshot.get("job_artifacts") if isinstance(snapshot.get("job_artifacts"), dict) else {}
     if artifacts:
         job_artifacts.setdefault(job_id, artifacts)
@@ -48,6 +50,7 @@ def build_chat_frame(
     job_counts = snapshot.get("job_counts") if isinstance(snapshot.get("job_counts"), dict) else {}
     memory_entries = snapshot["memory_entries"]
     events = snapshot["events"]
+    right_events = snapshot.get("right_events") if isinstance(snapshot.get("right_events"), list) else events
     summary_events = snapshot.get("summary_events") if isinstance(snapshot.get("summary_events"), list) else events
     daemon = snapshot["daemon"]
     model = str(snapshot["model"])
@@ -55,25 +58,25 @@ def build_chat_frame(
     token_usage = snapshot.get("token_usage") if isinstance(snapshot.get("token_usage"), dict) else {}
     context_length = int(snapshot.get("context_length") or 0)
     counts = snapshot.get("counts") if isinstance(snapshot.get("counts"), dict) else {}
-    findings = _metadata_records(job, "finding_ledger")
-    sources = _metadata_records(job, "source_ledger")
-    tasks = _metadata_records(job, "task_queue")
-    experiments = _metadata_records(job, "experiment_ledger")
-    lessons = _metadata_records(job, "lessons")
-    roadmap = job.get("metadata", {}).get("roadmap") if isinstance(job.get("metadata"), dict) else {}
+    findings = _metadata_records(right_job, "finding_ledger")
+    sources = _metadata_records(right_job, "source_ledger")
+    tasks = _metadata_records(right_job, "task_queue")
+    experiments = _metadata_records(right_job, "experiment_ledger")
+    lessons = _metadata_records(right_job, "lessons")
+    roadmap = right_job.get("metadata", {}).get("roadmap") if isinstance(right_job.get("metadata"), dict) else {}
     milestones = roadmap.get("milestones") if isinstance(roadmap, dict) and isinstance(roadmap.get("milestones"), list) else []
     open_tasks = sum(1 for task in tasks if str(task.get("status") or "open") in {"open", "active"})
-    state = job_display_state(job, bool(daemon["running"]))
-    worker = worker_label(job, bool(daemon["running"]))
+    state = job_display_state(right_job, bool(daemon["running"]))
+    worker = worker_label(right_job, bool(daemon["running"]))
     latest_step = steps[-1] if steps else None
-    right_width = min(max(50, int(width * 0.34)), 72)
+    right_width = min(max(52, int(width * 0.36)), 72)
     left_width = max(48, width - right_width - 3)
     if left_width < 48:
         left_width = 48
         right_width = max(34, width - left_width - 3)
     latest_text = _step_line(latest_step, chars=right_width - 6) if latest_step else "no worker steps yet"
     daemon_text = _daemon_state_line(daemon)
-    goal_text = " ".join(str(job.get("objective") or "").split())
+    goal_text = " ".join(str(right_job.get("objective") or "").split())
     metrics = [
         ("actions", counts.get("steps", _step_count(steps))),
         ("outputs", counts.get("artifacts", len(artifacts))),
@@ -98,8 +101,11 @@ def build_chat_frame(
     if editing_field:
         hint = edit_target_hint(editing_field)
         prompt_label = edit_target_label(editing_field)
+    elif not jobs:
+        hint = "Type a goal to create the first worker  ·  / opens commands  ·  /settings configures"
+        prompt_label = "❯"
     else:
-        hint = "Talk normally  ·  /new goal starts work  ·  /run resumes  ·  ←→ pages  ·  ↑↓ jobs"
+        hint = "Enter sends  ·  / opens commands  ·  /settings configures  ·  ←→ updates/jobs/work"
         prompt_label = "❯"
     suggestions = [] if editing_field else slash_suggestion_lines(input_buffer, CHAT_SLASH_COMMANDS, width=width)
     compose_lines = _compose_bar(
@@ -115,16 +121,16 @@ def build_chat_frame(
     chat_lines = chat_pane_lines(events, notices, width=left_width, rows=body_rows)
     if right_view == "updates":
         right_lines = chat_updates_pane_lines(
-            job=job,
+            job=right_job,
             events=summary_events,
             width=right_width,
             rows=body_rows,
         )
-        right_title = "Outcomes"
+        right_title = "Model updates"
     elif right_view == "work":
         right_lines = chat_work_pane_lines(
-            job=job,
-            events=events,
+            job=right_job,
+            events=right_events,
             tasks=tasks,
             experiments=experiments,
             width=right_width,
@@ -133,12 +139,12 @@ def build_chat_frame(
         right_title = "Worker"
     else:
         right_lines = right_pane_lines(
-            job=job,
+            job=right_job,
             jobs=jobs,
             job_artifacts=job_artifacts,
             job_summary_events=job_summary_events,
             job_counts=job_counts,
-            job_id=job_id,
+            job_id=right_job_id,
             daemon_running=bool(daemon["running"]),
             state=state,
             worker=worker,
@@ -155,7 +161,7 @@ def build_chat_frame(
             right_view=right_view,
         )
         right_title = "Jobs"
-    lines = [*header, _two_col_title(left_width, right_width, "Conversation", right_title)]
+    lines = [*header, _two_col_title(left_width, right_width, "Chat", right_title)]
     for index in range(body_rows):
         left = chat_lines[index] if index < len(chat_lines) else ""
         right = right_lines[index] if index < len(right_lines) else ""

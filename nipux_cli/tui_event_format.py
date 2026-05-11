@@ -80,6 +80,15 @@ def friendly_error_text(text: str) -> str:
         return "Model authentication failed. Update the API key with /api-key, then try again."
     if "permissiondeniederror" in lowered or "403" in lowered:
         return "Provider permission denied. Check model access or key limits."
+    if (
+        "apiconnectionerror" in lowered
+        or "connection error" in lowered
+        or "connection refused" in lowered
+        or "failed to establish a new connection" in lowered
+    ):
+        return "Model endpoint is unreachable. Check /base-url or start the configured model server, then run /doctor."
+    if "timeout" in lowered or "timed out" in lowered:
+        return "Model request timed out. Check the endpoint/model or adjust /timeout, then run /doctor."
     return _one_line(clean_step_summary(text), 220)
 
 
@@ -174,6 +183,10 @@ def tool_live_summary(tool: str, metadata: dict[str, Any], body: str) -> str:
         return f"wait {seconds}s" if seconds else "wait before next check"
     if tool == "record_lesson":
         return "learn memory"
+    if tool == "record_memory_graph":
+        return "map memory"
+    if tool == "search_memory_graph":
+        return "search memory"
     if tool == "record_source":
         return "score source"
     if tool == "record_findings":

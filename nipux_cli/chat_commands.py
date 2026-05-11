@@ -6,6 +6,7 @@ import argparse
 from dataclasses import dataclass
 from typing import Any, Callable
 
+from nipux_cli.config import DEFAULT_CONTEXT_LENGTH
 from nipux_cli.tui_style import _one_line
 
 
@@ -120,7 +121,16 @@ def handle_chat_slash_command(job_id: str, command: str, rest: list[str], *, dep
         deps.sources(argparse.Namespace(job_id=job_id, limit=20, chars=220, json=False))
         return True
     if command == "memory":
-        deps.memory(argparse.Namespace(job_id=job_id, limit=10, chars=220))
+        deps.memory(
+            argparse.Namespace(
+                job_id=job_id,
+                limit=10,
+                chars=220,
+                json=False,
+                graph=bool(rest and rest[0].lower() in {"graph", "view", "html"}),
+                output=None,
+            )
+        )
         return True
     if command == "metrics":
         deps.metrics(argparse.Namespace(job_id=job_id, chars=220))
@@ -159,12 +169,22 @@ def handle_chat_slash_command(job_id: str, command: str, rest: list[str], *, dep
         return True
     if command == "doctor":
         try:
-            deps.doctor(argparse.Namespace(check_model=False))
+            deps.doctor(argparse.Namespace(check_model=True))
         except SystemExit:
             pass
         return True
     if command == "init":
-        deps.init(argparse.Namespace(path=None, force=False, model=None, base_url=None, api_key_env=None, openrouter=False))
+        deps.init(
+            argparse.Namespace(
+                path=None,
+                force=False,
+                model=None,
+                base_url=None,
+                api_key_env=None,
+                openrouter=False,
+                context_length=DEFAULT_CONTEXT_LENGTH,
+            )
+        )
         return True
     if command == "health":
         deps.health(argparse.Namespace(limit=8, chars=180))
@@ -242,8 +262,11 @@ def handle_chat_slash_command(job_id: str, command: str, rest: list[str], *, dep
             return True
         _created_id, title = deps.create_job(objective=objective, title=None, kind="generic", cadence=None)
         print(f"created {title}")
-        deps.start(argparse.Namespace(poll_seconds=0.0, fake=False, quiet=True, log_file=None))
-        print(f"focus set to {title}; initial plan accepted and worker started.")
+        started = deps.start(argparse.Namespace(poll_seconds=0.0, fake=False, quiet=True, log_file=None))
+        if started is False:
+            print(f"focus set to {title}; worker is waiting for a working model.")
+        else:
+            print(f"focus set to {title}; initial plan accepted and worker started.")
         return True
     if command in {"focus", "switch"}:
         if not " ".join(rest).strip():

@@ -45,7 +45,7 @@ def handle_first_run_action(action: str, *, deps: FirstRunFrameDeps) -> tuple[st
             *deps.capture_setting_command("model local-model"),
             *deps.capture_setting_command("base-url http://localhost:8000/v1"),
             *deps.capture_setting_command("api-key-env OPENAI_API_KEY"),
-            "Local connector selected. Start your OpenAI-compatible server, then create a job.",
+            "Local connector selected. Start your OpenAI-compatible server, then run Doctor.",
         ]
         return "notice", notices
     if action.startswith("toggle:"):
@@ -60,11 +60,11 @@ def handle_first_run_action(action: str, *, deps: FirstRunFrameDeps) -> tuple[st
     if action.startswith("secret:"):
         return "edit", action
     if action == "new":
-        return "notice", "Type the first job objective in the setup input, then press Enter."
+        return "notice", "Finish setup first. Then describe worker jobs in the chat workspace."
     if action == "back":
         return "view", "endpoint"
     if action == "jobs":
-        return "notice", deps.capture_command("jobs")
+        return "notice", "Finish setup first. Jobs are available after Doctor verifies the configured model."
     if action == "doctor":
         notices = deps.verify_model_setup()
         if deps.model_setup_verified():
@@ -95,10 +95,9 @@ def handle_first_run_frame_line(line: str, *, deps: FirstRunFrameDeps) -> tuple[
     if lowered in {"1", "new"}:
         return "notice", "Finish setup first. Then tell Nipux what job to create from the chat workspace."
     if lowered.startswith("new "):
-        result = create_first_run_job(original[4:].strip(), deps=deps)
-        return ("open", result) if isinstance(result, str) else ("notice", result)
+        return "notice", "Finish setup first. Then describe worker jobs in the chat workspace."
     if lowered in {"2", "jobs", "ls"}:
-        return "notice", deps.capture_command("jobs")
+        return "notice", "Finish setup first. Jobs are available after Doctor verifies the configured model."
     if lowered == "settings":
         return "notice", "Config is changed with slash commands: /model, /api-key, /base-url, /context."
     if lowered in {"back"}:
@@ -115,6 +114,8 @@ def handle_first_run_frame_line(line: str, *, deps: FirstRunFrameDeps) -> tuple[
     first = first_token(original)
     if first == "shell":
         return "notice", "The old console is only available as `nipux shell` from your terminal."
+    if first in {"create", "new"}:
+        return "notice", "Finish setup first. Then describe worker jobs in the chat workspace."
     if first in CHAT_SETTING_COMMANDS or first in {"api-key", "key"}:
         return "notice", deps.capture_setting_command(original)
     if first in deps.shell_command_names:
@@ -126,8 +127,7 @@ def handle_first_run_frame_line(line: str, *, deps: FirstRunFrameDeps) -> tuple[
         return "notice", output
     objective = deps.extract_objective(original)
     if objective:
-        result = create_first_run_job(objective, deps=deps)
-        return ("open", result) if isinstance(result, str) else ("notice", result)
+        return "notice", "Finish setup first. Then describe worker jobs in the chat workspace."
     return "notice", first_run_chat_reply(original)
 
 

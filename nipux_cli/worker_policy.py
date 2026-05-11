@@ -57,6 +57,12 @@ simulate waiting with repeated searches, reports, or shell probes.
 Use record_lesson when you learn something that should change future behavior:
 bad source patterns, task-specific success criteria, repeated mistakes, operator
 preferences, or a better strategy. Keep lessons short and reusable.
+Use record_memory_graph when work produces reusable connected knowledge: an
+episode worth remembering, a stable fact, a strategy, a reusable skill, an open
+question, a decision, or a constraint. Link nodes to their evidence and to each
+other. Treat this as the job's durable brain: recent events are fast episodic
+memory, while stable graph nodes are consolidated knowledge that should guide
+future branches without replaying raw history.
 Use record_source when a source is high-yield, low-yield, blocked, repetitive,
 or otherwise useful to score for future behavior.
 Use record_findings after finding durable candidates, facts, opportunities,
@@ -116,10 +122,12 @@ INFORMATION_GATHERING_TOOLS = {
 }
 
 ARTIFACT_REVIEW_TOOLS = {"read_artifact", "search_artifacts"}
-BRANCH_WORK_TOOLS = INFORMATION_GATHERING_TOOLS | ARTIFACT_REVIEW_TOOLS | {"shell_exec"}
+MEMORY_REVIEW_TOOLS = {"search_memory_graph"}
+BRANCH_WORK_TOOLS = INFORMATION_GATHERING_TOOLS | ARTIFACT_REVIEW_TOOLS | MEMORY_REVIEW_TOOLS | {"shell_exec"}
 LEDGER_PROGRESS_TOOLS = {
     "guard_recovery",
     "record_findings",
+    "record_memory_graph",
     "record_source",
     "record_tasks",
     "record_roadmap",
@@ -164,7 +172,8 @@ ROADMAP_STALENESS_BLOCKED_TOOLS = INFORMATION_GATHERING_TOOLS | {
     "record_experiment",
     "report_update",
 }
-CHURN_TOOLS = INFORMATION_GATHERING_TOOLS | ARTIFACT_REVIEW_TOOLS | {"shell_exec"}
+CHURN_TOOLS = INFORMATION_GATHERING_TOOLS | ARTIFACT_REVIEW_TOOLS | MEMORY_REVIEW_TOOLS | {"shell_exec"}
+MEMORY_CONSOLIDATION_BLOCKED_TOOLS = CHURN_TOOLS | {"write_artifact", "write_file", "report_update"}
 ACTIVITY_STAGNATION_BLOCKED_TOOLS = CHURN_TOOLS | {"write_artifact", "write_file", "report_update"}
 DELIVERABLE_PROGRESS_BLOCKED_TOOLS = INFORMATION_GATHERING_TOOLS | ARTIFACT_REVIEW_TOOLS | {"report_update"}
 MEASURABLE_RESEARCH_BLOCKED_TOOLS = INFORMATION_GATHERING_TOOLS | {
@@ -187,6 +196,7 @@ RECOVERABLE_GUARD_ERRORS = {
     "duplicate tool call blocked",
     "experiment next action pending",
     "known bad source blocked",
+    "memory graph consolidation required",
     "measurement obligation pending",
     "measured progress required",
     "progress accounting required",
@@ -220,6 +230,7 @@ TIMELINE_PROMPT_EVENT_TYPES = {
     "experiment",
     "finding",
     "lesson",
+    "memory_node",
     "milestone_validation",
     "reflection",
     "roadmap",
@@ -237,9 +248,11 @@ PROMPT_SECTION_BUDGETS = {
     "Progress accounting guard": 900,
     "Activity stagnation": 900,
     "Task planning guard": 900,
+    "Memory consolidation guard": 900,
     "Durable progress yield": 900,
     "Program": 1_400,
     "Lessons learned": 1_100,
+    "Memory graph": 1_800,
     "Roadmap": 2_000,
     "Task queue": 2_400,
     "Durable outcomes": 1_200,

@@ -21,7 +21,7 @@ from nipux_cli.tui_event_format import (
 from nipux_cli.tui_style import _bold, _event_badge, _fit_ansi, _muted, _one_line, _page_indicator, _strip_ansi
 
 
-CHAT_RIGHT_PAGES = [("status", "Jobs"), ("updates", "Outcomes"), ("work", "Work")]
+CHAT_RIGHT_PAGES = [("updates", "Updates"), ("status", "Jobs"), ("work", "Work")]
 
 DURABLE_OUTCOME_LABELS = {
     "SAVE",
@@ -95,7 +95,7 @@ def model_update_event_parts(event: dict[str, Any], *, width: int, compact: bool
     clock = event_clock(event)
     chars = max(24, width - 16)
     if kind == "artifact":
-        detail = event_title_body(title, body or str(metadata.get("summary") or ""), fallback="saved output")
+        detail = title or body or str(metadata.get("summary") or "") or "saved output"
         return "SAVE", _outcome_text(detail, chars=chars, compact=compact), clock
     if kind == "finding":
         return "FIND", _outcome_text(event_title_body(title, body, fallback="finding"), chars=chars, compact=compact), clock
@@ -123,7 +123,7 @@ def model_update_event_parts(event: dict[str, Any], *, width: int, compact: bool
     if kind == "reflection":
         return "PLAN", _outcome_text(brief_reflection_text(body or title), chars=chars, compact=compact), clock
     if kind == "agent_message" and title.lower() in {"error", "blocked"}:
-        detail = chat_agent_message_text(title, body) or event_title_body(title, body, fallback="error")
+        detail = body or chat_agent_message_text(title, body) or event_title_body(title, body, fallback="error")
         return "FAIL", _outcome_text(detail, chars=chars, compact=compact), clock
     if kind == "agent_message" and title.lower() in {"progress", "update", "report", "plan", "planning"}:
         durable_progress = _durable_progress_event_parts(metadata, body=body, chars=chars, compact=compact, clock=clock)
@@ -261,6 +261,7 @@ def recent_model_update_lines(
     width: int,
     limit: int,
     include_research: bool = False,
+    wrap: bool = True,
 ) -> list[str]:
     """Render recent durable worker outcomes for the compact status pane."""
     if limit <= 0:
@@ -295,6 +296,11 @@ def recent_model_update_lines(
         available = max(12, width - prefix_width - 2)
         if count > 1:
             text = f"{text} x{count}"
+        if not wrap:
+            lines.append(_fit_ansi(prefix + _one_line(text, available), width))
+            if len(lines) >= limit:
+                return lines
+            continue
         wrapped = textwrap.wrap(text, width=available) or [""]
         lines.append(_fit_ansi(prefix + wrapped[0], width))
         if len(lines) >= limit:
@@ -319,21 +325,29 @@ def chat_updates_pane_lines(
     lines = [
         f"{_muted('Page')}   {_page_indicator('updates', CHAT_RIGHT_PAGES)}",
         f"{_muted('Focus')}  {_bold(_one_line(job.get('title') or 'untitled', width - 8))}",
-        "",
-        _bold("Summary"),
-        _muted("Durable output, findings, measurements, decisions, and files."),
-        "",
     ]
-    summary = visible_outcome_summary_line(events, width=width)
+    counts = outcome_counts(events, include_research=False, include_failures=True)
+    summary = hourly_outcome_summary(counts)
     if summary:
-        lines.extend([summary, ""])
-    lines.append(_bold("Outcomes by hour"))
-    update_lines = hourly_update_lines(events, width=width, limit=max(4, rows - len(lines)))
+        lines.extend([*_wrapped_label_line("Visible", summary, width=width), ""])
+    update_lines = recent_model_update_lines(events, width=width, limit=max(4, rows - len(lines)), wrap=False)
     if update_lines:
         lines.extend(update_lines)
     else:
-        lines.append(_muted("No durable model updates yet. Tool calls are on Work."))
+        lines.extend(["", _muted("No model updates yet.")])
     return [_fit_ansi(line, width) for line in lines[:rows]]
+
+
+def _wrapped_label_line(label: str, text: str, *, width: int) -> list[str]:
+    prefix = f"{_muted(label)} "
+    prefix_width = len(_strip_ansi(prefix))
+    available = max(12, width - prefix_width)
+    wrapped = textwrap.wrap(text, width=available) or [""]
+    lines = [_fit_ansi(prefix + _bold(wrapped[0]), width)]
+    continuation = " " * prefix_width
+    for part in wrapped[1:]:
+        lines.append(_fit_ansi(continuation + _bold(part), width))
+    return lines
 
 
 def hourly_update_lines(events: list[dict[str, Any]], *, width: int, limit: int) -> list[str]:

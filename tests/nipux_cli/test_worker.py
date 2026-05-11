@@ -1890,6 +1890,159 @@ def test_prompt_includes_durable_lessons():
     assert "Low-evidence pages are background noise" in content
 
 
+def test_prompt_includes_memory_graph_slice():
+    job = {
+        "title": "research",
+        "kind": "generic",
+        "objective": "keep improving the output",
+        "metadata": {
+            "memory_graph": {
+                "nodes": [
+                    {
+                        "key": "validated-checkpoints",
+                        "title": "Validated checkpoints compound progress",
+                        "kind": "strategy",
+                        "status": "active",
+                        "summary": "Save evidence, validate it, then branch from the gap.",
+                        "salience": 0.95,
+                        "tags": ["progress"],
+                        "evidence_refs": ["art_1"],
+                    },
+                    {
+                        "key": "weak-source",
+                        "title": "Weak source path",
+                        "kind": "source",
+                        "status": "deprecated",
+                        "summary": "This path produced low-yield repeats.",
+                        "salience": 0.1,
+                    },
+                ],
+                "edges": [
+                    {
+                        "from_key": "validated-checkpoints",
+                        "to_key": "weak-source",
+                        "relation": "replaces",
+                    }
+                ],
+            }
+        },
+    }
+
+    content = build_messages(job, [])[-1]["content"]
+
+    assert "Memory graph:" in content
+    assert "Validated checkpoints compound progress" in content
+    assert "strategy" in content
+    assert "replaces -> weak-source" in content
+    assert "art_1" in content
+
+
+def test_prompt_pushes_memory_graph_consolidation_when_ledgers_exist_without_nodes():
+    job = {
+        "title": "research",
+        "kind": "generic",
+        "objective": "keep improving the output",
+        "metadata": {
+            "lessons": [{"lesson": "Prefer validated checkpoints.", "category": "strategy"}],
+            "experiment_ledger": [{"title": "Trial", "status": "measured"}],
+            "task_queue": [{"title": "Next branch", "status": "open"}],
+        },
+    }
+
+    content = build_messages(job, [])[-1]["content"]
+
+    assert "No memory graph yet" in content
+    assert "Durable ledgers already contain 3 reusable item" in content
+    assert "record_memory_graph" in content
+
+
+def test_prompt_adds_memory_consolidation_guard_when_graph_lags_ledgers():
+    job = {
+        "title": "research",
+        "kind": "generic",
+        "objective": "keep improving the output",
+        "metadata": {
+            "lessons": [
+                {"lesson": "Use validated checkpoints.", "category": "strategy"},
+                {"lesson": "Reject low-yield branches.", "category": "strategy"},
+            ],
+            "experiment_ledger": [{"title": "Trial", "status": "measured"}],
+            "finding_ledger": [{"name": "Finding A"}, {"name": "Finding B"}],
+            "source_ledger": [{"source": "source:a"}],
+        },
+    }
+
+    content = build_messages(job, [])[-1]["content"]
+
+    assert "Memory consolidation guard:" in content
+    assert "durable_records=6" in content
+    assert "record_memory_graph" in content
+
+
+def test_run_one_step_blocks_branch_work_when_memory_graph_needs_consolidation(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Keep improving durable work", title="memory")
+        db.append_lesson(job_id, "Use validated checkpoints.", category="strategy")
+        db.append_lesson(job_id, "Reject low-yield branches.", category="strategy")
+        db.append_finding_record(job_id, name="Finding A")
+        db.append_finding_record(job_id, name="Finding B")
+        db.append_source_record(job_id, "source:a")
+        db.append_experiment_record(job_id, title="Trial", status="measured")
+        llm = ScriptedLLM([LLMResponse(tool_calls=[ToolCall(name="web_search", arguments={"query": "more research"})])])
+
+        result = run_one_step(job_id, config=config, db=db, llm=llm)
+
+        assert result.status == "blocked"
+        assert result.result["error"] == "memory graph consolidation required"
+        assert result.result["blocked_tool"] == "web_search"
+    finally:
+        db.close()
+
+
+def test_run_one_step_allows_memory_graph_consolidation_when_guard_is_active(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Keep improving durable work", title="memory")
+        db.append_lesson(job_id, "Use validated checkpoints.", category="strategy")
+        db.append_lesson(job_id, "Reject low-yield branches.", category="strategy")
+        db.append_finding_record(job_id, name="Finding A")
+        db.append_finding_record(job_id, name="Finding B")
+        db.append_source_record(job_id, "source:a")
+        db.append_experiment_record(job_id, title="Trial", status="measured")
+        llm = ScriptedLLM([
+            LLMResponse(
+                tool_calls=[
+                    ToolCall(
+                        name="record_memory_graph",
+                        arguments={
+                            "nodes": [
+                                {
+                                    "key": "validated-checkpoints",
+                                    "kind": "strategy",
+                                    "title": "Validated checkpoints",
+                                    "summary": "Use measured checkpoints to decide the next branch.",
+                                    "salience": 0.9,
+                                }
+                            ]
+                        },
+                    )
+                ]
+            )
+        ])
+
+        result = run_one_step(job_id, config=config, db=db, llm=llm)
+
+        assert result.status == "completed"
+        assert result.tool_name == "record_memory_graph"
+        graph = db.get_job(job_id)["metadata"]["memory_graph"]
+        assert graph["nodes"][0]["key"] == "validated-checkpoints"
+    finally:
+        db.close()
+
+
 def test_prompt_includes_activity_stagnation_context():
     job = {
         "title": "research",

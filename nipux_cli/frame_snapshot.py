@@ -29,6 +29,7 @@ def load_frame_snapshot(
         return load_workspace_frame_snapshot(
             db,
             config,
+            focused_job_id=default_job_id,
             history_limit=history_limit,
             workspace_events=workspace_events or [],
         )
@@ -75,6 +76,7 @@ def load_workspace_frame_snapshot(
     db: AgentDB,
     config: AppConfig,
     *,
+    focused_job_id: str | None = None,
     history_limit: int = 12,
     workspace_events: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
@@ -82,19 +84,30 @@ def load_workspace_frame_snapshot(
 
     jobs = db.list_jobs()
     events = list(workspace_events or [])[-max(history_limit * 8, 80) :]
+    focused_job = _safe_job(db, focused_job_id)
+    focused_id = str(focused_job.get("id") or "") if focused_job else ""
+    token_usage = _workspace_token_usage(config)
+    if focused_id:
+        token_usage = db.job_token_usage(focused_id)
+        token_usage["input_cost_per_million"] = config.model.input_cost_per_million
+        token_usage["output_cost_per_million"] = config.model.output_cost_per_million
+    workspace_job = {
+        "id": WORKSPACE_CHAT_ID,
+        "title": "Nipux",
+        "objective": "Chat with Nipux to create, start, inspect, and steer long-running worker jobs.",
+        "kind": "workspace",
+        "status": "ready",
+        "metadata": {},
+    }
+    right_job = focused_job or workspace_job
     return {
         "job_id": WORKSPACE_CHAT_ID,
-        "job": {
-            "id": WORKSPACE_CHAT_ID,
-            "title": "Nipux",
-            "objective": "Chat with Nipux to create, start, inspect, and steer long-running worker jobs.",
-            "kind": "workspace",
-            "status": "ready",
-            "metadata": {},
-        },
+        "job": workspace_job,
+        "right_job": right_job,
+        "right_job_id": focused_id or WORKSPACE_CHAT_ID,
         "jobs": jobs,
-        "steps": [],
-        "artifacts": [],
+        "steps": db.list_steps(job_id=focused_id, limit=80) if focused_id else [],
+        "artifacts": db.list_artifacts(focused_id, limit=8) if focused_id else [],
         "job_artifacts": {
             str(item["id"]): db.list_artifacts(str(item["id"]), limit=3)
             for item in jobs[:6]
@@ -110,24 +123,38 @@ def load_workspace_frame_snapshot(
             for item in jobs[:6]
             if item.get("id")
         },
-        "memory_entries": [],
+        "memory_entries": db.list_memory(focused_id)[:8] if focused_id else [],
         "events": events,
-        "summary_events": [],
+        "right_events": db.list_events(job_id=focused_id, limit=max(history_limit * 16, 240)) if focused_id else [],
+        "summary_events": _summary_events(db, focused_id, history_limit=history_limit) if focused_id else [],
         "daemon": daemon_lock_status(config.runtime.home / "agentd.lock"),
         "model": config.model.model,
         "base_url": config.model.base_url,
         "context_length": config.model.context_length,
-        "token_usage": {
-            "prompt_tokens": 0,
-            "completion_tokens": 0,
-            "total_tokens": 0,
-            "cost": 0.0,
-            "calls": 0,
-            "has_cost": False,
-            "input_cost_per_million": config.model.input_cost_per_million,
-            "output_cost_per_million": config.model.output_cost_per_million,
-        },
-        "counts": {"steps": 0, "artifacts": 0, "memory": 0, "events": len(events)},
+        "token_usage": token_usage,
+        "counts": db.job_record_counts(focused_id) if focused_id else {"steps": 0, "artifacts": 0, "memory": 0, "events": len(events)},
+    }
+
+
+def _safe_job(db: AgentDB, job_id: str | None) -> dict[str, Any] | None:
+    if not job_id:
+        return None
+    try:
+        return db.get_job(job_id)
+    except Exception:
+        return None
+
+
+def _workspace_token_usage(config: AppConfig) -> dict[str, Any]:
+    return {
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "total_tokens": 0,
+        "cost": 0.0,
+        "calls": 0,
+        "has_cost": False,
+        "input_cost_per_million": config.model.input_cost_per_million,
+        "output_cost_per_million": config.model.output_cost_per_million,
     }
 
 

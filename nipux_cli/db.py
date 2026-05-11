@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any, Callable, Iterable, TypeVar
 
 from nipux_cli.metric_format import format_metric_value
+from nipux_cli.memory_graph import DEFAULT_NODE_KIND, DEFAULT_NODE_STATUS, NODE_KINDS, NODE_STATUSES
 
 T = TypeVar("T")
 
@@ -165,6 +166,37 @@ def _json_loads(value: str | None) -> dict[str, Any]:
     except json.JSONDecodeError:
         return {}
     return loaded if isinstance(loaded, dict) else {}
+
+
+def _bounded_float(value: Any, low: float, high: float) -> float:
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return low
+    return min(high, max(low, number))
+
+
+def _merge_string_lists(existing: Any, incoming: Any, *, limit: int) -> list[str]:
+    values: list[str] = []
+    for source in (existing, incoming):
+        if isinstance(source, list):
+            items = source
+        elif isinstance(source, str) and source.strip():
+            items = [source]
+        else:
+            items = []
+        for item in items:
+            text = " ".join(str(item).split())
+            if text and text not in values:
+                values.append(text)
+    return values[-limit:]
+
+
+def _memory_edge_key(edge: dict[str, Any]) -> str:
+    from_key = str(edge.get("from_key") or "")
+    relation = str(edge.get("relation") or "")
+    to_key = str(edge.get("to_key") or "")
+    return f"{from_key}|{relation}|{to_key}" if from_key and relation and to_key else ""
 
 
 def _as_int(value: Any) -> int:
@@ -1146,6 +1178,167 @@ class AgentDB:
                 (now, _json_dumps(job_metadata), job_id),
             )
             return current
+
+        return self._write(op)
+
+    def append_memory_graph_records(
+        self,
+        job_id: str,
+        *,
+        nodes: list[dict[str, Any]] | None = None,
+        edges: list[dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
+        now = utc_now()
+        node_items = [node for node in (nodes or []) if isinstance(node, dict)]
+        edge_items = [edge for edge in (edges or []) if isinstance(edge, dict)]
+        if not node_items and not edge_items:
+            raise ValueError("nodes or edges are required")
+
+        def op(conn: sqlite3.Connection) -> dict[str, Any]:
+            row = conn.execute("SELECT metadata_json FROM jobs WHERE id = ?", (job_id,)).fetchone()
+            if row is None:
+                raise KeyError(f"Job not found: {job_id}")
+            job_metadata = json.loads(row["metadata_json"] or "{}")
+            graph = job_metadata.get("memory_graph") if isinstance(job_metadata.get("memory_graph"), dict) else {}
+            stored_nodes = _metadata_list(graph, "nodes")
+            stored_edges = _metadata_list(graph, "edges")
+            node_by_key = {str(node.get("key") or ""): node for node in stored_nodes if node.get("key")}
+            added_nodes = 0
+            updated_nodes = 0
+            touched_nodes: list[dict[str, Any]] = []
+
+            for node in node_items[:50]:
+                title = str(node.get("title") or node.get("name") or "").strip()
+                summary = str(node.get("summary") or node.get("body") or "").strip()
+                if not title and not summary:
+                    continue
+                key = _norm_key(str(node.get("key") or title or summary[:80]))
+                current = node_by_key.get(key)
+                created = current is None
+                if current is None:
+                    current = {
+                        "key": key,
+                        "title": title or key,
+                        "kind": DEFAULT_NODE_KIND,
+                        "status": DEFAULT_NODE_STATUS,
+                        "summary": "",
+                        "tags": [],
+                        "evidence_refs": [],
+                        "links": [],
+                        "metadata": {},
+                        "created_at": now,
+                    }
+                    stored_nodes.append(current)
+                    node_by_key[key] = current
+                    added_nodes += 1
+                else:
+                    updated_nodes += 1
+                if title:
+                    current["title"] = title
+                if summary:
+                    current["summary"] = summary
+                kind = str(node.get("kind") or current.get("kind") or DEFAULT_NODE_KIND).strip().lower()
+                current["kind"] = kind if kind in NODE_KINDS else DEFAULT_NODE_KIND
+                status = str(node.get("status") or current.get("status") or DEFAULT_NODE_STATUS).strip().lower()
+                current["status"] = status if status in NODE_STATUSES else DEFAULT_NODE_STATUS
+                if "salience" in node:
+                    current["salience"] = _bounded_float(node.get("salience"), 0.0, 1.0)
+                elif "salience" not in current:
+                    current["salience"] = 0.5
+                if "confidence" in node:
+                    current["confidence"] = _bounded_float(node.get("confidence"), 0.0, 1.0)
+                elif "confidence" not in current:
+                    current["confidence"] = 0.5
+                parent_key = str(node.get("parent_key") or node.get("parent") or "").strip()
+                if parent_key:
+                    current["parent_key"] = _norm_key(parent_key)
+                current["tags"] = _merge_string_lists(current.get("tags"), node.get("tags"), limit=24)
+                current["evidence_refs"] = _merge_string_lists(current.get("evidence_refs"), node.get("evidence_refs") or node.get("evidence"), limit=24)
+                current["links"] = _merge_string_lists(current.get("links"), node.get("links"), limit=50)
+                if isinstance(node.get("metadata"), dict):
+                    merged = current.get("metadata") if isinstance(current.get("metadata"), dict) else {}
+                    merged.update(node["metadata"])
+                    current["metadata"] = merged
+                current["created"] = created
+                current["updated_at"] = now
+                current["use_count"] = int(current.get("use_count") or 0)
+                touched_nodes.append(current)
+
+            existing_edge_keys = {
+                _memory_edge_key(edge)
+                for edge in stored_edges
+                if _memory_edge_key(edge)
+            }
+            added_edges = 0
+            touched_edges: list[dict[str, Any]] = []
+            for edge in edge_items[:100]:
+                from_key = _norm_key(str(edge.get("from_key") or edge.get("from") or "").strip())
+                to_key = _norm_key(str(edge.get("to_key") or edge.get("to") or "").strip())
+                if not from_key or not to_key:
+                    continue
+                relation = str(edge.get("relation") or "related_to").strip().lower().replace(" ", "_")
+                relation = re.sub(r"[^a-z0-9_-]+", "_", relation).strip("_") or "related_to"
+                edge_key = f"{from_key}|{relation}|{to_key}"
+                if edge_key in existing_edge_keys:
+                    continue
+                stored = {
+                    "key": edge_key,
+                    "from_key": from_key,
+                    "to_key": to_key,
+                    "relation": relation,
+                    "evidence_refs": _merge_string_lists([], edge.get("evidence_refs") or edge.get("evidence"), limit=24),
+                    "metadata": edge.get("metadata") if isinstance(edge.get("metadata"), dict) else {},
+                    "created_at": now,
+                    "updated_at": now,
+                }
+                stored_edges.append(stored)
+                existing_edge_keys.add(edge_key)
+                touched_edges.append(stored)
+                added_edges += 1
+
+            graph = {
+                "nodes": stored_nodes[-1000:],
+                "edges": stored_edges[-2000:],
+                "updated_at": now,
+            }
+            event = _insert_event(
+                conn,
+                job_id=job_id,
+                event_type="memory_node",
+                title="memory graph",
+                body=f"nodes +{added_nodes}/~{updated_nodes}; edges +{added_edges}",
+                metadata={
+                    "added_nodes": added_nodes,
+                    "updated_nodes": updated_nodes,
+                    "added_edges": added_edges,
+                    "node_keys": [node.get("key") for node in touched_nodes[-20:]],
+                    "edge_keys": [edge.get("key") for edge in touched_edges[-20:]],
+                },
+                created_at=now,
+            )
+            graph["event_id"] = event["id"]
+            job_metadata["memory_graph"] = graph
+            job_metadata["last_memory_graph_record"] = {
+                "at": now,
+                "event_id": event["id"],
+                "added_nodes": added_nodes,
+                "updated_nodes": updated_nodes,
+                "added_edges": added_edges,
+                "nodes": touched_nodes[-20:],
+                "edges": touched_edges[-20:],
+            }
+            conn.execute(
+                "UPDATE jobs SET updated_at = ?, metadata_json = ? WHERE id = ?",
+                (now, _json_dumps(job_metadata), job_id),
+            )
+            return {
+                "added_nodes": added_nodes,
+                "updated_nodes": updated_nodes,
+                "added_edges": added_edges,
+                "nodes": touched_nodes,
+                "edges": touched_edges,
+                "event_id": event["id"],
+            }
 
         return self._write(op)
 

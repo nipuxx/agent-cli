@@ -55,8 +55,10 @@ curl -fsSL https://raw.githubusercontent.com/nipuxx/agent-cli/main/scripts/insta
 ```
 
 The first-run wizard asks for the provider/model, endpoint, API key location,
-tool access, and the first long-running job. It stores secrets outside the git
-repo and writes runtime state under `~/.nipux` unless `NIPUX_HOME` is set.
+and tool access. After the model is verified, Nipux opens the workspace chat
+where you can describe worker jobs in plain language. It stores
+secrets outside the git repo and writes runtime state under `~/.nipux` unless
+`NIPUX_HOME` is set.
 
 Install from a local checkout while developing:
 
@@ -75,13 +77,24 @@ uv tool install git+https://github.com/nipuxx/agent-cli.git
 
 ## First Run
 
-Initialize local state under `~/.nipux`. The first-run wizard can write
-`config.yaml` and a local `.env` template. Real API keys stay in the environment
-or `~/.nipux/.env`, not in the git repo.
+Run `nipux`. If this is a fresh profile, the full-screen setup wizard opens
+immediately and locks chat/job creation until the configured model passes a real
+chat request. The wizard writes `config.yaml` and a local `.env` template under
+`~/.nipux` unless `NIPUX_HOME` is set. Real API keys stay in the environment or
+`~/.nipux/.env`, not in the git repo.
 
 ```bash
-nipux init
-$EDITOR ~/.nipux/.env
+nipux
+```
+
+After setup, `nipux` opens the workspace chat. Type a plain-English goal to spin
+up a worker, or use `/new OBJECTIVE`. Use `/settings` to edit model, endpoint,
+tool access, runtime, and cost fields from inside the UI.
+
+Manual configuration is still available for scripts or headless environments:
+
+```bash
+nipux init --model local-model --base-url http://localhost:8000/v1 --api-key-env OPENAI_API_KEY
 nipux doctor --check-model
 ```
 
@@ -89,23 +102,21 @@ nipux doctor --check-model
 file permissions. Later `/api-key` edits keep the secret in `~/.nipux/.env`
 instead of writing it to config.
 
-For a local OpenAI-compatible server:
+Update an installed tool or source checkout from anywhere:
 
 ```bash
-nipux init --model local-model --base-url http://localhost:8000/v1 --api-key-env OPENAI_API_KEY
-nipux doctor
+nipux update
 ```
 
-Open the focused chat UI:
+When installed as a `uv tool`, `nipux update` force-refreshes the command from
+the source repository and verifies the installed command afterward. When run
+inside a git checkout, it fast-forwards the checkout. If a daemon is running,
+update restarts it automatically unless `--no-restart` is used. Set
+`NIPUX_UPDATE_SPEC` only when you need to update from a different package source.
+
+Inspect progress from the terminal:
 
 ```bash
-nipux
-```
-
-Start the background daemon and inspect progress:
-
-```bash
-nipux start
 nipux status
 nipux activity --follow
 ```
@@ -131,9 +142,9 @@ nipux uninstall --yes
 ```
 
 This stops the daemon, removes launchd/systemd service files, deletes
-`~/.nipux`, and removes legacy `~/.kneepucks` state if it exists. If the CLI was
-installed with `uv tool`, add `--remove-tool` to remove the installed command
-after state cleanup.
+`~/.nipux`, removes legacy `~/.kneepucks` state if it exists, and removes the
+installed `nipux` command with `uv tool uninstall nipux`. Add `--keep-tool` only
+when you intentionally want to keep the command installed.
 
 ## Secrets
 
@@ -306,8 +317,8 @@ without burning model calls on repeated polling.
 
 ```bash
 nipux init [--force] [--openrouter] [--model MODEL] [--base-url URL] [--api-key-env ENV]
-nipux update [--path PATH] [--allow-dirty]
-nipux uninstall [--yes] [--dry-run] [--keep-legacy] [--remove-tool]
+nipux update [--path PATH] [--allow-dirty] [--no-restart]
+nipux uninstall [--yes] [--dry-run] [--keep-legacy] [--keep-tool]
 nipux doctor [--check-model]
 nipux shell [--status]
 nipux create "objective" [--title TITLE] [--kind KIND] [--cadence CADENCE]

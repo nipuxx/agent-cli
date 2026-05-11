@@ -32,7 +32,7 @@ def _top_bar(
     if width >= 118:
         compact_model = f"{_muted('model')} {_style(_one_line(model, max(14, width // 5)), '36')}"
         return [
-            _triple_line(_muted("workspace"), title, f"{compact_model}  {usage_text}", width=width),
+            _edge_line(title, f"{compact_model}  {usage_text}", width=width),
             _muted("━" * width),
         ]
     first = _edge_line(title, model_line, width=width)

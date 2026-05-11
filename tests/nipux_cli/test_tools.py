@@ -18,6 +18,8 @@ def test_static_tool_surface_is_focused():
     assert "defer_job" in DEFAULT_REGISTRY.names()
     assert "report_update" in DEFAULT_REGISTRY.names()
     assert "record_lesson" in DEFAULT_REGISTRY.names()
+    assert "record_memory_graph" in DEFAULT_REGISTRY.names()
+    assert "search_memory_graph" in DEFAULT_REGISTRY.names()
     assert "record_source" in DEFAULT_REGISTRY.names()
     assert "record_findings" in DEFAULT_REGISTRY.names()
     assert "record_tasks" in DEFAULT_REGISTRY.names()
@@ -285,6 +287,66 @@ def test_record_lesson_tool_records_durable_learning(tmp_path):
         assert result["success"] is True
         assert job["metadata"]["lessons"][-1]["lesson"] == "Competitor low-evidence lists are not finding sources."
         assert job["metadata"]["last_lesson"]["category"] == "source_quality"
+    finally:
+        db.close()
+
+
+def test_memory_graph_tools_roundtrip(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Build durable project understanding")
+        run_id = db.start_run(job_id, model="fake")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="record_memory_graph")
+        ctx = ToolContext(config=config, db=db, artifacts=ArtifactStore(tmp_path, db), job_id=job_id, run_id=run_id, step_id=step_id)
+
+        raw = DEFAULT_REGISTRY.handle(
+            "record_memory_graph",
+            {
+                "nodes": [
+                    {
+                        "title": "Use measured checkpoints before expanding scope",
+                        "kind": "strategy",
+                        "status": "active",
+                        "summary": "Convert branch outcomes into evidence-backed decisions before opening more work.",
+                        "salience": 0.9,
+                        "tags": ["progress", "validation"],
+                        "evidence_refs": ["art_123"],
+                    },
+                    {
+                        "title": "Open question: missing evaluator",
+                        "kind": "question",
+                        "status": "open",
+                        "summary": "The job needs a concrete validation signal for the next branch.",
+                    },
+                ],
+                "edges": [
+                    {
+                        "from_key": "Use measured checkpoints before expanding scope",
+                        "to_key": "Open question: missing evaluator",
+                        "relation": "raises",
+                    }
+                ],
+            },
+            ctx,
+        )
+        result = json.loads(raw)
+
+        assert result["success"] is True
+        assert result["added_nodes"] == 2
+        assert result["added_edges"] == 1
+        job = db.get_job(job_id)
+        graph = job["metadata"]["memory_graph"]
+        assert len(graph["nodes"]) == 2
+        assert graph["nodes"][0]["kind"] == "strategy"
+        assert graph["nodes"][0]["evidence_refs"] == ["art_123"]
+        assert db.list_events(job_id=job_id, event_types=["memory_node"])[0]["title"] == "memory graph"
+
+        search_raw = DEFAULT_REGISTRY.handle("search_memory_graph", {"query": "evaluator"}, ctx)
+        search = json.loads(search_raw)
+        assert search["success"] is True
+        assert search["nodes"][0]["title"] == "Open question: missing evaluator"
+        assert search["edges"][0]["relation"] == "raises"
     finally:
         db.close()
 

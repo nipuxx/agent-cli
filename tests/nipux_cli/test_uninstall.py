@@ -1,6 +1,7 @@
 import subprocess
+from pathlib import Path
 
-from nipux_cli.uninstall import build_uninstall_plan, uninstall_runtime
+from nipux_cli.uninstall import build_uninstall_plan, installed_tool_paths, uninstall_installed_tool, uninstall_runtime
 
 
 def _completed(*_args, **_kwargs):
@@ -75,3 +76,61 @@ def test_uninstall_runtime_dry_run_keeps_files(monkeypatch, tmp_path):
 
     assert any("would remove" in line and str(profile) in line for line in lines)
     assert profile.exists()
+
+
+def test_uninstall_installed_tool_uses_uv_when_available(monkeypatch, tmp_path):
+    home = tmp_path / "user"
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setattr("nipux_cli.uninstall.shutil.which", lambda name: "/usr/bin/uv" if name == "uv" else None)
+    calls = []
+
+    def runner(command):
+        calls.append(tuple(command))
+        return subprocess.CompletedProcess(command, 0, stdout="Uninstalled 1 executable: nipux\n")
+
+    code, lines = uninstall_installed_tool(runner=runner)
+
+    assert code == 0
+    assert calls == [("/usr/bin/uv", "tool", "uninstall", "nipux")]
+    assert "Uninstalled 1 executable: nipux" in "\n".join(lines)
+
+
+def test_uninstall_installed_tool_falls_back_to_safe_uv_paths(monkeypatch, tmp_path):
+    home = tmp_path / "user"
+    shim = home / ".local" / "bin" / "nipux"
+    tool_dir = home / ".local" / "share" / "uv" / "tools" / "nipux"
+    tool_bin = tool_dir / "bin"
+    tool_bin.mkdir(parents=True)
+    shim.parent.mkdir(parents=True)
+    target = tool_bin / "nipux"
+    target.write_text("script", encoding="utf-8")
+    shim.symlink_to(target)
+    monkeypatch.setenv("HOME", str(home))
+
+    def which(name):
+        if name == "nipux":
+            return str(shim)
+        return None
+
+    monkeypatch.setattr("nipux_cli.uninstall.shutil.which", which)
+
+    code, lines = uninstall_installed_tool()
+
+    assert code == 0
+    assert not shim.exists()
+    assert not tool_dir.exists()
+    rendered = "\n".join(lines)
+    assert "uv not found; checking safe local tool paths" in rendered
+    assert f"removed {shim}" in rendered
+    assert f"removed {tool_dir}" in rendered
+
+
+def test_installed_tool_paths_ignore_non_user_tool(monkeypatch, tmp_path):
+    home = tmp_path / "user"
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setattr("nipux_cli.uninstall.shutil.which", lambda name: "/usr/local/bin/nipux" if name == "nipux" else None)
+
+    paths = installed_tool_paths()
+
+    assert Path("/usr/local/bin/nipux") not in paths
+    assert home / ".local" / "bin" / "nipux" in paths

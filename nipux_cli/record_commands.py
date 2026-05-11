@@ -4,11 +4,15 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Callable
 
+from nipux_cli.artifacts import ArtifactStore, sha256_text
 from nipux_cli.cli_render import job_ref_text as default_job_ref_text
 from nipux_cli.cli_render import json_default, rule
 from nipux_cli.daemon import daemon_lock_status
+from nipux_cli.memory_graph import memory_graph_from_job
+from nipux_cli.memory_graph_view import render_memory_graph_html
 from nipux_cli.tui_status import active_operator_messages, worker_label
 from nipux_cli.tui_style import _one_line
 from nipux_cli.usage import format_usage_report
@@ -246,7 +250,7 @@ def cmd_sources_impl(args: Any, deps: RecordCommandDeps) -> None:
 
 
 def cmd_memory_impl(args: Any, deps: RecordCommandDeps) -> None:
-    db, _ = deps.db_factory()
+    db, config = deps.db_factory()
     try:
         job_id = _resolve_or_print(db, args, deps)
         if not job_id:
@@ -257,6 +261,13 @@ def cmd_memory_impl(args: Any, deps: RecordCommandDeps) -> None:
         reflections = _metadata_records(job, "reflections")
         compact = db.list_memory(job_id)
         active_operator = active_operator_messages(metadata)
+        graph = memory_graph_from_job(job)
+        if bool(getattr(args, "json", False)):
+            print(json.dumps(graph, ensure_ascii=False, indent=2, default=json_default))
+            return
+        if bool(getattr(args, "graph", False)):
+            _write_memory_graph_view(db=db, config=config, job=job, graph=graph, output=getattr(args, "output", None))
+            return
         pending_measurement = (
             metadata.get("pending_measurement_obligation")
             if isinstance(metadata.get("pending_measurement_obligation"), dict)
@@ -264,10 +275,14 @@ def cmd_memory_impl(args: Any, deps: RecordCommandDeps) -> None:
         )
         print(f"memory {job['title']}")
         print(rule("="))
-        print(f"lessons={len(lessons)} reflections={len(reflections)} compact_entries={len(compact)}")
+        print(
+            f"lessons={len(lessons)} reflections={len(reflections)} compact_entries={len(compact)} "
+            f"graph_nodes={len(graph['nodes'])} graph_edges={len(graph['edges'])}"
+        )
         _print_memory_sections(
             active_operator=active_operator,
             pending_measurement=pending_measurement,
+            graph=graph,
             reflections=reflections,
             lessons=lessons,
             compact=compact,
@@ -276,6 +291,50 @@ def cmd_memory_impl(args: Any, deps: RecordCommandDeps) -> None:
         )
     finally:
         db.close()
+
+
+def _write_memory_graph_view(
+    *,
+    db: Any,
+    config: Any,
+    job: dict[str, Any],
+    graph: dict[str, Any],
+    output: str | None,
+) -> None:
+    html = render_memory_graph_html(job)
+    summary = f"Clickable memory graph with {len(graph['nodes'])} nodes and {len(graph['edges'])} links."
+    metadata = {
+        "memory_graph": True,
+        "node_count": len(graph["nodes"]),
+        "edge_count": len(graph["edges"]),
+    }
+    if output:
+        path = Path(output).expanduser()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(html, encoding="utf-8")
+        artifact_id = db.add_artifact(
+            job_id=str(job["id"]),
+            path=path,
+            sha256=sha256_text(html),
+            artifact_type="html",
+            title="Memory Graph",
+            summary=summary,
+            metadata=metadata,
+        )
+        print(f"memory graph written: {path}")
+        print(f"artifact: {artifact_id}")
+        return
+    store = ArtifactStore(config.runtime.home, db)
+    stored = store.write_text(
+        job_id=str(job["id"]),
+        content=html,
+        title="Memory Graph",
+        summary=summary,
+        artifact_type="html",
+        metadata=metadata,
+    )
+    print(f"memory graph written: {stored.path}")
+    print(f"artifact: {stored.id}")
 
 
 def cmd_metrics_impl(args: Any, deps: RecordCommandDeps) -> None:
@@ -408,6 +467,7 @@ def _print_memory_sections(
     *,
     active_operator: list[dict[str, Any]],
     pending_measurement: dict[str, Any],
+    graph: dict[str, Any],
     reflections: list[dict[str, Any]],
     lessons: list[dict[str, Any]],
     compact: list[dict[str, Any]],
@@ -426,6 +486,16 @@ def _print_memory_sections(
         candidates = pending_measurement.get("metric_candidates") if isinstance(pending_measurement.get("metric_candidates"), list) else []
         if candidates:
             print(f"  candidates: {_one_line(', '.join(str(item) for item in candidates[:5]), chars)}")
+    nodes = graph.get("nodes") if isinstance(graph.get("nodes"), list) else []
+    if nodes:
+        print()
+        print("memory graph:")
+        for node in nodes[: min(limit, 8)]:
+            print(
+                f"  {node.get('kind') or 'fact'}:{node.get('status') or 'active'} "
+                f"{_one_line(node.get('title') or node.get('key') or 'memory', chars)}"
+            )
+        print("  view: memory --graph")
     if reflections:
         print()
         print("latest reflection:")

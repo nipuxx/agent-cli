@@ -2,10 +2,16 @@ import json
 import queue
 import subprocess
 import time
+from pathlib import Path
 
 from nipux_cli.artifacts import ArtifactStore
 from nipux_cli import __version__
 from nipux_cli.chat_frame_runtime import ChatFrameDeps as _ChatFrameDeps
+from nipux_cli.chat_frame_runtime import THINKING_NOTICE as _THINKING_NOTICE
+from nipux_cli.chat_frame_runtime import WAITING_NOTICE as _WAITING_NOTICE
+from nipux_cli.chat_frame_runtime import _display_notices as _display_chat_notices
+from nipux_cli.chat_frame_runtime import _drain_async_notices as _drain_chat_async_notices
+from nipux_cli.chat_frame_runtime import _handle_edit_input as _handle_chat_edit_input
 from nipux_cli.chat_frame_runtime import _handle_chat_submit
 from nipux_cli.chat_frame_runtime import _safe_render_frame as _safe_chat_render_frame
 from nipux_cli.chat_frame_runtime import frame_next_job_id as _frame_next_job_id
@@ -34,6 +40,7 @@ from nipux_cli.cli import (
     _save_config_field,
     _slash_suggestion_lines,
     _systemd_service_text,
+    _verify_model_setup_from_first_run,
     build_parser,
     main,
 )
@@ -41,12 +48,14 @@ from nipux_cli.config import load_config
 from nipux_cli.cli_state import mark_model_setup_verified as _mark_model_setup_verified
 from nipux_cli.cli_state import model_setup_verified as _model_setup_verified
 from nipux_cli.cli_state import read_shell_state as _read_shell_state
+from nipux_cli.cli_state import write_shell_state as _write_shell_state
 from nipux_cli.daemon import append_daemon_event
 from nipux_cli.db import AgentDB
 from nipux_cli.doctor import Check
 from nipux_cli.llm import LLMResponse
 from nipux_cli.settings import inline_setting_notice as _inline_setting_notice
 from nipux_cli.first_run_frame_runtime import FirstRunRuntimeDeps as _FirstRunRuntimeDeps
+from nipux_cli.first_run_frame_runtime import _handle_edit_input as _handle_first_run_edit_input
 from nipux_cli.first_run_frame_runtime import _safe_render_frame as _safe_first_run_render_frame
 from nipux_cli.first_run_frame_runtime import _submit_first_run_line as _submit_first_run_line
 from nipux_cli.first_run_frame_runtime import directional_first_run_action as _directional_first_run_action
@@ -84,7 +93,9 @@ def test_cli_has_operator_commands():
     assert parser.parse_args(["activity", "--follow"]).func.__name__ == "cmd_activity"
     assert parser.parse_args(["feed"]).func.__name__ == "cmd_activity"
     assert parser.parse_args(["update"]).func.__name__ == "cmd_update"
+    assert parser.parse_args(["update", "--no-restart"]).no_restart is True
     assert parser.parse_args(["uninstall", "--dry-run"]).func.__name__ == "cmd_uninstall"
+    assert parser.parse_args(["uninstall", "--keep-tool"]).keep_tool is True
     assert parser.parse_args(["new", "Research topic"]).func.__name__ == "cmd_create"
     assert parser.parse_args(["updates"]).func.__name__ == "cmd_updates"
     assert parser.parse_args(["outcomes"]).func.__name__ == "cmd_updates"
@@ -121,6 +132,7 @@ def test_cli_has_operator_commands():
     assert parser.parse_args(["experiments"]).func.__name__ == "cmd_experiments"
     assert parser.parse_args(["sources"]).func.__name__ == "cmd_sources"
     assert parser.parse_args(["memory"]).func.__name__ == "cmd_memory"
+    assert parser.parse_args(["memory", "--graph"]).graph is True
     assert parser.parse_args(["metrics"]).func.__name__ == "cmd_metrics"
     assert parser.parse_args(["usage"]).func.__name__ == "cmd_usage"
     assert parser.parse_args(["outputs", "research", "finder"]).func.__name__ == "cmd_logs"
@@ -137,6 +149,17 @@ def test_cli_version_flag(capsys):
         assert exc.code == 0
 
     assert f"nipux {__version__}" in capsys.readouterr().out
+
+
+def test_main_catches_keyboard_interrupt_without_traceback(monkeypatch, capsys):
+    def interrupt(_args):
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr("nipux_cli.cli.cmd_home", interrupt)
+
+    main([])
+
+    assert capsys.readouterr().err == ""
 
 
 def test_python_module_entrypoint_uses_cli_main():
@@ -231,9 +254,8 @@ def test_main_no_args_enters_chat_first_home(monkeypatch, tmp_path, capsys):
 
     out = capsys.readouterr().out
     assert "WORKSPACE" in out
-    assert "RECENT ACTIVITY - research" in out
-    assert "remember this visible note" in out
-    assert "visible agent update" in out
+    assert "Jobs" in out
+    assert "research" in out
 
 
 def test_main_no_args_with_no_jobs_requires_setup_frame(monkeypatch, tmp_path, capsys):
@@ -248,6 +270,8 @@ def test_main_no_args_with_no_jobs_requires_setup_frame(monkeypatch, tmp_path, c
 
     out = capsys.readouterr().out
     assert "Nipux setup requires an interactive terminal." in out
+    assert "choose model, endpoint, and tool access" in out
+    assert "first job" not in out
     assert "new       create a long-running job" not in out
     assert "doctor    check local setup" not in out
     assert "_   _" not in out
@@ -338,13 +362,45 @@ def test_main_no_args_enters_setup_when_existing_model_config_fails(monkeypatch,
     assert not _model_setup_verified(load_config())
 
 
+def test_main_no_args_keeps_workspace_locked_after_completed_setup_if_provider_fails(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    (tmp_path / "config.yaml").write_text(
+        "model:\n"
+        "  name: provider/model\n"
+        "  base_url: https://provider.example/v1\n"
+        "  api_key_env: TEST_MODEL_KEY\n",
+        encoding="utf-8",
+    )
+    _write_shell_state({"setup_completed": True})
+
+    def fake_doctor(*, config, check_model):
+        assert check_model is True
+        return [Check("model_generation", False, "provider rejected request")]
+
+    monkeypatch.setattr("nipux_cli.cli.run_doctor", fake_doctor)
+
+    main([])
+
+    out = capsys.readouterr().out
+    assert "Nipux setup requires an interactive terminal." in out
+    assert "No jobs are saved in this profile." not in out
+    assert not _model_setup_verified(load_config())
+
+
 def test_first_run_refuses_job_before_model_is_verified(monkeypatch, tmp_path):
     monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
 
     result = _handle_first_run_frame_line("new Build a durable workflow")
 
     assert result[0] == "notice"
-    assert "No job created." in result[1]
+    assert "Finish setup first" in result[1]
+    create_result = _handle_first_run_frame_line('create "Build a durable workflow"')
+    assert create_result[0] == "notice"
+    assert "Finish setup first" in create_result[1]
+    jobs_result = _handle_first_run_frame_line("jobs")
+    assert jobs_result[0] == "notice"
+    assert "Jobs are available after Doctor verifies" in jobs_result[1]
     db = AgentDB(tmp_path / "state.db")
     try:
         assert db.list_jobs() == []
@@ -374,6 +430,25 @@ def test_doctor_check_model_marks_model_setup_verified(monkeypatch, tmp_path, ca
     assert _model_setup_verified(load_config())
 
 
+def test_first_run_doctor_failure_shows_inline_fix_commands(monkeypatch, tmp_path):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+
+    def fake_doctor(*, config, check_model):
+        assert check_model is True
+        return [Check("model_endpoint", False, "connection refused")]
+
+    monkeypatch.setattr("nipux_cli.cli.run_doctor", fake_doctor)
+
+    lines = _verify_model_setup_from_first_run()
+    rendered = "\n".join(lines)
+
+    assert "Model setup is not ready" in rendered
+    assert "/base-url URL" in rendered
+    assert "/api-key KEY" in rendered
+    assert "/model MODEL" in rendered
+    assert "local server" in rendered
+
+
 def test_setting_change_clears_model_setup_verification(monkeypatch, tmp_path):
     monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
     _mark_test_model_ready()
@@ -384,43 +459,19 @@ def test_setting_change_clears_model_setup_verification(monkeypatch, tmp_path):
     assert not _model_setup_verified(load_config())
 
 
-def test_first_run_menu_can_create_job_and_open_workspace(monkeypatch, tmp_path, capsys):
+def test_first_run_menu_blocks_job_creation_until_workspace_chat(monkeypatch, tmp_path, capsys):
     monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
     _mark_test_model_ready()
-    opened = {}
-    started = {}
 
-    def fake_enter_chat(job_id, *, show_history, history_limit):
-        opened["job_id"] = job_id
-        opened["show_history"] = show_history
-        opened["history_limit"] = history_limit
-        print(f"opened {job_id}")
-
-    def fake_start(**kwargs):
-        started.update(kwargs)
-
-    monkeypatch.setattr("nipux_cli.cli._enter_chat", fake_enter_chat)
-    monkeypatch.setattr("nipux_cli.cli._start_daemon_if_needed", fake_start)
-
-    assert _handle_first_run_menu_line("new Build a durable workflow") is False
+    assert _handle_first_run_menu_line("new Build a durable workflow") is True
 
     out = capsys.readouterr().out
     db = AgentDB(tmp_path / "state.db")
     try:
-        jobs = db.list_jobs()
-        assert len(jobs) == 1
-        assert jobs[0]["title"] == "Build a durable workflow"
-        assert _read_shell_state().get("focus_job_id") == jobs[0]["id"]
-        assert opened["job_id"] == jobs[0]["id"]
-        assert opened["show_history"] is True
-        assert opened["history_limit"] == 12
+        assert db.list_jobs() == []
+        assert "Finish setup first" in out
     finally:
         db.close()
-    assert started["poll_seconds"] == 0.0
-    assert started["quiet"] is True
-    assert "created Build a durable workflow" in out
-    assert "Opening workspace." in out
-    assert "opened" in out
 
 
 def test_first_run_plain_greeting_does_not_create_job(monkeypatch, tmp_path, capsys):
@@ -480,6 +531,7 @@ def test_first_run_frame_walks_setup_screens(monkeypatch, tmp_path):
     endpoint = _build_first_run_frame("", [], width=100, height=26, view="endpoint", selected=0)
     api = _build_first_run_frame("", [], width=100, height=26, view="api", selected=0)
     access = _build_first_run_frame("", [], width=100, height=26, view="access", selected=0)
+    doctor = _build_first_run_frame("", [], width=100, height=28, view="doctor", selected=0)
     invalid = _build_first_run_frame("", [], width=100, height=26, view="settings", selected=1)
 
     assert "Enter the model id" in model
@@ -491,6 +543,10 @@ def test_first_run_frame_walks_setup_screens(monkeypatch, tmp_path):
     assert "Choose tool access" in access
     assert "Browser" in access
     assert "CLI" in access
+    assert "Run checks" in doctor
+    assert "/base-url" in doctor
+    assert "/api-key" in doctor
+    assert "/model" in doctor
     assert "Enter the model id" not in endpoint
     assert "Enter the endpoint first" not in api
     assert "Enter the endpoint first" in invalid
@@ -534,14 +590,23 @@ def test_slash_autocomplete_filters_commands():
     assert _cycle_slash("/", CHAT_SLASH_COMMANDS, direction=-1) == "/exit"
     assert _cycle_slash("/work ", CHAT_SLASH_COMMANDS, direction=1) == "/work "
     assert _cycle_slash("/run", CHAT_SLASH_COMMANDS, direction=1) == "/jobs"
-    assert _cycle_slash("/new", FIRST_RUN_SLASH_COMMANDS, direction=1) == "/jobs"
-    assert _cycle_slash("/new", FIRST_RUN_SLASH_COMMANDS, direction=-1) == "/exit"
+    assert _cycle_slash("/", FIRST_RUN_SLASH_COMMANDS, direction=1) == "/model"
+    assert _cycle_slash("/", FIRST_RUN_SLASH_COMMANDS, direction=-1) == "/exit"
+    assert _cycle_slash("/model", FIRST_RUN_SLASH_COMMANDS, direction=1) == "/base-url"
+    assert _cycle_slash("/model", FIRST_RUN_SLASH_COMMANDS, direction=-1) == "/exit"
     assert _cycle_slash("/out", CHAT_SLASH_COMMANDS, direction=1) == "/outcomes"
     assert _cycle_slash("/out", CHAT_SLASH_COMMANDS, direction=-1) == "/output-cost"
     assert _slash_completion_for_submit("/", CHAT_SLASH_COMMANDS) == ("/new ", False)
-    assert _slash_completion_for_submit("/", FIRST_RUN_SLASH_COMMANDS) == ("/new ", False)
-    assert _slash_completion_for_submit("/ne", FIRST_RUN_SLASH_COMMANDS) == ("/new ", False)
-    assert _slash_completion_for_submit("/new", FIRST_RUN_SLASH_COMMANDS) == ("/new ", False)
+    assert _slash_completion_for_submit("/", FIRST_RUN_SLASH_COMMANDS) == ("/model", True)
+    assert _slash_completion_for_submit("/mo", FIRST_RUN_SLASH_COMMANDS) == ("/model", True)
+    assert _slash_completion_for_submit("/model", FIRST_RUN_SLASH_COMMANDS) == ("/model", True)
+    assert _slash_completion_for_submit("/new ", CHAT_SLASH_COMMANDS) == ("/new ", False)
+    assert _slash_completion_for_submit("/new research agents", CHAT_SLASH_COMMANDS) == ("/new research agents", True)
+    assert _slash_completion_for_submit("/model ", CHAT_SLASH_COMMANDS) == ("/model ", True)
+    assert _slash_completion_for_submit("/j", CHAT_SLASH_COMMANDS) == ("/jobs", True)
+    assert _slash_completion_for_submit("/set", CHAT_SLASH_COMMANDS) == ("/settings", True)
+    assert _slash_completion_for_submit("/model", CHAT_SLASH_COMMANDS) == ("/model", True)
+    assert _slash_completion_for_submit("/mo", CHAT_SLASH_COMMANDS) == ("/model", True)
     assert _slash_completion_for_submit("/run", CHAT_SLASH_COMMANDS) == ("/run", True)
     assert _slash_completion_for_submit("/settings", CHAT_SLASH_COMMANDS) == ("/settings", True)
     assert _slash_completion_for_submit("/model demo/model", CHAT_SLASH_COMMANDS) == ("/model demo/model", True)
@@ -556,11 +621,13 @@ def test_slash_autocomplete_filters_commands():
     assert "MODEL" in hint_text
     partial_hint_text = "\n".join(_slash_suggestion_lines("/mo", CHAT_SLASH_COMMANDS, width=80))
     assert "/model MODEL" in partial_hint_text
-    assert "↑↓ select" in partial_hint_text
+    assert "↑↓ moves" in partial_hint_text
     full_palette_text = "\n".join(_slash_suggestion_lines("/", CHAT_SLASH_COMMANDS, width=80, limit=5))
-    assert "enter fills" in full_palette_text
+    assert "enter selects" in full_palette_text
     assert "/new OBJECTIVE" in full_palette_text
     assert "/run" in full_palette_text
+    assert "/settings" in full_palette_text
+    assert "type OBJECTIVE" in "\n".join(_slash_suggestion_lines("/new ", CHAT_SLASH_COMMANDS, width=80))
     assert "/shell" not in "\n".join(_slash_suggestion_lines("/", CHAT_SLASH_COMMANDS, width=80, limit=20))
     assert "/restart" in "\n".join(_slash_suggestion_lines("/re", CHAT_SLASH_COMMANDS, width=80, limit=20))
 
@@ -639,6 +706,49 @@ def test_first_run_empty_submit_without_actions_does_not_crash():
     )
 
 
+def test_first_run_required_edit_cancel_and_clear_stay_on_same_field():
+    notices: list[str] = []
+
+    buffer, editing_field, should_exit = _handle_first_run_edit_input(
+        "\x15",
+        buffer="not-a-url",
+        editing_field="model.base_url",
+        notices=notices,
+        stdin_fd=0,
+    )
+
+    assert buffer == ""
+    assert editing_field == "model.base_url"
+    assert should_exit is False
+
+    buffer, editing_field, should_exit = _handle_first_run_edit_input(
+        "\x03",
+        buffer="partial",
+        editing_field="model.base_url",
+        notices=notices,
+        stdin_fd=0,
+    )
+
+    assert buffer == ""
+    assert editing_field == "model.base_url"
+    assert should_exit is False
+    assert "cancelled edit" in "\n".join(notices)
+
+
+def test_chat_settings_edit_supports_ctrl_u_clear():
+    buffer, editing_field, should_exit = _handle_chat_edit_input(
+        "\x15",
+        buffer="wrong-model",
+        editing_field="model.name",
+        notices=[],
+        stdin_fd=0,
+    )
+
+    assert buffer == ""
+    assert editing_field == "model.name"
+    assert should_exit is False
+
+
 def test_first_run_render_failure_uses_safe_mode(capsys):
     deps = _FirstRunRuntimeDeps(
         render_frame=lambda *_args: (_ for _ in ()).throw(RuntimeError("bad frame")),
@@ -694,10 +804,15 @@ def test_chat_submit_failure_stays_in_frame():
     assert job_id == "job_demo"
     assert right_view == "status"
     assert modal is None
-    assert "sent; waiting for model" in "\n".join(notices)
+    assert _THINKING_NOTICE in notices
+    assert "> hello" not in "\n".join(notices)
     queued = async_messages.get(timeout=1)
     assert "message failed" in queued
     assert "model blew up" in queued
+    async_messages.put(queued)
+    assert _drain_chat_async_notices(async_messages, notices) is True
+    assert _THINKING_NOTICE not in notices
+    assert "message failed" in "\n".join(notices)
 
 
 def test_chat_submit_plain_message_returns_without_waiting_for_model():
@@ -733,8 +848,78 @@ def test_chat_submit_plain_message_returns_without_waiting_for_model():
 
     assert keep_running is True
     assert time.monotonic() - started < 0.1
-    assert "sent; waiting for model" in "\n".join(notices)
-    assert async_messages.get(timeout=1) == "done later"
+    assert _THINKING_NOTICE in notices
+    assert "> hello" not in "\n".join(notices)
+    assert async_messages.get(timeout=1) == "__refresh__"
+
+
+def test_chat_submit_plain_message_renders_thinking_notice_without_echoing_message():
+    snapshot = {"job_id": "job_demo", "job": {"id": "job_demo", "title": "demo"}, "jobs": []}
+    async_messages: queue.Queue[str] = queue.Queue()
+
+    deps = _ChatFrameDeps(
+        load_snapshot=lambda _job_id, _history_limit: snapshot,
+        render_frame=lambda *_args: "",
+        handle_chat_message=lambda _job_id, _line: (True, "done"),
+        capture_chat_command=lambda _job_id, _line: (True, ""),
+        write_shell_state=lambda _state: None,
+        is_plain_chat_line=lambda _line: True,
+        page_click=lambda _x, _y, _right_view: None,
+    )
+
+    _keep_running, _snapshot, _job_id, notices, _right_view, _modal = _handle_chat_submit(
+        "Hello",
+        job_id="job_demo",
+        history_limit=12,
+        snapshot=snapshot,
+        notices=[],
+        right_view="status",
+        modal_view=None,
+        deps=deps,
+        async_messages=async_messages,
+    )
+
+    rendered_notices = _display_chat_notices(notices)
+    lines = chat_pane_lines([], rendered_notices, width=60, rows=4)
+    rendered = "\n".join(lines)
+    assert "thinking" in rendered
+    assert "Hello" not in rendered
+    assert "waiting for model" not in rendered
+
+
+def test_chat_submit_waiting_command_output_becomes_animation():
+    snapshot = {"job_id": "job_demo", "job": {"id": "job_demo", "title": "demo"}, "jobs": []}
+
+    deps = _ChatFrameDeps(
+        load_snapshot=lambda _job_id, _history_limit: snapshot,
+        render_frame=lambda *_args: "",
+        handle_chat_message=lambda _job_id, _line: (True, ""),
+        capture_chat_command=lambda _job_id, _line: (
+            True,
+            "waiting for demo: what has it done so far?\nWaiting for the next worker step.",
+        ),
+        write_shell_state=lambda _state: None,
+        is_plain_chat_line=lambda _line: False,
+        page_click=lambda _x, _y, _right_view: None,
+    )
+
+    _keep_running, _snapshot, _job_id, notices, _right_view, _modal = _handle_chat_submit(
+        "/pause",
+        job_id="job_demo",
+        history_limit=12,
+        snapshot=snapshot,
+        notices=[],
+        right_view="status",
+        modal_view=None,
+        deps=deps,
+    )
+
+    lines = chat_pane_lines([], _display_chat_notices(notices), width=80, rows=6)
+    rendered = "\n".join(lines)
+    assert "waiting" in rendered
+    assert "waiting for demo" not in rendered
+    assert "Waiting for the next worker step" not in rendered
+    assert "NIPUX" not in rendered
 
 
 def test_chat_submit_new_refreshes_focused_job_from_shell_state():
@@ -770,6 +955,48 @@ def test_chat_submit_new_refreshes_focused_job_from_shell_state():
     assert keep_running is True
     assert job_id == "new"
     assert loaded == [""]
+    assert "focus set to new" in "\n".join(notices)
+
+
+def test_workspace_chat_submit_new_keeps_workspace_chat_left_pane():
+    old_snapshot = {"job_id": WORKSPACE_CHAT_ID, "job": {"id": WORKSPACE_CHAT_ID, "title": "Nipux"}, "jobs": []}
+    workspace_snapshot = {
+        "job_id": WORKSPACE_CHAT_ID,
+        "job": {"id": WORKSPACE_CHAT_ID, "title": "Nipux"},
+        "right_job": {"id": "new", "title": "new worker"},
+        "jobs": [],
+    }
+    loaded: list[str] = []
+
+    def load_snapshot(job_id, _history_limit):
+        loaded.append(job_id)
+        return workspace_snapshot
+
+    deps = _ChatFrameDeps(
+        load_snapshot=load_snapshot,
+        render_frame=lambda *_args: "",
+        handle_chat_message=lambda _job_id, _line: (True, ""),
+        capture_chat_command=lambda _job_id, _line: (True, "created new\nfocus set to new"),
+        write_shell_state=lambda _state: None,
+        is_plain_chat_line=lambda _line: False,
+        page_click=lambda _x, _y, _right_view: None,
+    )
+
+    keep_running, snapshot, job_id, notices, _right_view, _modal = _handle_chat_submit(
+        "/new Build a durable workflow",
+        job_id=WORKSPACE_CHAT_ID,
+        history_limit=12,
+        snapshot=old_snapshot,
+        notices=[],
+        right_view="updates",
+        modal_view=None,
+        deps=deps,
+    )
+
+    assert keep_running is True
+    assert job_id == WORKSPACE_CHAT_ID
+    assert snapshot["right_job"]["title"] == "new worker"
+    assert loaded == [WORKSPACE_CHAT_ID]
     assert "focus set to new" in "\n".join(notices)
 
 
@@ -852,6 +1079,7 @@ def test_chat_slash_palette_matches_public_chat_commands():
         "/config",
         "/settings",
         "/health",
+        "/help",
         "/artifacts",
         "/artifact",
         "/findings",
@@ -901,13 +1129,26 @@ def test_chat_slash_palette_matches_public_chat_commands():
     assert "/shell" not in palette
 
 
+def test_workspace_help_is_minimal_and_actionable(monkeypatch, tmp_path):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    _mark_test_model_ready()
+
+    keep_running, output = _capture_chat_command(WORKSPACE_CHAT_ID, "/help")
+
+    assert keep_running is True
+    assert "Create: type a goal" in output
+    assert "/new OBJECTIVE" in output
+    assert "/settings" in output
+    assert "Navigate:" in output
+    assert "Common" not in output
+    assert "/shell" not in output
+
+
 def test_first_run_slash_palette_matches_setup_commands():
     palette = {command for command, _description in FIRST_RUN_SLASH_COMMANDS}
     assert len(palette) == len(FIRST_RUN_SLASH_COMMANDS)
 
     advertised = {
-        "/new",
-        "/jobs",
         "/model",
         "/base-url",
         "/api-key",
@@ -934,6 +1175,8 @@ def test_first_run_slash_palette_matches_setup_commands():
     }
 
     assert advertised <= palette
+    assert "/new" not in palette
+    assert "/jobs" not in palette
     assert "/shell" not in palette
     assert "/settings" not in palette
 
@@ -999,6 +1242,22 @@ def test_chat_settings_slash_commands_persist_config(monkeypatch, tmp_path, caps
     assert _config_field_value("runtime.daily_digest_enabled") is False
     assert _config_field_value("runtime.daily_digest_time") == "08:30"
     assert "NIPUX_TEST_KEY=sk-test-value" in (tmp_path / ".env").read_text(encoding="utf-8")
+
+
+def test_chat_init_slash_command_does_not_crash(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Research topic", title="research")
+    finally:
+        db.close()
+
+    assert _chat_handle_line(job_id, "/init") is True
+
+    out = capsys.readouterr().out
+    assert "Wrote" in out
+    assert (tmp_path / "config.yaml").exists()
+    assert (tmp_path / ".env").exists()
 
 
 def test_chat_config_slash_command_summarizes_runtime_without_secret(monkeypatch, tmp_path, capsys):
@@ -1126,6 +1385,7 @@ def test_first_run_local_connector_action_sets_generic_local_endpoint(monkeypatc
     assert isinstance(payload, list)
     assert any("saved model.name = local-model" in line for line in payload)
     assert any("saved model.base_url = http://localhost:8000/v1" in line for line in payload)
+    assert any("then run Doctor" in line for line in payload)
     assert _config_field_value("model.name") == "local-model"
     assert _config_field_value("model.base_url") == "http://localhost:8000/v1"
 
@@ -1185,6 +1445,39 @@ def test_workspace_frame_snapshot_exists_without_jobs(monkeypatch, tmp_path):
     assert snapshot["job"]["kind"] == "workspace"
     assert snapshot["jobs"] == []
 
+    frame = _build_chat_frame(snapshot, "", [], width=118, height=28)
+    assert "Type a goal in plain English to start a worker" in frame
+    assert "Type a goal to create the first worker" in frame
+    assert "Enter sends" not in frame
+
+
+def test_workspace_frame_right_pane_tracks_focused_worker(monkeypatch, tmp_path):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    _mark_test_model_ready()
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Research browser automation libraries", title="browser research")
+        db.add_artifact(
+            job_id=job_id,
+            path=tmp_path / "comparison.md",
+            sha256="abc123",
+            artifact_type="text",
+            title="Browser Automation Comparison Draft",
+            summary="Checkpoint: saved comparison draft.",
+        )
+        _write_shell_state({"focus_job_id": job_id})
+    finally:
+        db.close()
+
+    snapshot = _load_frame_snapshot(WORKSPACE_CHAT_ID, history_limit=4)
+    frame = _build_chat_frame(snapshot, "", [], width=128, height=28, right_view="updates")
+
+    assert snapshot["job"]["kind"] == "workspace"
+    assert snapshot["right_job"]["title"] == "browser research"
+    assert "browser research" in frame
+    assert "Browser Automation" in frame
+    assert "Comparison Draft" in frame
+
 
 def test_workspace_slash_new_creates_and_focuses_job(monkeypatch, tmp_path):
     monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
@@ -1199,8 +1492,8 @@ def test_workspace_slash_new_creates_and_focuses_job(monkeypatch, tmp_path):
     keep_running, output = _capture_chat_command(WORKSPACE_CHAT_ID, "/new Build a durable workflow")
 
     assert keep_running is True
-    assert "created Build a durable workflow" in output
-    assert "worker started" in output
+    assert "Created worker job: Build a durable workflow" in output
+    assert "Started worker" in output
     assert started["poll_seconds"] == 0.0
     assert started["quiet"] is True
     db = AgentDB(tmp_path / "state.db")
@@ -1211,6 +1504,291 @@ def test_workspace_slash_new_creates_and_focuses_job(monkeypatch, tmp_path):
         assert _read_shell_state().get("focus_job_id") == jobs[0]["id"]
     finally:
         db.close()
+
+
+def test_workspace_run_with_objective_creates_worker_when_no_job_matches(monkeypatch, tmp_path):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    _mark_test_model_ready()
+    started = {}
+
+    def fake_start(**kwargs):
+        started.update(kwargs)
+
+    monkeypatch.setattr("nipux_cli.cli._start_daemon_if_needed", fake_start)
+    monkeypatch.setattr(
+        "nipux_cli.cli._refine_job_objective_for_worker",
+        lambda *, message, objective: objective,
+    )
+
+    keep_running, output = _capture_chat_command(WORKSPACE_CHAT_ID, "/run research browser automation libraries")
+
+    assert keep_running is True
+    assert "Created worker job" in output
+    assert started["quiet"] is True
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        jobs = db.list_jobs()
+        assert len(jobs) == 1
+        assert jobs[0]["title"] == "research browser automation libraries"
+    finally:
+        db.close()
+
+
+def test_workspace_run_with_existing_job_does_not_create_duplicate(monkeypatch, tmp_path):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    _mark_test_model_ready()
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("research browser automation libraries", title="research browser automation libraries")
+    finally:
+        db.close()
+    started = {}
+
+    def fake_start(**kwargs):
+        started.update(kwargs)
+
+    monkeypatch.setattr("nipux_cli.cli._start_daemon_if_needed", fake_start)
+
+    keep_running, output = _capture_chat_command(WORKSPACE_CHAT_ID, "/run research browser automation libraries")
+
+    assert keep_running is True
+    assert "Created worker job" not in output
+    assert "focus set" in output
+    assert started["quiet"] is True
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        assert len(db.list_jobs()) == 1
+        assert _read_shell_state().get("focus_job_id") == job_id
+    finally:
+        db.close()
+
+
+def test_workspace_start_with_existing_job_runs_without_parser_error(monkeypatch, tmp_path):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    _mark_test_model_ready()
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("research browser automation libraries", title="research browser automation libraries")
+    finally:
+        db.close()
+    started = {}
+
+    def fake_start(**kwargs):
+        started.update(kwargs)
+
+    monkeypatch.setattr("nipux_cli.cli._start_daemon_if_needed", fake_start)
+
+    keep_running, output = _capture_chat_command(WORKSPACE_CHAT_ID, "/start research browser automation libraries")
+
+    assert keep_running is True
+    assert "command exited" not in output
+    assert "Created worker job" not in output
+    assert "focus set" in output
+    assert started["quiet"] is True
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        assert len(db.list_jobs()) == 1
+        assert _read_shell_state().get("focus_job_id") == job_id
+    finally:
+        db.close()
+
+
+def test_workspace_slash_new_without_objective_is_minimal(monkeypatch, tmp_path):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    _mark_test_model_ready()
+
+    keep_running, output = _capture_chat_command(WORKSPACE_CHAT_ID, "/new")
+
+    assert keep_running is True
+    assert output.strip() == "usage: /new OBJECTIVE"
+    assert "for example" not in output.lower()
+
+
+def test_workspace_slash_new_hides_model_preflight_noise(monkeypatch, tmp_path):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    _mark_test_model_ready()
+
+    def fake_start(**_kwargs):
+        print("model is not ready; daemon not started")
+        print("  fail model_endpoint: http://localhost:8000/v1/models: connection refused")
+        print("Run `nipux doctor --check-model` after fixing the model configuration.")
+
+    monkeypatch.setattr("nipux_cli.cli._start_daemon_if_needed", fake_start)
+
+    keep_running, output = _capture_chat_command(WORKSPACE_CHAT_ID, "/new Build a durable workflow")
+
+    assert keep_running is True
+    assert "Created worker job: Build a durable workflow" in output
+    assert "Worker is waiting for a working model" in output
+    assert "model_endpoint" not in output
+    assert "connection refused" not in output
+
+
+def test_workspace_settings_slash_commands_persist_config(monkeypatch, tmp_path):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    _mark_test_model_ready()
+
+    keep_running, output = _capture_chat_command(WORKSPACE_CHAT_ID, "/model provider/model")
+
+    assert keep_running is True
+    assert "saved model.name = provider/model" in output
+    assert _config_field_value("model.name") == "provider/model"
+
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        assert db.list_jobs() == []
+    finally:
+        db.close()
+
+
+def test_workspace_settings_slash_command_summarizes_config(monkeypatch, tmp_path):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    monkeypatch.setenv("NIPUX_TEST_KEY", "sk-test-value")
+    _mark_test_model_ready()
+    (tmp_path / "config.yaml").write_text(
+        """
+model:
+  name: provider/model
+  base_url: https://example.com/v1
+  api_key_env: NIPUX_TEST_KEY
+  context_length: 8192
+  request_timeout_seconds: 45
+""",
+        encoding="utf-8",
+    )
+
+    keep_running, output = _capture_chat_command(WORKSPACE_CHAT_ID, "/settings")
+
+    assert keep_running is True
+    assert "config" in output
+    assert "model: provider/model" in output
+    assert "endpoint: https://example.com/v1" in output
+    assert "key: set (NIPUX_TEST_KEY)" in output
+    assert "sk-test-value" not in output
+
+
+def test_workspace_natural_control_phrase_uses_mapped_command(monkeypatch, tmp_path):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    _mark_test_model_ready()
+
+    keep_running, output = _capture_chat_command(WORKSPACE_CHAT_ID, "change model")
+
+    assert keep_running is True
+    assert "model.name =" in output
+    assert "usage: /model MODEL" in output
+
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        assert db.list_jobs() == []
+    finally:
+        db.close()
+
+
+def test_workspace_natural_settings_phrase_opens_settings_summary(monkeypatch, tmp_path):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    monkeypatch.setenv("NIPUX_TEST_KEY", "sk-test-value")
+    _mark_test_model_ready()
+    (tmp_path / "config.yaml").write_text(
+        """
+model:
+  name: provider/model
+  base_url: https://example.com/v1
+  api_key_env: NIPUX_TEST_KEY
+""",
+        encoding="utf-8",
+    )
+
+    keep_running, output = _capture_chat_command(WORKSPACE_CHAT_ID, "settings")
+
+    assert keep_running is True
+    assert "config" in output
+    assert "model: provider/model" in output
+    assert "key: set (NIPUX_TEST_KEY)" in output
+    assert "usage: /model MODEL" not in output
+    assert "sk-test-value" not in output
+
+
+def test_workspace_how_to_start_job_question_uses_local_help(monkeypatch, tmp_path):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    _mark_test_model_ready()
+
+    def fail_model(_line):
+        raise AssertionError("model should not be called for local help")
+
+    monkeypatch.setattr("nipux_cli.cli._reply_to_workspace_chat", fail_model)
+
+    keep_running, output = _capture_chat_command(WORKSPACE_CHAT_ID, "how do I start a job?")
+
+    assert keep_running is True
+    assert "Create: type a goal" in output
+    assert "/new OBJECTIVE" in output
+
+
+def test_workspace_chat_connection_error_is_operator_friendly(monkeypatch, tmp_path):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    _mark_test_model_ready()
+
+    def raise_connection(_line):
+        raise RuntimeError("APIConnectionError: Connection error.")
+
+    monkeypatch.setattr("nipux_cli.cli._reply_to_workspace_chat", raise_connection)
+
+    ok, message = _handle_workspace_chat_message("hello", quiet=True)
+
+    assert ok is True
+    assert message == (
+        "Model endpoint is unreachable. Check /base-url or start the configured model server, then run /doctor."
+    )
+    snapshot = _load_frame_snapshot(WORKSPACE_CHAT_ID, history_limit=4)
+    bodies = "\n".join(str(event.get("body") or "") for event in snapshot["events"])
+    assert "APIConnectionError" not in bodies
+    assert "Model endpoint is unreachable" in bodies
+
+
+def test_chat_start_reports_model_provider_not_ready(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    _mark_test_model_ready()
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Research topic", title="research")
+    finally:
+        db.close()
+
+    def fake_start(**_kwargs):
+        print("model is not ready; daemon not started")
+        print("  fail model_endpoint: http://localhost:8000/v1/models: connection refused")
+
+    monkeypatch.setattr("nipux_cli.cli._start_daemon_if_needed", fake_start)
+
+    assert _chat_handle_line(job_id, "/start") is True
+
+    out = capsys.readouterr().out
+    assert "worker not started: model provider is not ready. Use /settings, then /doctor." in out
+    assert "model_endpoint" not in out
+    assert "connection refused" not in out
+
+
+def test_chat_doctor_checks_configured_model(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    _mark_test_model_ready()
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Research topic", title="research")
+    finally:
+        db.close()
+
+    seen = {}
+
+    def fake_doctor(*, config, check_model):
+        seen["check_model"] = check_model
+        return [Check("model_generation", True, "ok")]
+
+    monkeypatch.setattr("nipux_cli.cli.run_doctor", fake_doctor)
+
+    assert _chat_handle_line(job_id, "/doctor") is True
+
+    assert seen["check_model"] is True
+    assert "model_generation" in capsys.readouterr().out
 
 
 def test_workspace_chat_control_phrase_runs_job_command(monkeypatch, tmp_path):
@@ -1386,11 +1964,28 @@ def test_shell_help_has_no_examples_or_control_run_sections(capsys):
     assert "Worker" in out
 
 
-def test_update_checkout_refuses_non_git_path(tmp_path):
-    code, lines = _update_checkout(path=tmp_path)
+def test_update_checkout_falls_back_to_tool_install_for_non_git_path(monkeypatch, tmp_path):
+    monkeypatch.setattr("shutil.which", lambda name: "/usr/bin/uv" if name == "uv" else None)
 
-    assert code == 1
-    assert "not a git checkout" in " ".join(lines)
+    def runner(command):
+        assert command == [
+            "/usr/bin/uv",
+            "tool",
+            "install",
+            "--force",
+            "--upgrade",
+            "--reinstall",
+            "git+https://github.com/nipuxx/agent-cli.git@main",
+        ]
+        return subprocess.CompletedProcess(command, 0, stdout="Installed nipux\n")
+
+    code, lines = _update_checkout(path=tmp_path, command_runner=runner)
+
+    assert code == 0
+    rendered = "\n".join(lines)
+    assert "is not a source checkout; updating the installed Nipux tool instead" in rendered
+    assert "not a git checkout" not in rendered
+    assert "Update complete" in rendered
 
 
 def test_update_checkout_upgrades_uv_tool_when_installed_package(monkeypatch):
@@ -1405,10 +2000,22 @@ def test_update_checkout_upgrades_uv_tool_when_installed_package(monkeypatch):
     code, lines = _update_checkout(command_runner=runner)
 
     assert code == 0
-    assert calls == [("/usr/bin/uv", "tool", "upgrade", "nipux")]
+    assert calls == [
+        (
+            "/usr/bin/uv",
+            "tool",
+            "install",
+            "--force",
+            "--upgrade",
+            "--reinstall",
+            "git+https://github.com/nipuxx/agent-cli.git@main",
+        )
+    ]
     rendered = "\n".join(lines)
-    assert "No git checkout found" in rendered
-    assert "Updated installed Nipux tool" in rendered
+    assert "not a git checkout" not in rendered
+    assert "Updating installed Nipux command" in rendered
+    assert "Nipux command refreshed from source" in rendered
+    assert "Update complete" in rendered
 
 
 def test_update_checkout_fast_forwards_git_checkout(tmp_path):
@@ -1442,6 +2049,139 @@ def test_update_checkout_fast_forwards_git_checkout(tmp_path):
     rendered = "\n".join(lines)
     assert "Fast-forward" in rendered
     assert "aaa111 -> bbb222" in rendered
+
+
+def test_update_checkout_verifies_installed_command(monkeypatch):
+    monkeypatch.setattr("nipux_cli.updater.find_checkout_root", lambda: None)
+
+    def which(name):
+        if name == "uv":
+            return "/usr/bin/uv"
+        if name == "nipux":
+            return "/Users/me/.local/bin/nipux"
+        return None
+
+    monkeypatch.setattr("shutil.which", which)
+    calls: list[tuple[str, ...]] = []
+
+    def runner(command):
+        calls.append(tuple(command))
+        if command == ["/Users/me/.local/bin/nipux", "--version"]:
+            return subprocess.CompletedProcess(command, 0, stdout="nipux 0.1.0\n")
+        return subprocess.CompletedProcess(command, 0, stdout="Installed nipux\n")
+
+    code, lines = _update_checkout(command_runner=runner)
+
+    assert code == 0
+    assert calls[-1] == ("/Users/me/.local/bin/nipux", "--version")
+    assert "Verified: nipux 0.1.0" in "\n".join(lines)
+
+
+def test_update_command_reports_no_restart_when_daemon_is_stopped(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    monkeypatch.setattr("nipux_cli.cli.update_checkout", lambda **_kwargs: (0, ["Update complete."]))
+    monkeypatch.setattr(
+        "nipux_cli.cli.daemon_lock_status",
+        lambda _path: {"running": False, "metadata": {}},
+    )
+
+    args = build_parser().parse_args(["update"])
+    args.func(args)
+
+    out = capsys.readouterr().out
+    assert "Update complete." in out
+    assert "No daemon is running; no restart needed." in out
+
+
+def test_update_command_restarts_running_daemon(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    monkeypatch.setattr("nipux_cli.cli.update_checkout", lambda **_kwargs: (0, ["Update complete."]))
+    monkeypatch.setattr(
+        "nipux_cli.cli.daemon_lock_status",
+        lambda _path: {"running": True, "metadata": {"pid": 123}},
+    )
+    restarted = {}
+
+    def fake_restart(args):
+        restarted["wait"] = args.wait
+        restarted["quiet"] = args.quiet
+        print("restart ok")
+
+    monkeypatch.setattr("nipux_cli.cli.cmd_restart", fake_restart)
+
+    args = build_parser().parse_args(["update"])
+    args.func(args)
+
+    out = capsys.readouterr().out
+    assert "Restarting running daemon" in out
+    assert "restart ok" in out
+    assert restarted == {"wait": 5.0, "quiet": True}
+
+
+def test_update_command_no_restart_flag_skips_running_daemon(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    monkeypatch.setattr("nipux_cli.cli.update_checkout", lambda **_kwargs: (0, ["Update complete."]))
+    monkeypatch.setattr(
+        "nipux_cli.cli.daemon_lock_status",
+        lambda _path: {"running": True, "metadata": {"pid": 123}},
+    )
+    monkeypatch.setattr("nipux_cli.cli.cmd_restart", lambda _args: (_ for _ in ()).throw(AssertionError("restart")))
+
+    args = build_parser().parse_args(["update", "--no-restart"])
+    args.func(args)
+
+    assert "Daemon restart skipped by --no-restart." in capsys.readouterr().out
+
+
+def test_uninstall_dry_run_removes_installed_tool_by_default(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+
+    args = build_parser().parse_args(["uninstall", "--dry-run"])
+    args.func(args)
+
+    out = capsys.readouterr().out
+    assert "would remove" in out
+    assert "would run uv tool uninstall nipux" in out
+    assert "runtime removed" not in out
+
+
+def test_uninstall_keep_tool_skips_tool_removal(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+
+    args = build_parser().parse_args(["uninstall", "--dry-run", "--keep-tool"])
+    args.func(args)
+
+    out = capsys.readouterr().out
+    assert "would remove" in out
+    assert "uv tool uninstall nipux" not in out
+
+
+def test_uninstall_runtime_skips_missing_systemd_service_without_runner_noise(monkeypatch, tmp_path):
+    from nipux_cli.uninstall import uninstall_runtime
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    runtime = tmp_path / ".nipux"
+    runtime.mkdir()
+    calls = []
+
+    def which(name):
+        if name == "systemctl":
+            return "/bin/systemctl"
+        return None
+
+    def runner(command, **_kwargs):
+        calls.append(command)
+        return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+
+    monkeypatch.setattr("nipux_cli.uninstall.shutil.which", which)
+
+    lines = uninstall_runtime(runtime_home=runtime, dry_run=False, runner=runner)
+
+    assert calls == []
+    rendered = "\n".join(lines)
+    assert "disabled systemd" not in rendered
+    assert "no installed service files found" in rendered
+    assert f"removed {runtime}" in rendered
 
 
 def test_chat_clear_does_not_queue_operator_message(monkeypatch, tmp_path, capsys):
@@ -1539,13 +2279,13 @@ def test_chat_frame_is_bounded_and_has_composer():
 
     assert len(frame.splitlines()) <= 22
     assert "NIPUX" in frame
-    assert "CONVERSATION" in frame
-    assert "JOBS" in frame
+    assert "CHAT" in frame
+    assert "MODEL UPDATES" in frame
     assert "NAV" not in frame
-    assert "Outcome" in frame
+    assert "Visible" in frame
     assert "#3" not in frame
     assert "Jobs" in frame
-    assert "Recent outcomes" in frame
+    assert "Recent outcomes" not in frame
     assert "ctx" in frame
     assert "4.1K/8.2K" in frame
     assert "out" in frame
@@ -1559,8 +2299,8 @@ def test_chat_frame_is_bounded_and_has_composer():
     assert wide_frame.splitlines()[1].startswith("━")
     assert "Enter sends" in frame
     assert "❯ hello" in frame
-    task_frame = _build_chat_frame(snapshot, "", [], width=100, height=26)
-    assert "Draft next deli" in task_frame
+    jobs = _build_chat_frame(snapshot, "", [], width=100, height=26, right_view="status")
+    assert "Draft next deli" in jobs
 
     work = _build_chat_frame(snapshot, "", [], width=100, height=24, right_view="work")
     assert "Work" in work
@@ -1568,8 +2308,8 @@ def test_chat_frame_is_bounded_and_has_composer():
     assert "search demo" in work
 
     updates = _build_chat_frame(snapshot, "", [], width=100, height=24, right_view="updates")
-    assert "Outcomes" in updates
-    assert "Outcomes by hour" in updates
+    assert "MODEL UPDATES" in updates
+    assert "Visible" in updates
 
     settings = _build_chat_frame(snapshot, "", [], width=120, height=30, modal_view="settings")
     assert "Settings" in settings
@@ -1627,7 +2367,7 @@ def test_chat_frame_separates_chat_from_worker_activity():
     assert "python bench.py" not in chat_side
 
 
-def test_chat_frame_empty_state_uses_sleek_hero():
+def test_chat_frame_empty_state_is_minimal_and_actionable():
     snapshot = {
         "job_id": "job_demo",
         "job": {
@@ -1649,9 +2389,13 @@ def test_chat_frame_empty_state_uses_sleek_hero():
 
     frame = _build_chat_frame(snapshot, "", [], width=120, height=28)
 
-    assert "███" in frame
-    assert "Talk to create, steer, inspect" in frame
+    assert "NIPUX" in frame
+    assert "plain English" in frame
+    assert "/new OBJECTIVE" in frame
+    assert "/settings" in frame
+    assert "███" not in frame
     assert "No chat yet." not in frame
+    assert "star..." not in frame
 
 
 def test_frame_emit_skips_unchanged_render(capsys):
@@ -1664,9 +2408,8 @@ def test_frame_emit_skips_unchanged_render(capsys):
     assert second == "frame"
     assert third == "frame\nline three"
     assert out.count("\033[H") == 1
-    assert "\033[1;1Hframe" in out
-    assert "\033[2;1H        " in out
-    assert "\033[2K" not in out
+    assert "\033[1;1H\033[2Kframe" in out
+    assert "\033[2K" in out
     assert "\033[J" not in out
 
 
@@ -1727,6 +2470,9 @@ def test_plain_chat_control_intents_map_to_commands():
     assert _chat_control_command("resume it") == "/resume"
     assert _chat_control_command("show jobs") == "/jobs"
     assert _chat_control_command("change model") == "/model"
+    assert _chat_control_command("settings") == "/settings"
+    assert _chat_control_command("show settings") == "/settings"
+    assert _chat_control_command("how do I start a job?") == "/help"
     assert _chat_control_command("how much did it cost") == "/usage"
     assert _chat_control_command("what has it done") == "/outcomes"
     assert _chat_control_command("what have you done so far") == "/outcomes"
@@ -1900,15 +2646,62 @@ def test_chat_frame_has_model_updates_page():
 
     frame = _build_chat_frame(snapshot, "", [], width=132, height=28, right_view="updates")
 
-    assert "Outcomes" in frame
-    assert "Outcomes by hour" in frame
+    assert "MODEL UPDATES" in frame
+    assert "Page" in frame
     assert "1 outputs" in frame
-    assert "1 measurements" in frame
+    assert "measurements" in frame
     assert "Literature Review Draft" in frame
     assert "Trajectory distillation" in frame
     assert "Citation density check" in frame
     assert "paper.md" in frame
     assert "outline.md" in frame
+
+
+def test_workspace_status_page_does_not_render_fake_worker_when_no_jobs():
+    snapshot = {
+        "job_id": WORKSPACE_CHAT_ID,
+        "job": {
+            "id": WORKSPACE_CHAT_ID,
+            "title": "Nipux",
+            "objective": "Chat with Nipux to create, start, inspect, and steer long-running worker jobs.",
+            "status": "ready",
+            "kind": "workspace",
+            "metadata": {},
+        },
+        "right_job": {
+            "id": WORKSPACE_CHAT_ID,
+            "title": "Nipux",
+            "objective": "Chat with Nipux to create, start, inspect, and steer long-running worker jobs.",
+            "status": "ready",
+            "kind": "workspace",
+            "metadata": {},
+        },
+        "right_job_id": WORKSPACE_CHAT_ID,
+        "jobs": [],
+        "steps": [],
+        "artifacts": [],
+        "job_artifacts": {},
+        "job_summary_events": {},
+        "job_counts": {},
+        "memory_entries": [],
+        "events": [],
+        "right_events": [],
+        "summary_events": [],
+        "daemon": {"running": False, "metadata": {}},
+        "model": "model/demo",
+        "base_url": "http://127.0.0.1:8000/v1",
+        "context_length": 0,
+        "token_usage": {},
+        "counts": {"steps": 0, "artifacts": 0, "memory": 0},
+    }
+
+    frame = _build_chat_frame(snapshot, "", [], width=132, height=28, right_view="status")
+
+    assert "No workers yet" in frame
+    assert "plain English goal" in frame
+    assert "/new OBJECTIVE" in frame
+    assert "Chat with Nipux to create" not in frame
+    assert "actions:0" not in frame
 
 
 def test_status_job_cards_show_durable_work_mix():
@@ -1945,7 +2738,7 @@ def test_status_job_cards_show_durable_work_mix():
         "model": "model/demo",
     }
 
-    frame = _build_chat_frame(snapshot, "", [], width=150, height=34)
+    frame = _build_chat_frame(snapshot, "", [], width=150, height=34, right_view="status")
 
     assert "work 1 outputs 1 findings 1 measurements" in frame
     assert "made 1 output" in frame
@@ -2000,6 +2793,27 @@ def test_recent_outcome_lines_do_not_pretruncate_actual_work():
     assert "..." not in rendered
 
 
+def test_chat_updates_page_keeps_updates_to_one_line_each():
+    long_task = (
+        "open Publish a concise progress update and keep working on the next useful branch. "
+        "This task title is deliberately long enough to wrap several times if the compact pane does not constrain it."
+    )
+    events = [
+        {
+            "event_type": "task",
+            "title": "Publish progress",
+            "body": long_task,
+            "metadata": {"status": "open"},
+            "created_at": "2026-04-25T20:00:00+00:00",
+        }
+    ]
+
+    lines = recent_model_update_lines(events, width=56, limit=4, wrap=False)
+
+    assert len(lines) == 1
+    assert "Publish progress" in lines[0]
+
+
 def test_chat_pane_marks_hidden_overflow():
     events = [
         {
@@ -2013,10 +2827,165 @@ def test_chat_pane_marks_hidden_overflow():
 
     lines = chat_pane_lines(events, [], width=48, rows=4)
 
-    assert "word0 word1" in lines[0]
+    assert "nipux" in lines[0]
     assert "middle lines hidden" in "\n".join(lines)
     assert "word" in lines[-1]
     assert len(lines) == 4
+
+
+def test_chat_pane_groups_multiline_command_output_under_one_label():
+    lines = chat_pane_lines(
+        [],
+        [
+            "> /help",
+            "Create: type a goal, or /new OBJECTIVE.\n"
+            "Run: /run, /pause, /resume. Inspect: /jobs, /outcomes, /artifacts, /activity.\n"
+            "Config: /settings, /model, /base-url, /api-key. Navigate: ←→ pages, ↑↓ jobs.",
+        ],
+        width=78,
+        rows=12,
+    )
+
+    rendered = "\n".join(lines)
+    assert rendered.count("nipux") == 1
+    assert "Create: type a goal" in rendered
+    assert "Inspect: /jobs" in rendered
+    assert "Config: /settings" in rendered
+
+
+def test_chat_pane_suppresses_transient_duplicates_after_events_arrive():
+    events = [
+        {
+            "event_type": "operator_message",
+            "title": "chat",
+            "body": "Hello",
+            "metadata": {},
+            "created_at": "2026-04-25T20:00:00+00:00",
+        },
+        {
+            "event_type": "agent_message",
+            "title": "chat",
+            "body": "Hello! I can help with worker jobs.",
+            "metadata": {},
+            "created_at": "2026-04-25T20:00:01+00:00",
+        },
+    ]
+
+    lines = chat_pane_lines(
+        events,
+        ["> Hello", "sent; waiting for model", "Hello! I can help with worker jobs."],
+        width=80,
+        rows=12,
+    )
+
+    rendered = "\n".join(lines)
+    assert rendered.count("Hello") == 2
+    assert "waiting for model" not in rendered
+
+
+def test_chat_pane_hides_persisted_legacy_waiting_notice():
+    lines = chat_pane_lines(
+        [
+            {
+                "event_type": "operator_message",
+                "title": "chat",
+                "body": "Hello",
+                "metadata": {},
+                "created_at": "2026-04-25T20:00:00+00:00",
+            },
+            {
+                "event_type": "agent_message",
+                "title": "chat",
+                "body": "sent; waiting for model",
+                "metadata": {},
+                "created_at": "2026-04-25T20:00:01+00:00",
+            },
+            {
+                "event_type": "agent_message",
+                "title": "chat",
+                "body": "Hello! I can help with worker jobs.",
+                "metadata": {},
+                "created_at": "2026-04-25T20:00:02+00:00",
+            },
+        ],
+        [],
+        width=80,
+        rows=12,
+    )
+
+    rendered = "\n".join(lines)
+    assert "waiting for model" not in rendered
+    assert "Hello! I can help with worker jobs." in rendered
+
+
+def test_chat_pane_renders_waiting_notice_as_animation_only():
+    rendered_notices = _display_chat_notices([_WAITING_NOTICE])
+    lines = chat_pane_lines([], rendered_notices, width=64, rows=4)
+
+    rendered = "\n".join(lines)
+    assert "AGENT" in rendered
+    assert "waiting" in rendered
+    assert "Waiting for the next worker step" not in rendered
+    assert "waiting for model" not in rendered
+
+
+def test_chat_pane_hides_persisted_worker_waiting_text():
+    lines = chat_pane_lines(
+        [
+            {
+                "event_type": "operator_message",
+                "title": "chat",
+                "body": "what has it done so far?",
+                "metadata": {},
+                "created_at": "2026-04-25T20:00:00+00:00",
+            },
+            {
+                "event_type": "agent_message",
+                "title": "chat",
+                "body": "waiting for demo job: what has it done so far?",
+                "metadata": {},
+                "created_at": "2026-04-25T20:00:01+00:00",
+            },
+            {
+                "event_type": "agent_message",
+                "title": "chat",
+                "body": "Waiting for the next worker step.",
+                "metadata": {},
+                "created_at": "2026-04-25T20:00:02+00:00",
+            },
+        ],
+        [],
+        width=80,
+        rows=12,
+    )
+
+    rendered = "\n".join(lines)
+    assert "what has it done so far?" in rendered
+    assert "waiting for demo job" not in rendered
+    assert "Waiting for the next worker step" not in rendered
+    assert "NIPUX" not in rendered
+
+
+def test_chat_pane_renders_stored_provider_errors_as_actions():
+    lines = chat_pane_lines(
+        [
+            {
+                "event_type": "agent_message",
+                "title": "chat",
+                "body": "APIConnectionError: Connection error.",
+                "metadata": {"error": True},
+                "created_at": "2026-04-25T20:00:00+00:00",
+            }
+        ],
+        [],
+        width=80,
+        rows=6,
+    )
+
+    rendered = "\n".join(lines)
+    assert "APIConnectionError" not in rendered
+    assert "Model endpoint is unreachable" in rendered
+    assert "/doctor" in rendered
 
 
 def test_chat_updates_page_uses_deeper_summary_events():
@@ -2358,7 +3327,7 @@ def test_chat_updates_page_includes_agent_error_updates():
     }
 
     updates = _build_chat_frame(snapshot, "", [], width=132, height=34, right_view="updates")
-    status = _build_chat_frame(snapshot, "", [], width=132, height=34)
+    status = _build_chat_frame(snapshot, "", [], width=132, height=34, right_view="status")
 
     assert "Model provider requires" in updates
     assert "operator action" in updates
@@ -2388,7 +3357,7 @@ def test_chat_status_marks_provider_blocked_jobs_before_daemon_retry():
         "model": "model/demo",
     }
 
-    frame = _build_chat_frame(snapshot, "", [], width=132, height=30)
+    frame = _build_chat_frame(snapshot, "", [], width=132, height=30, right_view="status")
 
     assert "blocked" in frame
     assert "Provider" in frame
@@ -2418,7 +3387,7 @@ def test_chat_status_page_surfaces_context_pressure():
         "token_usage": {"calls": 3, "latest_prompt_tokens": 7000, "total_tokens": 9000, "completion_tokens": 2000},
     }
 
-    frame = _build_chat_frame(snapshot, "", [], width=132, height=30)
+    frame = _build_chat_frame(snapshot, "", [], width=132, height=30, right_view="status")
 
     assert "Context" in frame
     assert "7.0K/8.2K" in frame
@@ -2447,7 +3416,7 @@ def test_chat_status_page_surfaces_low_durable_yield():
         "counts": {"steps": 120, "artifacts": 1, "memory": 0},
     }
 
-    frame = _build_chat_frame(snapshot, "", [], width=132, height=30)
+    frame = _build_chat_frame(snapshot, "", [], width=132, height=30, right_view="status")
 
     assert "Yield" in frame
     assert "watch" in frame
@@ -2504,7 +3473,7 @@ def test_chat_status_page_shows_job_outputs():
         "counts": {"steps": 0, "artifacts": 1, "memory": 0},
     }
 
-    frame = _build_chat_frame(snapshot, "", [], width=132, height=34)
+    frame = _build_chat_frame(snapshot, "", [], width=132, height=34, right_view="status")
 
     assert "Jobs" in frame
     assert "Latest hour" in frame
@@ -2608,7 +3577,7 @@ def test_chat_status_page_marks_deferred_jobs_waiting():
         "model": "model/demo",
     }
 
-    frame = _build_chat_frame(snapshot, "", [], width=132, height=28)
+    frame = _build_chat_frame(snapshot, "", [], width=132, height=28, right_view="status")
 
     assert "waiting" in frame
     assert "Wait" in frame
@@ -2688,7 +3657,8 @@ def test_work_pane_uses_badges_without_duplicate_action_verbs():
 
     assert "save Demo Output" in frame
     assert "find Demo Finding" in frame
-    assert "test Demo Measurement" in frame
+    assert "TEST" in frame
+    assert "Demo Measurement" in frame
     assert "save saved" not in frame
     assert "find finding" not in frame
     assert "test experiment" not in frame
@@ -2969,6 +3939,72 @@ def test_workspace_chat_can_create_refined_worker_job(monkeypatch, tmp_path):
         bodies = "\n".join(str(event.get("body") or "") for event in snapshot["events"])
         assert "create a job" in bodies
         assert "Created worker job" in bodies
+    finally:
+        db.close()
+
+
+def test_workspace_chat_start_objective_creates_worker_without_model_reply(monkeypatch, tmp_path):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    _mark_test_model_ready()
+    started = {}
+
+    def fake_start(**kwargs):
+        started.update(kwargs)
+
+    monkeypatch.setattr("nipux_cli.cli._start_daemon_if_needed", fake_start)
+    monkeypatch.setattr(
+        "nipux_cli.cli._refine_job_objective_for_worker",
+        lambda *, message, objective: objective,
+    )
+
+    ok, message = _handle_workspace_chat_message("start research browser automation libraries", quiet=True)
+
+    assert ok is True
+    assert "Created worker job" in message
+    assert started["quiet"] is True
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        jobs = db.list_jobs()
+        assert len(jobs) == 1
+        assert jobs[0]["title"] == "research browser automation libraries"
+        assert _read_shell_state().get("focus_job_id") == jobs[0]["id"]
+    finally:
+        db.close()
+
+
+def test_workspace_chat_accepts_natural_worker_and_task_phrasing(monkeypatch, tmp_path):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    _mark_test_model_ready()
+    started = {}
+
+    def fake_start(**kwargs):
+        started.setdefault("calls", []).append(kwargs)
+
+    monkeypatch.setattr("nipux_cli.cli._start_daemon_if_needed", fake_start)
+    monkeypatch.setattr(
+        "nipux_cli.cli._refine_job_objective_for_worker",
+        lambda *, message, objective: objective,
+    )
+
+    ok, worker_message = _handle_workspace_chat_message(
+        "spin up a worker to monitor docs and report changes",
+        quiet=True,
+    )
+    ok2, task_message = _handle_workspace_chat_message(
+        "run a task to audit onboarding and write a report",
+        quiet=True,
+    )
+
+    assert ok is True
+    assert ok2 is True
+    assert "Created worker job" in worker_message
+    assert "Created worker job" in task_message
+    assert len(started["calls"]) == 2
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        titles = [job["title"] for job in db.list_jobs()]
+        assert "monitor docs and report changes" in titles
+        assert "audit onboarding and write a report" in titles
     finally:
         db.close()
 
@@ -3460,6 +4496,19 @@ def test_findings_sources_memory_metrics_commands(monkeypatch, tmp_path, capsys)
         db.append_source_record(job_id, "https://example.com", usefulness_score=0.9, yield_count=1)
         db.append_lesson(job_id, "Source indexes work.", category="strategy")
         db.append_reflection(job_id, "Keep using source indexes.", strategy="Try primary records.")
+        db.append_memory_graph_records(
+            job_id,
+            nodes=[
+                {
+                    "key": "source-indexes-work",
+                    "kind": "strategy",
+                    "title": "Source indexes work",
+                    "summary": "Use source indexes when they produce durable records.",
+                    "salience": 0.8,
+                    "confidence": 0.9,
+                }
+            ],
+        )
     finally:
         db.close()
 
@@ -3474,9 +4523,61 @@ def test_findings_sources_memory_metrics_commands(monkeypatch, tmp_path, capsys)
     assert "Variant A" in out
     assert "https://example.com" in out
     assert "Keep using source indexes" in out
+    assert "graph_nodes=1" in out
+    assert "Source indexes work" in out
     assert "tasks: 1" in out
     assert "experiments: 1" in out
     assert "findings: 1" in out
+
+
+def test_memory_graph_html_command_writes_clickable_artifact(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Research topic", title="nightly research")
+        db.append_memory_graph_records(
+            job_id,
+            nodes=[
+                {
+                    "key": "validated-loop",
+                    "kind": "skill",
+                    "status": "stable",
+                    "title": "Validated loop",
+                    "summary": "Check progress against measured evidence before expanding scope.",
+                    "tags": ["validation", "progress"],
+                    "evidence_refs": ["artifact:report"],
+                    "salience": 0.9,
+                    "confidence": 0.8,
+                },
+                {
+                    "key": "open-risk",
+                    "kind": "question",
+                    "status": "open",
+                    "title": "Open risk",
+                    "summary": "Needs another validation pass.",
+                },
+            ],
+            edges=[{"from_key": "validated-loop", "to_key": "open-risk", "relation": "raises"}],
+        )
+    finally:
+        db.close()
+
+    args = build_parser().parse_args(["memory", "--graph"])
+    args.func(args)
+
+    out = capsys.readouterr().out
+    assert "memory graph written:" in out
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        artifacts = db.list_artifacts(job_id)
+        assert artifacts[0]["type"] == "html"
+        html = Path(artifacts[0]["path"]).read_text(encoding="utf-8")
+        assert "<canvas id=\"graph\"" in html
+        assert "click a node" in html
+        assert "Validated loop" in html
+        assert "open-risk" in html
+    finally:
+        db.close()
 
 
 def test_shell_natural_update_phrase_shows_updates(monkeypatch, tmp_path, capsys):

@@ -19,13 +19,21 @@ from nipux_cli.tui_style import (
     _accent,
     _bold,
     _center_ansi,
-    _event_badge,
     _fit_ansi,
     _muted,
     _one_line,
     _style,
 )
 
+THINKING_NOTICE_PREFIX = "__nipux_thinking__:"
+WAITING_NOTICE_PREFIX = "__nipux_waiting__:"
+
+LOW_VALUE_CHAT_NOTICES = (
+    "sent; waiting for model",
+    "sent, waiting for model",
+    "waiting for model",
+    "waiting for the next worker step",
+)
 
 NIPUX_HERO = [
     "███╗   ██╗██╗██████╗ ██╗   ██╗██╗  ██╗",
@@ -53,54 +61,85 @@ LOW_SIGNAL_FRAME_TOOLS = {
     "write_artifact",
 }
 
+GENERIC_CHAT_NOTICE_PREFIXES = (
+    "opened ",
+    "focus set",
+    "paused ",
+    "resumed ",
+    "cancelled ",
+    "deleted ",
+)
+
+
 def chat_event_parts(event: dict[str, Any]) -> tuple[str, str, str] | None:
     kind = str(event.get("event_type") or "")
     title = str(event.get("title") or "").strip()
     body = str(event.get("body") or "")
+    metadata = event.get("metadata") if isinstance(event.get("metadata"), dict) else {}
     clock = event_clock(event)
     if kind == "operator_message":
         return "YOU", body, clock
     if kind == "agent_message" and title == "chat":
+        if metadata.get("error"):
+            body = friendly_error_text(body)
+        if _is_low_value_chat_notice(_normalized_chat_body(body)) or _is_waiting_notice(_normalized_chat_body(body)):
+            return None
         return "AGENT", body, clock
     return None
 
 
 def append_chat_output(lines: list[str], label: str, body: Any, *, clock: str, width: int) -> None:
-    label_text = _fit_ansi(_event_badge(label), 8)
-    clock_text = _fit_ansi(_muted(clock), 5) if clock else " " * 5
-    prefix = f"{clock_text} {label_text} "
-    prefix_width = 15
-    available = max(18, width - prefix_width)
-    first = True
+    label_text = _chat_label(label)
+    meta = f"{label_text} {_muted(clock)}" if clock else label_text
+    lines.append(_fit_ansi(meta, width))
+    prefix = "  "
+    available = max(18, width - len(prefix))
     for paragraph in chat_message_paragraphs(body):
         wrapped = textwrap.wrap(paragraph, width=available) or [""]
         for part in wrapped:
-            if first:
-                lines.append(_fit_ansi(prefix + part, width))
-                first = False
-            else:
-                lines.append(_fit_ansi(" " * prefix_width + part, width))
-    if first:
+            lines.append(_fit_ansi(prefix + part, width))
+    if len(lines) == 1:
         lines.append(_fit_ansi(prefix, width))
 
 
 def chat_pane_lines(events: list[dict[str, Any]], notices: list[str], *, width: int, rows: int) -> list[str]:
     items: list[tuple[str, str, str]] = []
+    seen_chat_bodies: set[tuple[str, str]] = set()
+    seen_bodies: set[str] = set()
     for event in events:
         rendered = chat_event_parts(event)
         if not rendered:
             continue
         label, body, clock = rendered
         items.append((label, body, clock))
+        normalized = _normalized_chat_body(body)
+        seen_chat_bodies.add((label, normalized))
+        seen_bodies.add(normalized)
     for notice in notices:
-        if notice.startswith("> "):
-            items.append(("YOU", notice[2:], ""))
+        if notice.startswith(THINKING_NOTICE_PREFIX):
+            body = notice.removeprefix(THINKING_NOTICE_PREFIX).strip() or "thinking"
+            items.append(("THINKING", body, ""))
+        elif notice.startswith(WAITING_NOTICE_PREFIX):
+            body = notice.removeprefix(WAITING_NOTICE_PREFIX).strip() or "waiting"
+            items.append(("WAITING", body, ""))
+        elif notice.startswith("> "):
+            body = notice[2:]
+            normalized = _normalized_chat_body(body)
+            if normalized and normalized not in seen_bodies and ("YOU", normalized) not in seen_chat_bodies:
+                items.append(("YOU", body, ""))
+                seen_bodies.add(normalized)
         else:
-            items.append(("NIPUX", notice, ""))
+            body = notice
+            normalized = _normalized_chat_body(body)
+            if _is_low_value_chat_notice(normalized) or _is_waiting_notice(normalized) or _is_generic_chat_notice(normalized):
+                continue
+            if normalized and normalized not in seen_bodies and ("AGENT", normalized) not in seen_chat_bodies:
+                items.append(("NIPUX", body, ""))
+                seen_bodies.add(normalized)
     if not items:
         return chat_empty_state_lines(width=width, rows=rows)
     rendered_items = [_chat_item_lines(label, body, clock=clock, width=width) for label, body, clock in items[-max(4, rows) :]]
-    output_rows = [line for block in rendered_items for line in block]
+    output_rows = _flatten_chat_blocks(rendered_items)
     if len(output_rows) <= rows:
         return output_rows
     if rows <= 1:
@@ -127,31 +166,78 @@ def chat_pane_lines(events: list[dict[str, Any]], notices: list[str], *, width: 
         else:
             hidden_lines += len(block)
     marker = _fit_ansi(_muted(f"... {hidden_lines} older chat lines hidden; /history shows all."), width)
-    return [marker, *[line for block in visible_blocks for line in block]][:rows]
+    return [marker, *_flatten_chat_blocks(visible_blocks)][:rows]
 
 
 def _chat_item_lines(label: str, body: Any, *, clock: str, width: int) -> list[str]:
+    if label == "THINKING":
+        return [_fit_ansi(f"{_style('AGENT', '36;1')}  {_accent(str(body))}", width)]
+    if label == "WAITING":
+        return [_fit_ansi(f"{_style('AGENT', '36;1')}  {_muted(str(body))}", width)]
     lines: list[str] = []
     append_chat_output(lines, label, body, clock=clock, width=width)
     return lines
 
 
+def _flatten_chat_blocks(blocks: list[list[str]]) -> list[str]:
+    rows: list[str] = []
+    for block in blocks:
+        if rows:
+            rows.append("")
+        rows.extend(block)
+    return rows
+
+
+def _chat_label(label: str) -> str:
+    if label == "YOU":
+        return _style("you", "35;1")
+    if label == "AGENT":
+        return _style("nipux", "36;1")
+    if label == "THINKING":
+        return _style("thinking", "36")
+    if label == "WAITING":
+        return _style("waiting", "36")
+    return _muted(label.lower())
+
+
+def _normalized_chat_body(value: Any) -> str:
+    return " ".join(str(value or "").split())
+
+
+def _is_low_value_chat_notice(normalized: str) -> bool:
+    lowered = normalized.lower()
+    return any(phrase in lowered for phrase in LOW_VALUE_CHAT_NOTICES)
+
+
+def _is_waiting_notice(normalized: str) -> bool:
+    lowered = normalized.lower()
+    return (
+        lowered.startswith("waiting:")
+        or lowered.startswith("waiting for ")
+        or "message saved for the worker" in lowered
+    )
+
+
+def _is_generic_chat_notice(normalized: str) -> bool:
+    lowered = normalized.lower()
+    return any(lowered.startswith(prefix) for prefix in GENERIC_CHAT_NOTICE_PREFIXES)
+
+
 def chat_empty_state_lines(*, width: int, rows: int) -> list[str]:
-    if width < 48:
-        content = [
-            _center_ansi(_bold(_accent("NIPUX")), width),
-            "",
-            _center_ansi(_muted("Talk normally."), width),
-        ]
-        return content[:rows]
     content = [
-        *[_center_ansi(_style(line, "37;1"), width) for line in NIPUX_HERO],
+        _center_ansi(_bold(_accent("NIPUX")), width),
         "",
-        _center_ansi(_muted("Talk to create, steer, inspect, or resume long-running work."), width),
-        _center_ansi(_muted("Enter sends  ·  / commands  ·  arrows navigate"), width),
+        *_centered_wrapped_hint("Type a goal in plain English to start a worker.", width=width),
+        *_centered_wrapped_hint("Or use /new OBJECTIVE.", width=width),
+        *_centered_wrapped_hint("/settings configures provider/tools.", width=width),
     ]
-    top_pad = max(0, (rows - len(content)) // 2 - 1)
+    top_pad = max(0, (rows - len(content)) // 2)
     return ([""] * top_pad + content)[:rows]
+
+
+def _centered_wrapped_hint(text: str, *, width: int) -> list[str]:
+    available = max(24, min(68, width - 4))
+    return [_center_ansi(_muted(part), width) for part in textwrap.wrap(text, width=available) or [text]]
 
 
 def worker_activity_lines(events: list[dict[str, Any]], *, width: int, limit: int) -> list[str]:

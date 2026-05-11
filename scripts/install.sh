@@ -15,7 +15,7 @@ if ! command -v uv >/dev/null 2>&1; then
   exit 1
 fi
 
-uv tool install --upgrade "git+${REPO_URL}@${REF}"
+uv tool install --force --upgrade --reinstall "git+${REPO_URL}@${REF}"
 
 echo
 echo "Nipux installed. Opening first-run setup."

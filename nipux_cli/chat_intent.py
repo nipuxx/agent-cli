@@ -73,6 +73,13 @@ NATURAL_COMMANDS = {
     "is the daemon running": "health",
     "daemon health": "health",
     "show health": "health",
+    "how do i start a job": "help",
+    "how do i create a job": "help",
+    "how do i make a job": "help",
+    "how do i run a job": "help",
+    "how do i start work": "help",
+    "how do i use this": "help",
+    "what can i do": "help",
     "show activity": "activity",
     "show tool calls": "activity",
     "show worker activity": "activity",
@@ -143,7 +150,7 @@ def chat_control_command(line: str) -> str:
     if lowered in {"jobs", "show jobs", "list jobs", "switch jobs", "change jobs"}:
         return "/jobs"
     if lowered in {"settings", "show settings"}:
-        return "/model"
+        return "/settings"
     if lowered in {"model settings", "change model", "edit settings"}:
         return "/model"
     if lowered in {
@@ -266,7 +273,7 @@ def message_requests_immediate_run(message: str) -> bool:
     lowered = " ".join(message.strip().lower().split())
     if message_requests_queued_job(message):
         return False
-    if re.match(r"^(?:please\s+)?(?:start|launch|run|spin\s+off)\b", lowered):
+    if re.match(r"^(?:please\s+)?(?:start|launch|run|spin\s+off|spin\s+up)\b", lowered):
         return True
     return bool(re.search(r"\b(?:and|then)\s+(?:start|launch|run|resume)\s+(?:it|the\s+job|work)?\b", lowered))
 
@@ -288,8 +295,10 @@ def extract_job_objective_from_message(message: str) -> str:
     lowered = text.lower()
     patterns = [
         r"^(?:please\s+)?(?:create|start|spin\s+off|make|launch)\s+(?:a\s+)?(?:new\s+)?job\s+(?:to|for|that|which)?\s*(.+)$",
+        r"^(?:please\s+)?(?:create|start|spin\s+off|spin\s+up|make|launch|run)\s+(?:a\s+|an\s+)?(?:new\s+)?(?:worker|agent|task)\s+(?:to|for|that|which)?\s*(.+)$",
         r"^(?:please\s+)?(?:send|queue)\s+(?:off\s+)?(?:a\s+)?(?:new\s+)?job\s+(?:to|for|that|which)?\s*(.+)$",
         r"^(?:please\s+)?(?:new|job)\s+(.+)$",
+        r"^(?:please\s+)?(?:start|run|launch)\s+(?!daemon\b|it\b|this\b|that\b|the\s+job\b|the\s+worker\b|job\b|worker\b|work\b)(.+)$",
         r"^(?:please\s+)?(?:can\s+you|could\s+you|i\s+need\s+you\s+to|i\s+want\s+you\s+to)\s+(.+)$",
     ]
     for pattern in patterns:

@@ -6,8 +6,6 @@ from nipux_cli.tui_style import _accent, _bold, _fit_ansi, _muted
 
 
 FIRST_RUN_SLASH_COMMANDS = [
-    ("/new", "create a job"),
-    ("/jobs", "list jobs"),
     ("/model", "set model"),
     ("/base-url", "set endpoint"),
     ("/api-key", "save key"),
@@ -34,10 +32,12 @@ FIRST_RUN_SLASH_COMMANDS = [
 ]
 
 CHAT_SLASH_COMMANDS = [
-    ("/new", "create + start job"),
-    ("/run", "start worker"),
-    ("/jobs", "switch jobs"),
-    ("/status", "job state"),
+    ("/new", "create and start a worker"),
+    ("/run", "resume focused work"),
+    ("/jobs", "switch or inspect jobs"),
+    ("/settings", "configure provider/tools"),
+    ("/status", "focused job state"),
+    ("/help", "core commands"),
     ("/outcomes", "durable work"),
     ("/artifacts", "saved files"),
     ("/activity", "tool calls"),
@@ -60,7 +60,6 @@ CHAT_SLASH_COMMANDS = [
     ("/lessons", "lessons"),
     ("/usage", "tokens/cost"),
     ("/config", "runtime config"),
-    ("/settings", "open settings"),
     ("/health", "daemon health"),
     ("/start", "start daemon"),
     ("/restart", "restart daemon"),
@@ -94,16 +93,6 @@ CHAT_SLASH_COMMANDS = [
     ("/digest", "digest"),
     ("/clear", "clear notices"),
     ("/exit", "quit"),
-]
-
-FIRST_RUN_ACTIONS = [
-    ("edit:model.name", "Model", "choose model id"),
-    ("preset:local", "Connector", "local OpenAI-compatible"),
-    ("edit:model.base_url", "Endpoint", "OpenAI-compatible /v1"),
-    ("secret:model.api_key", "API key", "hosted providers only"),
-    ("doctor", "Doctor", "check setup"),
-    ("new", "First job", "type a goal, then enter"),
-    ("exit", "Exit", "leave Nipux"),
 ]
 
 SETTINGS_FIELD_TYPES = {
@@ -165,6 +154,8 @@ SLASH_ARGUMENT_HINTS = {
     "key": "KEY",
 }
 
+REQUIRED_SLASH_ARGUMENTS = {"new", "artifact", "learn", "note", "follow"}
+
 
 def slash_suggestion_lines(
     input_buffer: str,
@@ -188,7 +179,7 @@ def slash_suggestion_lines(
         return [
             _muted("╭─ command " + "─" * max(0, width - 11)),
             _fit_ansi(_muted("│ ") + body, width),
-            _fit_ansi(_muted("╰─ enter sends"), width),
+            _fit_ansi(_muted(_slash_argument_footer(parts, hint)), width),
         ]
     command_names = [cmd for cmd, _desc in commands]
     selected_command = f"/{token}" if token else ""
@@ -212,7 +203,7 @@ def slash_suggestion_lines(
             _muted("╰" + "─" * max(0, width - 1)),
         ]
     cmd_width = min(14, max(len(cmd) for cmd, _ in matches) + 2)
-    lines = [_muted("╭─ commands ") + _fit_ansi(_muted(str(len(all_matches))), max(0, width - 12))]
+    lines = [_fit_ansi(_muted("╭─ commands " + "─" * max(0, width - 12)), width)]
     for index, (cmd, desc) in enumerate(matches):
         active = cmd == selected_command if exact_selection else index == 0
         marker = _accent("›") if active else _muted(" ")
@@ -224,9 +215,9 @@ def slash_suggestion_lines(
         lines.append(_fit_ansi(body, width))
     hidden = max(0, len(all_matches) - len(matches))
     if hidden:
-        lines.append(_fit_ansi(_muted(f"╰─ +{hidden} more; enter fills first match"), width))
+        lines.append(_fit_ansi(_muted("╰─ type to filter · enter selects first match"), width))
     else:
-        lines.append(_fit_ansi(_muted("╰─ enter/tab fills · ↑↓ select"), width))
+        lines.append(_fit_ansi(_muted("╰─ enter selects · tab fills · ↑↓ moves"), width))
     return lines
 
 
@@ -242,7 +233,12 @@ def autocomplete_slash(input_buffer: str, commands: list[tuple[str, str]]) -> st
 def slash_completion_for_submit(input_buffer: str, commands: list[tuple[str, str]]) -> tuple[str, bool]:
     """Return the buffer to use and whether Enter should submit it now."""
 
-    if not input_buffer.startswith("/") or " " in input_buffer[1:]:
+    if not input_buffer.startswith("/"):
+        return input_buffer, True
+    if " " in input_buffer[1:]:
+        command = input_buffer[1:].split(maxsplit=1)[0].lower()
+        if command in REQUIRED_SLASH_ARGUMENTS and not _slash_argument_text(input_buffer).strip():
+            return input_buffer, False
         return input_buffer, True
     current = input_buffer.rstrip()
     if not current:
@@ -250,15 +246,28 @@ def slash_completion_for_submit(input_buffer: str, commands: list[tuple[str, str
     command_names = {cmd for cmd, _desc in commands}
     token = current[1:].lower()
     exact = current in command_names
-    if exact and token not in SLASH_ARGUMENT_HINTS:
+    if exact and token not in REQUIRED_SLASH_ARGUMENTS:
         return input_buffer, True
     matches = _slash_command_matches(input_buffer, commands)
     if not matches:
         return input_buffer, True
     selected = current if exact else matches[0]
-    suffix = " " if selected[1:] in SLASH_ARGUMENT_HINTS else ""
+    if selected[1:] not in REQUIRED_SLASH_ARGUMENTS:
+        return selected, True
+    suffix = " "
     completed = selected + suffix
     return completed, completed == input_buffer
+
+
+def _slash_argument_text(input_buffer: str) -> str:
+    parts = input_buffer[1:].split(maxsplit=1)
+    return parts[1] if len(parts) > 1 else ""
+
+
+def _slash_argument_footer(parts: list[str], hint: str) -> str:
+    if len(parts) == 1:
+        return f"╰─ type {hint}, then enter"
+    return "╰─ enter sends"
 
 
 def cycle_slash(input_buffer: str, commands: list[tuple[str, str]], *, direction: int) -> str:

@@ -131,6 +131,10 @@ def run_first_run_frame(*, deps: FirstRunRuntimeDeps) -> str | None:
                 _append_notice(notices, "cancelled input")
                 needs_render = True
                 continue
+            if char == "\x15":
+                buffer = ""
+                needs_render = True
+                continue
             if char in {"\x7f", "\b"}:
                 buffer = buffer[:-1]
                 needs_render = True
@@ -163,6 +167,8 @@ def run_first_run_frame(*, deps: FirstRunRuntimeDeps) -> str | None:
             if char.isprintable():
                 buffer += char
                 needs_render = True
+    except KeyboardInterrupt:
+        return None
     finally:
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_attrs)
         print(_frame_exit_sequence(), flush=True)
@@ -347,14 +353,16 @@ def _handle_edit_input(
         return buffer, editing_field, True
     if char == "\x03":
         _append_notice(notices, "cancelled edit", limit=10)
-        return "", None, False
+        return "", editing_field, False
+    if char == "\x15":
+        return "", editing_field, False
     if char in {"\x7f", "\b"}:
         return buffer[:-1], editing_field, False
     if char == "\x1b":
         key, _payload = decode_terminal_escape(read_escape_sequence(char, fd=stdin_fd))
         if key == "unknown":
             _append_notice(notices, "cancelled edit", limit=10)
-            return "", None, False
+            return "", editing_field, False
         return buffer, editing_field, False
     if char.isprintable():
         return buffer + char, editing_field, False

@@ -19,7 +19,7 @@ class ChatControllerDeps:
     reply_fn: Callable[[str, str], Any]
     create_job: Callable[..., tuple[str, str]]
     write_shell_state: Callable[[dict[str, Any]], None]
-    start_daemon: Callable[..., None]
+    start_daemon: Callable[..., Any]
     capture_command: Callable[[str, str], tuple[bool, str]]
     compact_command_output: Callable[[str], list[str]]
     friendly_error_text: Callable[[str], str]
@@ -143,8 +143,11 @@ def maybe_spawn_job_from_chat(
     run_now = not message_requests_queued_job(message) or message_requests_immediate_run(message)
     text = f"Created job: {title}. Focus switched to it."
     if run_now:
-        deps.start_daemon(poll_seconds=0.0, quiet=True)
-        text += " Started worker."
+        started = deps.start_daemon(poll_seconds=0.0, quiet=True)
+        if started is False:
+            text += " Worker is waiting for a working model."
+        else:
+            text += " Started worker."
     if not quiet:
         print(text)
     return text

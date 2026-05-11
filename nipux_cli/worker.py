@@ -16,6 +16,7 @@ from nipux_cli.context_pressure import context_pressure_for_prompt, emit_context
 from nipux_cli.db import AgentDB
 from nipux_cli.llm import LLMResponse, LLMResponseError, OpenAIChatLLM, StepLLM
 from nipux_cli.measurement import measurement_candidates, measurement_candidates_are_diagnostic_only
+from nipux_cli.memory_graph import memory_graph_from_job
 from nipux_cli.metric_format import format_metric_value
 from nipux_cli.operator_context import (
     inactive_prompt_operator_ids,
@@ -47,6 +48,7 @@ from nipux_cli.worker_policy import (
     MEASURABLE_RESEARCH_BUDGET_STEPS,
     MEASUREMENT_BLOCKED_TOOLS,
     MEASUREMENT_RESOLUTION_TOOLS,
+    MEMORY_CONSOLIDATION_BLOCKED_TOOLS,
     MEMORY_ENTRY_PROMPT_CHARS,
     MEMORY_PROMPT_CHARS,
     MILESTONE_VALIDATION_BLOCKED_TOOLS,
@@ -71,6 +73,7 @@ from nipux_cli.worker_prompt_context import (
     _experiments_for_prompt,
     _ledgers_for_prompt,
     _lessons_for_prompt,
+    _memory_graph_for_prompt,
     _memory_entries_for_prompt,
     _metadata_list,
     _operator_messages_for_prompt,
@@ -135,9 +138,11 @@ def build_messages(
     progress_accounting_guard = _progress_accounting_for_prompt(recent_steps)
     activity_stagnation = _activity_stagnation_for_prompt(job)
     task_planning_guard = _task_planning_guard_for_prompt(job)
+    memory_consolidation_guard = _memory_consolidation_guard_for_prompt(job, recent_steps)
     durable_yield = _durable_yield_for_prompt(job, recent_steps)
     context_pressure = context_pressure_for_prompt(job)
     lessons = _lessons_for_prompt(job)
+    memory_graph = _memory_graph_for_prompt(job)
     roadmap = _roadmap_for_prompt(job)
     tasks = _tasks_for_prompt(job)
     ledgers = _ledgers_for_prompt(job)
@@ -164,10 +169,12 @@ def build_messages(
             ("Progress accounting guard", progress_accounting_guard),
             ("Activity stagnation", activity_stagnation),
             ("Task planning guard", task_planning_guard),
+            ("Memory consolidation guard", memory_consolidation_guard),
             ("Durable progress yield", durable_yield),
             ("Context pressure", context_pressure),
             ("Program", program),
             ("Lessons learned", lessons),
+            ("Memory graph", memory_graph),
             ("Roadmap", roadmap),
             ("Task queue", tasks),
             ("Durable outcomes", outcomes),
@@ -302,6 +309,72 @@ def _task_planning_guard_for_prompt(job: dict[str, Any]) -> str:
     )
 
 
+def _memory_consolidation_guard_for_prompt(job: dict[str, Any], recent_steps: list[dict[str, Any]]) -> str:
+    context = _memory_graph_consolidation_context(job, recent_steps)
+    if not context:
+        return "None."
+    return (
+        "Durable job memory is growing faster than the connected memory graph. "
+        f"durable_records={context.get('durable_records')} graph_nodes={context.get('graph_nodes')} "
+        f"graph_edges={context.get('graph_edges')} reason={context.get('reason')}. "
+        "Before more branch work, use record_memory_graph to consolidate the most reusable facts, strategies, "
+        "decisions, questions, skills, constraints, episodes, and evidence links. If there is truly nothing "
+        "reusable, record a lesson explaining why this branch should not become graph memory."
+    )
+
+
+def _memory_graph_consolidation_context(job: dict[str, Any], recent_steps: list[dict[str, Any]]) -> dict[str, Any] | None:
+    if any(step.get("tool_name") == "record_memory_graph" and step.get("status") == "completed" for step in recent_steps[-8:]):
+        return None
+    graph = memory_graph_from_job(job)
+    node_count = len(graph["nodes"])
+    edge_count = len(graph["edges"])
+    durable_records = _durable_memory_signal_count(job)
+    if durable_records < 6:
+        return None
+    reason = ""
+    if node_count == 0:
+        reason = "durable ledgers exist but no graph nodes have been consolidated"
+    elif durable_records >= 12 and node_count * 5 < durable_records:
+        reason = "graph is sparse relative to reusable durable records"
+    elif node_count >= 3 and edge_count == 0 and durable_records >= 10:
+        reason = "graph nodes exist but have no links"
+    if not reason:
+        return None
+    return {
+        "durable_records": durable_records,
+        "graph_nodes": node_count,
+        "graph_edges": edge_count,
+        "reason": reason,
+    }
+
+
+def _durable_memory_signal_count(job: dict[str, Any]) -> int:
+    count = (
+        len(_metadata_list(job, "finding_ledger"))
+        + len(_metadata_list(job, "source_ledger"))
+        + len(_metadata_list(job, "experiment_ledger"))
+        + len(_metadata_list(job, "lessons"))
+    )
+    tasks = _metadata_list(job, "task_queue")
+    count += sum(
+        1
+        for task in tasks
+        if str(task.get("status") or "open").lower() in {"done", "blocked", "skipped"}
+        and (task.get("result") or task.get("evidence_needed") or task.get("acceptance_criteria"))
+    )
+    metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
+    roadmap = metadata.get("roadmap") if isinstance(metadata.get("roadmap"), dict) else {}
+    milestones = roadmap.get("milestones") if isinstance(roadmap.get("milestones"), list) else []
+    count += sum(
+        1
+        for milestone in milestones
+        if isinstance(milestone, dict)
+        and str(milestone.get("status") or "planned").lower() in {"active", "validating", "done", "blocked", "skipped"}
+    )
+    return count
+
+
 def _durable_yield_for_prompt(job: dict[str, Any], recent_steps: list[dict[str, Any]]) -> str:
     completed = [step for step in recent_steps if step.get("status") == "completed"]
     if len(completed) < 20:
@@ -390,6 +463,13 @@ def _next_action_constraint(job: dict[str, Any], recent_steps: list[dict[str, An
             "Recent progress is only task planning. Do not create more new open tasks next. Execute an existing task, "
             "record evidence/measurements/validation, write a checkpoint, mark tasks done/blocked/skipped, or record "
             "a lesson before expanding the queue again."
+        )
+    memory_consolidation = _memory_graph_consolidation_context(job, recent_steps)
+    if memory_consolidation:
+        return (
+            "Consolidate durable progress into the job memory graph before more branch work. "
+            "Use record_memory_graph for connected reusable knowledge, or record_lesson if the recent branch has no "
+            "reusable memory value."
         )
     deliverable_guard = _deliverable_progress_guard_context(job, recent_steps)
     if deliverable_guard:
@@ -1334,6 +1414,7 @@ def _blocked_tool_call_result(
     progress_churn = _progress_churn_context(recent_steps)
     artifact_accounting = _artifact_accounting_context(recent_steps)
     activity_stagnation = _activity_stagnation_context(job)
+    memory_consolidation = _memory_graph_consolidation_context(job, recent_steps)
     if (
         artifact_accounting
         and name in ARTIFACT_ACCOUNTING_BLOCKED_TOOLS
@@ -1384,6 +1465,21 @@ def _blocked_tool_call_result(
             ),
         }
         return result, f"blocked {name}; durable progress required after activity-only checkpoints"
+
+    if memory_consolidation and name in MEMORY_CONSOLIDATION_BLOCKED_TOOLS:
+        result = {
+            "success": False,
+            "error": "memory graph consolidation required",
+            "blocked_tool": name,
+            "blocked_arguments": args,
+            "memory_consolidation": memory_consolidation,
+            "guidance": (
+                "The job has enough reusable durable records that raw ledgers should be consolidated into connected "
+                "memory. Use record_memory_graph to add/update nodes and links before more branch work, or record_lesson "
+                "if there is no reusable memory to preserve."
+            ),
+        }
+        return result, f"blocked {name}; memory graph consolidation required"
 
     shell_read_only = name == "shell_exec" and _shell_command_looks_read_only(str(args.get("command") or ""))
     if deliverable_progress_guard and (name in DELIVERABLE_PROGRESS_BLOCKED_TOOLS or shell_read_only):

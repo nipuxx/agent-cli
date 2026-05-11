@@ -63,7 +63,7 @@ class ArtifactStore:
         step_id: str | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> StoredArtifact:
-        suffix = "md" if artifact_type in {"digest", "markdown", "text"} else "txt"
+        suffix = "html" if artifact_type == "html" else "md" if artifact_type in {"digest", "markdown", "text"} else "txt"
         stem = safe_filename(title or artifact_type)
         timestamp = utc_now().replace("+00:00", "Z").replace(":", "")
         filename = f"{timestamp}-{stem}-{new_id('file')}.{suffix}"

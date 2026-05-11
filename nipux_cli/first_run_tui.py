@@ -256,9 +256,11 @@ def _doctor_page_lines(*, config: AppConfig, selected: int, width: int) -> list[
         "",
         _center_ansi(_muted(_step_count_label("doctor")), width),
         _center_ansi(_bold("Run checks"), width),
-        _center_ansi(_muted("Doctor calls the configured model before the first job opens."), width),
+        _center_ansi(_muted("Doctor calls the configured model before the workspace opens."), width),
         "",
         *_panel("DOCTOR", rows, width=min(90, width - 8), page_width=width),
+        "",
+        _center_ansi(_muted("If a check fails, edit with /base-url, /api-key, or /model, then run Doctor again."), width),
         "",
         *_action_cards(first_run_actions("doctor"), selected=selected, config=config, width=width),
     ]

@@ -92,6 +92,8 @@ def right_pane_lines(
     right_view: str = "status",
 ) -> list[str]:
     del model, latest_text, daemon_text
+    if _is_workspace_placeholder(job) and not jobs:
+        return _empty_workspace_status_lines(right_view=right_view, width=width, rows=rows)
     info_lines = _chat_workspace_lines(
         right_view=right_view,
         job=job,
@@ -168,6 +170,23 @@ def right_pane_lines(
         else:
             info_lines.append(_muted("No durable outcomes yet."))
     return info_lines[:rows]
+
+
+def _is_workspace_placeholder(job: dict[str, Any]) -> bool:
+    return str(job.get("kind") or "") == "workspace"
+
+
+def _empty_workspace_status_lines(*, right_view: str, width: int, rows: int) -> list[str]:
+    lines = [
+        f"{_muted('Page')}   {_page_indicator(right_view, CHAT_RIGHT_PAGES)}",
+        _bold("No workers yet"),
+        _muted("Type a goal in chat to start one."),
+        "",
+        f"{_muted('Start')}  {_bold('plain English goal')} or {_bold('/new OBJECTIVE')}",
+        f"{_muted('Setup')}  {_bold('/settings')}",
+        f"{_muted('Check')}  {_bold('/doctor')}",
+    ]
+    return [_fit_ansi(line, width) for line in lines[:rows]]
 
 
 def chat_work_pane_lines(

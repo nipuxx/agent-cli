@@ -33,6 +33,24 @@ def test_refresh_memory_index_includes_durable_progress_ledgers(tmp_path):
                     "status": "active",
                     "current_milestone": "Improve literature review",
                 },
+                "memory_graph": {
+                    "nodes": [
+                        {
+                            "title": "Validated evidence loop",
+                            "kind": "strategy",
+                            "status": "active",
+                            "summary": "Evidence-backed checkpoints should drive the next branch.",
+                            "salience": 0.9,
+                        }
+                    ],
+                    "edges": [
+                        {
+                            "from_key": "validated-evidence-loop",
+                            "to_key": "research-paper-roadmap",
+                            "relation": "supports",
+                        }
+                    ],
+                },
                 "pending_measurement_obligation": {
                     "source_step_no": 42,
                     "tool": "shell_exec",
@@ -65,6 +83,9 @@ def test_refresh_memory_index_includes_durable_progress_ledgers(tmp_path):
         assert "findings=1" in memory
         assert "sources=1" in memory
         assert "experiments=1" in memory
+        assert "memory_nodes=1" in memory
+        assert "Validated evidence loop" in memory
+        assert "memory_links=1" in memory
         assert "Draft evidence-backed section" in memory
         assert "Citation density check" in memory
         assert "Teacher traces improve tool use" in memory

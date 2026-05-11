@@ -38,6 +38,14 @@ def summarize_tool_result(name: str, args: dict[str, Any], result: dict[str, Any
         category = lesson.get("category") or "memory"
         text = str(lesson.get("lesson") or "")[:160]
         return f"record_lesson saved {category}: {text}"
+    if name == "record_memory_graph":
+        return (
+            f"record_memory_graph updated: {result.get('added_nodes', 0)} new nodes, "
+            f"{result.get('updated_nodes', 0)} updated, {result.get('added_edges', 0)} links"
+        )
+    if name == "search_memory_graph":
+        nodes = result.get("nodes") if isinstance(result.get("nodes"), list) else []
+        return f"search_memory_graph returned {len(nodes)} nodes for {args.get('query')!r}"
     if name == "record_source":
         source = result.get("source") if isinstance(result.get("source"), dict) else {}
         return f"record_source updated {source.get('source')} score={source.get('usefulness_score')} yield={source.get('yield_count')}"
