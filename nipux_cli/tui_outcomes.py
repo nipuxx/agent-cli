@@ -21,7 +21,7 @@ from nipux_cli.tui_event_format import (
 from nipux_cli.tui_style import _bold, _event_badge, _fit_ansi, _muted, _one_line, _page_indicator, _strip_ansi
 
 
-CHAT_RIGHT_PAGES = [("updates", "Updates"), ("status", "Jobs"), ("work", "Work")]
+CHAT_RIGHT_PAGES = [("updates", "Updates"), ("status", "Jobs")]
 
 DURABLE_OUTCOME_LABELS = {
     "SAVE",
@@ -94,6 +94,8 @@ def model_update_event_parts(event: dict[str, Any], *, width: int, compact: bool
     status = str(metadata.get("status") or "")
     clock = event_clock(event)
     chars = max(24, width - 16)
+    if kind == "error":
+        return "FAIL", _outcome_text(event_title_body(title, body, fallback="error"), chars=chars, compact=compact), clock
     if kind == "artifact":
         detail = title or body or str(metadata.get("summary") or "") or "saved output"
         return "SAVE", _outcome_text(detail, chars=chars, compact=compact), clock

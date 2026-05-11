@@ -1979,6 +1979,60 @@ def test_prompt_adds_memory_consolidation_guard_when_graph_lags_ledgers():
     assert "record_memory_graph" in content
 
 
+def test_prompt_adds_research_balance_guard_for_execution_without_sources():
+    job = {
+        "title": "workflow builder",
+        "kind": "generic",
+        "objective": "build a durable workflow and keep improving it",
+        "metadata": {
+            "experiment_ledger": [{"title": "Validation check", "status": "measured"}],
+        },
+    }
+    steps = [
+        {
+            "step_no": index,
+            "kind": "tool",
+            "tool_name": "shell_exec",
+            "status": "completed",
+            "input": {"arguments": {"command": f"echo branch-{index}"}},
+        }
+        for index in range(1, 7)
+    ]
+
+    content = build_messages(job, steps)[-1]["content"]
+
+    assert "Research balance guard:" in content
+    assert "execution-heavy" in content
+    assert "sources=0" in content
+    assert "record_source" in content
+
+
+def test_prompt_research_balance_guard_clears_when_sources_exist():
+    job = {
+        "title": "workflow builder",
+        "kind": "generic",
+        "objective": "build a durable workflow and keep improving it",
+        "metadata": {
+            "source_ledger": [{"source": "project docs"}],
+            "experiment_ledger": [{"title": "Validation check", "status": "measured"}],
+        },
+    }
+    steps = [
+        {
+            "step_no": index,
+            "kind": "tool",
+            "tool_name": "shell_exec",
+            "status": "completed",
+            "input": {"arguments": {"command": f"echo branch-{index}"}},
+        }
+        for index in range(1, 7)
+    ]
+
+    content = build_messages(job, steps)[-1]["content"]
+
+    assert "Recent work is execution-heavy" not in content
+
+
 def test_run_one_step_blocks_branch_work_when_memory_graph_needs_consolidation(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

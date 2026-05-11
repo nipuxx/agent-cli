@@ -134,6 +134,7 @@ def build_messages(
     )
     measurement_obligation = _measurement_obligation_for_prompt(job)
     measured_progress_guard = _measured_progress_guard_for_prompt(job, recent_steps)
+    research_balance_guard = _research_balance_guard_for_prompt(job, recent_steps)
     deliverable_progress_guard = _deliverable_progress_guard_for_prompt(job, recent_steps)
     progress_accounting_guard = _progress_accounting_for_prompt(recent_steps)
     activity_stagnation = _activity_stagnation_for_prompt(job)
@@ -165,6 +166,7 @@ def build_messages(
             ("Operator context", operator_messages),
             ("Pending measurement obligation", measurement_obligation),
             ("Measured progress guard", measured_progress_guard),
+            ("Research balance guard", research_balance_guard),
             ("Deliverable progress guard", deliverable_progress_guard),
             ("Progress accounting guard", progress_accounting_guard),
             ("Activity stagnation", activity_stagnation),
@@ -293,6 +295,21 @@ def _activity_stagnation_for_prompt(job: dict[str, Any]) -> str:
         "Next classify the branch with record_findings, record_source, record_experiment, record_tasks, "
         "record_roadmap, record_milestone_validation, or record_lesson. If the branch is low-yield, mark it "
         "blocked/skipped and pivot before doing more read-only work or saving more outputs."
+    )
+
+
+def _research_balance_guard_for_prompt(job: dict[str, Any], recent_steps: list[dict[str, Any]]) -> str:
+    context = _research_balance_context(job, recent_steps)
+    if not context:
+        return "None."
+    return (
+        "Recent work is execution-heavy but has little source-backed research recorded. "
+        f"completed_window={context.get('completed_window')} execution_actions={context.get('execution_actions')} "
+        f"research_actions={context.get('research_actions')} sources={context.get('sources')} findings={context.get('findings')} "
+        f"experiments={context.get('experiments')} files={context.get('files')}. "
+        "Before another deep execution/testing loop, use available research, browser, source, documentation, or local-inspection tools "
+        "to gather evidence and record it with record_source, record_findings, record_lesson, record_tasks, or an artifact. "
+        "If external research is not relevant or tools are unavailable, explicitly record why and what evidence substitutes for it."
     )
 
 
@@ -478,6 +495,13 @@ def _next_action_constraint(job: dict[str, Any], recent_steps: list[dict[str, An
             "Use write_file or write_artifact to save a partial draft/report/file, or use record_tasks, "
             "record_roadmap, record_milestone_validation, or record_lesson to explain the specific blocker "
             "and the next deliverable branch."
+        )
+    research_balance = _research_balance_context(job, recent_steps)
+    if research_balance:
+        return (
+            "Balance execution with research before the next deep action loop. "
+            "Gather source-backed evidence with available web/browser/documentation/local-inspection tools and record it, "
+            "or record why research is not applicable and what evidence replaces it."
         )
     experiment_next_action = _latest_experiment_next_action_context(job)
     if experiment_next_action:
@@ -984,6 +1008,66 @@ def _activity_stagnation_context(job: dict[str, Any]) -> dict[str, Any] | None:
         "streak": streak,
         "threshold": ACTIVITY_STAGNATION_CHECKPOINTS,
         "counts": {key: _as_int(counts.get(key)) for key in ("findings", "sources", "tasks", "experiments", "lessons", "milestones")},
+    }
+
+
+def _research_balance_context(
+    job: dict[str, Any],
+    recent_steps: list[dict[str, Any]],
+    *,
+    window: int = 28,
+    min_execution_actions: int = 5,
+) -> dict[str, Any] | None:
+    metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
+    sources = len(_metadata_list(job, "source_ledger"))
+    findings = len(_metadata_list(job, "finding_ledger"))
+    experiments = len(_metadata_list(job, "experiment_ledger"))
+    if sources > 0 or findings > 0:
+        return None
+    if metadata.get("pending_measurement_obligation"):
+        return None
+    completed = [step for step in recent_steps if step.get("status") == "completed"]
+    if not completed:
+        return None
+    tail = completed[-window:]
+    execution_tools = {"shell_exec", "write_file", "record_experiment", "write_artifact"}
+    research_tools = {
+        "web_search",
+        "web_extract",
+        "browser_navigate",
+        "browser_snapshot",
+        "browser_click",
+        "record_source",
+        "record_findings",
+    }
+    execution_actions = [step for step in tail if step.get("tool_name") in execution_tools]
+    research_actions = [step for step in tail if step.get("tool_name") in research_tools]
+    file_actions = [step for step in tail if step.get("tool_name") in {"write_file", "shell_exec"}]
+    tasks = _metadata_list(job, "task_queue")
+    active_research_tasks = [
+        task
+        for task in tasks
+        if str(task.get("status") or "open") in {"open", "active", "blocked"}
+        and str(task.get("output_contract") or "") == "research"
+    ]
+    has_research_intent = bool(active_research_tasks) or any(
+        "research" in str(job.get(key) or "").lower()
+        for key in ("title", "objective", "kind")
+    )
+    if len(execution_actions) < min_execution_actions and not (has_research_intent and len(file_actions) >= 3):
+        return None
+    if research_actions and not (has_research_intent and len(execution_actions) >= min_execution_actions * 2):
+        return None
+    if experiments <= 0 and len(execution_actions) < min_execution_actions + 2:
+        return None
+    return {
+        "completed_window": len(tail),
+        "execution_actions": len(execution_actions),
+        "research_actions": len(research_actions),
+        "sources": sources,
+        "findings": findings,
+        "experiments": experiments,
+        "files": len(file_actions),
     }
 
 

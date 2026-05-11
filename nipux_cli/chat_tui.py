@@ -13,7 +13,6 @@ from nipux_cli.tui_events import chat_pane_lines
 from nipux_cli.tui_layout import _compose_bar, _top_bar
 from nipux_cli.tui_outcomes import chat_updates_pane_lines
 from nipux_cli.tui_status import (
-    chat_work_pane_lines,
     job_display_state,
     right_pane_lines,
     worker_label,
@@ -34,6 +33,8 @@ def build_chat_frame(
     modal_view: str | None = None,
 ) -> str:
     del selected_control
+    if right_view == "work":
+        right_view = "updates"
     width = max(92, width)
     height = max(22, height)
     job = snapshot["job"]
@@ -50,7 +51,6 @@ def build_chat_frame(
     job_counts = snapshot.get("job_counts") if isinstance(snapshot.get("job_counts"), dict) else {}
     memory_entries = snapshot["memory_entries"]
     events = snapshot["events"]
-    right_events = snapshot.get("right_events") if isinstance(snapshot.get("right_events"), list) else events
     summary_events = snapshot.get("summary_events") if isinstance(snapshot.get("summary_events"), list) else events
     daemon = snapshot["daemon"]
     model = str(snapshot["model"])
@@ -105,7 +105,7 @@ def build_chat_frame(
         hint = "Type a goal to create the first worker  ·  / opens commands  ·  /settings configures"
         prompt_label = "❯"
     else:
-        hint = "Enter sends  ·  / opens commands  ·  /settings configures  ·  ←→ updates/jobs/work"
+        hint = "Enter sends  ·  / opens commands  ·  /settings configures  ·  ←→ updates/jobs"
         prompt_label = "❯"
     suggestions = [] if editing_field else slash_suggestion_lines(input_buffer, CHAT_SLASH_COMMANDS, width=width)
     compose_lines = _compose_bar(
@@ -127,16 +127,6 @@ def build_chat_frame(
             rows=body_rows,
         )
         right_title = "Model updates"
-    elif right_view == "work":
-        right_lines = chat_work_pane_lines(
-            job=right_job,
-            events=right_events,
-            tasks=tasks,
-            experiments=experiments,
-            width=right_width,
-            rows=body_rows,
-        )
-        right_title = "Worker"
     else:
         right_lines = right_pane_lines(
             job=right_job,

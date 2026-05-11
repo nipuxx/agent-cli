@@ -426,9 +426,6 @@ def _handle_chat_submit(
     if line in {"jobs", "/jobs", "status", "/status"}:
         _append_notice(notices, "opened jobs")
         return True, snapshot, job_id, notices, "status", None
-    if line in {"work", "/work", "activity", "/activity"}:
-        _append_notice(notices, "opened worker")
-        return True, snapshot, job_id, notices, "work", None
     if line in {"outcomes", "/outcomes", "updates", "/updates"}:
         _append_notice(notices, "opened outcomes")
         return True, snapshot, job_id, notices, "updates", None

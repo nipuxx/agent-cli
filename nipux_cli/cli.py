@@ -161,6 +161,7 @@ from nipux_cli.tui_events import (
     live_badge as _live_badge,
     minimal_live_event_line as _minimal_live_event_line,
 )
+from nipux_cli.tui_outcomes import model_update_event_parts as _model_update_event_parts
 from nipux_cli.tui_status import (
     job_display_state as _job_display_state,
     worker_label as _worker_label,
@@ -2630,18 +2631,136 @@ def _durable_job_objective(objective: str) -> str:
     )
 
 
+def _workspace_chat_job_dossier(db: AgentDB, jobs: list[dict[str, Any]], *, limit: int = 8) -> str:
+    """Compact job context for the left-side workspace chat model."""
+
+    if not jobs:
+        return "No worker jobs yet."
+    sections: list[str] = []
+    for index, job in enumerate(jobs[:limit], start=1):
+        job_id = str(job.get("id") or "")
+        metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
+        counts = _safe_job_counts(db, job_id)
+        findings = _metadata_records(job, "finding_ledger")
+        sources = _metadata_records(job, "source_ledger")
+        tasks = _metadata_records(job, "task_queue")
+        experiments = _metadata_records(job, "experiment_ledger")
+        lessons = _metadata_records(job, "lessons")
+        roadmap = metadata.get("roadmap") if isinstance(metadata.get("roadmap"), dict) else {}
+        milestones = roadmap.get("milestones") if isinstance(roadmap.get("milestones"), list) else []
+        open_tasks = sum(1 for task in tasks if str(task.get("status") or "open") in {"open", "active", "blocked"})
+        artifacts = _safe_list_artifacts(db, job_id, limit=3)
+        events = _safe_list_events(db, job_id, limit=40)
+        steps = _safe_list_steps(db, job_id, limit=1)
+        current_task = _workspace_current_task(tasks)
+        recent_outcomes = _workspace_recent_outcomes(events, limit=5)
+        latest_outputs = [
+            _one_line(str(artifact.get("title") or artifact.get("id") or "saved output"), 160)
+            for artifact in artifacts[:3]
+        ]
+        progress = (
+            f"actions={counts.get('steps', 0)} outputs={counts.get('artifacts', 0)} "
+            f"findings={len(findings)} sources={len(sources)} tasks={len(tasks)}/{open_tasks} open "
+            f"experiments={len(experiments)} lessons={len(lessons)} memory={counts.get('memory', 0)} "
+            f"roadmap={len(milestones)}"
+        )
+        latest_step = _one_line(_step_line(steps[-1]), 180) if steps else "no worker steps yet"
+        lines = [
+            f"{index}. {job.get('title') or job_id} | state={job.get('status') or 'unknown'} kind={job.get('kind') or 'generic'}",
+            f"   objective: {_one_line(job.get('objective') or '', 220)}",
+            f"   progress: {progress}",
+            f"   latest step: {latest_step}",
+        ]
+        if current_task:
+            lines.append(f"   active task: {current_task}")
+        if latest_outputs:
+            lines.append(f"   latest outputs: {'; '.join(latest_outputs)}")
+        if recent_outcomes:
+            lines.append(f"   recent outcomes: {'; '.join(recent_outcomes)}")
+        sections.append("\n".join(lines))
+    if len(jobs) > limit:
+        sections.append(f"... {len(jobs) - limit} more job(s) available.")
+    return "\n\n".join(sections)
+
+
+def _safe_job_counts(db: AgentDB, job_id: str) -> dict[str, int]:
+    if not job_id:
+        return {"steps": 0, "artifacts": 0, "memory": 0, "events": 0}
+    try:
+        return db.job_record_counts(job_id)
+    except Exception:
+        return {"steps": 0, "artifacts": 0, "memory": 0, "events": 0}
+
+
+def _safe_list_artifacts(db: AgentDB, job_id: str, *, limit: int) -> list[dict[str, Any]]:
+    try:
+        return db.list_artifacts(job_id, limit=limit)
+    except Exception:
+        return []
+
+
+def _safe_list_events(db: AgentDB, job_id: str, *, limit: int) -> list[dict[str, Any]]:
+    try:
+        return db.list_timeline_events(job_id, limit=limit)
+    except Exception:
+        return []
+
+
+def _safe_list_steps(db: AgentDB, job_id: str, *, limit: int) -> list[dict[str, Any]]:
+    try:
+        return db.list_steps(job_id=job_id, limit=limit)
+    except Exception:
+        return []
+
+
+def _workspace_current_task(tasks: list[dict[str, Any]]) -> str:
+    visible = [
+        task
+        for task in tasks
+        if str(task.get("status") or "open") in {"active", "open", "blocked"}
+    ]
+    if not visible:
+        return ""
+    visible.sort(
+        key=lambda task: (
+            {"active": 0, "open": 1, "blocked": 2}.get(str(task.get("status") or "open"), 9),
+            -int(task.get("priority") or 0),
+        )
+    )
+    task = visible[0]
+    status = str(task.get("status") or "open")
+    contract = str(task.get("output_contract") or "")
+    suffix = f" [{contract}]" if contract else ""
+    return _one_line(f"{status} {task.get('title') or 'task'}{suffix}", 180)
+
+
+def _workspace_recent_outcomes(events: list[dict[str, Any]], *, limit: int) -> list[str]:
+    outcomes: list[str] = []
+    seen: set[str] = set()
+    for event in reversed(events):
+        parsed = _model_update_event_parts(event, width=240, compact=True)
+        if not parsed:
+            continue
+        label, text, _clock = parsed
+        if label == "DONE":
+            continue
+        piece = _one_line(f"{label.lower()} {text}", 180)
+        if piece in seen:
+            continue
+        seen.add(piece)
+        outcomes.append(piece)
+        if len(outcomes) >= limit:
+            break
+    return outcomes
+
+
 def _reply_to_workspace_chat(message: str) -> Any:
     from nipux_cli.llm import OpenAIChatLLM
 
     db, config = _db()
     try:
         jobs = db.list_jobs()[:12]
-        job_lines = []
-        for index, job in enumerate(jobs, start=1):
-            job_lines.append(
-                f"{index}. {job.get('title') or job.get('id')} "
-                f"status={job.get('status')} kind={job.get('kind')} objective={_one_line(job.get('objective') or '', 180)}"
-            )
+        job_dossier = _workspace_chat_job_dossier(db, jobs)
         workspace_events = _workspace_chat_events()[-12:]
         history_lines = [
             f"- {event.get('event_type')} {event.get('title')}: {_one_line(event.get('body') or '', 220)}"
@@ -2654,7 +2773,8 @@ def _reply_to_workspace_chat(message: str) -> Any:
                     "You are Nipux, the workspace chat model for a generic long-running agent CLI. "
                     "Your job is to help the operator create, start, inspect, pause, resume, and steer worker jobs. "
                     "You know the CLI concepts: jobs are long-running workers; artifacts are saved outputs; outcomes summarize durable progress; "
-                    "the work page shows tool/console calls; the jobs page shows state, outputs, tasks, memory, findings, sources, experiments, and cost. "
+                    "the updates page shows durable worker outcomes; the jobs page shows state, outputs, tasks, memory, findings, sources, experiments, and cost. "
+                    "Answer job-status questions from the job dossier. Mention concrete outputs, tasks, measurements, sources, blockers, and next branches when present. "
                     "When the operator asks you to do new work, explain that Nipux will spin up a worker job; the harness will create the job from plain language. "
                     "Keep replies concise, concrete, and operator-facing. Do not expose hidden chain-of-thought."
                 ),
@@ -2665,7 +2785,7 @@ def _reply_to_workspace_chat(message: str) -> Any:
                     f"Model: {config.model.model}\n"
                     f"Endpoint: {config.model.base_url}\n"
                     f"Tools: browser={config.tools.browser}, web={config.tools.web}, CLI={config.tools.shell}, files={config.tools.files}\n\n"
-                    f"Jobs:\n{chr(10).join(job_lines) or 'No worker jobs yet.'}\n\n"
+                    f"Job dossier:\n{job_dossier}\n\n"
                     f"Recent workspace chat:\n{chr(10).join(history_lines) or 'None yet.'}\n\n"
                     f"Operator message:\n{message}"
                 ),

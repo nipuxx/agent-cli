@@ -41,6 +41,7 @@ from nipux_cli.cli import (
     _slash_suggestion_lines,
     _systemd_service_text,
     _verify_model_setup_from_first_run,
+    _workspace_chat_job_dossier,
     build_parser,
     main,
 )
@@ -1506,6 +1507,46 @@ def test_workspace_slash_new_creates_and_focuses_job(monkeypatch, tmp_path):
         db.close()
 
 
+def test_workspace_chat_job_dossier_includes_progress_outputs_and_outcomes(tmp_path):
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Research and validate a workflow", title="workflow research")
+        run_id = db.start_run(job_id, model="fake")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="write_artifact")
+        db.finish_step(step_id, status="completed", output_data={"artifact_id": "art_demo"})
+        db.add_artifact(
+            job_id=job_id,
+            path=tmp_path / "workflow.md",
+            sha256="abc123",
+            artifact_type="text",
+            title="Workflow Evidence",
+            summary="saved research notes",
+        )
+        db.append_task_record(job_id, title="Compare source-backed options", status="active", output_contract="research")
+        db.append_source_record(job_id, "https://example.com/source", source_type="web")
+        db.append_finding_record(job_id, name="Useful research finding", source_url="https://example.com/source")
+        db.append_experiment_record(
+            job_id,
+            title="Validation check",
+            status="measured",
+            metric_name="pass_rate",
+            metric_value=0.9,
+        )
+        job = db.get_job(job_id)
+        dossier = _workspace_chat_job_dossier(db, [job])
+    finally:
+        db.close()
+
+    assert "workflow research" in dossier
+    assert "outputs=1" in dossier
+    assert "findings=1" in dossier
+    assert "sources=1" in dossier
+    assert "experiments=1" in dossier
+    assert "active task: active Compare source-backed options [research]" in dossier
+    assert "latest outputs: Workflow Evidence" in dossier
+    assert "recent outcomes:" in dossier
+
+
 def test_workspace_run_with_objective_creates_worker_when_no_job_matches(monkeypatch, tmp_path):
     monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
     _mark_test_model_ready()
@@ -2302,10 +2343,9 @@ def test_chat_frame_is_bounded_and_has_composer():
     jobs = _build_chat_frame(snapshot, "", [], width=100, height=26, right_view="status")
     assert "Draft next deli" in jobs
 
-    work = _build_chat_frame(snapshot, "", [], width=100, height=24, right_view="work")
-    assert "Work" in work
-    assert "Tool / console" in work
-    assert "search demo" in work
+    legacy_work = _build_chat_frame(snapshot, "", [], width=100, height=24, right_view="work")
+    assert "MODEL UPDATES" in legacy_work
+    assert "Tool / console" not in legacy_work
 
     updates = _build_chat_frame(snapshot, "", [], width=100, height=24, right_view="updates")
     assert "MODEL UPDATES" in updates
@@ -2357,13 +2397,13 @@ def test_chat_frame_separates_chat_from_worker_activity():
         "model": "model/demo",
     }
 
-    frame = _build_chat_frame(snapshot, "", [], width=130, height=24, right_view="work")
+    frame = _build_chat_frame(snapshot, "", [], width=130, height=24, right_view="updates")
     chat_side = frame.split(" │ ", 1)[0]
 
     assert "start a benchmark job" in frame
     assert "I created the job" in frame
-    assert "Tool / console" in frame
-    assert "python bench.py" in frame
+    assert "Tool / console" not in frame
+    assert "python bench.py" not in frame
     assert "python bench.py" not in chat_side
 
 
@@ -2602,10 +2642,9 @@ def test_chat_frame_surfaces_actual_work_events():
     }
 
     updates = _build_chat_frame(snapshot, "", [], width=150, height=34, right_view="updates")
-    work = _build_chat_frame(snapshot, "", [], width=150, height=34, right_view="work")
-    frame = updates + "\n" + work
+    jobs = _build_chat_frame(snapshot, "", [], width=150, height=34, right_view="status")
+    frame = updates + "\n" + jobs
 
-    assert "Done" in work
     assert "Research Paper Draft" in frame
     assert "Distillation finding" in frame
     assert "Compare methods" in frame
@@ -2614,7 +2653,6 @@ def test_chat_frame_surfaces_actual_work_events():
     assert "Citation coverage check" in frame
     assert "LEARN" in frame
     assert "strategy" in frame
-    assert "reflected #10" in frame
 
 
 def test_chat_frame_has_model_updates_page():
@@ -3623,9 +3661,10 @@ def test_chat_frame_collapses_repeated_failures_and_hides_memory_noise():
         "counts": {"steps": 3, "artifacts": 0, "memory": 1},
     }
 
-    frame = _build_chat_frame(snapshot, "", [], width=120, height=24, right_view="work")
+    frame = _build_chat_frame(snapshot, "", [], width=120, height=24, right_view="updates")
 
-    assert "FAIL x3" in frame
+    assert "3 blocks" in frame
+    assert "FAIL" in frame
     assert "very long compact memory" not in frame
 
 
@@ -3653,10 +3692,10 @@ def test_work_pane_uses_badges_without_duplicate_action_verbs():
         "model": "model/demo",
     }
 
-    frame = _build_chat_frame(snapshot, "", [], width=120, height=24, right_view="work")
+    frame = _build_chat_frame(snapshot, "", [], width=120, height=24, right_view="updates")
 
-    assert "save Demo Output" in frame
-    assert "find Demo Finding" in frame
+    assert "Demo Output" in frame
+    assert "Demo Finding" in frame
     assert "TEST" in frame
     assert "Demo Measurement" in frame
     assert "save saved" not in frame
