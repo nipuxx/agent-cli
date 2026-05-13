@@ -3991,6 +3991,86 @@ def test_run_one_step_blocks_new_tasks_when_queue_is_saturated(tmp_path):
         db.close()
 
 
+def test_run_one_step_ignores_guard_recovery_tasks_for_queue_saturation(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job(
+            "Continue objective work after guard recovery",
+            title="guard-task-sprawl",
+            kind="generic",
+            metadata={
+                "task_queue": [
+                    {
+                        "title": f"Resolve guard: recoverable blocker {index}",
+                        "status": "open",
+                        "priority": 9,
+                        "metadata": {"guard_recovery": {"error": f"recoverable blocker {index}"}},
+                    }
+                    for index in range(45)
+                ]
+            },
+        )
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(name="record_tasks", arguments={"tasks": [{"title": "Run next objective branch", "status": "open"}]})
+                ])
+            ]),
+        )
+
+        assert result.status == "completed"
+        assert result.tool_name == "record_tasks"
+        job = db.get_job(job_id)
+        assert any(task["title"] == "Run next objective branch" for task in job["metadata"]["task_queue"])
+    finally:
+        db.close()
+
+
+def test_run_one_step_ignores_guard_recovery_tasks_for_total_sprawl(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job(
+            "Continue objective work after many recovered guards",
+            title="guard-total-sprawl",
+            kind="generic",
+            metadata={
+                "task_queue": [
+                    {
+                        "title": f"Resolve guard: recovered blocker {index}",
+                        "status": "done",
+                        "priority": 9,
+                        "metadata": {"guard_recovery": {"error": f"recovered blocker {index}"}},
+                    }
+                    for index in range(85)
+                ]
+            },
+        )
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(name="record_tasks", arguments={"tasks": [{"title": "Fresh objective branch", "status": "open"}]})
+                ])
+            ]),
+        )
+
+        assert result.status == "completed"
+        assert result.tool_name == "record_tasks"
+        job = db.get_job(job_id)
+        assert any(task["title"] == "Fresh objective branch" for task in job["metadata"]["task_queue"])
+    finally:
+        db.close()
+
+
 def test_run_one_step_blocks_new_tasks_when_queue_sprawls(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

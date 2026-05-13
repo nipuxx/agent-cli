@@ -108,6 +108,11 @@ progress as an experiment/task/checkpoint, and use defer_job when the next usefu
 step is to wait and check again. Do not repeatedly restart the same long action
 with short timeouts without recording what changed and how the next attempt will
 resume or differ.
+If a probe shows a partial output, incomplete file, running process, cache entry,
+checkpoint, or other unfinished artifact from an action branch, stop re-listing
+the same state. Either resume/continue the action with a resumable command,
+record a monitor/defer step for the still-running work, or record the branch as
+blocked with the concrete missing condition and next action.
 read_artifact only reads saved Nipux artifacts. Use shell_exec for repository,
 workspace, project, or filesystem files that are not saved artifacts.
 write_file writes workspace/local files directly; write_artifact writes Nipux's

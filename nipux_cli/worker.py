@@ -710,7 +710,8 @@ def _task_queue_exhausted(job: dict[str, Any]) -> bool:
 
 def _task_queue_saturation_context(job: dict[str, Any], args: dict[str, Any]) -> dict[str, Any] | None:
     tasks = _metadata_list(job, "task_queue")
-    open_tasks = [task for task in tasks if str(task.get("status") or "open").strip().lower() in {"open", "active"}]
+    objective_tasks = [task for task in tasks if not _is_guard_recovery_task(task)]
+    open_tasks = [task for task in objective_tasks if str(task.get("status") or "open").strip().lower() in {"open", "active"}]
     incoming = args.get("tasks") if isinstance(args.get("tasks"), list) else []
     if not incoming:
         return None
@@ -729,14 +730,15 @@ def _task_queue_saturation_context(job: dict[str, Any], args: dict[str, Any]) ->
             new_titles.append(str(task.get("title") or "").strip())
         if status in {"open", "active"} and key not in existing_keys:
             new_open_titles.append(str(task.get("title") or "").strip())
-    if len(tasks) >= TASK_QUEUE_TOTAL_SOFT_LIMIT and new_titles:
+    if len(objective_tasks) >= TASK_QUEUE_TOTAL_SOFT_LIMIT and new_titles:
         return {
             "reason": "total task queue is too large",
-            "total_count": len(tasks),
+            "total_count": len(objective_tasks),
             "total_threshold": TASK_QUEUE_TOTAL_SOFT_LIMIT,
             "open_count": len(open_tasks),
             "new_count": len(new_titles),
             "new_titles": new_titles[:8],
+            "recovery_task_count": len(tasks) - len(objective_tasks),
         }
     if len(open_tasks) < TASK_QUEUE_SATURATION_OPEN_TASKS:
         return None
@@ -746,9 +748,10 @@ def _task_queue_saturation_context(job: dict[str, Any], args: dict[str, Any]) ->
         "reason": "too many open tasks",
         "open_count": len(open_tasks),
         "open_threshold": TASK_QUEUE_SATURATION_OPEN_TASKS,
-        "total_count": len(tasks),
+        "total_count": len(objective_tasks),
         "new_open_count": len(new_open_titles),
         "new_open_titles": new_open_titles[:8],
+        "recovery_task_count": len(tasks) - len(objective_tasks),
     }
 
 
@@ -769,6 +772,11 @@ def _task_planning_stagnation_context(job: dict[str, Any]) -> dict[str, Any] | N
         "total_tasks": len(tasks),
         "open_tasks": len(open_tasks),
     }
+
+
+def _is_guard_recovery_task(task: dict[str, Any]) -> bool:
+    metadata = task.get("metadata") if isinstance(task.get("metadata"), dict) else {}
+    return bool(metadata.get("guard_recovery")) or str(task.get("title") or "").strip().lower().startswith("resolve guard:")
 
 
 def _record_tasks_adds_new_open_work(args: dict[str, Any], job: dict[str, Any]) -> bool:
