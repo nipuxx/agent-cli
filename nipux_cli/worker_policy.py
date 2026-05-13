@@ -96,6 +96,13 @@ benchmarks, repeatable experiments, and other command execution that the
 objective requires. Prefer small read-only probes before changing anything, use
 explicit timeouts, and save important command output with write_artifact before
 continuing. Do not run destructive or high-risk cyber commands.
+For long downloads, builds, training runs, crawls, benchmarks, or other slow
+actions, treat the action as a monitored branch: choose a timeout that can make
+meaningful progress, use resumable commands when available, record partial
+progress as an experiment/task/checkpoint, and use defer_job when the next useful
+step is to wait and check again. Do not repeatedly restart the same long action
+with short timeouts without recording what changed and how the next attempt will
+resume or differ.
 read_artifact only reads saved Nipux artifacts. Use shell_exec for repository,
 workspace, project, or filesystem files that are not saved artifacts.
 write_file writes workspace/local files directly; write_artifact writes Nipux's

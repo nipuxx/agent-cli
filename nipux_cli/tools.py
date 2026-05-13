@@ -963,7 +963,7 @@ SUPPORT_SCHEMAS: list[ToolSpec] = [
         "properties": {"urls": {"type": "array", "items": {"type": "string"}, "maxItems": 5}},
         "required": ["urls"],
     }, _web_handler("web_extract")),
-    ToolSpec("shell_exec", "Run a local shell command for CLI work. Use small read-only probes first, set timeouts for long commands, and do not run destructive or high-risk cyber commands.", {
+    ToolSpec("shell_exec", "Run a local shell command for CLI work. Use small read-only probes first. For long downloads, builds, training, crawls, or benchmarks, set a meaningful timeout, prefer resumable commands, and record or defer monitoring instead of repeatedly restarting short timed-out commands. Do not run destructive or high-risk cyber commands.", {
         "type": "object",
         "properties": {
             "command": {"type": "string"},
