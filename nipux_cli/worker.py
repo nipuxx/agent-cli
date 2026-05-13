@@ -929,6 +929,7 @@ def _completed_recent_steps(recent_steps: list[dict[str, Any]]) -> list[dict[str
 EVIDENCE_GROUNDED_TOOLS = {
     "record_experiment",
     "record_findings",
+    "record_memory_graph",
     "record_roadmap",
     "report_update",
     "write_artifact",
@@ -2577,6 +2578,36 @@ def _auto_persist_evidence(
     return {"artifact_id": stored.id, "path": str(stored.path), "lesson": lesson}
 
 
+def _auto_record_grounding_block_lesson(*, db: AgentDB, job_id: str, result: dict[str, Any]) -> None:
+    if result.get("error") != "evidence grounding required":
+        return
+    grounding = result.get("evidence_grounding") if isinstance(result.get("evidence_grounding"), dict) else {}
+    unsupported = grounding.get("unsupported_tokens") if isinstance(grounding.get("unsupported_tokens"), list) else []
+    unsupported = [str(token) for token in unsupported if str(token).strip()]
+    if not unsupported:
+        return
+    cited_steps = grounding.get("cited_steps") if isinstance(grounding.get("cited_steps"), list) else []
+    blocked_tool = str(result.get("blocked_tool") or "")
+    fingerprint = "|".join([blocked_tool, ",".join(unsupported[:8]), ",".join(str(step) for step in cited_steps[:8])])
+    job = db.get_job(job_id)
+    metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
+    seen = metadata.get("grounding_block_fingerprints") if isinstance(metadata.get("grounding_block_fingerprints"), list) else []
+    if fingerprint in seen:
+        return
+    db.append_lesson(
+        job_id,
+        (
+            f"Evidence grounding rejected unsupported concrete tokens for {blocked_tool or 'a durable record'}: "
+            f"{', '.join(unsupported[:8])}. Treat matching prior ledger, artifact, or memory claims as stale until "
+            "they are re-verified from the cited evidence."
+        ),
+        category="mistake",
+        confidence=0.9,
+        metadata={"evidence_grounding": grounding, "blocked_tool": blocked_tool},
+    )
+    db.update_job_metadata(job_id, {"grounding_block_fingerprints": (seen + [fingerprint])[-100:]})
+
+
 def _mark_evidence_checkpoint_read(
     *,
     db: AgentDB,
@@ -3033,6 +3064,7 @@ def _execute_tool_call(
                 category="blocked",
                 metadata={"source": known_bad_source, "blocked_tool": call.name},
             )
+        _auto_record_grounding_block_lesson(db=db, job_id=job_id, result=result)
         db.finish_step(
             step_id,
             status="blocked",

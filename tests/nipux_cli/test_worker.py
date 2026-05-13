@@ -2195,6 +2195,55 @@ def test_run_one_step_blocks_durable_records_with_unsupported_concrete_claims(tm
         assert result.result["error"] == "evidence grounding required"
         assert result.result["blocked_tool"] == "record_roadmap"
         assert "GTX" in result.result["evidence_grounding"]["unsupported_tokens"]
+        lessons = db.get_job(job_id)["metadata"]["lessons"]
+        assert any("GTX" in lesson["lesson"] and "stale" in lesson["lesson"] for lesson in lessons)
+    finally:
+        db.close()
+
+
+def test_run_one_step_blocks_memory_graph_with_unsupported_claims(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Consolidate observed facts", title="memory-grounding", kind="generic")
+        run_id = db.start_run(job_id, model="test")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec")
+        db.finish_step(
+            step_id,
+            status="completed",
+            output_data={
+                "success": True,
+                "stdout": "GPU: AMD Device 7590\nCPU: AMD Ryzen 9 7900X\nMemory: 93Gi\n",
+            },
+        )
+        db.finish_run(run_id, "completed")
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(
+                        name="record_memory_graph",
+                        arguments={
+                            "nodes": [
+                                {
+                                    "key": "hardware",
+                                    "kind": "fact",
+                                    "title": "NVIDIA GTX 970 CUDA hardware",
+                                    "summary": "The machine has NVIDIA GTX 970 CUDA hardware.",
+                                }
+                            ]
+                        },
+                    )
+                ])
+            ]),
+        )
+
+        assert result.status == "blocked"
+        assert result.result["error"] == "evidence grounding required"
+        assert result.result["blocked_tool"] == "record_memory_graph"
     finally:
         db.close()
 
