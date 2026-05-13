@@ -199,6 +199,7 @@ RECOVERABLE_GUARD_ERRORS = {
     "artifact search loop blocked",
     "deliverable checkpoint required",
     "durable progress required",
+    "evidence checkpoint accounting required",
     "duplicate tool call blocked",
     "experiment next action pending",
     "known bad source blocked",

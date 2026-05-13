@@ -2199,6 +2199,53 @@ def test_run_one_step_blocks_durable_records_with_unsupported_concrete_claims(tm
         db.close()
 
 
+def test_run_one_step_requires_accounting_after_auto_checkpoint_read(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Convert evidence checkpoints into progress", title="checkpoint", kind="generic")
+        run_id = db.start_run(job_id, model="test")
+        checkpoint_step = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec")
+        db.finish_step(
+            checkpoint_step,
+            status="blocked",
+            output_data={
+                "success": True,
+                "error": "artifact required before more research",
+                "auto_checkpoint": {
+                    "artifact_id": "art_checkpoint",
+                    "title": "Auto Evidence Checkpoint after step 1",
+                    "evidence_step": "step_evidence",
+                    "blocked_tool": "shell_exec",
+                },
+            },
+        )
+        read_step = db.add_step(
+            job_id=job_id,
+            run_id=run_id,
+            kind="tool",
+            tool_name="read_artifact",
+            input_data={"arguments": {"artifact_id": "art_checkpoint"}},
+        )
+        db.finish_step(read_step, status="completed", output_data={"success": True, "content": "evidence"})
+        db.finish_run(run_id, "completed")
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[ToolCall(name="shell_exec", arguments={"command": "echo more discovery"})])
+            ]),
+        )
+
+        assert result.status == "blocked"
+        assert result.result["error"] == "evidence checkpoint accounting required"
+        assert result.result["blocked_tool"] == "shell_exec"
+    finally:
+        db.close()
+
+
 def test_run_one_step_blocks_branch_work_when_memory_graph_needs_consolidation(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

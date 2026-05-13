@@ -1121,6 +1121,53 @@ def _unpersisted_evidence_step(recent_steps: list[dict[str, Any]]) -> dict[str, 
     return None
 
 
+def _auto_checkpoint_accounting_context(recent_steps: list[dict[str, Any]]) -> dict[str, Any] | None:
+    checkpoint_step = None
+    checkpoint = None
+    for step in reversed(recent_steps):
+        output = step.get("output") if isinstance(step.get("output"), dict) else {}
+        if isinstance(output.get("auto_checkpoint"), dict):
+            checkpoint_step = step
+            checkpoint = output["auto_checkpoint"]
+            break
+    if not checkpoint_step or not checkpoint:
+        return None
+    checkpoint_step_no = int(checkpoint_step.get("step_no") or 0)
+    tail = [step for step in recent_steps if int(step.get("step_no") or 0) > checkpoint_step_no]
+    if any(step.get("tool_name") in LEDGER_PROGRESS_TOOLS for step in tail if step.get("status") == "completed"):
+        return None
+    artifact_id = str(checkpoint.get("artifact_id") or "")
+    artifact_title = str(checkpoint.get("title") or "")
+    checkpoint_read = any(
+        step.get("tool_name") == "read_artifact"
+        and step.get("status") == "completed"
+        and _read_artifact_args_match_checkpoint(step, artifact_id=artifact_id, artifact_title=artifact_title)
+        for step in tail
+    )
+    return {
+        "artifact_id": artifact_id,
+        "title": artifact_title,
+        "checkpoint_step_no": checkpoint_step.get("step_no"),
+        "evidence_step": checkpoint.get("evidence_step"),
+        "blocked_tool": checkpoint.get("blocked_tool"),
+        "checkpoint_read": checkpoint_read,
+    }
+
+
+def _read_artifact_args_match_checkpoint(step: dict[str, Any], *, artifact_id: str, artifact_title: str) -> bool:
+    input_data = step.get("input") if isinstance(step.get("input"), dict) else {}
+    args = input_data.get("arguments") if isinstance(input_data.get("arguments"), dict) else {}
+    return _read_artifact_call_matches_checkpoint(args, artifact_id=artifact_id, artifact_title=artifact_title)
+
+
+def _read_artifact_call_matches_checkpoint(args: dict[str, Any], *, artifact_id: str, artifact_title: str) -> bool:
+    values = [str(args.get(key) or "").strip() for key in ("artifact_id", "id", "title", "query")]
+    values = [value for value in values if value]
+    if artifact_id and artifact_id in values:
+        return True
+    return bool(artifact_title and any(value == artifact_title for value in values))
+
+
 def _recent_search_streak(recent_steps: list[dict[str, Any]]) -> int:
     return _recent_tool_streak(recent_steps, "web_search")
 
@@ -1637,6 +1684,28 @@ def _blocked_tool_call_result(
                 ),
             }
             return result, "blocked record_tasks; task-only planning needs execution"
+
+    auto_checkpoint_accounting = _auto_checkpoint_accounting_context(recent_steps)
+    if (
+        auto_checkpoint_accounting
+        and auto_checkpoint_accounting.get("checkpoint_read")
+        and name not in LEDGER_PROGRESS_TOOLS
+        and name != "acknowledge_operator_context"
+    ):
+        result = {
+            "success": False,
+            "error": "evidence checkpoint accounting required",
+            "blocked_tool": name,
+            "blocked_arguments": args,
+            "auto_checkpoint": auto_checkpoint_accounting,
+            "guidance": (
+                "An auto-saved evidence checkpoint is waiting to be converted into durable progress. "
+                "Use record_findings, record_source, record_experiment, record_tasks, record_roadmap, "
+                "record_milestone_validation, or record_lesson to account for it before more artifact reads, "
+                "shell, search, file, report, or artifact churn."
+            ),
+        }
+        return result, f"blocked {name}; evidence checkpoint accounting required"
 
     duplicate_step = _duplicate_recent_tool_call(name, args, recent_steps)
     if duplicate_step:
