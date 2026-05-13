@@ -1134,14 +1134,16 @@ def _evidence_grounding_context(
     if len(evidence_text.strip()) < 80:
         return None
     proposed_tokens = _concrete_evidence_tokens(proposed_text)
-    unsupported_threshold = 1 if cited_steps else 3
+    stale_tokens = _active_stale_claim_token_set(job)
+    proposed_stale_tokens = [token for token in proposed_tokens if token.lower() in stale_tokens]
+    unsupported_threshold = 1 if cited_steps or proposed_stale_tokens else 3
     if len(proposed_tokens) < unsupported_threshold:
         return None
     evidence_lower = evidence_text.lower()
     unsupported = []
     for token in proposed_tokens:
         lowered = token.lower()
-        if lowered in evidence_lower:
+        if lowered in evidence_lower and lowered not in stale_tokens:
             continue
         unsupported.append(token)
     unique = []
@@ -1214,6 +1216,9 @@ def _recent_evidence_text(
     step_numbers: set[int] | None = None,
 ) -> str:
     parts = [str(job.get("title") or ""), str(job.get("objective") or ""), str(job.get("kind") or "")]
+    durable_text = _durable_records_for_grounding(job)
+    if durable_text:
+        parts.append(durable_text)
     for step in _evidence_steps_for_grounding(recent_steps, window=window, step_numbers=step_numbers):
         parts.append(str(step.get("summary") or ""))
         input_data = step.get("input") if isinstance(step.get("input"), dict) else {}
@@ -1233,6 +1238,62 @@ def _recent_evidence_text(
         for item in results[:8]:
             if isinstance(item, dict):
                 parts.append(_json_text({key: item.get(key) for key in ("url", "title", "snippet")}))
+    return "\n".join(parts)
+
+
+def _active_stale_claim_token_set(job: dict[str, Any]) -> set[str]:
+    metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
+    raw_tokens = metadata.get("unsupported_claim_tokens") if isinstance(metadata.get("unsupported_claim_tokens"), list) else []
+    return {str(token).strip().lower() for token in raw_tokens if str(token).strip()}
+
+
+def _durable_records_for_grounding(job: dict[str, Any]) -> str:
+    metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
+    parts: list[str] = []
+    for finding in _metadata_list(job, "finding_ledger")[-20:]:
+        parts.append(_json_text({
+            "finding": finding.get("name") or finding.get("title"),
+            "category": finding.get("category"),
+            "reason": finding.get("reason") or finding.get("summary"),
+            "evidence_artifact": finding.get("evidence_artifact"),
+            "url": finding.get("url"),
+        }))
+    for experiment in _metadata_list(job, "experiment_ledger")[-12:]:
+        parts.append(_json_text({
+            "experiment": experiment.get("title") or experiment.get("name"),
+            "hypothesis": experiment.get("hypothesis"),
+            "status": experiment.get("status"),
+            "metric_name": experiment.get("metric_name"),
+            "metric_value": experiment.get("metric_value"),
+            "metric_unit": experiment.get("metric_unit"),
+            "result": experiment.get("result"),
+            "next_action": experiment.get("next_action"),
+            "config": experiment.get("config") if isinstance(experiment.get("config"), dict) else {},
+        }))
+    for source in _metadata_list(job, "source_ledger")[-12:]:
+        parts.append(_json_text({
+            "source": source.get("source") or source.get("url"),
+            "source_type": source.get("source_type"),
+            "outcome": source.get("outcome"),
+            "score": source.get("score"),
+        }))
+    roadmap = metadata.get("roadmap") if isinstance(metadata.get("roadmap"), dict) else {}
+    if roadmap:
+        parts.append(_json_text({
+            "roadmap": roadmap.get("title"),
+            "objective": roadmap.get("objective"),
+            "current_milestone": roadmap.get("current_milestone"),
+            "validation_contract": roadmap.get("validation_contract"),
+        }))
+    graph = metadata.get("memory_graph") if isinstance(metadata.get("memory_graph"), dict) else {}
+    nodes = graph.get("nodes") if isinstance(graph.get("nodes"), list) else []
+    for node in [item for item in nodes if isinstance(item, dict)][-20:]:
+        parts.append(_json_text({
+            "memory_node": node.get("key"),
+            "kind": node.get("kind"),
+            "title": node.get("title"),
+            "summary": node.get("summary"),
+        }))
     return "\n".join(parts)
 
 

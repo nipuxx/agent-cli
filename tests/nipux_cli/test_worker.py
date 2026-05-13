@@ -2361,6 +2361,96 @@ def test_run_one_step_blocks_memory_graph_with_unsupported_claims(tmp_path):
         db.close()
 
 
+def test_run_one_step_allows_memory_graph_grounded_in_durable_records(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Consolidate durable facts", title="memory-grounded-ledger", kind="generic")
+        db.append_finding_record(
+            job_id,
+            name="Artifact cache includes Package_A-2.7.1 and backend XYZ123",
+            category="environment_fact",
+            reason="A saved checkpoint established Package_A-2.7.1 and backend XYZ123 as available options.",
+            metadata={"evidence_artifact": "art_env"},
+        )
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(
+                        name="record_memory_graph",
+                        arguments={
+                            "nodes": [
+                                {
+                                    "key": "package-a",
+                                    "kind": "fact",
+                                    "title": "Package_A-2.7.1 via backend XYZ123",
+                                    "summary": "Durable finding says Package_A-2.7.1 is available through backend XYZ123.",
+                                }
+                            ]
+                        },
+                    )
+                ])
+            ]),
+        )
+
+        assert result.status == "completed"
+        assert result.tool_name == "record_memory_graph"
+    finally:
+        db.close()
+
+
+def test_run_one_step_blocks_memory_graph_grounded_only_in_stale_records(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job(
+            "Consolidate durable facts",
+            title="memory-stale-ledger",
+            kind="generic",
+            metadata={"unsupported_claim_tokens": ["Package_A-2.7.1"]},
+        )
+        db.append_finding_record(
+            job_id,
+            name="Artifact cache includes Package_A-2.7.1",
+            category="environment_fact",
+            reason="Older ledger record mentioned Package_A-2.7.1.",
+            metadata={"evidence_artifact": "art_old"},
+        )
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(
+                        name="record_memory_graph",
+                        arguments={
+                            "nodes": [
+                                {
+                                    "key": "package-a",
+                                    "kind": "fact",
+                                    "title": "Package_A-2.7.1",
+                                    "summary": "Package_A-2.7.1 is still valid.",
+                                }
+                            ]
+                        },
+                    )
+                ])
+            ]),
+        )
+
+        assert result.status == "blocked"
+        assert result.result["error"] == "evidence grounding required"
+        assert "Package_A-2.7.1" in result.result["evidence_grounding"]["unsupported_tokens"]
+    finally:
+        db.close()
+
+
 def test_run_one_step_allows_durable_records_grounded_in_read_artifact(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")
