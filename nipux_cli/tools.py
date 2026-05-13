@@ -756,11 +756,22 @@ def _record_experiment(args: dict[str, Any], ctx: ToolContext) -> str:
     metric_value = float(metric_value_arg) if isinstance(metric_value_arg, (int, float)) else None
     baseline_value_arg = args.get("baseline_value")
     baseline_value = float(baseline_value_arg) if isinstance(baseline_value_arg, (int, float)) else None
+    status = str(args.get("status") or "planned").strip().lower() or "planned"
+    next_action = str(args.get("next_action") or "").strip()
+    if status in {"measured", "failed", "blocked", "skipped"} and not next_action:
+        return _json({
+            "success": False,
+            "error": "next_action is required for measured, failed, blocked, or skipped experiments",
+            "guidance": (
+                "Experiment records that close out a trial must leave a concrete next action, "
+                "such as the next experiment, action branch, monitor branch, pivot, or blocked condition."
+            ),
+        })
     record = ctx.db.append_experiment_record(
         ctx.job_id,
         title=title,
         hypothesis=str(args.get("hypothesis") or ""),
-        status=str(args.get("status") or "planned"),
+        status=status,
         metric_name=str(args.get("metric_name") or ""),
         metric_value=metric_value,
         metric_unit=str(args.get("metric_unit") or ""),
@@ -769,7 +780,7 @@ def _record_experiment(args: dict[str, Any], ctx: ToolContext) -> str:
         config=args.get("config") if isinstance(args.get("config"), dict) else {},
         result=str(args.get("result") or args.get("outcome") or ""),
         evidence_artifact=str(args.get("evidence_artifact") or args.get("artifact_id") or ""),
-        next_action=str(args.get("next_action") or ""),
+        next_action=next_action,
         metadata=args.get("metadata") if isinstance(args.get("metadata"), dict) else {},
     )
     metric = ""
@@ -1299,7 +1310,7 @@ SUPPORT_SCHEMAS: list[ToolSpec] = [
         },
         "required": ["milestone", "validation_status"],
     }, _record_milestone_validation),
-    ToolSpec("record_experiment", "Track a measurable trial, benchmark, comparison, hypothesis test, or optimization attempt. Use this after any command or source produces a concrete result so future steps compare against the best observed result instead of treating notes as progress.", {
+    ToolSpec("record_experiment", "Track a measurable trial, benchmark, comparison, hypothesis test, or optimization attempt. Use this after any command or source produces a concrete result so future steps compare against the best observed result instead of treating notes as progress. Closed trials must include next_action so long-running work can continue from the result.", {
         "type": "object",
         "properties": {
             "title": {"type": "string"},
@@ -1313,7 +1324,7 @@ SUPPORT_SCHEMAS: list[ToolSpec] = [
             "config": {"type": "object"},
             "result": {"type": "string"},
             "evidence_artifact": {"type": "string"},
-            "next_action": {"type": "string"},
+            "next_action": {"type": "string", "description": "Concrete next experiment, action, monitor branch, pivot, or blocked condition. Required when status is measured, failed, blocked, or skipped."},
             "metadata": {"type": "object"},
         },
         "required": ["title"],

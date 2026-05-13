@@ -1976,16 +1976,17 @@ def test_measurement_obligation_blocks_research_until_recorded(tmp_path):
                 LLMResponse(tool_calls=[
                     ToolCall(
                         name="record_experiment",
-                        arguments={
-                            "title": "measured trial",
-                            "status": "measured",
-                            "metric_name": "score",
-                            "metric_value": 2.7,
-                            "metric_unit": "units/s",
-                        },
-                    )
-                ])
-            ]),
+                            arguments={
+                                "title": "measured trial",
+                                "status": "measured",
+                                "metric_name": "score",
+                                "metric_value": 2.7,
+                                "metric_unit": "units/s",
+                                "next_action": "compare the next concrete variant",
+                            },
+                        )
+                    ])
+                ]),
         )
         job = db.get_job(job_id)
         assert third.tool_name == "record_experiment"
@@ -2488,13 +2489,14 @@ def test_evidence_grounding_ignores_record_schema_keys(tmp_path):
                             "title": "Setup status",
                             "status": "measured",
                             "metric_name": "ready_components",
-                            "metric_value": 1,
-                            "config": {"python_3_installed": True, "curl_available": True},
-                            "result": "Python 3 is installed and curl is available.",
-                        },
-                    )
-                ])
-            ]),
+                                "metric_value": 1,
+                                "config": {"python_3_installed": True, "curl_available": True},
+                                "result": "Python 3 is installed and curl is available.",
+                                "next_action": "record remaining setup gaps or proceed to the next validation",
+                            },
+                        )
+                    ])
+                ]),
         )
 
         assert result.status == "completed"
