@@ -1236,12 +1236,15 @@ def test_guard_recovery_accounts_pending_evidence_checkpoint(tmp_path):
 
 def test_evidence_grounding_ignores_format_protocol_tokens():
     tokens = _concrete_evidence_tokens(
-        "Parsed JSON from HTTPS API URL and saved HTML/YAML/XML excerpts for Model-7B."
+        "Parsed JSON from HTTPS REST API URL and saved HTML/YAML/XML CDN SHA256 excerpts for Model-7B."
     )
 
     assert "JSON" not in tokens
     assert "HTTPS" not in tokens
+    assert "REST" not in tokens
     assert "API" not in tokens
+    assert "CDN" not in tokens
+    assert "SHA256" not in tokens
     assert "URL" not in tokens
     assert "Model-7B" in tokens
 
