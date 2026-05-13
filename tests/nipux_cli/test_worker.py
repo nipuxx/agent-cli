@@ -1234,6 +1234,31 @@ def test_guard_recovery_accounts_pending_evidence_checkpoint(tmp_path):
         db.close()
 
 
+def test_prompt_does_not_tell_worker_to_reread_checkpoint_after_it_was_read(tmp_path):
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Account for checkpoint", title="checkpoint-prompt", kind="generic")
+        db.update_job_metadata(
+            job_id,
+            {
+                "pending_evidence_checkpoint": {
+                    "artifact_id": "art_checkpoint",
+                    "title": "Auto Evidence Checkpoint after step 1",
+                    "read_at": "2026-01-01T00:00:00+00:00",
+                    "evidence_step_no": 1,
+                    "blocked_tool": "shell_exec",
+                }
+            },
+        )
+
+        content = build_messages(db.get_job(job_id), db.list_steps(job_id=job_id))[-1]["content"]
+
+        assert "Do not read the checkpoint again" in content
+        assert "Next either read that checkpoint artifact" not in content
+    finally:
+        db.close()
+
+
 def test_evidence_grounding_ignores_format_protocol_tokens():
     tokens = _concrete_evidence_tokens(
         "Parsed JSON from HTTPS REST API URL and saved HTML/YAML/XML CDN SHA256 excerpts for Model-7B."

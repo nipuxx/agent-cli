@@ -1359,13 +1359,19 @@ def _evidence_checkpoint_accounting_for_prompt(job: dict[str, Any], recent_steps
     if not context:
         return "None."
     read_text = "already read" if context.get("checkpoint_read") else "not read yet"
+    next_action = (
+        "Next use record_findings, record_source, record_experiment, record_tasks, record_roadmap, "
+        "record_milestone_validation, or record_lesson to account for it. Do not read the checkpoint again. "
+        if context.get("checkpoint_read")
+        else "Next either read that checkpoint artifact, or use record_findings, record_source, record_experiment, "
+        "record_tasks, record_roadmap, record_milestone_validation, or record_lesson to account for it. "
+    )
     return (
         "An auto-saved evidence checkpoint is waiting for durable accounting. "
         f"artifact={context.get('artifact_id') or '?'} title={context.get('title') or ''} "
         f"evidence_step={context.get('evidence_step_no') or context.get('evidence_step') or '?'} "
         f"blocked_tool={context.get('blocked_tool') or ''} status={read_text}. "
-        "Next either read that checkpoint artifact, or use record_findings, record_source, record_experiment, "
-        "record_tasks, record_roadmap, record_milestone_validation, or record_lesson to account for it. "
+        f"{next_action}"
         "Do not continue shell, search, file, artifact, report, or other branch work until this is resolved."
     )
 
