@@ -1209,7 +1209,7 @@ def _auto_checkpoint_accounting_context(job: dict[str, Any], recent_steps: list[
         return None
     checkpoint_step_no = int(checkpoint_step.get("step_no") or 0)
     tail = [step for step in recent_steps if int(step.get("step_no") or 0) > checkpoint_step_no]
-    if any(step.get("tool_name") in LEDGER_PROGRESS_TOOLS for step in tail if step.get("status") == "completed"):
+    if any(step.get("tool_name") in EVIDENCE_CHECKPOINT_RESOLUTION_TOOLS for step in tail if step.get("status") == "completed"):
         return None
     artifact_id = str(checkpoint.get("artifact_id") or "")
     artifact_title = str(checkpoint.get("title") or "")

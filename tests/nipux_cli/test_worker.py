@@ -2298,6 +2298,16 @@ def test_run_one_step_requires_accounting_after_checkpoint_guard_block(tmp_path)
                 },
             },
         )
+        recovery_step = db.add_step(job_id=job_id, run_id=run_id, kind="recovery", tool_name="guard_recovery")
+        db.finish_step(
+            recovery_step,
+            status="completed",
+            output_data={
+                "success": True,
+                "lesson": {"lesson": "Open a task after repeated guard blocks."},
+                "task": {"title": "Resolve guard"},
+            },
+        )
         db.finish_run(run_id, "completed")
 
         result = run_one_step(
