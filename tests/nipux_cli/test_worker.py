@@ -2523,6 +2523,34 @@ def test_prompt_suppresses_findings_matching_stale_claim_tokens(tmp_path):
         db.close()
 
 
+def test_prompt_filters_stale_generated_and_objective_tokens(tmp_path):
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Optimize Qwen3.6-27B GGUF throughput", title="qwen job", kind="generic")
+        db.append_lesson(
+            job_id,
+            (
+                "Evidence grounding rejected unsupported concrete tokens for record_experiment: "
+                "Qwen3.6-27B-GGUF, JSON, shell_exec_step_1037, timeout_after_300s, E5-2690. "
+                "Treat matching prior ledger claims as stale."
+            ),
+            category="mistake",
+        )
+        db.append_finding_record(job_id, name="Qwen3.6-27B-GGUF source", category="source")
+        db.append_finding_record(job_id, name="Intel Xeon E5-2690 baseline", category="hardware")
+
+        content = build_messages(db.get_job(job_id), db.list_steps(job_id=job_id))[-1]["content"]
+
+        assert "Qwen3.6-27B-GGUF" in content
+        assert "JSON" not in content
+        assert "shell_exec_step_1037" not in content
+        assert "timeout_after_300s" not in content
+        assert "Unsupported/stale claim tokens to avoid until re-verified: E5-2690" in content
+        assert "Intel Xeon E5-2690 baseline" not in content
+    finally:
+        db.close()
+
+
 def test_run_one_step_requires_accounting_after_auto_checkpoint_read(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

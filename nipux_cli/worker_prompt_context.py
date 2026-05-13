@@ -131,15 +131,43 @@ def _lessons_for_prompt(job: dict[str, Any]) -> str:
     lessons = metadata.get("lessons") if isinstance(metadata.get("lessons"), list) else []
     if not lessons:
         return "No durable lessons yet."
+    reference_text = " ".join(str(job.get(key) or "") for key in ("title", "objective", "kind"))
     lines = []
     for entry in lessons[-5:]:
         if not isinstance(entry, dict):
             continue
         category = str(entry.get("category") or "memory")
-        lesson = " ".join(str(entry.get("lesson") or "").split())
+        lesson = _lesson_prompt_text(str(entry.get("lesson") or ""), reference_text=reference_text)
         if lesson:
             lines.append(f"- {category}: {_clip_text(lesson, SECTION_ITEM_CHARS)}")
     return "\n".join(lines) if lines else "No durable lessons yet."
+
+
+def _lesson_prompt_text(lesson: str, *, reference_text: str = "") -> str:
+    lesson = " ".join(str(lesson or "").split())
+    if "unsupported concrete tokens" not in lesson.lower():
+        return lesson
+    reference_norm = _normalize_claim_text(reference_text)
+    stale_tokens = []
+    seen = set()
+    for token in _unsupported_tokens_from_lesson(lesson):
+        cleaned = " ".join(str(token or "").split())
+        if not cleaned:
+            continue
+        key = cleaned.lower()
+        if reference_norm and _normalize_claim_text(cleaned) in reference_norm:
+            continue
+        if key in seen or not _stale_token_is_distinctive(cleaned):
+            continue
+        seen.add(key)
+        stale_tokens.append(cleaned)
+    if stale_tokens:
+        return (
+            "Evidence grounding rejected unsupported durable-record claims: "
+            + ", ".join(stale_tokens[:8])
+            + ". Re-verify them from fresh evidence before using them."
+        )
+    return "Evidence grounding rejected an unsupported durable record. Re-verify from fresh evidence before using it."
 
 
 def _memory_graph_for_prompt(job: dict[str, Any]) -> str:
@@ -311,7 +339,10 @@ def _ledgers_for_prompt(job: dict[str, Any]) -> str:
     metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
     findings = _metadata_list(job, "finding_ledger")
     sources = _metadata_list(job, "source_ledger")
-    stale_tokens = _stale_claim_tokens_for_prompt(metadata)
+    stale_tokens = _stale_claim_tokens_for_prompt(
+        metadata,
+        reference_text=" ".join(str(job.get(key) or "") for key in ("title", "objective", "kind")),
+    )
     stale_findings = [finding for finding in findings if _record_contains_stale_token(finding, stale_tokens)]
     active_findings = [finding for finding in findings if finding not in stale_findings]
     lines = [
@@ -384,11 +415,12 @@ def _ledgers_for_prompt(job: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-def _stale_claim_tokens_for_prompt(metadata: dict[str, Any]) -> list[str]:
+def _stale_claim_tokens_for_prompt(metadata: dict[str, Any], *, reference_text: str = "") -> list[str]:
     raw_tokens = metadata.get("unsupported_claim_tokens")
     tokens: list[str] = []
     seen: set[str] = set()
     candidates: list[Any] = []
+    reference_norm = _normalize_claim_text(reference_text)
     if isinstance(raw_tokens, list):
         candidates.extend(raw_tokens)
     lessons = metadata.get("lessons")
@@ -400,6 +432,8 @@ def _stale_claim_tokens_for_prompt(metadata: dict[str, Any]) -> list[str]:
     for raw in candidates:
         token = " ".join(str(raw or "").split())
         if not token:
+            continue
+        if reference_norm and _normalize_claim_text(token) in reference_norm:
             continue
         if not _stale_token_is_distinctive(token):
             continue
@@ -415,7 +449,9 @@ def _unsupported_tokens_from_lesson(lesson: str) -> list[str]:
     marker = "unsupported concrete tokens"
     if marker not in lesson.lower():
         return []
-    match = re.search(r"unsupported concrete tokens for .*?:\s*(.*?)(?:\.|$)", lesson, flags=re.IGNORECASE)
+    match = re.search(r"unsupported concrete tokens for .*?:\s*(.*?)(?:\.\s+Treat matching|$)", lesson, flags=re.IGNORECASE)
+    if not match:
+        match = re.search(r"unsupported concrete tokens for .*?:\s*(.*?)(?:\.|$)", lesson, flags=re.IGNORECASE)
     if not match:
         return []
     return [part.strip() for part in match.group(1).split(",") if part.strip()]
@@ -423,11 +459,51 @@ def _unsupported_tokens_from_lesson(lesson: str) -> list[str]:
 
 def _stale_token_is_distinctive(token: str) -> bool:
     lowered = token.lower()
-    if lowered in {"cpu", "gpu", "ram", "vram"}:
+    if lowered in {
+        "api",
+        "ascii",
+        "blocked",
+        "broken",
+        "cli",
+        "critical",
+        "cpu",
+        "cuda",
+        "discovered",
+        "ggml",
+        "gguf",
+        "gpu",
+        "hf_token",
+        "html",
+        "http",
+        "https",
+        "incomplete",
+        "json",
+        "not_found",
+        "onnx",
+        "planned",
+        "python",
+        "python3",
+        "ram",
+        "severe",
+        "vram",
+        "xml",
+        "yaml",
+        "yml",
+    }:
+        return False
+    if lowered.startswith(("art_", "step_", "shell_", "web_", "episode-", "fact-", "source-", "quality-", "constraint-", "baseline-", "question-", "verified_", "timeout_")):
+        return False
+    if lowered.endswith((".md", ".py", ".json", ".yaml", ".yml", ".gguf", ".txt", ".log")):
+        return False
+    if lowered.startswith(("python-", "pip", "pip3")):
         return False
     if len(token) < 4:
         return False
     return (any(ch.isalpha() for ch in token) and any(ch.isdigit() for ch in token)) or (token.isupper() and len(token) >= 4)
+
+
+def _normalize_claim_text(text: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "", str(text or "").lower())
 
 
 def _record_contains_stale_token(record: dict[str, Any], stale_tokens: list[str]) -> bool:

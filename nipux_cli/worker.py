@@ -1017,22 +1017,52 @@ EVIDENCE_TOKEN_IGNORE = {
     "yml",
 }
 STALE_CLAIM_TOKEN_IGNORE = {
+    "api",
+    "ascii",
+    "blocked",
+    "broken",
+    "cli",
+    "critical",
     "cpu",
+    "cuda",
+    "discovered",
+    "ggml",
+    "gguf",
     "gpu",
+    "hf_token",
+    "html",
+    "http",
+    "https",
+    "incomplete",
+    "json",
+    "not_found",
+    "onnx",
+    "planned",
+    "python",
+    "python3",
     "ram",
+    "severe",
     "vram",
+    "xml",
+    "yaml",
+    "yml",
 }
 
 
-def _stale_claim_tokens_from_unsupported(tokens: list[str]) -> list[str]:
+def _stale_claim_tokens_from_unsupported(tokens: list[str], *, reference_text: str = "") -> list[str]:
     stale_tokens: list[str] = []
     seen: set[str] = set()
+    reference_norm = _normalize_claim_text(reference_text)
     for token in tokens:
         cleaned = str(token or "").strip()
         if not cleaned:
             continue
         key = cleaned.lower()
         if key in seen or key in STALE_CLAIM_TOKEN_IGNORE:
+            continue
+        if reference_norm and _normalize_claim_text(cleaned) in reference_norm:
+            continue
+        if _looks_like_generated_or_file_token(cleaned):
             continue
         if len(cleaned) < 4:
             continue
@@ -1043,6 +1073,21 @@ def _stale_claim_tokens_from_unsupported(tokens: list[str]) -> list[str]:
         seen.add(key)
         stale_tokens.append(cleaned)
     return stale_tokens
+
+
+def _looks_like_generated_or_file_token(token: str) -> bool:
+    lowered = token.lower()
+    if lowered.startswith(("art_", "step_", "shell_", "web_", "episode-", "fact-", "source-", "quality-", "constraint-", "baseline-", "question-", "verified_", "timeout_")):
+        return True
+    if lowered.endswith((".md", ".py", ".json", ".yaml", ".yml", ".gguf", ".txt", ".log")):
+        return True
+    if lowered.startswith(("python-", "pip", "pip3")):
+        return True
+    return False
+
+
+def _normalize_claim_text(text: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "", str(text or "").lower())
 
 
 def _evidence_grounding_context(
@@ -2688,7 +2733,10 @@ def _auto_record_grounding_block_lesson(*, db: AgentDB, job_id: str, result: dic
         metadata={"evidence_grounding": grounding, "blocked_tool": blocked_tool},
     )
     metadata_patch: dict[str, Any] = {"grounding_block_fingerprints": (seen + [fingerprint])[-100:]}
-    stale_tokens = _stale_claim_tokens_from_unsupported(unsupported)
+    stale_tokens = _stale_claim_tokens_from_unsupported(
+        unsupported,
+        reference_text=" ".join(str(job.get(key) or "") for key in ("title", "objective", "kind")),
+    )
     if stale_tokens:
         existing_tokens = [
             str(token)
