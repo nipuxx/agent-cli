@@ -176,6 +176,12 @@ CHURN_TOOLS = INFORMATION_GATHERING_TOOLS | ARTIFACT_REVIEW_TOOLS | MEMORY_REVIE
 MEMORY_CONSOLIDATION_BLOCKED_TOOLS = CHURN_TOOLS | {"write_artifact", "write_file", "report_update"}
 ACTIVITY_STAGNATION_BLOCKED_TOOLS = CHURN_TOOLS | {"write_artifact", "write_file", "report_update"}
 DELIVERABLE_PROGRESS_BLOCKED_TOOLS = INFORMATION_GATHERING_TOOLS | ARTIFACT_REVIEW_TOOLS | {"report_update"}
+RESEARCH_BALANCE_BLOCKED_TOOLS = ARTIFACT_REVIEW_TOOLS | MEMORY_REVIEW_TOOLS | {
+    "shell_exec",
+    "write_file",
+    "write_artifact",
+    "report_update",
+}
 MEASURABLE_RESEARCH_BLOCKED_TOOLS = INFORMATION_GATHERING_TOOLS | {
     "write_artifact",
     "record_findings",

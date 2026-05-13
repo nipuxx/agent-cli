@@ -59,6 +59,7 @@ from nipux_cli.worker_policy import (
     RECENT_STATE_STEPS,
     RECOVERABLE_GUARD_ERRORS,
     REFLECTION_INTERVAL_STEPS,
+    RESEARCH_BALANCE_BLOCKED_TOOLS,
     ROADMAP_STALENESS_BLOCKED_TOOLS,
     SYSTEM_PROMPT,
     TASK_DELIVERABLE_ACTION_TERMS,
@@ -1373,14 +1374,22 @@ def _repeated_guard_block_context(
     threshold: int = 3,
     window: int = 12,
 ) -> dict[str, Any] | None:
-    last_recovery_no = max(
-        (
-            int(step.get("step_no") or 0)
-            for step in recent_steps
-            if step.get("tool_name") == "guard_recovery" and step.get("status") == "completed"
-        ),
-        default=0,
+    recoveries = [
+        step
+        for step in recent_steps
+        if step.get("tool_name") == "guard_recovery" and step.get("status") == "completed"
+    ]
+    last_recovery = max(
+        recoveries,
+        key=lambda step: int(step.get("step_no") or 0),
+        default=None,
     )
+    last_recovery_no = int(last_recovery.get("step_no") or 0) if last_recovery else 0
+    last_recovery_error = ""
+    if last_recovery:
+        recovery_output = last_recovery.get("output") if isinstance(last_recovery.get("output"), dict) else {}
+        recovery_context = recovery_output.get("guard_recovery") if isinstance(recovery_output.get("guard_recovery"), dict) else {}
+        last_recovery_error = str(recovery_context.get("error") or "")
     operational_steps = [
         step
         for step in recent_steps
@@ -1406,6 +1415,8 @@ def _repeated_guard_block_context(
             first_step_no = first_step_no or step.get("step_no")
             blocked_tools.append(str(step.get("tool_name") or step.get("kind") or "tool"))
     if count < threshold:
+        return None
+    if last_recovery_error == error:
         return None
     return {
         "error": error,
@@ -1580,6 +1591,22 @@ def _blocked_tool_call_result(
             ),
         }
         return result, f"blocked {name}; deliverable checkpoint required"
+
+    research_balance = _research_balance_context(job, recent_steps)
+    if research_balance and name in RESEARCH_BALANCE_BLOCKED_TOOLS:
+        result = {
+            "success": False,
+            "error": "research balance required",
+            "blocked_tool": name,
+            "blocked_arguments": args,
+            "research_balance": research_balance,
+            "guidance": (
+                "Recent work is execution-heavy but has no durable sources or findings. "
+                "Use web/browser/documentation/local-inspection tools and record_source or record_findings "
+                "before continuing execution, artifact review, report updates, or file churn."
+            ),
+        }
+        return result, f"blocked {name}; research balance required"
 
     roadmap_staleness = _roadmap_staleness_context(job, recent_steps)
     if roadmap_staleness and name in ROADMAP_STALENESS_BLOCKED_TOOLS:
@@ -2196,6 +2223,26 @@ def _auto_record_tool_source_quality(
     tool_name: str | None,
     result: dict[str, Any],
 ) -> None:
+    if tool_name == "web_search":
+        query = str(result.get("query") or "").strip()
+        results = result.get("results") if isinstance(result.get("results"), list) else []
+        for item in results[:8]:
+            if not isinstance(item, dict):
+                continue
+            url = str(item.get("url") or "").strip()
+            if not url:
+                continue
+            title = str(item.get("title") or "").strip()
+            db.append_source_record(
+                job_id,
+                url,
+                source_type="web_search",
+                usefulness_score=0.35,
+                yield_count=0,
+                outcome=f"search result for {query or 'query'}: {title[:160]}",
+                metadata={"auto_from_tool": "web_search", "query": query, "title": title},
+            )
+        return
     if tool_name == "web_extract":
         pages = result.get("pages") if isinstance(result.get("pages"), list) else []
         for page in pages[:12]:

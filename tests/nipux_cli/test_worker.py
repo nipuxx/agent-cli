@@ -105,6 +105,24 @@ class ExtractRegistry:
         return json.dumps({"success": True})
 
 
+class SearchRegistry:
+    def openai_tools(self):
+        return []
+
+    def handle(self, name, args, ctx):
+        del args, ctx
+        if name == "web_search":
+            return json.dumps({
+                "success": True,
+                "query": "durable progress research",
+                "results": [
+                    {"title": "Primary reference", "url": "https://source.example/primary"},
+                    {"title": "Secondary reference", "url": "https://source.example/secondary"},
+                ],
+            })
+        return json.dumps({"success": True})
+
+
 class CapturingLLM:
     def __init__(self, response):
         self.response = response
@@ -1085,6 +1103,66 @@ def test_guard_recovery_does_not_repeat_after_recovery_step(tmp_path):
         db.close()
 
 
+def test_guard_recovery_does_not_keep_reopening_same_guard(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Recover repeated blocked work once", title="guard-repeat", kind="generic")
+        for batch in range(2):
+            for index in range(3):
+                run_id = db.start_run(job_id, model="test")
+                step_id = db.add_step(
+                    job_id=job_id,
+                    run_id=run_id,
+                    kind="tool",
+                    tool_name="search_artifacts",
+                    input_data={"arguments": {"query": f"blocked {batch}-{index}"}},
+                )
+                db.finish_step(
+                    step_id,
+                    status="blocked",
+                    summary="blocked search_artifacts; progress ledger update required",
+                    output_data={"success": False, "recoverable": True, "error": "progress ledger update required"},
+                )
+                db.finish_run(run_id, "completed")
+            result = run_one_step(job_id, config=config, db=db, llm=ExplodingLLM() if batch == 0 else ScriptedLLM([
+                LLMResponse(tool_calls=[ToolCall(name="record_lesson", arguments={"lesson": "Use a different branch", "category": "strategy"})])
+            ]))
+
+        steps = db.list_steps(job_id=job_id)
+        assert sum(1 for step in steps if step["tool_name"] == "guard_recovery") == 1
+        assert result.tool_name == "record_lesson"
+    finally:
+        db.close()
+
+
+def test_web_search_auto_records_source_quality(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Track search sources", title="search-sources", kind="generic")
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[ToolCall(name="web_search", arguments={"query": "durable progress research"})])
+            ]),
+            registry=SearchRegistry(),
+        )
+
+        assert result.status == "completed"
+        sources = db.get_job(job_id)["metadata"]["source_ledger"]
+        assert {source["source"] for source in sources} == {
+            "https://source.example/primary",
+            "https://source.example/secondary",
+        }
+        assert all(source["source_type"] == "web_search" for source in sources)
+    finally:
+        db.close()
+
+
 def test_web_extract_auto_records_source_quality(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")
@@ -2031,6 +2109,45 @@ def test_prompt_research_balance_guard_clears_when_sources_exist():
     content = build_messages(job, steps)[-1]["content"]
 
     assert "Recent work is execution-heavy" not in content
+
+
+def test_run_one_step_blocks_execution_when_research_balance_is_missing(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job(
+            "Build a durable workflow and keep improving it",
+            title="research-balance",
+            kind="generic",
+            metadata={"experiment_ledger": [{"title": "Validation check", "status": "measured"}]},
+        )
+        run_id = db.start_run(job_id, model="test")
+        for index in range(6):
+            step_id = db.add_step(
+                job_id=job_id,
+                run_id=run_id,
+                kind="tool",
+                tool_name="shell_exec",
+                input_data={"arguments": {"command": f"python branch_{index}.py"}},
+            )
+            db.finish_step(step_id, status="completed", output_data={"success": True, "stdout": "ok"})
+        db.finish_run(run_id, "completed")
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[ToolCall(name="shell_exec", arguments={"command": "python continue_branch.py"})])
+            ]),
+        )
+
+        assert result.status == "blocked"
+        assert result.result["error"] == "research balance required"
+        assert result.result["blocked_tool"] == "shell_exec"
+        assert "record_source" in result.result["guidance"]
+    finally:
+        db.close()
 
 
 def test_run_one_step_blocks_branch_work_when_memory_graph_needs_consolidation(tmp_path):
