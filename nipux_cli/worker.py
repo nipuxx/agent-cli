@@ -138,6 +138,7 @@ def build_messages(
     research_balance_guard = _research_balance_guard_for_prompt(job, recent_steps)
     deliverable_progress_guard = _deliverable_progress_guard_for_prompt(job, recent_steps)
     progress_accounting_guard = _progress_accounting_for_prompt(recent_steps)
+    evidence_checkpoint_guard = _evidence_checkpoint_accounting_for_prompt(job, recent_steps)
     activity_stagnation = _activity_stagnation_for_prompt(job)
     task_planning_guard = _task_planning_guard_for_prompt(job)
     memory_consolidation_guard = _memory_consolidation_guard_for_prompt(job, recent_steps)
@@ -170,6 +171,7 @@ def build_messages(
             ("Research balance guard", research_balance_guard),
             ("Deliverable progress guard", deliverable_progress_guard),
             ("Progress accounting guard", progress_accounting_guard),
+            ("Evidence checkpoint accounting guard", evidence_checkpoint_guard),
             ("Activity stagnation", activity_stagnation),
             ("Task planning guard", task_planning_guard),
             ("Memory consolidation guard", memory_consolidation_guard),
@@ -460,6 +462,18 @@ def _next_action_constraint(job: dict[str, Any], recent_steps: list[dict[str, An
             "Recent saved outputs need durable accounting. Before more artifact writing, reading, research, browsing, "
             "or shell work, use record_tasks, record_roadmap, record_milestone_validation, record_findings, record_source, record_experiment, or record_lesson "
             "to explain what changed and what branch is next."
+        )
+    checkpoint_accounting = _auto_checkpoint_accounting_context(job, recent_steps)
+    if checkpoint_accounting:
+        if not checkpoint_accounting.get("checkpoint_read"):
+            return (
+                "An auto-saved evidence checkpoint is pending. Read that specific checkpoint artifact, or use a durable "
+                "ledger tool to account for the checkpoint from existing evidence before more branch work."
+            )
+        return (
+            "An already-read evidence checkpoint is pending durable accounting. Use record_findings, record_source, "
+            "record_experiment, record_tasks, record_roadmap, record_milestone_validation, or record_lesson before "
+            "more shell, search, file, report, or artifact work."
         )
     measured_guard = _measured_progress_guard_context(job, recent_steps)
     if measured_guard:
@@ -919,6 +933,15 @@ EVIDENCE_GROUNDED_TOOLS = {
     "report_update",
     "write_artifact",
 }
+EVIDENCE_CHECKPOINT_RESOLUTION_TOOLS = {
+    "record_experiment",
+    "record_findings",
+    "record_lesson",
+    "record_milestone_validation",
+    "record_roadmap",
+    "record_source",
+    "record_tasks",
+}
 EVIDENCE_TOKEN_IGNORE = {
     "acceptance",
     "action",
@@ -1121,14 +1144,66 @@ def _unpersisted_evidence_step(recent_steps: list[dict[str, Any]]) -> dict[str, 
     return None
 
 
-def _auto_checkpoint_accounting_context(recent_steps: list[dict[str, Any]]) -> dict[str, Any] | None:
+def _evidence_checkpoint_accounting_for_prompt(job: dict[str, Any], recent_steps: list[dict[str, Any]]) -> str:
+    context = _auto_checkpoint_accounting_context(job, recent_steps)
+    if not context:
+        return "None."
+    read_text = "already read" if context.get("checkpoint_read") else "not read yet"
+    return (
+        "An auto-saved evidence checkpoint is waiting for durable accounting. "
+        f"artifact={context.get('artifact_id') or '?'} title={context.get('title') or ''} "
+        f"evidence_step={context.get('evidence_step_no') or context.get('evidence_step') or '?'} "
+        f"blocked_tool={context.get('blocked_tool') or ''} status={read_text}. "
+        "Next either read that checkpoint artifact, or use record_findings, record_source, record_experiment, "
+        "record_tasks, record_roadmap, record_milestone_validation, or record_lesson to account for it. "
+        "Do not continue shell, search, file, artifact, report, or other branch work until this is resolved."
+    )
+
+
+def _pending_evidence_checkpoint(job: dict[str, Any]) -> dict[str, Any] | None:
+    metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
+    checkpoint = metadata.get("pending_evidence_checkpoint")
+    if isinstance(checkpoint, dict) and checkpoint and not checkpoint.get("resolved_at"):
+        return checkpoint
+    return None
+
+
+def _step_created_auto_checkpoint(step: dict[str, Any]) -> dict[str, Any] | None:
+    output = step.get("output") if isinstance(step.get("output"), dict) else {}
+    checkpoint = output.get("auto_checkpoint")
+    if not isinstance(checkpoint, dict):
+        return None
+    if not checkpoint.get("artifact_id"):
+        return None
+    # Only auto-persisted checkpoints have a stored path. Guard-context payloads use a
+    # different key so they cannot reset the read/accounting state.
+    if not checkpoint.get("path"):
+        return None
+    return checkpoint
+
+
+def _auto_checkpoint_accounting_context(job: dict[str, Any], recent_steps: list[dict[str, Any]]) -> dict[str, Any] | None:
+    pending = _pending_evidence_checkpoint(job)
+    if pending:
+        return {
+            "artifact_id": str(pending.get("artifact_id") or ""),
+            "title": str(pending.get("title") or ""),
+            "checkpoint_step_no": pending.get("checkpoint_step_no"),
+            "evidence_step": pending.get("evidence_step"),
+            "evidence_step_no": pending.get("evidence_step_no"),
+            "blocked_tool": pending.get("blocked_tool"),
+            "checkpoint_read": bool(pending.get("read_at")),
+            "read_at": pending.get("read_at"),
+            "created_at": pending.get("created_at"),
+            "source": "job_metadata",
+        }
     checkpoint_step = None
     checkpoint = None
     for step in reversed(recent_steps):
-        output = step.get("output") if isinstance(step.get("output"), dict) else {}
-        if isinstance(output.get("auto_checkpoint"), dict):
+        created = _step_created_auto_checkpoint(step)
+        if created:
             checkpoint_step = step
-            checkpoint = output["auto_checkpoint"]
+            checkpoint = created
             break
     if not checkpoint_step or not checkpoint:
         return None
@@ -1152,6 +1227,24 @@ def _auto_checkpoint_accounting_context(recent_steps: list[dict[str, Any]]) -> d
         "blocked_tool": checkpoint.get("blocked_tool"),
         "checkpoint_read": checkpoint_read,
     }
+
+
+def _evidence_checkpoint_blocks_tool(name: str, args: dict[str, Any], context: dict[str, Any] | None) -> bool:
+    if not context:
+        return False
+    if name in EVIDENCE_CHECKPOINT_RESOLUTION_TOOLS or name == "acknowledge_operator_context":
+        return False
+    if (
+        name == "read_artifact"
+        and not context.get("checkpoint_read")
+        and _read_artifact_call_matches_checkpoint(
+            args,
+            artifact_id=str(context.get("artifact_id") or ""),
+            artifact_title=str(context.get("title") or ""),
+        )
+    ):
+        return False
+    return True
 
 
 def _read_artifact_args_match_checkpoint(step: dict[str, Any], *, artifact_id: str, artifact_title: str) -> bool:
@@ -1685,24 +1778,19 @@ def _blocked_tool_call_result(
             }
             return result, "blocked record_tasks; task-only planning needs execution"
 
-    auto_checkpoint_accounting = _auto_checkpoint_accounting_context(recent_steps)
-    if (
-        auto_checkpoint_accounting
-        and auto_checkpoint_accounting.get("checkpoint_read")
-        and name not in LEDGER_PROGRESS_TOOLS
-        and name != "acknowledge_operator_context"
-    ):
+    auto_checkpoint_accounting = _auto_checkpoint_accounting_context(job, recent_steps)
+    if _evidence_checkpoint_blocks_tool(name, args, auto_checkpoint_accounting):
         result = {
             "success": False,
             "error": "evidence checkpoint accounting required",
             "blocked_tool": name,
             "blocked_arguments": args,
-            "auto_checkpoint": auto_checkpoint_accounting,
+            "pending_evidence_checkpoint": auto_checkpoint_accounting,
             "guidance": (
                 "An auto-saved evidence checkpoint is waiting to be converted into durable progress. "
-                "Use record_findings, record_source, record_experiment, record_tasks, record_roadmap, "
-                "record_milestone_validation, or record_lesson to account for it before more artifact reads, "
-                "shell, search, file, report, or artifact churn."
+                "Read that checkpoint artifact if it has not been read yet, or use record_findings, record_source, "
+                "record_experiment, record_tasks, record_roadmap, record_milestone_validation, or record_lesson "
+                "to account for it before more shell, search, file, report, artifact, or other branch work."
             ),
         }
         return result, f"blocked {name}; evidence checkpoint accounting required"
@@ -2430,7 +2518,85 @@ def _auto_persist_evidence(
         category="blocked",
         metadata={"artifact_id": stored.id, "blocked_tool": blocked_tool},
     )
+    db.update_job_metadata(
+        job_id,
+        {
+            "pending_evidence_checkpoint": {
+                "artifact_id": stored.id,
+                "title": stored.title or f"Auto Evidence Checkpoint after step {evidence_step.get('step_no')}",
+                "path": str(stored.path),
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "checkpoint_step_id": step_id,
+                "evidence_step": evidence_step.get("id"),
+                "evidence_step_no": evidence_step.get("step_no"),
+                "evidence_tool": evidence_step.get("tool_name") or evidence_step.get("kind"),
+                "blocked_tool": blocked_tool,
+            }
+        },
+    )
     return {"artifact_id": stored.id, "path": str(stored.path), "lesson": lesson}
+
+
+def _mark_evidence_checkpoint_read(
+    *,
+    db: AgentDB,
+    job_id: str,
+    tool_name: str,
+    args: dict[str, Any],
+    step: dict[str, Any] | None,
+) -> None:
+    if tool_name != "read_artifact":
+        return
+    job = db.get_job(job_id)
+    pending = _pending_evidence_checkpoint(job)
+    if not pending or pending.get("read_at"):
+        return
+    if not _read_artifact_call_matches_checkpoint(
+        args,
+        artifact_id=str(pending.get("artifact_id") or ""),
+        artifact_title=str(pending.get("title") or ""),
+    ):
+        return
+    updated = dict(pending)
+    updated["read_at"] = datetime.now(timezone.utc).isoformat()
+    if step:
+        updated["read_step_id"] = step.get("id")
+        updated["read_step_no"] = step.get("step_no")
+    db.update_job_metadata(job_id, {"pending_evidence_checkpoint": updated})
+    db.append_agent_update(
+        job_id,
+        f"Read evidence checkpoint {pending.get('artifact_id')}; durable accounting is required next.",
+        category="blocked",
+        metadata={"pending_evidence_checkpoint": updated},
+    )
+
+
+def _resolve_evidence_checkpoint(
+    *,
+    db: AgentDB,
+    job_id: str,
+    tool_name: str,
+    step: dict[str, Any] | None,
+) -> None:
+    if tool_name not in EVIDENCE_CHECKPOINT_RESOLUTION_TOOLS:
+        return
+    job = db.get_job(job_id)
+    pending = _pending_evidence_checkpoint(job)
+    if not pending:
+        return
+    updated = dict(pending)
+    updated["resolved_at"] = datetime.now(timezone.utc).isoformat()
+    updated["resolved_by_tool"] = tool_name
+    if step:
+        updated["resolved_by_step_id"] = step.get("id")
+        updated["resolved_by_step_no"] = step.get("step_no")
+    db.update_job_metadata(job_id, {"pending_evidence_checkpoint": updated})
+    db.append_agent_update(
+        job_id,
+        f"Evidence checkpoint {pending.get('artifact_id')} accounted for with {tool_name}.",
+        category="progress",
+        metadata={"pending_evidence_checkpoint": updated},
+    )
 
 
 def _auto_record_blocked_source(
@@ -2861,6 +3027,19 @@ def _execute_tool_call(
         db.finish_step(step_id, status=status, summary=summary, output_data=result, error=result.get("error"))
         if ok:
             finished_step = _step_by_id(db, job_id, step_id)
+            _mark_evidence_checkpoint_read(
+                db=db,
+                job_id=job_id,
+                tool_name=call.name,
+                args=call.arguments,
+                step=finished_step,
+            )
+            _resolve_evidence_checkpoint(
+                db=db,
+                job_id=job_id,
+                tool_name=call.name,
+                step=finished_step,
+            )
             _maybe_create_measurement_obligation(
                 db=db,
                 job_id=job_id,
