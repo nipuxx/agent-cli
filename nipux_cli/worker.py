@@ -642,11 +642,17 @@ def _shell_command_looks_like_write(command: str) -> bool:
 
 
 def _shell_command_looks_read_only(command: str) -> bool:
-    if not command.strip():
+    text = command.strip()
+    if not text:
         return False
-    if _shell_command_looks_like_write(command):
+    if _shell_command_looks_like_write(text):
         return False
-    return bool(READ_ONLY_SHELL_COMMAND_PATTERN.search(command))
+    if READ_ONLY_SHELL_COMMAND_PATTERN.search(text):
+        return True
+    if re.match(r"(?is)^curl\b", text):
+        mutating_flags = r"\b-X\s*(?:POST|PUT|PATCH|DELETE)\b|--request\s+(?:POST|PUT|PATCH|DELETE)\b|(?:^|\s)(?:-d|--data|--form|-F|-T|--upload-file)\b"
+        return not bool(re.search(mutating_flags, text))
+    return False
 
 
 def _roadmap_staleness_context(job: dict[str, Any], recent_steps: list[dict[str, Any]]) -> dict[str, Any] | None:
@@ -1690,6 +1696,35 @@ def _step_command(step: dict[str, Any]) -> str:
     return str(args.get("command") or "")
 
 
+def _read_only_shell_churn_context(recent_steps: list[dict[str, Any]], *, window: int = 10, threshold: int = 3) -> dict[str, Any] | None:
+    completed = [step for step in recent_steps if step.get("status") == "completed"]
+    if not completed:
+        return None
+    tail = completed[-window:]
+    read_only_shell = [
+        step
+        for step in tail
+        if step.get("tool_name") == "shell_exec" and _shell_command_looks_read_only(_step_command(step))
+    ]
+    if len(read_only_shell) < threshold:
+        return None
+    action_steps = [
+        step
+        for step in tail
+        if step.get("tool_name") in {"write_file", "write_artifact", "defer_job"}
+        or (step.get("tool_name") == "shell_exec" and not _shell_command_looks_read_only(_step_command(step)))
+    ]
+    if action_steps:
+        return None
+    return {
+        "read_only_shell_count": len(read_only_shell),
+        "threshold": threshold,
+        "window": len(tail),
+        "since_step": read_only_shell[0].get("step_no"),
+        "commands": [_clip_text(_step_command(step), 140) for step in read_only_shell[-5:]],
+    }
+
+
 def _measured_progress_guard_context(
     job: dict[str, Any],
     recent_steps: list[dict[str, Any]],
@@ -2041,6 +2076,7 @@ def _blocked_tool_call_result(
     artifact_accounting = _artifact_accounting_context(recent_steps)
     activity_stagnation = _activity_stagnation_context(job)
     memory_consolidation = _memory_graph_consolidation_context(job, recent_steps)
+    shell_read_only = name == "shell_exec" and _shell_command_looks_read_only(str(args.get("command") or ""))
     if (
         artifact_accounting
         and name in ARTIFACT_ACCOUNTING_BLOCKED_TOOLS
@@ -2076,6 +2112,22 @@ def _blocked_tool_call_result(
         }
         return result, f"blocked {name}; progress ledger update required"
 
+    read_only_shell_churn = _read_only_shell_churn_context(recent_steps)
+    if read_only_shell_churn and shell_read_only:
+        result = {
+            "success": False,
+            "error": "action decision required",
+            "blocked_tool": name,
+            "blocked_arguments": args,
+            "read_only_shell_churn": read_only_shell_churn,
+            "guidance": (
+                "Recent shell work only inspected or listed state. Stop re-probing the same branch. "
+                "Run the next concrete action, write/persist the candidate decision, record an experiment/monitor task, "
+                "or record why the branch is blocked before another read-only shell command."
+            ),
+        }
+        return result, f"blocked {name}; action decision required"
+
     if activity_stagnation and name in ACTIVITY_STAGNATION_BLOCKED_TOOLS:
         result = {
             "success": False,
@@ -2107,7 +2159,6 @@ def _blocked_tool_call_result(
         }
         return result, f"blocked {name}; memory graph consolidation required"
 
-    shell_read_only = name == "shell_exec" and _shell_command_looks_read_only(str(args.get("command") or ""))
     if deliverable_progress_guard and (name in DELIVERABLE_PROGRESS_BLOCKED_TOOLS or shell_read_only):
         result = {
             "success": False,

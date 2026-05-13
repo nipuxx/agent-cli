@@ -4071,6 +4071,72 @@ def test_run_one_step_ignores_guard_recovery_tasks_for_total_sprawl(tmp_path):
         db.close()
 
 
+def test_run_one_step_blocks_read_only_shell_churn(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Choose from discovered candidates", title="read-only-churn", kind="generic")
+        for command in [
+            "find /tmp/work -type f | head",
+            "ls -lah /tmp/work",
+            "curl -s https://example.test/api/list | head -100",
+        ]:
+            run_id = db.start_run(job_id, model="test")
+            step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec", input_data={"arguments": {"command": command}})
+            db.finish_step(step_id, status="completed", output_data={"success": True, "returncode": 0, "stdout": "candidate-a\ncandidate-b"})
+            db.finish_run(run_id, "completed")
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(name="shell_exec", arguments={"command": "curl -s https://example.test/api/list?page=2"})
+                ])
+            ]),
+        )
+
+        assert result.status == "blocked"
+        assert result.result["error"] == "action decision required"
+        assert result.result["read_only_shell_churn"]["read_only_shell_count"] == 3
+    finally:
+        db.close()
+
+
+def test_run_one_step_allows_action_after_read_only_shell_churn(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Act after discovered candidates", title="read-only-to-action", kind="generic")
+        for command in [
+            "find /tmp/work -type f | head",
+            "ls -lah /tmp/work",
+            "curl -s https://example.test/api/list | head -100",
+        ]:
+            run_id = db.start_run(job_id, model="test")
+            step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec", input_data={"arguments": {"command": command}})
+            db.finish_step(step_id, status="completed", output_data={"success": True, "returncode": 0, "stdout": "candidate-a\ncandidate-b"})
+            db.finish_run(run_id, "completed")
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(name="shell_exec", arguments={"command": "python run_candidate.py --input candidate-a"})
+                ])
+            ]),
+            registry=SuccessRegistry(),
+        )
+
+        assert result.status == "completed"
+        assert result.tool_name == "shell_exec"
+    finally:
+        db.close()
+
+
 def test_run_one_step_blocks_new_tasks_when_queue_sprawls(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

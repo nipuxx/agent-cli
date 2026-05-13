@@ -225,6 +225,7 @@ RECOVERABLE_GUARD_ERRORS = {
     "measured progress required",
     "progress accounting required",
     "progress ledger update required",
+    "action decision required",
     "similar artifact search blocked",
     "similar search query blocked",
     "task execution required",
