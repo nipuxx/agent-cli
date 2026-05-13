@@ -75,6 +75,15 @@ class FailedUrlShellRegistry:
         return json.dumps({"success": True})
 
 
+class HangingLLM:
+    def next_action(self, *, messages, tools):
+        del messages, tools
+        import time
+
+        time.sleep(5)
+        return LLMResponse(tool_calls=[ToolCall(name="report_update", arguments={"message": "late"})])
+
+
 class SourceCodeShellRegistry:
     def openai_tools(self):
         return []
@@ -1498,6 +1507,26 @@ def test_run_one_step_records_model_failures_instead_of_raising(tmp_path):
         assert steps[0]["status"] == "failed"
         assert steps[0]["error"] == "provider returned no choices"
         assert db.list_runs(job_id)[0]["status"] == "failed"
+    finally:
+        db.close()
+
+
+def test_run_one_step_times_out_stalled_model_call(tmp_path):
+    config = AppConfig(
+        runtime=RuntimeConfig(home=tmp_path),
+        model=ModelConfig(request_timeout_seconds=0.05),
+    )
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Keep daemon moving through stalled model calls", title="provider")
+
+        result = run_one_step(job_id, config=config, db=db, llm=HangingLLM())
+
+        assert result.status == "failed"
+        assert "model call timed out" in result.result["error"]
+        step = db.list_steps(job_id=job_id)[0]
+        assert step["kind"] == "llm"
+        assert step["status"] == "failed"
     finally:
         db.close()
 

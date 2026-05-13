@@ -4,6 +4,9 @@ from __future__ import annotations
 
 import json
 import re
+import signal
+import threading
+import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
@@ -3670,6 +3673,37 @@ def _registry_tools(registry: ToolRegistry, config: AppConfig) -> list[dict[str,
         return registry.openai_tools()
 
 
+def _call_next_action_with_timeout(
+    llm: StepLLM,
+    *,
+    messages: list[dict[str, Any]],
+    tools: list[dict[str, Any]],
+    timeout_seconds: float,
+) -> LLMResponse:
+    timeout = max(0.0, float(timeout_seconds or 0.0))
+    if timeout <= 0 or threading.current_thread() is not threading.main_thread():
+        return llm.next_action(messages=messages, tools=tools)
+
+    previous_handler = signal.getsignal(signal.SIGALRM)
+    previous_timer = signal.getitimer(signal.ITIMER_REAL)
+    started = time.monotonic()
+
+    def _raise_timeout(_signum: int, _frame: Any) -> None:
+        raise TimeoutError(f"model call timed out after {timeout:g}s")
+
+    signal.signal(signal.SIGALRM, _raise_timeout)
+    signal.setitimer(signal.ITIMER_REAL, timeout)
+    try:
+        return llm.next_action(messages=messages, tools=tools)
+    finally:
+        signal.setitimer(signal.ITIMER_REAL, 0)
+        signal.signal(signal.SIGALRM, previous_handler)
+        if previous_timer[0] > 0:
+            elapsed = max(0.0, time.monotonic() - started)
+            remaining = max(0.001, previous_timer[0] - elapsed)
+            signal.setitimer(signal.ITIMER_REAL, remaining, previous_timer[1])
+
+
 def run_one_step(
     job_id: str,
     *,
@@ -3711,7 +3745,12 @@ def run_one_step(
         )
         llm = llm or OpenAIChatLLM(config.model)
         try:
-            response: LLMResponse = llm.next_action(messages=messages, tools=_registry_tools(registry, config))
+            response: LLMResponse = _call_next_action_with_timeout(
+                llm,
+                messages=messages,
+                tools=_registry_tools(registry, config),
+                timeout_seconds=config.model.request_timeout_seconds,
+            )
         except Exception as exc:
             step_id = db.add_step(
                 job_id=job_id,
