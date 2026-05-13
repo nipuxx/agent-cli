@@ -39,6 +39,11 @@ If a source shows Cloudflare, login, paywall, or anti-bot verification, keep it
 visible in the trace. Do not bypass protections. Continue with normal visible
 browser actions when possible, persist what you have, or use alternate public
 sources if stuck.
+If a tool returns a list of actionable candidates such as files, packages,
+configurations, commands, sources, venues, records, branches, or options, do not
+keep re-listing the same candidate set with small formatting changes. Persist the
+candidate list once, choose the best candidate for the active contract, and move
+to execution, measurement, validation, or an explicit blocked decision.
 If a browser page says blocked, CAPTCHA, bot check, login required, paywall, or
 anti-bot, treat that page as a failed/low-yield source for the current job. Do
 not write an artifact that claims usable evidence exists unless the evidence is
