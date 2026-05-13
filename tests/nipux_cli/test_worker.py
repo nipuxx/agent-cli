@@ -2905,7 +2905,7 @@ def test_run_one_step_requires_accounting_after_auto_checkpoint_read(tmp_path):
         db.close()
 
 
-def test_run_one_step_requires_accounting_after_checkpoint_guard_block(tmp_path):
+def test_run_one_step_treats_guard_recovery_as_checkpoint_accounting(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")
     try:
@@ -2975,11 +2975,11 @@ def test_run_one_step_requires_accounting_after_checkpoint_guard_block(tmp_path)
             llm=ScriptedLLM([
                 LLMResponse(tool_calls=[ToolCall(name="shell_exec", arguments={"command": "echo more discovery"})])
             ]),
+            registry=SuccessRegistry(),
         )
 
-        assert result.status == "blocked"
-        assert result.result["error"] == "evidence checkpoint accounting required"
-        assert result.result["blocked_tool"] == "shell_exec"
+        assert result.status == "completed"
+        assert result.tool_name == "shell_exec"
     finally:
         db.close()
 
