@@ -2422,6 +2422,48 @@ def test_run_one_step_blocks_durable_records_with_unsupported_concrete_claims(tm
         db.close()
 
 
+def test_evidence_grounding_ignores_record_schema_keys(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Record observed setup status", title="grounding", kind="generic")
+        run_id = db.start_run(job_id, model="test")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec")
+        db.finish_step(
+            step_id,
+            status="completed",
+            output_data={"success": True, "stdout": "Python 3 is installed. curl is available. No token file was found."},
+        )
+        db.finish_run(run_id, "completed")
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(
+                        name="record_experiment",
+                        arguments={
+                            "title": "Setup status",
+                            "status": "measured",
+                            "metric_name": "ready_components",
+                            "metric_value": 1,
+                            "config": {"python_3_installed": True, "curl_available": True},
+                            "result": "Python 3 is installed and curl is available.",
+                        },
+                    )
+                ])
+            ]),
+        )
+
+        assert result.status == "completed"
+        experiment = db.get_job(job_id)["metadata"]["experiment_ledger"][0]
+        assert experiment["config"]["python_3_installed"] is True
+    finally:
+        db.close()
+
+
 def test_run_one_step_blocks_memory_graph_with_unsupported_claims(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

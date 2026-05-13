@@ -1297,7 +1297,7 @@ def _evidence_grounding_context(
 
 def _evidence_grounding_proposed_text(tool_name: str, args: dict[str, Any]) -> str:
     if tool_name != "record_memory_graph":
-        return _json_text(args)
+        return _json_value_text(args)
     parts: list[str] = []
     nodes = args.get("nodes") if isinstance(args.get("nodes"), list) else []
     for node in nodes:
@@ -1323,6 +1323,14 @@ def _json_text(value: Any) -> str:
         return json.dumps(value, ensure_ascii=False, sort_keys=True)
     except TypeError:
         return str(value)
+
+
+def _json_value_text(value: Any) -> str:
+    if isinstance(value, dict):
+        return "\n".join(_json_value_text(item) for item in value.values())
+    if isinstance(value, list):
+        return "\n".join(_json_value_text(item) for item in value)
+    return str(value or "")
 
 
 def _cited_step_numbers(text: str) -> set[int]:
