@@ -42,6 +42,23 @@ def format_step_for_prompt(step: dict[str, Any]) -> str:
 def observation_for_prompt(tool_name: str | None, output: dict[str, Any]) -> str:
     if not output:
         return ""
+    if output.get("error"):
+        if tool_name in {"browser_click", "browser_type"}:
+            recovery = output.get("recovery_snapshot") if isinstance(output.get("recovery_snapshot"), dict) else {}
+            candidates = browser_candidates_for_prompt(recovery)
+            suffix = f"; recovery_candidates={candidates}" if candidates else ""
+            return clip_text(f"error={output.get('error')}; guidance={output.get('recovery_guidance', '')}{suffix}", 700)
+        evidence_grounding = output.get("evidence_grounding") if isinstance(output.get("evidence_grounding"), dict) else {}
+        if evidence_grounding:
+            unsupported = evidence_grounding.get("unsupported_tokens")
+            if isinstance(unsupported, list) and unsupported:
+                return clip_text(
+                    "error=evidence grounding required; unsupported="
+                    + ", ".join(str(token) for token in unsupported[:10])
+                    + "; use only tokens present in recent observed evidence or record uncertainty",
+                    700,
+                )
+        return clip_text(f"error={output.get('error')}; guidance={output.get('guidance') or ''}", 700)
     if tool_name == "web_search":
         results = output.get("results") if isinstance(output.get("results"), list) else []
         titles = []
@@ -107,11 +124,6 @@ def observation_for_prompt(tool_name: str | None, output: dict[str, Any]) -> str
         return clip_text(f"experiment={experiment.get('title')} status={experiment.get('status')} {metric}{delta}{best}", 520)
     if tool_name == "acknowledge_operator_context":
         return f"operator_context {output.get('status')} count={output.get('count')}"[:700]
-    if tool_name in {"browser_click", "browser_type"} and output.get("error"):
-        recovery = output.get("recovery_snapshot") if isinstance(output.get("recovery_snapshot"), dict) else {}
-        candidates = browser_candidates_for_prompt(recovery)
-        suffix = f"; recovery_candidates={candidates}" if candidates else ""
-        return clip_text(f"error={output.get('error')}; guidance={output.get('recovery_guidance', '')}{suffix}", 700)
     if tool_name == "browser_navigate":
         data = output.get("data") if isinstance(output.get("data"), dict) else {}
         title = data.get("title") or ""
@@ -130,8 +142,6 @@ def observation_for_prompt(tool_name: str | None, output: dict[str, Any]) -> str
         candidates = browser_candidates_for_prompt(output)
         candidate_suffix = f"; candidates={candidates}" if candidates else ""
         return clip_text(f"snapshot_chars={len(snapshot)}{suffix}{candidate_suffix}", 700)
-    if output.get("error"):
-        return f"error={output.get('error')}"
     return compact(output, 700)
 
 

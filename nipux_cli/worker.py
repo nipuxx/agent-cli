@@ -1091,6 +1091,7 @@ def _recent_evidence_text(job: dict[str, Any], recent_steps: list[dict[str, Any]
 
 
 def _concrete_evidence_tokens(text: str) -> list[str]:
+    text = text.replace("\\n", "\n").replace("\\t", "\t")
     tokens: list[str] = []
     for raw in re.findall(r"\b[A-Za-z][A-Za-z0-9_.+-]{1,}\b", text):
         token = raw.strip("._+-")
@@ -1098,6 +1099,8 @@ def _concrete_evidence_tokens(text: str) -> list[str]:
             continue
         lowered = token.lower()
         if lowered in EVIDENCE_TOKEN_IGNORE:
+            continue
+        if lowered.startswith("art_"):
             continue
         if token.isupper() and len(token) >= 3:
             tokens.append(token)

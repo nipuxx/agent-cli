@@ -2256,6 +2256,31 @@ def test_run_one_step_allows_durable_records_grounded_in_read_artifact(tmp_path)
         db.close()
 
 
+def test_prompt_shows_evidence_grounding_tokens_after_block(tmp_path):
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Use only observed evidence", title="grounding-prompt", kind="generic")
+        run_id = db.start_run(job_id, model="test")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="write_artifact")
+        db.finish_step(
+            step_id,
+            status="blocked",
+            output_data={
+                "success": True,
+                "recoverable": True,
+                "error": "evidence grounding required",
+                "evidence_grounding": {"unsupported_tokens": ["NVIDIA", "Xeon", "AVX-512"]},
+            },
+        )
+        job = db.get_job(job_id)
+        content = build_messages(job, db.list_steps(job_id=job_id))[-1]["content"]
+
+        assert "unsupported=NVIDIA, Xeon, AVX-512" in content
+        assert "use only tokens present in recent observed evidence" in content
+    finally:
+        db.close()
+
+
 def test_run_one_step_requires_accounting_after_auto_checkpoint_read(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")
