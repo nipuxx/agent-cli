@@ -2982,6 +2982,32 @@ def test_prompt_redacts_stale_tokens_from_recent_state(tmp_path):
         db.close()
 
 
+def test_prompt_redacts_older_stale_tokens_from_task_queue(tmp_path):
+    stale_tail = [f"GPU{i}X" for i in range(60)]
+    job = {
+        "title": "stale task cleanup",
+        "kind": "generic",
+        "objective": "use current evidence",
+        "metadata": {
+            "unsupported_claim_tokens": ["E5-2690", *stale_tail],
+            "task_queue": [
+                {
+                    "title": "Record old baseline",
+                    "status": "active",
+                    "priority": 10,
+                    "goal": "Record CPU: Dual Intel Xeon E5-2690 v3 from old evidence.",
+                    "output_contract": "experiment",
+                }
+            ],
+        },
+    }
+
+    content = build_messages(job, [])[-1]["content"]
+
+    assert "E5-2690" not in content
+    assert "[unsupported-stale-claim]" in content
+
+
 def test_run_one_step_requires_accounting_after_auto_checkpoint_read(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

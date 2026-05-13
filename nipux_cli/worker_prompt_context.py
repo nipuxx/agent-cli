@@ -456,7 +456,7 @@ def _stale_claim_tokens_for_prompt(metadata: dict[str, Any], *, reference_text: 
             continue
         seen.add(key)
         tokens.append(token)
-    return tokens[-20:]
+    return tokens[-100:]
 
 
 def _unsupported_tokens_from_lesson(lesson: str) -> list[str]:
