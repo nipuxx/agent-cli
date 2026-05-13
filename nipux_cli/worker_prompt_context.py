@@ -39,6 +39,11 @@ def _memory_entries_for_prompt(memory_entries: list[dict[str, Any]], *, limit: i
 def _render_worker_prompt(job: dict[str, Any], *, sections: list[tuple[str, str]]) -> str:
     objective = _clip_text(job.get("objective") or "", 2_000)
     header = f"Job: {job['title']}\nKind: {job['kind']}\nObjective:\n{objective}"
+    metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
+    stale_tokens = _stale_claim_tokens_for_prompt(
+        metadata,
+        reference_text=" ".join(str(job.get(key) or "") for key in ("title", "objective", "kind")),
+    )
     instruction = (
         "Take exactly one bounded next action. If recent state contains search results, do not search the same query again. "
         "If recent state contains extracted page evidence, write an artifact before doing more search or browsing."
@@ -49,7 +54,8 @@ def _render_worker_prompt(job: dict[str, Any], *, sections: list[tuple[str, str]
         for title, body in sections:
             base_budget = PROMPT_SECTION_BUDGETS.get(title, SECTION_ITEM_CHARS)
             budget = max(260, int(base_budget * scale))
-            parts.append(f"{title}:\n{_clip_text(body, budget)}")
+            safe_body = _redact_stale_tokens_for_prompt(body, stale_tokens)
+            parts.append(f"{title}:\n{_clip_text(safe_body, budget)}")
         parts.append(instruction)
         content = "\n\n".join(parts)
         if len(content) <= MAX_WORKER_PROMPT_CHARS or scale <= 0.45:
@@ -60,13 +66,21 @@ def _render_worker_prompt(job: dict[str, Any], *, sections: list[tuple[str, str]
     suffix_sections: list[str] = []
     for title, body in sections:
         if title == "Operator context":
-            suffix_sections.append(f"Operator context:\n{_clip_text(body, 900)}")
+            suffix_sections.append(f"Operator context:\n{_clip_text(_redact_stale_tokens_for_prompt(body, stale_tokens), 900)}")
         elif title == "Next-action constraint":
-            suffix_sections.append(f"Next-action constraint:\n{_clip_text(body, 900)}")
+            suffix_sections.append(f"Next-action constraint:\n{_clip_text(_redact_stale_tokens_for_prompt(body, stale_tokens), 900)}")
     suffix = "\n\n".join(suffix_sections + [instruction])
     marker = "\n\n...[middle context clipped; operator context and next action repeated below]...\n"
     head_budget = max(0, MAX_WORKER_PROMPT_CHARS - len(suffix) - len(marker))
     return _clip_text(content, head_budget) + marker + suffix
+
+
+def _redact_stale_tokens_for_prompt(text: str, stale_tokens: list[str]) -> str:
+    redacted = str(text or "")
+    for token in sorted((str(token) for token in stale_tokens if str(token).strip()), key=len, reverse=True):
+        pattern = r"(?<![A-Za-z0-9])" + re.escape(token) + r"(?![A-Za-z0-9])"
+        redacted = re.sub(pattern, "[unsupported-stale-claim]", redacted, flags=re.IGNORECASE)
+    return redacted
 
 
 def _operator_messages_for_prompt(

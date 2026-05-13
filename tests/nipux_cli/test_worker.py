@@ -2821,7 +2821,7 @@ def test_prompt_suppresses_findings_matching_stale_claim_tokens(tmp_path):
         job = db.get_job(job_id)
         content = build_messages(job, db.list_steps(job_id=job_id))[-1]["content"]
 
-        assert "Unsupported/stale claim tokens to avoid until re-verified: E5-2690" in content
+        assert "Unsupported/stale claim tokens to avoid until re-verified: [unsupported-stale-claim]" in content
         assert "Suppressed 1 stale finding" in content
         assert "AMD Ryzen 9 7900X baseline" in content
         assert "Intel Xeon E5-2690 v3 baseline" not in content
@@ -2851,8 +2851,41 @@ def test_prompt_filters_stale_generated_and_objective_tokens(tmp_path):
         assert "JSON" not in content
         assert "shell_exec_step_1037" not in content
         assert "timeout_after_300s" not in content
-        assert "Unsupported/stale claim tokens to avoid until re-verified: E5-2690" in content
+        assert "Unsupported/stale claim tokens to avoid until re-verified: [unsupported-stale-claim]" in content
         assert "Intel Xeon E5-2690 baseline" not in content
+    finally:
+        db.close()
+
+
+def test_prompt_redacts_stale_tokens_from_recent_state(tmp_path):
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job(
+            "Prefer current durable evidence",
+            title="stale-recent-state",
+            kind="generic",
+            metadata={"unsupported_claim_tokens": ["E5-2690", "v3"]},
+        )
+        run_id = db.start_run(job_id, model="test")
+        step_id = db.add_step(
+            job_id=job_id,
+            run_id=run_id,
+            kind="tool",
+            tool_name="record_findings",
+            input_data={"arguments": {"finding": "Old CPU claim: Intel Xeon E5-2690 v3"}},
+        )
+        db.finish_step(
+            step_id,
+            status="blocked",
+            output_data={"success": False, "error": "evidence grounding required"},
+            summary="blocked record_findings; Intel Xeon E5-2690 v3 unsupported",
+        )
+        db.finish_run(run_id, "blocked")
+
+        content = build_messages(db.get_job(job_id), db.list_steps(job_id=job_id))[-1]["content"]
+
+        assert "E5-2690" not in content
+        assert "[unsupported-stale-claim]" in content
     finally:
         db.close()
 
