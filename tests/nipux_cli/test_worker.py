@@ -2419,6 +2419,113 @@ def test_run_one_step_blocks_memory_graph_with_unsupported_claims(tmp_path):
         db.close()
 
 
+def test_run_one_step_allows_memory_graph_identifier_labels_without_evidence(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Consolidate abstract graph labels", title="memory-grounding", kind="generic")
+        run_id = db.start_run(job_id, model="test")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec")
+        db.finish_step(
+            step_id,
+            status="completed",
+            output_data={
+                "success": True,
+                "stdout": (
+                    "Current observation: AMD Ryzen 9 7900X host with fresh API discovery evidence. "
+                    "The next branch is to convert existing source evidence into a download decision."
+                ),
+            },
+        )
+        db.finish_run(run_id, "completed")
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(
+                        name="record_memory_graph",
+                        arguments={
+                            "edges": [
+                                {
+                                    "from_key": "decision-q4-km-primary",
+                                    "relation": "informs",
+                                    "to_key": "question-download-q4-km-url",
+                                },
+                                {
+                                    "from_key": "skill-api-download-pattern",
+                                    "relation": "supports",
+                                    "to_key": "milestone-direct-url-download",
+                                },
+                            ]
+                        },
+                    )
+                ])
+            ]),
+        )
+
+        assert result.status == "completed"
+        assert result.tool_name == "record_memory_graph"
+    finally:
+        db.close()
+
+
+def test_run_one_step_still_blocks_stale_memory_graph_key_claims(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job(
+            "Do not reintroduce stale graph labels",
+            title="memory-grounding",
+            kind="generic",
+            metadata={"unsupported_claim_tokens": ["XeonE5-2690"]},
+        )
+        run_id = db.start_run(job_id, model="test")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec")
+        db.finish_step(
+            step_id,
+            status="completed",
+            output_data={
+                "success": True,
+                "stdout": (
+                    "Current observation: AMD Ryzen 9 7900X host with no legacy CPU marker in fresh evidence. "
+                    "Durable memory must not reuse unsupported old hardware claims."
+                ),
+            },
+        )
+        db.finish_run(run_id, "completed")
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(
+                        name="record_memory_graph",
+                        arguments={
+                            "edges": [
+                                {
+                                    "from_key": "XeonE5-2690",
+                                    "relation": "constrains",
+                                    "to_key": "current-plan",
+                                }
+                            ]
+                        },
+                    )
+                ])
+            ]),
+        )
+
+        assert result.status == "blocked"
+        assert result.result["error"] == "evidence grounding required"
+        assert "XeonE5-2690" in result.result["evidence_grounding"]["unsupported_tokens"]
+    finally:
+        db.close()
+
+
 def test_run_one_step_allows_memory_graph_grounded_in_durable_records(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

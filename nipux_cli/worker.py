@@ -1190,10 +1190,11 @@ def _evidence_grounding_context(
 ) -> dict[str, Any] | None:
     if tool_name not in EVIDENCE_GROUNDED_TOOLS:
         return None
-    proposed_text = _json_text(args)
-    if len(proposed_text.strip()) < 80:
+    full_proposed_text = _json_text(args)
+    proposed_text = _evidence_grounding_proposed_text(tool_name, args)
+    if len(full_proposed_text.strip()) < 80:
         return None
-    cited_steps = _cited_step_numbers(proposed_text)
+    cited_steps = _cited_step_numbers(full_proposed_text)
     evidence_text = _recent_evidence_text(job, recent_steps, window=window, step_numbers=cited_steps or None)
     fresh_evidence_text = _recent_evidence_text(
         job,
@@ -1206,14 +1207,15 @@ def _evidence_grounding_context(
         return None
     proposed_tokens = _concrete_evidence_tokens(proposed_text)
     stale_tokens = _active_stale_claim_token_set(job)
-    proposed_stale_tokens = [token for token in proposed_tokens if token.lower() in stale_tokens]
+    proposed_stale_tokens = [token for token in _concrete_evidence_tokens(full_proposed_text) if token.lower() in stale_tokens]
     unsupported_threshold = 1 if cited_steps or proposed_stale_tokens else 3
-    if len(proposed_tokens) < unsupported_threshold:
+    candidate_tokens = proposed_tokens + proposed_stale_tokens
+    if len(candidate_tokens) < unsupported_threshold:
         return None
     evidence_lower = evidence_text.lower()
     fresh_evidence_lower = fresh_evidence_text.lower()
     unsupported = []
-    for token in proposed_tokens:
+    for token in candidate_tokens:
         lowered = token.lower()
         if lowered in fresh_evidence_lower:
             continue
@@ -1242,6 +1244,29 @@ def _evidence_grounding_context(
             "Use exact observed evidence, inspect the source again, or record uncertainty instead of writing unsupported claims."
         ),
     }
+
+
+def _evidence_grounding_proposed_text(tool_name: str, args: dict[str, Any]) -> str:
+    if tool_name != "record_memory_graph":
+        return _json_text(args)
+    parts: list[str] = []
+    nodes = args.get("nodes") if isinstance(args.get("nodes"), list) else []
+    for node in nodes:
+        if not isinstance(node, dict):
+            continue
+        for key in ("title", "summary", "tags", "metadata"):
+            value = node.get(key)
+            if value:
+                parts.append(_json_text(value))
+    edges = args.get("edges") if isinstance(args.get("edges"), list) else []
+    for edge in edges:
+        if not isinstance(edge, dict):
+            continue
+        for key in ("evidence_refs", "metadata"):
+            value = edge.get(key)
+            if value:
+                parts.append(_json_text(value))
+    return "\n".join(parts)
 
 
 def _json_text(value: Any) -> str:
