@@ -1261,7 +1261,7 @@ def test_prompt_does_not_tell_worker_to_reread_checkpoint_after_it_was_read(tmp_
 
 def test_evidence_grounding_ignores_format_protocol_tokens():
     tokens = _concrete_evidence_tokens(
-        "Parsed JSON from HTTPS REST API URL and saved HTML/YAML/XML CDN SHA256 excerpts for Model-7B."
+        "Parsed JSON from HTTPS REST API URL and saved HTML/YAML/XML CDN SHA256 GGUF excerpts for Model-7B step_123_shell_output."
     )
 
     assert "JSON" not in tokens
@@ -1270,7 +1270,9 @@ def test_evidence_grounding_ignores_format_protocol_tokens():
     assert "API" not in tokens
     assert "CDN" not in tokens
     assert "SHA256" not in tokens
+    assert "GGUF" not in tokens
     assert "URL" not in tokens
+    assert "step_123_shell_output" not in tokens
     assert "Model-7B" in tokens
 
 

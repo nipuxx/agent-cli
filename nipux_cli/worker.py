@@ -993,6 +993,7 @@ EVIDENCE_TOKEN_IGNORE = {
     "https",
     "json",
     "goal",
+    "gguf",
     "hardware",
     "improve",
     "memory",
@@ -1308,6 +1309,10 @@ def _concrete_evidence_tokens(text: str) -> list[str]:
         if lowered in EVIDENCE_TOKEN_IGNORE:
             continue
         if lowered.startswith("art_"):
+            continue
+        if lowered.startswith("step_"):
+            continue
+        if lowered.endswith("_output") or lowered.endswith("_stdout") or lowered.endswith("_stderr"):
             continue
         if token.isupper() and len(token) >= 3:
             tokens.append(token)
