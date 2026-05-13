@@ -5062,6 +5062,33 @@ def test_run_one_step_records_failed_shell_url_source(tmp_path):
         db.close()
 
 
+def test_run_one_step_records_pathful_failed_shell_urls_not_root_health_checks(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Avoid poisoning whole hosts from mixed probes", title="guard")
+        bad_url = "https://source.example/api/private/tree/main"
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[ToolCall(
+                    name="shell_exec",
+                    arguments={"command": f"curl -sI https://source.example && curl -s {bad_url}"},
+                )])
+            ]),
+            registry=FailedUrlShellRegistry(),
+        )
+        sources = db.get_job(job_id)["metadata"]["source_ledger"]
+
+        assert result.status == "failed"
+        assert [source["source"] for source in sources] == [bad_url]
+    finally:
+        db.close()
+
+
 def test_run_one_step_blocks_known_bad_shell_source_path(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")
@@ -5105,6 +5132,40 @@ def test_run_one_step_blocks_known_bad_shell_source_path(tmp_path):
         assert blocked.result["error"] == "known bad source blocked"
         assert blocked.result["known_bad_source"]["source"] == "https://source.example/api/private/tree/main"
         assert allowed.status == "completed"
+    finally:
+        db.close()
+
+
+def test_run_one_step_allows_mixed_shell_command_with_bad_root_health_check(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Avoid over-broad shell root source blocks", title="guard")
+        db.append_source_record(
+            job_id,
+            "https://source.example",
+            source_type="shell_exec",
+            usefulness_score=0.01,
+            fail_count_delta=1,
+            warnings=["root health check failed earlier"],
+            outcome="HTTP failure",
+        )
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[ToolCall(
+                    name="shell_exec",
+                    arguments={"command": "curl -sI https://source.example && curl -s https://source.example/api/public/models"},
+                )])
+            ]),
+            registry=SuccessRegistry(),
+        )
+
+        assert result.status == "completed"
+        assert result.tool_name == "shell_exec"
     finally:
         db.close()
 

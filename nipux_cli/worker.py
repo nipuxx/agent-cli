@@ -924,6 +924,19 @@ def _urls_from_text(text: str) -> list[str]:
     return urls
 
 
+def _source_url_has_path(value: str) -> bool:
+    _, path = _source_path_key(value)
+    return path not in {"", "/"}
+
+
+def _shell_guard_urls(text: str) -> list[str]:
+    urls = _urls_from_text(text)
+    if len(urls) <= 1:
+        return urls
+    path_urls = [url for url in urls if _source_url_has_path(url)]
+    return path_urls or urls
+
+
 def _known_bad_sources(job: dict[str, Any]) -> list[dict[str, Any]]:
     bad_sources = []
     for source in _metadata_list(job, "source_ledger"):
@@ -948,7 +961,7 @@ def _known_bad_source_for_call(name: str, args: dict[str, Any], job: dict[str, A
     elif isinstance(args.get("urls"), list):
         urls = [str(url) for url in args["urls"]]
     elif name == "shell_exec":
-        urls = _urls_from_text(str(args.get("command") or ""))
+        urls = _shell_guard_urls(str(args.get("command") or ""))
     for url in [url for url in urls if url.strip()]:
         for source in bad_sources:
             source_value = str(source.get("source") or "")
@@ -3281,7 +3294,7 @@ def _auto_record_failed_shell_sources(
         )
     ):
         return
-    for url in _urls_from_text(str(args.get("command") or ""))[:3]:
+    for url in _shell_guard_urls(str(args.get("command") or ""))[:3]:
         db.append_source_record(
             job_id,
             url,
