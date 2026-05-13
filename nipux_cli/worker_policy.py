@@ -153,6 +153,15 @@ LEDGER_PROGRESS_TOOLS = {
     "record_lesson",
 }
 MEASUREMENT_RESOLUTION_TOOLS = {"record_experiment", "record_lesson", "record_tasks", "record_milestone_validation", "acknowledge_operator_context"}
+FILE_VALIDATION_RESOLUTION_TOOLS = {
+    "shell_exec",
+    "record_experiment",
+    "record_lesson",
+    "record_tasks",
+    "record_milestone_validation",
+    "record_memory_graph",
+    "acknowledge_operator_context",
+}
 ARTIFACT_ACCOUNTING_RESOLUTION_TOOLS = LEDGER_PROGRESS_TOOLS | {"acknowledge_operator_context"}
 ARTIFACT_ACCOUNTING_BLOCKED_TOOLS = INFORMATION_GATHERING_TOOLS | {
     "shell_exec",
@@ -164,6 +173,13 @@ ARTIFACT_ACCOUNTING_BLOCKED_TOOLS = INFORMATION_GATHERING_TOOLS | {
 }
 MEASUREMENT_BLOCKED_TOOLS = INFORMATION_GATHERING_TOOLS | {
     "shell_exec",
+    "write_file",
+    "write_artifact",
+    "record_findings",
+    "record_source",
+    "report_update",
+}
+FILE_VALIDATION_BLOCKED_TOOLS = INFORMATION_GATHERING_TOOLS | ARTIFACT_REVIEW_TOOLS | MEMORY_REVIEW_TOOLS | {
     "write_file",
     "write_artifact",
     "record_findings",

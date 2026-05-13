@@ -9,6 +9,7 @@ import threading
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
@@ -43,6 +44,8 @@ from nipux_cli.worker_policy import (
     EXPERIMENT_DELIVERY_ACTION_TERMS,
     EXPERIMENT_INFORMATION_ACTION_TERMS,
     EXPERIMENT_NEXT_ACTION_BLOCKED_TOOLS,
+    FILE_VALIDATION_BLOCKED_TOOLS,
+    FILE_VALIDATION_RESOLUTION_TOOLS,
     LEDGER_PROGRESS_TOOLS,
     MAX_WORKER_PROMPT_CHARS,
     MEASURABLE_ACTION_BUDGET_STEPS,
@@ -137,6 +140,7 @@ def build_messages(
         include_unclaimed=include_unclaimed_operator_messages,
     )
     measurement_obligation = _measurement_obligation_for_prompt(job)
+    file_validation_obligation = _file_validation_obligation_for_prompt(job)
     measured_progress_guard = _measured_progress_guard_for_prompt(job, recent_steps)
     research_balance_guard = _research_balance_guard_for_prompt(job, recent_steps)
     deliverable_progress_guard = _deliverable_progress_guard_for_prompt(job, recent_steps)
@@ -170,6 +174,7 @@ def build_messages(
             ),
             ("Operator context", operator_messages),
             ("Pending measurement obligation", measurement_obligation),
+            ("Pending file validation obligation", file_validation_obligation),
             ("Measured progress guard", measured_progress_guard),
             ("Research balance guard", research_balance_guard),
             ("Deliverable progress guard", deliverable_progress_guard),
@@ -272,6 +277,25 @@ def _measurement_obligation_for_prompt(job: dict[str, Any]) -> str:
     lines.append(
         "Before more research or artifact churn, call record_experiment with the measured result, "
         "record_lesson explaining why it is not a valid measurement, or record_tasks to create the missing measurement branch."
+    )
+    return "\n".join(lines)
+
+
+def _file_validation_obligation_for_prompt(job: dict[str, Any]) -> str:
+    obligation = _pending_file_validation_obligation(job)
+    if not obligation:
+        return "None."
+    lines = [
+        f"path={obligation.get('path') or ''}",
+        f"source_step=#{obligation.get('source_step_no') or '?'}",
+        f"reason={obligation.get('reason') or 'recent file output needs validation'}",
+    ]
+    suggested = str(obligation.get("suggested_validation") or "").strip()
+    if suggested:
+        lines.append(f"suggested_validation={suggested}")
+    lines.append(
+        "Before more research/output churn, validate the file with shell_exec, "
+        "or use record_tasks/record_lesson/record_experiment to explain the blocked or deferred validation."
     )
     return "\n".join(lines)
 
@@ -458,6 +482,14 @@ def _next_action_constraint(job: dict[str, Any], recent_steps: list[dict[str, An
             f"step #{measurement_obligation.get('source_step_no') or '?'}. "
             "Resolve it with record_experiment, record_lesson explaining why it is invalid, "
             "or record_tasks creating the missing measurement branch before more research/artifact churn."
+        )
+    file_validation = _pending_file_validation_obligation(job)
+    if file_validation:
+        return (
+            "A recently written file needs validation before more branch work. "
+            f"File: {_clip_text(str(file_validation.get('path') or ''), 260)}. "
+            f"Suggested validation: {_clip_text(str(file_validation.get('suggested_validation') or ''), 360)}. "
+            "Use shell_exec to validate it, or record_tasks/record_lesson/record_experiment if validation is blocked or deferred."
         )
     artifact_accounting = _artifact_accounting_context(recent_steps)
     if artifact_accounting:
@@ -1667,6 +1699,76 @@ def _pending_measurement_obligation(job: dict[str, Any]) -> dict[str, Any] | Non
     return None
 
 
+CODELIKE_FILE_SUFFIXES = {
+    ".bash",
+    ".cfg",
+    ".cjs",
+    ".conf",
+    ".cpp",
+    ".css",
+    ".go",
+    ".h",
+    ".hpp",
+    ".ini",
+    ".java",
+    ".js",
+    ".json",
+    ".jsx",
+    ".lua",
+    ".mjs",
+    ".php",
+    ".pl",
+    ".py",
+    ".rb",
+    ".rs",
+    ".sh",
+    ".sql",
+    ".toml",
+    ".ts",
+    ".tsx",
+    ".yaml",
+    ".yml",
+    ".zsh",
+}
+
+
+def _pending_file_validation_obligation(job: dict[str, Any]) -> dict[str, Any] | None:
+    metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
+    obligation = metadata.get("pending_file_validation_obligation")
+    if isinstance(obligation, dict) and obligation and not obligation.get("resolved_at"):
+        return obligation
+    return None
+
+
+def _file_output_needs_validation(path: str, content: str) -> bool:
+    suffix = Path(path).suffix.lower()
+    if suffix in CODELIKE_FILE_SUFFIXES:
+        return True
+    first_line = content.lstrip().splitlines()[0] if content.strip() else ""
+    if first_line.startswith("#!"):
+        return True
+    lowered = Path(path).name.lower()
+    return lowered in {"dockerfile", "makefile", "justfile", "procfile"}
+
+
+def _suggested_file_validation(path: str) -> str:
+    suffix = Path(path).suffix.lower()
+    quoted = shlex_quote(path)
+    if suffix == ".py":
+        return f"python3 -m py_compile {quoted}"
+    if suffix in {".sh", ".bash", ".zsh"}:
+        return f"bash -n {quoted}"
+    if suffix == ".json":
+        return f"python3 -m json.tool {quoted}"
+    if suffix in {".yaml", ".yml"}:
+        return f"python3 - <<'PY'\nimport pathlib, yaml\nyaml.safe_load(pathlib.Path({path!r}).read_text())\nPY"
+    return f"run the narrowest available syntax check, test, or dry-run for {quoted}"
+
+
+def shlex_quote(value: str) -> str:
+    return "'" + str(value).replace("'", "'\"'\"'") + "'"
+
+
 def _clear_invalid_measurement_obligation(db: AgentDB, job_id: str) -> bool:
     job = db.get_job(job_id)
     obligation = _pending_measurement_obligation(job)
@@ -2046,6 +2148,126 @@ def _maybe_create_measurement_obligation(
     )
 
 
+def _maybe_create_file_validation_obligation(
+    *,
+    db: AgentDB,
+    job_id: str,
+    step: dict[str, Any] | None,
+    args: dict[str, Any],
+    result: dict[str, Any],
+) -> None:
+    path = str(result.get("path") or args.get("path") or "").strip()
+    content = str(args.get("content") or "")
+    if not path or not _file_output_needs_validation(path, content):
+        return
+    metadata = db.get_job(job_id).get("metadata")
+    if isinstance(metadata, dict):
+        existing = metadata.get("pending_file_validation_obligation")
+        if isinstance(existing, dict) and existing and not existing.get("resolved_at"):
+            return
+    obligation = {
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "source_step_id": step.get("id") if step else "",
+        "source_step_no": step.get("step_no") if step else None,
+        "tool": "write_file",
+        "path": path,
+        "reason": "code/config/script-like file was written and needs validation before more branch work",
+        "suggested_validation": _suggested_file_validation(path),
+    }
+    db.update_job_metadata(job_id, {"pending_file_validation_obligation": obligation})
+    db.append_agent_update(
+        job_id,
+        f"File output needs validation: {path}",
+        category="blocked",
+        metadata={"pending_file_validation_obligation": obligation},
+    )
+
+
+def _command_references_path(command: str, path: str) -> bool:
+    if not command or not path:
+        return False
+    path_obj = Path(path)
+    needles = {str(path_obj), path_obj.name}
+    try:
+        needles.add(str(path_obj.expanduser().resolve()))
+    except OSError:
+        pass
+    return any(needle and needle in command for needle in needles)
+
+
+def _resolve_file_validation_obligation(
+    db: AgentDB,
+    job_id: str,
+    *,
+    status: str,
+    reason: str,
+    via_tool: str,
+    result: dict[str, Any] | None = None,
+) -> None:
+    job = db.get_job(job_id)
+    obligation = _pending_file_validation_obligation(job)
+    if not obligation:
+        return
+    resolved = dict(obligation)
+    resolved.update({
+        "resolved_at": datetime.now(timezone.utc).isoformat(),
+        "resolution_status": status,
+        "resolution_reason": reason[:1000],
+        "resolution_tool": via_tool,
+    })
+    if result:
+        resolved["validation_result"] = {
+            key: result.get(key)
+            for key in ("success", "returncode", "error", "summary")
+            if key in result
+        }
+    db.update_job_metadata(
+        job_id,
+        {
+            "pending_file_validation_obligation": {},
+            "last_file_validation_obligation": resolved,
+        },
+    )
+    db.append_agent_update(
+        job_id,
+        f"File validation {status}: {reason[:220]}",
+        category="progress" if status == "validated" else "blocked",
+        metadata={"file_validation_obligation": resolved},
+    )
+
+
+def _maybe_resolve_file_validation_obligation(
+    *,
+    db: AgentDB,
+    job_id: str,
+    tool_name: str,
+    args: dict[str, Any],
+    result: dict[str, Any],
+    ok: bool,
+) -> None:
+    obligation = _pending_file_validation_obligation(db.get_job(job_id))
+    if not obligation:
+        return
+    if tool_name == "shell_exec":
+        command = str(args.get("command") or result.get("command") or "")
+        path = str(obligation.get("path") or "")
+        if not _command_references_path(command, path):
+            return
+        status = "validated" if ok else "failed"
+        reason = "Validation command completed." if ok else f"Validation command failed: {result.get('error') or 'non-zero result'}"
+        _resolve_file_validation_obligation(db, job_id, status=status, reason=reason, via_tool=tool_name, result=result)
+        return
+    if ok and tool_name in {"record_lesson", "record_tasks", "record_experiment", "record_milestone_validation"}:
+        _resolve_file_validation_obligation(
+            db,
+            job_id,
+            status="deferred",
+            reason=f"Validation was handled or deferred via {tool_name}.",
+            via_tool=tool_name,
+            result=result,
+        )
+
+
 def _step_by_id(db: AgentDB, job_id: str, step_id: str) -> dict[str, Any] | None:
     for step in db.list_steps(job_id=job_id):
         if str(step.get("id") or "") == step_id:
@@ -2329,6 +2551,27 @@ def _blocked_tool_call_result(
             ),
         }
         return result, f"blocked {name}; record_experiment required after measured output"
+
+    file_validation_obligation = _pending_file_validation_obligation(job)
+    if (
+        file_validation_obligation
+        and not checkpoint_resolution_call
+        and name in FILE_VALIDATION_BLOCKED_TOOLS
+        and name not in FILE_VALIDATION_RESOLUTION_TOOLS
+    ):
+        result = {
+            "success": False,
+            "error": "file validation pending",
+            "blocked_tool": name,
+            "blocked_arguments": args,
+            "pending_file_validation_obligation": file_validation_obligation,
+            "guidance": (
+                "A recent file output needs validation before more research/output churn. "
+                "Use shell_exec to run a syntax check, dry-run, test, or other narrow validation for the file, "
+                "or use record_tasks/record_lesson/record_experiment if validation is blocked or deferred."
+            ),
+        }
+        return result, f"blocked {name}; file validation required after write_file"
 
     evidence_grounding = _evidence_grounding_context(job, recent_steps, tool_name=name, args=args)
     if evidence_grounding:
@@ -3626,6 +3869,15 @@ def _execute_tool_call(
             _auto_record_failed_shell_sources(db=db, job_id=job_id, args=call.arguments, result=result)
         summary = _summarize_tool_result(call.name, call.arguments, result, ok=ok)
         db.finish_step(step_id, status=status, summary=summary, output_data=result, error=result.get("error"))
+        if call.name == "shell_exec":
+            _maybe_resolve_file_validation_obligation(
+                db=db,
+                job_id=job_id,
+                tool_name=call.name,
+                args=call.arguments,
+                result=result,
+                ok=ok,
+            )
         if ok:
             finished_step = _step_by_id(db, job_id, step_id)
             _mark_evidence_checkpoint_read(
@@ -3649,6 +3901,23 @@ def _execute_tool_call(
                 args=call.arguments,
                 result=result,
             )
+            if call.name == "write_file":
+                _maybe_create_file_validation_obligation(
+                    db=db,
+                    job_id=job_id,
+                    step=finished_step,
+                    args=call.arguments,
+                    result=result,
+                )
+            elif call.name in {"record_lesson", "record_tasks", "record_experiment", "record_milestone_validation"}:
+                _maybe_resolve_file_validation_obligation(
+                    db=db,
+                    job_id=job_id,
+                    tool_name=call.name,
+                    args=call.arguments,
+                    result=result,
+                    ok=ok,
+                )
             _auto_checkpoint_update(
                 db=db,
                 job_id=job_id,

@@ -3632,6 +3632,81 @@ def test_write_file_can_consume_recent_shell_evidence(tmp_path):
         db.close()
 
 
+def test_write_file_creates_validation_obligation_for_code_outputs(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Create a validated script", title="validate-file", kind="generic")
+        path = tmp_path / "generated.py"
+
+        first = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[ToolCall(
+                    name="write_file",
+                    arguments={"path": str(path), "content": "print('ok')\n"},
+                )])
+            ]),
+        )
+        job = db.get_job(job_id)
+        obligation = job["metadata"]["pending_file_validation_obligation"]
+
+        assert first.status == "completed"
+        assert obligation["path"] == str(path)
+        assert "py_compile" in obligation["suggested_validation"]
+    finally:
+        db.close()
+
+
+def test_file_validation_obligation_blocks_research_until_validated(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Create a validated script", title="validate-file", kind="generic")
+        path = tmp_path / "generated.py"
+        run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[ToolCall(
+                    name="write_file",
+                    arguments={"path": str(path), "content": "print('ok')\n"},
+                )])
+            ]),
+        )
+
+        blocked = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([LLMResponse(tool_calls=[ToolCall(name="web_search", arguments={"query": "more context"})])]),
+            registry=SuccessRegistry(),
+        )
+        validated = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[ToolCall(
+                    name="shell_exec",
+                    arguments={"command": f"python3 -m py_compile {path}"},
+                )])
+            ]),
+        )
+        job = db.get_job(job_id)
+
+        assert blocked.status == "blocked"
+        assert blocked.result["error"] == "file validation pending"
+        assert validated.status == "completed"
+        assert job["metadata"].get("pending_file_validation_obligation") == {}
+        assert job["metadata"]["last_file_validation_obligation"]["resolution_status"] == "validated"
+    finally:
+        db.close()
+
+
 def test_delivery_experiment_next_action_allows_internal_artifact_review(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")
