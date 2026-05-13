@@ -1020,7 +1020,8 @@ def _evidence_grounding_context(
     proposed_text = _json_text(args)
     if len(proposed_text.strip()) < 80:
         return None
-    evidence_text = _recent_evidence_text(job, recent_steps, window=window)
+    cited_steps = _cited_step_numbers(proposed_text)
+    evidence_text = _recent_evidence_text(job, recent_steps, window=window, step_numbers=cited_steps or None)
     if len(evidence_text.strip()) < 80:
         return None
     proposed_tokens = _concrete_evidence_tokens(proposed_text)
@@ -1047,9 +1048,9 @@ def _evidence_grounding_context(
         "unsupported_tokens": unique[:12],
         "evidence_steps": [
             step.get("step_no")
-            for step in _completed_recent_steps(recent_steps)[-window:]
-            if step.get("tool_name") in {"browser_snapshot", "shell_exec", "web_extract", "web_search", "read_artifact"}
+            for step in _evidence_steps_for_grounding(recent_steps, window=window, step_numbers=cited_steps or None)
         ],
+        "cited_steps": sorted(cited_steps),
         "guidance": (
             "The proposed durable record contains concrete tokens that are not present in recent evidence. "
             "Use exact observed evidence, inspect the source again, or record uncertainty instead of writing unsupported claims."
@@ -1064,11 +1065,46 @@ def _json_text(value: Any) -> str:
         return str(value)
 
 
-def _recent_evidence_text(job: dict[str, Any], recent_steps: list[dict[str, Any]], *, window: int) -> str:
-    parts = [str(job.get("title") or ""), str(job.get("objective") or ""), str(job.get("kind") or "")]
-    for step in _completed_recent_steps(recent_steps)[-window:]:
-        if step.get("tool_name") not in {"browser_snapshot", "shell_exec", "web_extract", "web_search", "read_artifact"}:
+def _cited_step_numbers(text: str) -> set[int]:
+    numbers = set()
+    for match in re.finditer(r"(?i)\bsteps?\s*#?\s*(\d+)\b|#(\d+)\b", text):
+        raw = match.group(1) or match.group(2)
+        try:
+            value = int(raw)
+        except (TypeError, ValueError):
             continue
+        if value > 0:
+            numbers.add(value)
+    return numbers
+
+
+def _evidence_steps_for_grounding(
+    recent_steps: list[dict[str, Any]],
+    *,
+    window: int,
+    step_numbers: set[int] | None = None,
+) -> list[dict[str, Any]]:
+    completed = _completed_recent_steps(recent_steps)
+    if step_numbers:
+        steps = [step for step in completed if int(step.get("step_no") or 0) in step_numbers]
+    else:
+        steps = completed[-window:]
+    return [
+        step
+        for step in steps
+        if step.get("tool_name") in {"browser_snapshot", "shell_exec", "web_extract", "web_search", "read_artifact"}
+    ]
+
+
+def _recent_evidence_text(
+    job: dict[str, Any],
+    recent_steps: list[dict[str, Any]],
+    *,
+    window: int,
+    step_numbers: set[int] | None = None,
+) -> str:
+    parts = [str(job.get("title") or ""), str(job.get("objective") or ""), str(job.get("kind") or "")]
+    for step in _evidence_steps_for_grounding(recent_steps, window=window, step_numbers=step_numbers):
         parts.append(str(step.get("summary") or ""))
         input_data = step.get("input") if isinstance(step.get("input"), dict) else {}
         if input_data:

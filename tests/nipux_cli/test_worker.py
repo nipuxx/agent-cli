@@ -2256,6 +2256,65 @@ def test_run_one_step_allows_durable_records_grounded_in_read_artifact(tmp_path)
         db.close()
 
 
+def test_run_one_step_scopes_grounding_to_cited_step(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Record facts from cited evidence", title="cited-grounding", kind="generic")
+        run_id = db.start_run(job_id, model="test")
+        old_step = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec")
+        db.finish_step(
+            old_step,
+            status="completed",
+            output_data={
+                "success": True,
+                "stdout": (
+                    "Old evidence: Intel Xeon E5-2690 v3 with 62.8G memory. "
+                    "This is intentionally stale evidence from an earlier step and should not validate step #2."
+                ),
+            },
+        )
+        new_step = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec")
+        db.finish_step(
+            new_step,
+            status="completed",
+            output_data={
+                "success": True,
+                "stdout": (
+                    "Current evidence: AMD Ryzen 9 7900X with 93Gi memory and AMD GPU. "
+                    "This newer cited step is the only source that should ground claims citing step #2."
+                ),
+            },
+        )
+        db.finish_run(run_id, "completed")
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(
+                        name="write_artifact",
+                        arguments={
+                            "title": "Cited baseline",
+                            "summary": "Baseline from step #2.",
+                            "content": "From step #2: Intel Xeon E5-2690 v3 with 62.8G memory and AVX2 support.",
+                            "artifact_type": "text",
+                        },
+                    )
+                ])
+            ]),
+        )
+
+        assert result.status == "blocked"
+        assert result.result["error"] == "evidence grounding required"
+        assert "E5-2690" in result.result["evidence_grounding"]["unsupported_tokens"]
+        assert result.result["evidence_grounding"]["evidence_steps"] == [2]
+    finally:
+        db.close()
+
+
 def test_prompt_shows_evidence_grounding_tokens_after_block(tmp_path):
     db = AgentDB(tmp_path / "state.db")
     try:
