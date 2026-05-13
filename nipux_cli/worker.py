@@ -950,6 +950,7 @@ EVIDENCE_TOKEN_IGNORE = {
     "active",
     "agent",
     "artifact",
+    "api",
     "baseline",
     "branch",
     "branches",
@@ -969,8 +970,13 @@ EVIDENCE_TOKEN_IGNORE = {
     "features",
     "file",
     "files",
+    "format",
     "finding",
     "findings",
+    "html",
+    "http",
+    "https",
+    "json",
     "goal",
     "hardware",
     "improve",
@@ -1003,8 +1009,12 @@ EVIDENCE_TOKEN_IGNORE = {
     "throughput",
     "tool",
     "tools",
+    "url",
     "validation",
     "worker",
+    "xml",
+    "yaml",
+    "yml",
 }
 STALE_CLAIM_TOKEN_IGNORE = {
     "cpu",
@@ -1815,7 +1825,12 @@ def _repeated_guard_block_context(
             blocked_tools.append(str(step.get("tool_name") or step.get("kind") or "tool"))
     if count < threshold:
         return None
-    if last_recovery_error == error:
+    progress_after_recovery = any(
+        step.get("status") == "completed"
+        and step.get("tool_name") != "guard_recovery"
+        for step in operational_steps
+    )
+    if last_recovery_error == error and not progress_after_recovery:
         return None
     return {
         "error": error,
@@ -2563,6 +2578,13 @@ def _run_guard_recovery_step(
         "update": update,
     }
     db.finish_step(step_id, status="completed", summary=message, output_data=result)
+    finished_step = _step_by_id(db, job_id, step_id)
+    _resolve_evidence_checkpoint(
+        db=db,
+        job_id=job_id,
+        tool_name="guard_recovery",
+        step=finished_step,
+    )
     db.finish_run(run_id, "completed")
     _emit_loop_end(db, job_id, run_id, status="completed", step_id=step_id, tool_name="guard_recovery", detail=message)
     refresh_memory_index(db, job_id)
@@ -2726,7 +2748,7 @@ def _resolve_evidence_checkpoint(
     tool_name: str,
     step: dict[str, Any] | None,
 ) -> None:
-    if tool_name not in EVIDENCE_CHECKPOINT_RESOLUTION_TOOLS:
+    if tool_name not in EVIDENCE_CHECKPOINT_RESOLUTION_TOOLS and tool_name != "guard_recovery":
         return
     job = db.get_job(job_id)
     pending = _pending_evidence_checkpoint(job)

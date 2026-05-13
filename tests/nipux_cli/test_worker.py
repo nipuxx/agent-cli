@@ -5,7 +5,7 @@ from nipux_cli.artifacts import ArtifactStore
 from nipux_cli.config import AppConfig, ModelConfig, RuntimeConfig
 from nipux_cli.db import AgentDB
 from nipux_cli.llm import LLMResponse, LLMResponseError, ScriptedLLM, ToolCall
-from nipux_cli.worker import MAX_WORKER_PROMPT_CHARS, SYSTEM_PROMPT, build_messages, run_one_step, _render_worker_prompt
+from nipux_cli.worker import MAX_WORKER_PROMPT_CHARS, SYSTEM_PROMPT, build_messages, run_one_step, _concrete_evidence_tokens, _render_worker_prompt
 
 
 class SnapshotRegistry:
@@ -1134,6 +1134,116 @@ def test_guard_recovery_does_not_keep_reopening_same_guard(tmp_path):
         assert result.tool_name == "record_lesson"
     finally:
         db.close()
+
+
+def test_guard_recovery_reopens_same_guard_after_progress(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Recover repeated blocked work after progress", title="guard-progress", kind="generic")
+        for index in range(3):
+            run_id = db.start_run(job_id, model="test")
+            step_id = db.add_step(
+                job_id=job_id,
+                run_id=run_id,
+                kind="tool",
+                tool_name="search_artifacts",
+                input_data={"arguments": {"query": f"blocked first {index}"}},
+            )
+            db.finish_step(
+                step_id,
+                status="blocked",
+                summary="blocked search_artifacts; progress ledger update required",
+                output_data={"success": False, "recoverable": True, "error": "progress ledger update required"},
+            )
+            db.finish_run(run_id, "completed")
+
+        first = run_one_step(job_id, config=config, db=db, llm=ExplodingLLM())
+        assert first.tool_name == "guard_recovery"
+
+        run_id = db.start_run(job_id, model="test")
+        progress_step = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="record_lesson")
+        db.finish_step(progress_step, status="completed", output_data={"success": True, "lesson": "Recovered once."})
+        db.finish_run(run_id, "completed")
+
+        for index in range(3):
+            run_id = db.start_run(job_id, model="test")
+            step_id = db.add_step(
+                job_id=job_id,
+                run_id=run_id,
+                kind="tool",
+                tool_name="read_artifact",
+                input_data={"arguments": {"query": f"blocked second {index}"}},
+            )
+            db.finish_step(
+                step_id,
+                status="blocked",
+                summary="blocked read_artifact; progress ledger update required",
+                output_data={"success": False, "recoverable": True, "error": "progress ledger update required"},
+            )
+            db.finish_run(run_id, "completed")
+
+        second = run_one_step(job_id, config=config, db=db, llm=ExplodingLLM())
+        assert second.tool_name == "guard_recovery"
+        assert sum(1 for step in db.list_steps(job_id=job_id) if step["tool_name"] == "guard_recovery") == 2
+    finally:
+        db.close()
+
+
+def test_guard_recovery_accounts_pending_evidence_checkpoint(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Recover checkpoint accounting deadlock", title="checkpoint-recovery", kind="generic")
+        db.update_job_metadata(
+            job_id,
+            {
+                "pending_evidence_checkpoint": {
+                    "artifact_id": "art_checkpoint",
+                    "title": "Auto Evidence Checkpoint after step 1",
+                    "read_at": "2026-01-01T00:00:00+00:00",
+                    "evidence_step_no": 1,
+                    "blocked_tool": "shell_exec",
+                }
+            },
+        )
+        for index in range(3):
+            run_id = db.start_run(job_id, model="test")
+            step_id = db.add_step(
+                job_id=job_id,
+                run_id=run_id,
+                kind="tool",
+                tool_name="read_artifact",
+                input_data={"arguments": {"artifact_id": "art_checkpoint", "retry": index}},
+            )
+            db.finish_step(
+                step_id,
+                status="blocked",
+                summary="blocked read_artifact; evidence checkpoint accounting required",
+                output_data={"success": False, "recoverable": True, "error": "evidence checkpoint accounting required"},
+            )
+            db.finish_run(run_id, "completed")
+
+        result = run_one_step(job_id, config=config, db=db, llm=ExplodingLLM())
+
+        assert result.tool_name == "guard_recovery"
+        pending = db.get_job(job_id)["metadata"]["pending_evidence_checkpoint"]
+        assert pending["resolved_at"]
+        assert pending["resolved_by_tool"] == "guard_recovery"
+    finally:
+        db.close()
+
+
+def test_evidence_grounding_ignores_format_protocol_tokens():
+    tokens = _concrete_evidence_tokens(
+        "Parsed JSON from HTTPS API URL and saved HTML/YAML/XML excerpts for Model-7B."
+    )
+
+    assert "JSON" not in tokens
+    assert "HTTPS" not in tokens
+    assert "API" not in tokens
+    assert "URL" not in tokens
+    assert "Model-7B" in tokens
 
 
 def test_web_search_auto_records_source_quality(tmp_path):
