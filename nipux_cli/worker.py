@@ -1880,6 +1880,7 @@ def _blocked_tool_call_result(
             ),
         }
         return result, f"blocked {name}; evidence checkpoint accounting required"
+    checkpoint_resolution_call = bool(auto_checkpoint_accounting and name in EVIDENCE_CHECKPOINT_RESOLUTION_TOOLS)
 
     unpersisted_evidence = _unpersisted_evidence_step(recent_steps)
     if unpersisted_evidence and name in BRANCH_WORK_TOOLS:
@@ -1922,7 +1923,12 @@ def _blocked_tool_call_result(
         return result, f"blocked duplicate {name}; previous step #{duplicate_step['step_no']}"
 
     measurement_obligation = _pending_measurement_obligation(job)
-    if measurement_obligation and name in MEASUREMENT_BLOCKED_TOOLS and name not in MEASUREMENT_RESOLUTION_TOOLS:
+    if (
+        measurement_obligation
+        and not checkpoint_resolution_call
+        and name in MEASUREMENT_BLOCKED_TOOLS
+        and name not in MEASUREMENT_RESOLUTION_TOOLS
+    ):
         result = {
             "success": False,
             "error": "measurement obligation pending",
@@ -2054,7 +2060,7 @@ def _blocked_tool_call_result(
         return result, f"blocked {name}; research balance required"
 
     roadmap_staleness = _roadmap_staleness_context(job, recent_steps)
-    if roadmap_staleness and name in ROADMAP_STALENESS_BLOCKED_TOOLS:
+    if roadmap_staleness and not checkpoint_resolution_call and name in ROADMAP_STALENESS_BLOCKED_TOOLS:
         result = {
             "success": False,
             "error": "roadmap update required",
@@ -2070,7 +2076,7 @@ def _blocked_tool_call_result(
         return result, f"blocked {name}; roadmap update required"
 
     milestone_validation = _milestone_validation_needed(job)
-    if milestone_validation and name in MILESTONE_VALIDATION_BLOCKED_TOOLS:
+    if milestone_validation and not checkpoint_resolution_call and name in MILESTONE_VALIDATION_BLOCKED_TOOLS:
         result = {
             "success": False,
             "error": "milestone validation required",
@@ -2166,7 +2172,11 @@ def _blocked_tool_call_result(
         name == "shell_exec"
         and _as_int(measured_progress_guard.get("shell_actions_since_last_experiment")) >= MEASURABLE_ACTION_BUDGET_STEPS
     ) if measured_progress_guard else False
-    if measured_progress_guard and (name in MEASURABLE_RESEARCH_BLOCKED_TOOLS or shell_budget_exhausted):
+    if (
+        measured_progress_guard
+        and not checkpoint_resolution_call
+        and (name in MEASURABLE_RESEARCH_BLOCKED_TOOLS or shell_budget_exhausted)
+    ):
         result = {
             "success": False,
             "error": "measured progress required",

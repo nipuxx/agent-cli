@@ -2540,6 +2540,55 @@ def test_run_one_step_requires_accounting_after_checkpoint_guard_block(tmp_path)
         db.close()
 
 
+def test_checkpoint_resolution_tool_bypasses_measured_progress_guard(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Optimize benchmark speed", title="checkpoint-measure", kind="generic")
+        db.update_job_metadata(
+            job_id,
+            {
+                "pending_evidence_checkpoint": {
+                    "artifact_id": "art_checkpoint",
+                    "title": "Auto Evidence Checkpoint after step 1",
+                    "read_at": "2026-01-01T00:00:00+00:00",
+                    "evidence_step_no": 1,
+                    "blocked_tool": "shell_exec",
+                }
+            },
+        )
+        run_id = db.start_run(job_id, model="fake")
+        for index in range(18):
+            step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec")
+            db.finish_step(step_id, status="completed", output_data={"success": True, "stdout": f"probe {index}"})
+        db.finish_run(run_id, "completed")
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(
+                        name="record_source",
+                        arguments={
+                            "source": "file:///tmp/checkpoint",
+                            "source_type": "checkpoint",
+                            "outcome": "checkpoint accounted before more benchmark work",
+                        },
+                    )
+                ])
+            ]),
+        )
+
+        assert result.status == "completed"
+        assert result.tool_name == "record_source"
+        pending = db.get_job(job_id)["metadata"]["pending_evidence_checkpoint"]
+        assert pending["resolved_by_tool"] == "record_source"
+    finally:
+        db.close()
+
+
 def test_run_one_step_persists_checkpoint_obligation_until_accounted(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

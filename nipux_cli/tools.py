@@ -743,9 +743,15 @@ def _record_milestone_validation(args: dict[str, Any], ctx: ToolContext) -> str:
 
 
 def _record_experiment(args: dict[str, Any], ctx: ToolContext) -> str:
-    title = str(args.get("title") or args.get("name") or "").strip()
-    if not title:
-        return _json({"success": False, "error": "title is required"})
+    title = str(
+        args.get("title")
+        or args.get("name")
+        or args.get("metric_name")
+        or args.get("hypothesis")
+        or args.get("result")
+        or args.get("outcome")
+        or "Experiment checkpoint"
+    ).strip()
     metric_value_arg = args.get("metric_value")
     metric_value = float(metric_value_arg) if isinstance(metric_value_arg, (int, float)) else None
     baseline_value_arg = args.get("baseline_value")
