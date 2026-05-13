@@ -54,6 +54,27 @@ class DiagnosticShellRegistry:
         return json.dumps({"success": True})
 
 
+class FailedUrlShellRegistry:
+    def openai_tools(self):
+        return []
+
+    def handle(self, name, args, ctx):
+        del ctx
+        if name == "shell_exec":
+            return json.dumps({
+                "success": False,
+                "command": args.get("command"),
+                "returncode": 0,
+                "stdout": "401 Unauthorized",
+                "stderr": "",
+                "error": (
+                    "command output indicates authentication or authorization failure "
+                    "despite exit status 0: 401 Unauthorized"
+                ),
+            })
+        return json.dumps({"success": True})
+
+
 class SourceCodeShellRegistry:
     def openai_tools(self):
         return []
@@ -4870,6 +4891,81 @@ def test_run_one_step_blocks_known_bad_extract_source_from_ledger(tmp_path):
         assert result.status == "blocked"
         assert result.result["error"] == "known bad source blocked"
         assert result.result["known_bad_source"]["fail_count"] == 2
+    finally:
+        db.close()
+
+
+def test_run_one_step_records_failed_shell_url_source(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Avoid broken shell URL sources", title="guard")
+        url = "https://source.example/api/private/tree/main"
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[ToolCall(name="shell_exec", arguments={"command": f"curl -s {url}"})])
+            ]),
+            registry=FailedUrlShellRegistry(),
+        )
+        source = db.get_job(job_id)["metadata"]["source_ledger"][0]
+
+        assert result.status == "failed"
+        assert source["source"] == url
+        assert source["source_type"] == "shell_exec"
+        assert source["fail_count"] == 1
+        assert source["usefulness_score"] == 0.01
+        assert source["metadata"]["failure_kind"] == "auth_or_http"
+    finally:
+        db.close()
+
+
+def test_run_one_step_blocks_known_bad_shell_source_path(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Pivot from failed shell URL source", title="guard")
+        db.append_source_record(
+            job_id,
+            "https://source.example/api/private/tree/main",
+            source_type="shell_exec",
+            usefulness_score=0.01,
+            fail_count_delta=1,
+            warnings=["auth failure"],
+            outcome="401 Unauthorized",
+        )
+
+        blocked = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[ToolCall(
+                    name="shell_exec",
+                    arguments={"command": "curl -s 'https://source.example/api/private/tree/main?recursive=true'"},
+                )])
+            ]),
+        )
+        allowed = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[ToolCall(
+                    name="shell_exec",
+                    arguments={"command": "curl -s 'https://source.example/api/public/models'"},
+                )])
+            ]),
+            registry=SuccessRegistry(),
+        )
+
+        assert blocked.status == "blocked"
+        assert blocked.result["error"] == "known bad source blocked"
+        assert blocked.result["known_bad_source"]["source"] == "https://source.example/api/private/tree/main"
+        assert allowed.status == "completed"
     finally:
         db.close()
 

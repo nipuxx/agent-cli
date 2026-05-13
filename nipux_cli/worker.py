@@ -889,6 +889,38 @@ def _source_matches(left: str, right: str) -> bool:
     return bool(left_host and right_host and left_host == right_host)
 
 
+def _source_path_key(value: str) -> tuple[str, str]:
+    parsed = urlparse(_normalized_source_url(value))
+    host = parsed.netloc.lower().removeprefix("www.")
+    path = (parsed.path or "/").rstrip("/") or "/"
+    return host, path
+
+
+def _shell_source_matches(left: str, right: str) -> bool:
+    if _same_source_url(left, right):
+        return True
+    left_host, left_path = _source_path_key(left)
+    right_host, right_path = _source_path_key(right)
+    if not left_host or left_host != right_host:
+        return False
+    if right_path in {"", "/"} or left_path in {"", "/"}:
+        return False
+    return left_path == right_path or left_path.startswith(right_path + "/") or right_path.startswith(left_path + "/")
+
+
+def _urls_from_text(text: str) -> list[str]:
+    urls: list[str] = []
+    seen: set[str] = set()
+    for match in re.finditer(r"https?://[^\s'\"<>)}\]]+", str(text or "")):
+        url = match.group(0).rstrip(".,;:")
+        key = url.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        urls.append(url)
+    return urls
+
+
 def _known_bad_sources(job: dict[str, Any]) -> list[dict[str, Any]]:
     bad_sources = []
     for source in _metadata_list(job, "source_ledger"):
@@ -902,7 +934,7 @@ def _known_bad_sources(job: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def _known_bad_source_for_call(name: str, args: dict[str, Any], job: dict[str, Any]) -> dict[str, Any] | None:
-    if name not in {"browser_navigate", "web_extract"}:
+    if name not in {"browser_navigate", "web_extract", "shell_exec"}:
         return None
     bad_sources = _known_bad_sources(job)
     if not bad_sources:
@@ -912,10 +944,15 @@ def _known_bad_source_for_call(name: str, args: dict[str, Any], job: dict[str, A
         urls = [str(args.get("url") or "")]
     elif isinstance(args.get("urls"), list):
         urls = [str(url) for url in args["urls"]]
+    elif name == "shell_exec":
+        urls = _urls_from_text(str(args.get("command") or ""))
     for url in [url for url in urls if url.strip()]:
         for source in bad_sources:
             source_value = str(source.get("source") or "")
-            if source_value and _source_matches(url, source_value):
+            if not source_value:
+                continue
+            matches = _shell_source_matches(url, source_value) if name == "shell_exec" else _source_matches(url, source_value)
+            if matches:
                 return source
     return None
 
@@ -3198,6 +3235,43 @@ def _auto_record_tool_source_quality(
         _auto_record_blocked_source(db=db, job_id=job_id, context=context, blocked_tool=tool_name or "browser")
 
 
+def _auto_record_failed_shell_sources(
+    *,
+    db: AgentDB,
+    job_id: str,
+    args: dict[str, Any],
+    result: dict[str, Any],
+) -> None:
+    error_text = " ".join(str(result.get(key) or "") for key in ("error", "stderr", "stdout"))
+    lowered = error_text.lower()
+    if not any(
+        marker in lowered
+        for marker in (
+            "authentication",
+            "authorization",
+            "unauthorized",
+            "forbidden",
+            "http failure",
+            "http 401",
+            "http 403",
+            "401 unauthorized",
+            "403 forbidden",
+        )
+    ):
+        return
+    for url in _urls_from_text(str(args.get("command") or ""))[:3]:
+        db.append_source_record(
+            job_id,
+            url,
+            source_type="shell_exec",
+            usefulness_score=0.01,
+            fail_count_delta=1,
+            warnings=["shell command reported authentication/authorization or HTTP failure"],
+            outcome=_clip_text(str(result.get("error") or error_text), 500),
+            metadata={"auto_from_tool": "shell_exec", "failure_kind": "auth_or_http"},
+        )
+
+
 def _auto_reconcile_artifact_tasks(
     *,
     db: AgentDB,
@@ -3513,6 +3587,8 @@ def _execute_tool_call(
         status = "completed" if ok else "failed"
         if ok:
             _auto_record_tool_source_quality(db=db, job_id=job_id, tool_name=call.name, result=result)
+        elif call.name == "shell_exec":
+            _auto_record_failed_shell_sources(db=db, job_id=job_id, args=call.arguments, result=result)
         summary = _summarize_tool_result(call.name, call.arguments, result, ok=ok)
         db.finish_step(step_id, status=status, summary=summary, output_data=result, error=result.get("error"))
         if ok:
