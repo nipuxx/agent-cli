@@ -629,6 +629,14 @@ def _shell_command_looks_like_write(command: str) -> bool:
     text = command.strip()
     if not text:
         return False
+    if re.match(r"(?is)^curl\b", text):
+        download_flags = (
+            r"(?:^|\s)(?:-o\s*\S+|-O\b|--output(?:=|\s+)\S+|--remote-name\b|--output-dir(?:=|\s+)\S+)"
+        )
+        if re.search(download_flags, text):
+            return True
+    if re.match(r"(?is)^(?:wget|aria2c)\b", text):
+        return True
     write_patterns = [
         r"(?<!\d)>>?\s*[^&]",
         r"\b1>>?\s*[^&]",
