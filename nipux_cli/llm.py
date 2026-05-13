@@ -58,6 +58,7 @@ class OpenAIChatLLM:
             api_key=config.api_key or "local-no-key",
             base_url=config.base_url,
             timeout=config.request_timeout_seconds,
+            max_retries=0,
             default_headers=headers or None,
         )
 

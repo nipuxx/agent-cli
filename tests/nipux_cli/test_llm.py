@@ -65,6 +65,24 @@ def test_chat_llm_complete_response_returns_usage(monkeypatch):
     assert fake_completions.kwargs["model"] == "test/model"
 
 
+def test_chat_llm_disables_provider_sdk_retries(monkeypatch):
+    captured = {}
+    monkeypatch.setenv("TEST_API_KEY", "test")
+
+    class FakeOpenAI:
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+
+        chat = SimpleNamespace(completions=_FakeCompletions())
+
+    monkeypatch.setattr("nipux_cli.llm.OpenAI", FakeOpenAI)
+
+    OpenAIChatLLM(ModelConfig(model="test/model", base_url="https://example.test/v1", api_key_env="TEST_API_KEY", request_timeout_seconds=37))
+
+    assert captured["timeout"] == 37
+    assert captured["max_retries"] == 0
+
+
 def test_openrouter_generation_usage_enriches_cost_and_tokens(monkeypatch):
     class FakeHTTPResponse:
         def __enter__(self):
