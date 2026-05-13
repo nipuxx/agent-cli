@@ -2438,13 +2438,13 @@ def test_run_one_step_blocks_memory_graph_grounded_only_in_stale_records(tmp_pat
             "Consolidate durable facts",
             title="memory-stale-ledger",
             kind="generic",
-            metadata={"unsupported_claim_tokens": ["Package_A-2.7.1"]},
+            metadata={"unsupported_claim_tokens": ["XeonE5-2690"]},
         )
         db.append_finding_record(
             job_id,
-            name="Artifact cache includes Package_A-2.7.1",
+            name="Artifact cache includes XeonE5-2690",
             category="environment_fact",
-            reason="Older ledger record mentioned Package_A-2.7.1.",
+            reason="Older ledger record mentioned XeonE5-2690.",
             metadata={"evidence_artifact": "art_old"},
         )
 
@@ -2461,8 +2461,8 @@ def test_run_one_step_blocks_memory_graph_grounded_only_in_stale_records(tmp_pat
                                 {
                                     "key": "package-a",
                                     "kind": "fact",
-                                    "title": "Package_A-2.7.1",
-                                    "summary": "Package_A-2.7.1 is still valid.",
+                                    "title": "XeonE5-2690",
+                                    "summary": "XeonE5-2690 is still valid.",
                                 }
                             ]
                         },
@@ -2473,7 +2473,7 @@ def test_run_one_step_blocks_memory_graph_grounded_only_in_stale_records(tmp_pat
 
         assert result.status == "blocked"
         assert result.result["error"] == "evidence grounding required"
-        assert "Package_A-2.7.1" in result.result["evidence_grounding"]["unsupported_tokens"]
+        assert "XeonE5-2690" in result.result["evidence_grounding"]["unsupported_tokens"]
     finally:
         db.close()
 

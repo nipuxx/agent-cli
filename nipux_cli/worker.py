@@ -1110,6 +1110,8 @@ def _looks_like_generated_or_file_token(token: str) -> bool:
         return True
     if lowered.startswith(("python-", "pip", "pip3")):
         return True
+    if "_" in lowered and any(ch.isdigit() for ch in lowered) and any(ch.isalpha() for ch in lowered):
+        return True
     return False
 
 
@@ -1245,7 +1247,11 @@ def _recent_evidence_text(
 def _active_stale_claim_token_set(job: dict[str, Any]) -> set[str]:
     metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
     raw_tokens = metadata.get("unsupported_claim_tokens") if isinstance(metadata.get("unsupported_claim_tokens"), list) else []
-    return {str(token).strip().lower() for token in raw_tokens if str(token).strip()}
+    filtered = _stale_claim_tokens_from_unsupported(
+        [str(token) for token in raw_tokens],
+        reference_text=" ".join(str(job.get(key) or "") for key in ("title", "objective", "kind")),
+    )
+    return {str(token).strip().lower() for token in filtered if str(token).strip()}
 
 
 def _durable_records_for_grounding(job: dict[str, Any]) -> str:
