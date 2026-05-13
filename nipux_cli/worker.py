@@ -912,6 +912,179 @@ def _completed_recent_steps(recent_steps: list[dict[str, Any]]) -> list[dict[str
     return [step for step in recent_steps if step.get("status") == "completed"]
 
 
+EVIDENCE_GROUNDED_TOOLS = {
+    "record_experiment",
+    "record_findings",
+    "record_roadmap",
+    "report_update",
+    "write_artifact",
+}
+EVIDENCE_TOKEN_IGNORE = {
+    "acceptance",
+    "action",
+    "actions",
+    "active",
+    "agent",
+    "artifact",
+    "baseline",
+    "branch",
+    "branches",
+    "checkpoint",
+    "compare",
+    "complete",
+    "constraint",
+    "criteria",
+    "current",
+    "data",
+    "deliverable",
+    "done",
+    "evidence",
+    "experiment",
+    "experiments",
+    "feature",
+    "features",
+    "file",
+    "files",
+    "finding",
+    "findings",
+    "goal",
+    "hardware",
+    "improve",
+    "memory",
+    "metric",
+    "milestone",
+    "milestones",
+    "model",
+    "next",
+    "open",
+    "output",
+    "outputs",
+    "plan",
+    "progress",
+    "record",
+    "report",
+    "research",
+    "result",
+    "roadmap",
+    "runtime",
+    "server",
+    "source",
+    "sources",
+    "status",
+    "step",
+    "steps",
+    "task",
+    "tasks",
+    "test",
+    "throughput",
+    "tool",
+    "tools",
+    "validation",
+    "worker",
+}
+
+
+def _evidence_grounding_context(
+    job: dict[str, Any],
+    recent_steps: list[dict[str, Any]],
+    *,
+    tool_name: str,
+    args: dict[str, Any],
+    window: int = 8,
+) -> dict[str, Any] | None:
+    if tool_name not in EVIDENCE_GROUNDED_TOOLS:
+        return None
+    proposed_text = _json_text(args)
+    if len(proposed_text.strip()) < 80:
+        return None
+    evidence_text = _recent_evidence_text(job, recent_steps, window=window)
+    if len(evidence_text.strip()) < 80:
+        return None
+    proposed_tokens = _concrete_evidence_tokens(proposed_text)
+    if len(proposed_tokens) < 3:
+        return None
+    evidence_lower = evidence_text.lower()
+    unsupported = []
+    for token in proposed_tokens:
+        lowered = token.lower()
+        if lowered in evidence_lower:
+            continue
+        unsupported.append(token)
+    unique = []
+    seen = set()
+    for token in unsupported:
+        key = token.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        unique.append(token)
+    if len(unique) < 3:
+        return None
+    return {
+        "unsupported_tokens": unique[:12],
+        "evidence_steps": [
+            step.get("step_no")
+            for step in _completed_recent_steps(recent_steps)[-window:]
+            if step.get("tool_name") in {"browser_snapshot", "shell_exec", "web_extract", "web_search"}
+        ],
+        "guidance": (
+            "The proposed durable record contains concrete tokens that are not present in recent evidence. "
+            "Use exact observed evidence, inspect the source again, or record uncertainty instead of writing unsupported claims."
+        ),
+    }
+
+
+def _json_text(value: Any) -> str:
+    try:
+        return json.dumps(value, ensure_ascii=False, sort_keys=True)
+    except TypeError:
+        return str(value)
+
+
+def _recent_evidence_text(job: dict[str, Any], recent_steps: list[dict[str, Any]], *, window: int) -> str:
+    parts = [str(job.get("title") or ""), str(job.get("objective") or ""), str(job.get("kind") or "")]
+    for step in _completed_recent_steps(recent_steps)[-window:]:
+        if step.get("tool_name") not in {"browser_snapshot", "shell_exec", "web_extract", "web_search"}:
+            continue
+        parts.append(str(step.get("summary") or ""))
+        input_data = step.get("input") if isinstance(step.get("input"), dict) else {}
+        if input_data:
+            parts.append(_json_text(input_data))
+        output = step.get("output") if isinstance(step.get("output"), dict) else {}
+        if not output:
+            continue
+        for key in ("stdout", "stderr", "text", "content", "query", "command"):
+            if output.get(key):
+                parts.append(str(output.get(key)))
+        pages = output.get("pages") if isinstance(output.get("pages"), list) else []
+        for page in pages[:6]:
+            if isinstance(page, dict):
+                parts.append(_json_text({key: page.get(key) for key in ("url", "title", "text", "error", "source_warning")}))
+        results = output.get("results") if isinstance(output.get("results"), list) else []
+        for item in results[:8]:
+            if isinstance(item, dict):
+                parts.append(_json_text({key: item.get(key) for key in ("url", "title", "snippet")}))
+    return "\n".join(parts)
+
+
+def _concrete_evidence_tokens(text: str) -> list[str]:
+    tokens: list[str] = []
+    for raw in re.findall(r"\b[A-Za-z][A-Za-z0-9_.+-]{1,}\b", text):
+        token = raw.strip("._+-")
+        if not token:
+            continue
+        lowered = token.lower()
+        if lowered in EVIDENCE_TOKEN_IGNORE:
+            continue
+        if token.isupper() and len(token) >= 3:
+            tokens.append(token)
+            continue
+        if any(ch.isdigit() for ch in token) and any(ch.isalpha() for ch in token):
+            tokens.append(token)
+            continue
+    return tokens
+
+
 def _step_has_evidence(step: dict[str, Any]) -> bool:
     tool_name = step.get("tool_name")
     output = step.get("output") if isinstance(step.get("output"), dict) else {}
@@ -1503,6 +1676,18 @@ def _blocked_tool_call_result(
             ),
         }
         return result, f"blocked {name}; record_experiment required after measured output"
+
+    evidence_grounding = _evidence_grounding_context(job, recent_steps, tool_name=name, args=args)
+    if evidence_grounding:
+        result = {
+            "success": False,
+            "error": "evidence grounding required",
+            "blocked_tool": name,
+            "blocked_arguments": args,
+            "evidence_grounding": evidence_grounding,
+            "guidance": evidence_grounding["guidance"],
+        }
+        return result, f"blocked {name}; evidence grounding required"
 
     measured_progress_guard = _measured_progress_guard_context(job, recent_steps)
     deliverable_progress_guard = _deliverable_progress_guard_context(job, recent_steps)

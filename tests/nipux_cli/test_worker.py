@@ -2150,6 +2150,55 @@ def test_run_one_step_blocks_execution_when_research_balance_is_missing(tmp_path
         db.close()
 
 
+def test_run_one_step_blocks_durable_records_with_unsupported_concrete_claims(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Optimize a measurable process on observed hardware", title="grounding", kind="generic")
+        run_id = db.start_run(job_id, model="test")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec")
+        db.finish_step(
+            step_id,
+            status="completed",
+            output_data={
+                "success": True,
+                "stdout": "GPU: AMD Device 7590\nCPU: AMD Ryzen 9 7900X\nMemory: 93Gi\n",
+                "stderr": "",
+            },
+        )
+        db.finish_run(run_id, "completed")
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(
+                        name="record_roadmap",
+                        arguments={
+                            "title": "Performance roadmap",
+                            "status": "active",
+                            "current_milestone": "Environment",
+                            "metadata": {
+                                "hardware": "NVIDIA GTX 970 with CUDA and i5-8400 CPU",
+                                "claim": "Use CUDA-first optimization.",
+                            },
+                            "milestones": [],
+                        },
+                    )
+                ])
+            ]),
+        )
+
+        assert result.status == "blocked"
+        assert result.result["error"] == "evidence grounding required"
+        assert result.result["blocked_tool"] == "record_roadmap"
+        assert "GTX" in result.result["evidence_grounding"]["unsupported_tokens"]
+    finally:
+        db.close()
+
+
 def test_run_one_step_blocks_branch_work_when_memory_graph_needs_consolidation(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")
