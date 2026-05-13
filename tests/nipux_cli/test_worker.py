@@ -1295,6 +1295,46 @@ def test_guard_recovery_accounts_pending_evidence_checkpoint(tmp_path):
         db.close()
 
 
+def test_guard_recovery_immediately_recovers_already_read_checkpoint_reread(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Recover checkpoint reread deadlock", title="checkpoint-recovery", kind="generic")
+        run_id = db.start_run(job_id, model="test")
+        step_id = db.add_step(
+            job_id=job_id,
+            run_id=run_id,
+            kind="tool",
+            tool_name="read_artifact",
+            input_data={"arguments": {"artifact_id": "art_checkpoint"}},
+        )
+        db.finish_step(
+            step_id,
+            status="blocked",
+            summary="blocked read_artifact; evidence checkpoint accounting required",
+            output_data={
+                "success": False,
+                "recoverable": True,
+                "error": "evidence checkpoint accounting required",
+                "blocked_tool": "read_artifact",
+                "pending_evidence_checkpoint": {
+                    "artifact_id": "art_checkpoint",
+                    "checkpoint_read": True,
+                    "read_at": "2026-01-01T00:00:00+00:00",
+                },
+            },
+        )
+        db.finish_run(run_id, "completed")
+
+        result = run_one_step(job_id, config=config, db=db, llm=ExplodingLLM())
+
+        assert result.tool_name == "guard_recovery"
+        assert result.result["guard_recovery"]["count"] == 1
+        assert result.result["guard_recovery"]["error"] == "evidence checkpoint accounting required"
+    finally:
+        db.close()
+
+
 def test_prompt_does_not_tell_worker_to_reread_checkpoint_after_it_was_read(tmp_path):
     db = AgentDB(tmp_path / "state.db")
     try:
