@@ -33,6 +33,9 @@ Issues = "https://github.com/nipuxx/agent-cli/issues"
 [project.optional-dependencies]
 dev = ["pytest>=9.0.2,<10", "ruff"]
 
+[dependency-groups]
+dev = ["pytest>=9.0.2,<10", "ruff"]
+
 [project.scripts]
 nipux = "nipux_cli.cli:main"
 
