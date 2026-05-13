@@ -940,6 +940,67 @@ def _completed_recent_steps(recent_steps: list[dict[str, Any]]) -> list[dict[str
     return [step for step in recent_steps if step.get("status") == "completed"]
 
 
+BROWSER_RUNTIME_UNAVAILABLE_TERMS = (
+    "browser runtime unavailable",
+    "browser not found",
+    "browser executable",
+    "chrome not found",
+    "could not find chrome",
+    "chromium executable",
+    "executable doesn't exist",
+    "playwright browser cache",
+    "puppeteer browser cache",
+)
+
+
+def _is_browser_tool(name: str | None) -> bool:
+    return bool(str(name or "").startswith("browser_"))
+
+
+def _browser_runtime_unavailable_context(
+    recent_steps: list[dict[str, Any]],
+    *,
+    window: int = 32,
+) -> dict[str, Any] | None:
+    latest_browser_success_no = max(
+        (
+            int(step.get("step_no") or 0)
+            for step in recent_steps[-window:]
+            if _is_browser_tool(step.get("tool_name")) and step.get("status") == "completed"
+        ),
+        default=0,
+    )
+    for step in reversed(recent_steps[-window:]):
+        if not _is_browser_tool(step.get("tool_name")):
+            continue
+        step_no = int(step.get("step_no") or 0)
+        if step_no <= latest_browser_success_no:
+            continue
+        if step.get("status") not in {"failed", "blocked"}:
+            continue
+        output = step.get("output") if isinstance(step.get("output"), dict) else {}
+        text = " ".join(
+            str(part or "")
+            for part in (
+                step.get("summary"),
+                step.get("error"),
+                output.get("error"),
+                output.get("summary"),
+                output.get("stderr"),
+                output.get("stdout"),
+            )
+        ).lower()
+        if any(term in text for term in BROWSER_RUNTIME_UNAVAILABLE_TERMS):
+            error = str(output.get("error") or step.get("error") or step.get("summary") or "")
+            return {
+                "step_no": step.get("step_no"),
+                "tool": step.get("tool_name"),
+                "status": step.get("status"),
+                "error": _clip_text(error, 500),
+            }
+    return None
+
+
 EVIDENCE_GROUNDED_TOOLS = {
     "record_experiment",
     "record_findings",
@@ -2125,6 +2186,22 @@ def _blocked_tool_call_result(
             "guidance": guidance,
         }
         return result, f"blocked duplicate {name}; previous step #{duplicate_step['step_no']}"
+
+    browser_runtime_unavailable = _browser_runtime_unavailable_context(recent_steps)
+    if browser_runtime_unavailable and _is_browser_tool(name):
+        result = {
+            "success": False,
+            "error": "browser runtime unavailable",
+            "blocked_tool": name,
+            "blocked_arguments": args,
+            "browser_runtime": browser_runtime_unavailable,
+            "guidance": (
+                "Browser automation is unavailable on this host. Do not retry browser tools until the runtime is "
+                "installed or configured. Use web_search, web_extract, shell_exec, source/ledger tools, or record "
+                "a blocked task/source and continue through a non-browser branch."
+            ),
+        }
+        return result, f"blocked {name}; browser runtime unavailable"
 
     measurement_obligation = _pending_measurement_obligation(job)
     if (

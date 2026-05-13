@@ -3604,6 +3604,85 @@ def test_run_one_step_allows_repeated_browser_snapshot(tmp_path):
         db.close()
 
 
+def test_run_one_step_blocks_browser_tools_after_runtime_missing(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Browser runtime can be unavailable", title="browser-runtime")
+        run_id = db.start_run(job_id)
+        step_id = db.add_step(
+            job_id=job_id,
+            run_id=run_id,
+            kind="tool",
+            tool_name="browser_navigate",
+            input_data={"arguments": {"url": "https://example.test"}},
+        )
+        db.finish_step(
+            step_id,
+            status="failed",
+            output_data={
+                "success": False,
+                "error": "Chrome not found. Checked: Playwright browser cache and Puppeteer browser cache.",
+            },
+            summary="browser_navigate failed: Chrome not found",
+        )
+        db.finish_run(run_id, "failed")
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[ToolCall(name="browser_snapshot", arguments={"full": False})])
+            ]),
+            registry=SnapshotRegistry(),
+        )
+
+        assert result.status == "blocked"
+        assert result.result["error"] == "browser runtime unavailable"
+        assert result.result["browser_runtime"]["tool"] == "browser_navigate"
+        assert "Use web_search" in result.result["guidance"]
+    finally:
+        db.close()
+
+
+def test_run_one_step_allows_non_browser_work_after_runtime_missing(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Use fallback tools when browser is missing", title="browser-runtime")
+        run_id = db.start_run(job_id)
+        step_id = db.add_step(
+            job_id=job_id,
+            run_id=run_id,
+            kind="tool",
+            tool_name="browser_navigate",
+            input_data={"arguments": {"url": "https://example.test"}},
+        )
+        db.finish_step(
+            step_id,
+            status="failed",
+            output_data={"success": False, "error": "Browser executable doesn't exist on this host."},
+            summary="browser_navigate failed: browser executable missing",
+        )
+        db.finish_run(run_id, "failed")
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[ToolCall(name="web_search", arguments={"query": "public docs", "limit": 5})])
+            ]),
+            registry=SuccessRegistry(),
+        )
+
+        assert result.status == "completed"
+        assert result.tool_name == "web_search"
+    finally:
+        db.close()
+
+
 def test_run_one_step_allows_repeated_defer_for_monitor_intervals(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

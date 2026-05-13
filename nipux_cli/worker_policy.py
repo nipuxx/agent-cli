@@ -214,6 +214,7 @@ MEASURABLE_PROGRESS_PATTERN = re.compile(
 )
 RECOVERABLE_GUARD_ERRORS = {
     "artifact search loop blocked",
+    "browser runtime unavailable",
     "deliverable checkpoint required",
     "durable progress required",
     "evidence checkpoint accounting required",
