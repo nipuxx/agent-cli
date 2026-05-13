@@ -2299,7 +2299,7 @@ def test_run_one_step_scopes_grounding_to_cited_step(tmp_path):
                         arguments={
                             "title": "Cited baseline",
                             "summary": "Baseline from step #2.",
-                            "content": "From step #2: Intel Xeon E5-2690 v3 with 62.8G memory and AVX2 support.",
+                            "content": "From step #2: Intel Xeon E5-2690 v3 with 62.8G memory.",
                             "artifact_type": "text",
                         },
                     )

@@ -1025,7 +1025,8 @@ def _evidence_grounding_context(
     if len(evidence_text.strip()) < 80:
         return None
     proposed_tokens = _concrete_evidence_tokens(proposed_text)
-    if len(proposed_tokens) < 3:
+    unsupported_threshold = 1 if cited_steps else 3
+    if len(proposed_tokens) < unsupported_threshold:
         return None
     evidence_lower = evidence_text.lower()
     unsupported = []
@@ -1042,7 +1043,7 @@ def _evidence_grounding_context(
             continue
         seen.add(key)
         unique.append(token)
-    if len(unique) < 3:
+    if len(unique) < unsupported_threshold:
         return None
     return {
         "unsupported_tokens": unique[:12],
