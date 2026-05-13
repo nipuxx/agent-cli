@@ -56,7 +56,8 @@ def current_runtime_fingerprint() -> dict[str, Any]:
         "code_mtime": code_fingerprint["code_mtime"],
         "tool_count": len(DEFAULT_REGISTRY.names()),
     }
-    payload["runtime_hash"] = hashlib.sha256(json.dumps(payload, sort_keys=True).encode("utf-8")).hexdigest()[:16]
+    hash_payload = {key: value for key, value in payload.items() if key != "code_mtime"}
+    payload["runtime_hash"] = hashlib.sha256(json.dumps(hash_payload, sort_keys=True).encode("utf-8")).hexdigest()[:16]
     return payload
 
 
