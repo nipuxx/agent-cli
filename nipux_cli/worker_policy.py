@@ -217,6 +217,7 @@ RECOVERABLE_GUARD_ERRORS = {
     "deliverable checkpoint required",
     "durable progress required",
     "evidence checkpoint accounting required",
+    "evidence grounding required",
     "duplicate tool call blocked",
     "experiment next action pending",
     "known bad source blocked",

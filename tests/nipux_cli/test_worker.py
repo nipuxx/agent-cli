@@ -1027,6 +1027,37 @@ def test_run_one_step_recovers_repeated_guard_blocks_without_llm(tmp_path):
         db.close()
 
 
+def test_run_one_step_recovers_repeated_evidence_grounding_blocks(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Recover repeated grounding failures", title="grounding-guard", kind="generic")
+        for index in range(3):
+            run_id = db.start_run(job_id, model="test")
+            step_id = db.add_step(
+                job_id=job_id,
+                run_id=run_id,
+                kind="tool",
+                tool_name="record_experiment",
+                input_data={"arguments": {"title": f"Unsupported record {index}"}},
+            )
+            db.finish_step(
+                step_id,
+                status="blocked",
+                summary="blocked record_experiment; evidence grounding required",
+                output_data={"success": False, "recoverable": True, "error": "evidence grounding required"},
+            )
+            db.finish_run(run_id, "completed")
+
+        result = run_one_step(job_id, config=config, db=db, llm=ExplodingLLM())
+
+        assert result.status == "completed"
+        assert result.tool_name == "guard_recovery"
+        assert result.result["guard_recovery"]["error"] == "evidence grounding required"
+    finally:
+        db.close()
+
+
 def test_run_one_step_recovers_repeated_known_bad_source_blocks(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")
