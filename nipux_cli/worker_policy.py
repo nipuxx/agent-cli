@@ -68,6 +68,10 @@ question, a decision, or a constraint. Link nodes to their evidence and to each
 other. Treat this as the job's durable brain: recent events are fast episodic
 memory, while stable graph nodes are consolidated knowledge that should guide
 future branches without replaying raw history.
+Durable memory is not automatically true forever. If newer evidence contradicts
+an older memory-graph fact, constraint, strategy, or finding, update the older
+record as deprecated/resolved/stale and link the newer evidence before acting.
+Prefer fresh measured or directly observed evidence over stale summaries.
 Use record_source when a source is high-yield, low-yield, blocked, repetitive,
 or otherwise useful to score for future behavior.
 Use record_findings after finding durable candidates, facts, opportunities,
