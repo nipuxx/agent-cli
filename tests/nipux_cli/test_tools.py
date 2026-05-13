@@ -133,6 +133,35 @@ def test_shell_exec_tool_runs_bounded_command(tmp_path):
         db.close()
 
 
+def test_shell_exec_flags_masked_auth_failure_output(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Run command")
+        run_id = db.start_run(job_id, model="fake")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec")
+        ctx = ToolContext(config=config, db=db, artifacts=ArtifactStore(tmp_path, db), job_id=job_id, run_id=run_id, step_id=step_id)
+
+        raw = DEFAULT_REGISTRY.handle(
+            "shell_exec",
+            {
+                "command": (
+                    "printf 'HTTP request sent, awaiting response... 401 Unauthorized\\n"
+                    "Username/Password Authentication Failed.\\nDownloaded: file.bin (29 bytes)\\n'"
+                ),
+                "timeout_seconds": 5,
+            },
+            ctx,
+        )
+        result = json.loads(raw)
+
+        assert result["returncode"] == 0
+        assert result["success"] is False
+        assert "authentication or authorization failure" in result["error"]
+    finally:
+        db.close()
+
+
 def test_write_file_tool_writes_and_appends_workspace_file(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))

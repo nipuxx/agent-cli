@@ -111,7 +111,7 @@ def shell_exec(args: dict[str, Any], ctx: Any) -> str:
             _unregister_shell_process(ctx, process.pid)
     error = _shell_error(process.returncode, stdout, stderr)
     return _json({
-        "success": process.returncode == 0,
+        "success": process.returncode == 0 and not error,
         "error": error,
         "command": command,
         "cwd": cwd or os.getcwd(),
@@ -155,7 +155,7 @@ def cleanup_registered_shell_processes(home: str | Path) -> list[dict[str, Any]]
 
 def _shell_error(returncode: int | None, stdout: str, stderr: str) -> str:
     if returncode == 0:
-        return ""
+        return _shell_success_anomaly(stdout, stderr)
     combined = "\n".join(part.strip() for part in (stderr, stdout) if part and part.strip())
     lowered = combined.lower()
     if "sudo:" in lowered and ("password" in lowered or "terminal is required" in lowered):
@@ -164,6 +164,35 @@ def _shell_error(returncode: int | None, stdout: str, stderr: str) -> str:
         return "command failed with permission denied"
     excerpt = " ".join(combined.split())[:500] if combined else "no output"
     return f"command exited with status {returncode}: {excerpt}"
+
+
+def _shell_success_anomaly(stdout: str, stderr: str) -> str:
+    combined = "\n".join(part.strip() for part in (stderr, stdout) if part and part.strip())
+    if not combined:
+        return ""
+    lowered = combined.lower()
+    auth_markers = (
+        "401 unauthorized",
+        "403 forbidden",
+        "authentication failed",
+        "username/password authentication failed",
+        "invalid username or password",
+        "permission denied",
+    )
+    if any(marker in lowered for marker in auth_markers):
+        excerpt = " ".join(combined.split())[:500]
+        return f"command output indicates authentication or authorization failure despite exit status 0: {excerpt}"
+    http_error_match = _shell_http_error_anomaly(lowered)
+    if http_error_match:
+        excerpt = " ".join(combined.split())[:500]
+        return f"command output indicates HTTP failure despite exit status 0: {excerpt}"
+    return ""
+
+
+def _shell_http_error_anomaly(text: str) -> bool:
+    return any(f" {code} " in f" {text} " for code in ("400", "401", "403", "404", "429", "500", "502", "503", "504")) and any(
+        marker in text for marker in ("http", "error", "unauthorized", "forbidden", "not found", "too many requests")
+    )
 
 
 def _terminate_process_group(process: subprocess.Popen[str]) -> None:
