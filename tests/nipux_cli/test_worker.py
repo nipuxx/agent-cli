@@ -2396,7 +2396,11 @@ def test_prompt_suppresses_findings_matching_stale_claim_tokens(tmp_path):
         job_id = db.create_job("Prefer current durable evidence", title="stale-ledger", kind="generic")
         db.append_finding_record(job_id, name="Intel Xeon E5-2690 v3 baseline", category="hardware")
         db.append_finding_record(job_id, name="AMD Ryzen 9 7900X baseline", category="hardware")
-        db.update_job_metadata(job_id, {"unsupported_claim_tokens": ["E5-2690"]})
+        db.append_lesson(
+            job_id,
+            "Evidence grounding rejected unsupported concrete tokens for record_experiment: E5-2690, v3, RAM. Treat matching prior ledger claims as stale.",
+            category="mistake",
+        )
 
         job = db.get_job(job_id)
         content = build_messages(job, db.list_steps(job_id=job_id))[-1]["content"]

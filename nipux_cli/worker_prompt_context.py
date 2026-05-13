@@ -386,13 +386,22 @@ def _ledgers_for_prompt(job: dict[str, Any]) -> str:
 
 def _stale_claim_tokens_for_prompt(metadata: dict[str, Any]) -> list[str]:
     raw_tokens = metadata.get("unsupported_claim_tokens")
-    if not isinstance(raw_tokens, list):
-        return []
     tokens: list[str] = []
     seen: set[str] = set()
-    for raw in raw_tokens:
+    candidates: list[Any] = []
+    if isinstance(raw_tokens, list):
+        candidates.extend(raw_tokens)
+    lessons = metadata.get("lessons")
+    if isinstance(lessons, list):
+        for lesson in lessons[-25:]:
+            if not isinstance(lesson, dict):
+                continue
+            candidates.extend(_unsupported_tokens_from_lesson(str(lesson.get("lesson") or "")))
+    for raw in candidates:
         token = " ".join(str(raw or "").split())
         if not token:
+            continue
+        if not _stale_token_is_distinctive(token):
             continue
         key = token.lower()
         if key in seen:
@@ -400,6 +409,25 @@ def _stale_claim_tokens_for_prompt(metadata: dict[str, Any]) -> list[str]:
         seen.add(key)
         tokens.append(token)
     return tokens[-20:]
+
+
+def _unsupported_tokens_from_lesson(lesson: str) -> list[str]:
+    marker = "unsupported concrete tokens"
+    if marker not in lesson.lower():
+        return []
+    match = re.search(r"unsupported concrete tokens for .*?:\s*(.*?)(?:\.|$)", lesson, flags=re.IGNORECASE)
+    if not match:
+        return []
+    return [part.strip() for part in match.group(1).split(",") if part.strip()]
+
+
+def _stale_token_is_distinctive(token: str) -> bool:
+    lowered = token.lower()
+    if lowered in {"cpu", "gpu", "ram", "vram"}:
+        return False
+    if len(token) < 4:
+        return False
+    return (any(ch.isalpha() for ch in token) and any(ch.isdigit() for ch in token)) or (token.isupper() and len(token) >= 4)
 
 
 def _record_contains_stale_token(record: dict[str, Any], stale_tokens: list[str]) -> bool:
