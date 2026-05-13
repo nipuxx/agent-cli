@@ -2478,6 +2478,54 @@ def test_run_one_step_blocks_memory_graph_grounded_only_in_stale_records(tmp_pat
         db.close()
 
 
+def test_run_one_step_allows_stale_token_when_fresh_evidence_revalidates_it(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job(
+            "Revalidate durable facts",
+            title="memory-stale-revalidated",
+            kind="generic",
+            metadata={"unsupported_claim_tokens": ["XeonE5-2690"]},
+        )
+        run_id = db.start_run(job_id, model="test")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec")
+        db.finish_step(
+            step_id,
+            status="completed",
+            output_data={"success": True, "stdout": "Fresh probe: CPU marker XeonE5-2690 is visible in this environment."},
+        )
+        db.finish_run(run_id, "completed")
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(
+                        name="record_memory_graph",
+                        arguments={
+                            "nodes": [
+                                {
+                                    "key": "fresh-cpu",
+                                    "kind": "fact",
+                                    "title": "XeonE5-2690",
+                                    "summary": "Fresh shell evidence revalidated XeonE5-2690.",
+                                }
+                            ]
+                        },
+                    )
+                ])
+            ]),
+        )
+
+        assert result.status == "completed"
+        assert result.tool_name == "record_memory_graph"
+    finally:
+        db.close()
+
+
 def test_run_one_step_allows_durable_records_grounded_in_read_artifact(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

@@ -1134,6 +1134,13 @@ def _evidence_grounding_context(
         return None
     cited_steps = _cited_step_numbers(proposed_text)
     evidence_text = _recent_evidence_text(job, recent_steps, window=window, step_numbers=cited_steps or None)
+    fresh_evidence_text = _recent_evidence_text(
+        job,
+        recent_steps,
+        window=window,
+        step_numbers=cited_steps or None,
+        include_durable=False,
+    )
     if len(evidence_text.strip()) < 80:
         return None
     proposed_tokens = _concrete_evidence_tokens(proposed_text)
@@ -1143,9 +1150,12 @@ def _evidence_grounding_context(
     if len(proposed_tokens) < unsupported_threshold:
         return None
     evidence_lower = evidence_text.lower()
+    fresh_evidence_lower = fresh_evidence_text.lower()
     unsupported = []
     for token in proposed_tokens:
         lowered = token.lower()
+        if lowered in fresh_evidence_lower:
+            continue
         if lowered in evidence_lower and lowered not in stale_tokens:
             continue
         unsupported.append(token)
@@ -1217,10 +1227,11 @@ def _recent_evidence_text(
     *,
     window: int,
     step_numbers: set[int] | None = None,
+    include_durable: bool = True,
 ) -> str:
     parts = [str(job.get("title") or ""), str(job.get("objective") or ""), str(job.get("kind") or "")]
-    durable_text = _durable_records_for_grounding(job)
-    if durable_text:
+    durable_text = _durable_records_for_grounding(job) if include_durable else ""
+    if include_durable and durable_text:
         parts.append(durable_text)
     for step in _evidence_steps_for_grounding(recent_steps, window=window, step_numbers=step_numbers):
         parts.append(str(step.get("summary") or ""))
