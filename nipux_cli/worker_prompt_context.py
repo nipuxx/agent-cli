@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from nipux_cli.memory_graph import memory_graph_for_prompt
@@ -307,15 +308,24 @@ def _outcomes_for_prompt(events: list[dict[str, Any]]) -> str:
 
 
 def _ledgers_for_prompt(job: dict[str, Any]) -> str:
+    metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
     findings = _metadata_list(job, "finding_ledger")
     sources = _metadata_list(job, "source_ledger")
+    stale_tokens = _stale_claim_tokens_for_prompt(metadata)
+    stale_findings = [finding for finding in findings if _record_contains_stale_token(finding, stale_tokens)]
+    active_findings = [finding for finding in findings if finding not in stale_findings]
     lines = [
         f"Finding ledger: {len(findings)} unique candidates.",
         f"Source ledger: {len(sources)} scored sources.",
     ]
-    if findings:
+    if stale_tokens:
+        lines.append(
+            "Unsupported/stale claim tokens to avoid until re-verified: "
+            + ", ".join(stale_tokens[:12])
+        )
+    if active_findings:
         lines.append("Recent findings:")
-        for finding in findings[-5:]:
+        for finding in active_findings[-5:]:
             bits = [
                 str(finding.get("name") or "unknown"),
                 str(finding.get("category") or "").strip(),
@@ -323,6 +333,11 @@ def _ledgers_for_prompt(job: dict[str, Any]) -> str:
                 f"score={finding.get('score')}" if finding.get("score") is not None else "",
             ]
             lines.append("- " + _clip_text(" | ".join(bit for bit in bits if bit), 360))
+    if stale_findings:
+        lines.append(
+            f"Suppressed {len(stale_findings)} stale finding(s) matching unsupported tokens; "
+            "do not use them as facts until observed again."
+        )
     if sources:
         usable_sources = [
             source
@@ -367,6 +382,40 @@ def _ledgers_for_prompt(job: dict[str, Any]) -> str:
                     )
                 )
     return "\n".join(lines)
+
+
+def _stale_claim_tokens_for_prompt(metadata: dict[str, Any]) -> list[str]:
+    raw_tokens = metadata.get("unsupported_claim_tokens")
+    if not isinstance(raw_tokens, list):
+        return []
+    tokens: list[str] = []
+    seen: set[str] = set()
+    for raw in raw_tokens:
+        token = " ".join(str(raw or "").split())
+        if not token:
+            continue
+        key = token.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        tokens.append(token)
+    return tokens[-20:]
+
+
+def _record_contains_stale_token(record: dict[str, Any], stale_tokens: list[str]) -> bool:
+    if not stale_tokens:
+        return False
+    text = " ".join(
+        str(record.get(key) or "")
+        for key in ("name", "category", "location", "contact", "reason", "source_url", "url")
+    )
+    metadata = record.get("metadata") if isinstance(record.get("metadata"), dict) else {}
+    text += " " + " ".join(str(value) for value in metadata.values() if isinstance(value, (str, int, float)))
+    for token in stale_tokens:
+        pattern = r"(?<![A-Za-z0-9])" + re.escape(token) + r"(?![A-Za-z0-9])"
+        if re.search(pattern, text, flags=re.IGNORECASE):
+            return True
+    return False
 
 
 def _experiments_for_prompt(job: dict[str, Any]) -> str:

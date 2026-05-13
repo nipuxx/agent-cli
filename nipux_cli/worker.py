@@ -1006,6 +1006,33 @@ EVIDENCE_TOKEN_IGNORE = {
     "validation",
     "worker",
 }
+STALE_CLAIM_TOKEN_IGNORE = {
+    "cpu",
+    "gpu",
+    "ram",
+    "vram",
+}
+
+
+def _stale_claim_tokens_from_unsupported(tokens: list[str]) -> list[str]:
+    stale_tokens: list[str] = []
+    seen: set[str] = set()
+    for token in tokens:
+        cleaned = str(token or "").strip()
+        if not cleaned:
+            continue
+        key = cleaned.lower()
+        if key in seen or key in STALE_CLAIM_TOKEN_IGNORE:
+            continue
+        if len(cleaned) < 4:
+            continue
+        distinctive = any(ch.isalpha() for ch in cleaned) and any(ch.isdigit() for ch in cleaned)
+        distinctive = distinctive or (cleaned.isupper() and len(cleaned) >= 4)
+        if not distinctive:
+            continue
+        seen.add(key)
+        stale_tokens.append(cleaned)
+    return stale_tokens
 
 
 def _evidence_grounding_context(
@@ -1836,6 +1863,23 @@ def _blocked_tool_call_result(
         }
         return result, f"blocked {name}; evidence checkpoint accounting required"
 
+    unpersisted_evidence = _unpersisted_evidence_step(recent_steps)
+    if unpersisted_evidence and name in BRANCH_WORK_TOOLS:
+        result = {
+            "success": False,
+            "error": "artifact required before more research",
+            "blocked_tool": name,
+            "blocked_arguments": args,
+            "previous_step": unpersisted_evidence["id"],
+            "guidance": (
+                "Fresh browser, extracted, or shell evidence is waiting. Save or account for that evidence with "
+                "write_artifact, record_findings, record_source, record_experiment, record_tasks, "
+                "record_roadmap, record_milestone_validation, or record_lesson before doing more search, "
+                "browsing, shell work, or artifact review."
+            ),
+        }
+        return result, f"blocked {name}; write_artifact required after evidence step #{unpersisted_evidence['step_no']}"
+
     duplicate_step = _duplicate_recent_tool_call(name, args, recent_steps)
     if duplicate_step:
         guidance = "Use a different query, extract one of the prior result URLs, open a result in the browser, or write an artifact."
@@ -2074,18 +2118,6 @@ def _blocked_tool_call_result(
                 "guidance": "The latest browser evidence is an anti-bot/CAPTCHA block. Write only a blocked-source note or pivot.",
             }
             return result, f"blocked misleading write_artifact; anti-bot source at step #{anti_bot_context.get('step_no')}"
-
-    unpersisted_evidence = _unpersisted_evidence_step(recent_steps)
-    if unpersisted_evidence and name in BRANCH_WORK_TOOLS:
-        result = {
-            "success": False,
-            "error": "artifact required before more research",
-            "blocked_tool": name,
-            "blocked_arguments": args,
-            "previous_step": unpersisted_evidence["id"],
-            "guidance": "Write an artifact summarizing the browser, extracted, or shell evidence before doing more search, browsing, or shell work.",
-        }
-        return result, f"blocked {name}; write_artifact required after evidence step #{unpersisted_evidence['step_no']}"
 
     experiment_next_action = _latest_experiment_next_action_context(job)
     if (
@@ -2605,7 +2637,24 @@ def _auto_record_grounding_block_lesson(*, db: AgentDB, job_id: str, result: dic
         confidence=0.9,
         metadata={"evidence_grounding": grounding, "blocked_tool": blocked_tool},
     )
-    db.update_job_metadata(job_id, {"grounding_block_fingerprints": (seen + [fingerprint])[-100:]})
+    metadata_patch: dict[str, Any] = {"grounding_block_fingerprints": (seen + [fingerprint])[-100:]}
+    stale_tokens = _stale_claim_tokens_from_unsupported(unsupported)
+    if stale_tokens:
+        existing_tokens = [
+            str(token)
+            for token in metadata.get("unsupported_claim_tokens", [])
+            if str(token).strip()
+        ] if isinstance(metadata.get("unsupported_claim_tokens"), list) else []
+        combined: list[str] = []
+        combined_seen: set[str] = set()
+        for token in existing_tokens + stale_tokens:
+            key = token.lower()
+            if key in combined_seen:
+                continue
+            combined_seen.add(key)
+            combined.append(token)
+        metadata_patch["unsupported_claim_tokens"] = combined[-80:]
+    db.update_job_metadata(job_id, metadata_patch)
 
 
 def _mark_evidence_checkpoint_read(

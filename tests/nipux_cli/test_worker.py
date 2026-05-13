@@ -2360,6 +2360,7 @@ def test_run_one_step_scopes_grounding_to_cited_step(tmp_path):
         assert result.result["error"] == "evidence grounding required"
         assert "E5-2690" in result.result["evidence_grounding"]["unsupported_tokens"]
         assert result.result["evidence_grounding"]["evidence_steps"] == [2]
+        assert "E5-2690" in db.get_job(job_id)["metadata"]["unsupported_claim_tokens"]
     finally:
         db.close()
 
@@ -2385,6 +2386,25 @@ def test_prompt_shows_evidence_grounding_tokens_after_block(tmp_path):
 
         assert "unsupported=NVIDIA, Xeon, AVX-512" in content
         assert "use only tokens present in recent observed evidence" in content
+    finally:
+        db.close()
+
+
+def test_prompt_suppresses_findings_matching_stale_claim_tokens(tmp_path):
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Prefer current durable evidence", title="stale-ledger", kind="generic")
+        db.append_finding_record(job_id, name="Intel Xeon E5-2690 v3 baseline", category="hardware")
+        db.append_finding_record(job_id, name="AMD Ryzen 9 7900X baseline", category="hardware")
+        db.update_job_metadata(job_id, {"unsupported_claim_tokens": ["E5-2690"]})
+
+        job = db.get_job(job_id)
+        content = build_messages(job, db.list_steps(job_id=job_id))[-1]["content"]
+
+        assert "Unsupported/stale claim tokens to avoid until re-verified: E5-2690" in content
+        assert "Suppressed 1 stale finding" in content
+        assert "AMD Ryzen 9 7900X baseline" in content
+        assert "Intel Xeon E5-2690 v3 baseline" not in content
     finally:
         db.close()
 
@@ -3129,6 +3149,41 @@ def test_duplicate_artifact_read_guidance_pushes_follow_up_work(tmp_path):
         assert first.status == "completed"
         assert second.status == "blocked"
         assert "Do not read it again" in second.result["guidance"]
+    finally:
+        db.close()
+
+
+def test_fresh_evidence_guard_takes_priority_over_duplicate_read(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Save fresh evidence before reviewing old artifacts", title="fresh-evidence")
+        run_id = db.start_run(job_id)
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="write_artifact")
+        artifacts = ArtifactStore(tmp_path, db)
+        stored = artifacts.write_text(job_id=job_id, run_id=run_id, step_id=step_id, title="Old Evidence", content="saved")
+        db.finish_step(step_id, status="completed", output_data={"success": True, "artifact_id": stored.id, "path": str(stored.path)})
+        db.finish_run(run_id, "completed")
+
+        read = ToolCall(name="read_artifact", arguments={"artifact_id": stored.id})
+        first_read = run_one_step(job_id, config=config, db=db, llm=ScriptedLLM([LLMResponse(tool_calls=[read])]))
+        assert first_read.status == "completed"
+
+        shell = ToolCall(name="shell_exec", arguments={"command": "find . -type f"})
+        evidence = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([LLMResponse(tool_calls=[shell])]),
+            registry=LargeShellEvidenceRegistry(),
+        )
+        assert evidence.status == "completed"
+
+        blocked = run_one_step(job_id, config=config, db=db, llm=ScriptedLLM([LLMResponse(tool_calls=[read])]))
+
+        assert blocked.status == "blocked"
+        assert blocked.result["error"] == "artifact required before more research"
+        assert blocked.result["blocked_tool"] == "read_artifact"
     finally:
         db.close()
 
