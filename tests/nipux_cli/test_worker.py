@@ -2199,6 +2199,63 @@ def test_run_one_step_blocks_durable_records_with_unsupported_concrete_claims(tm
         db.close()
 
 
+def test_run_one_step_allows_durable_records_grounded_in_read_artifact(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Record facts from saved evidence", title="grounded-read", kind="generic")
+        run_id = db.start_run(job_id, model="test")
+        step_id = db.add_step(
+            job_id=job_id,
+            run_id=run_id,
+            kind="tool",
+            tool_name="read_artifact",
+            input_data={"arguments": {"artifact_id": "art_checkpoint"}},
+        )
+        db.finish_step(
+            step_id,
+            status="completed",
+            output_data={
+                "success": True,
+                "content": (
+                    "Environment evidence: CPU Intel Xeon E5-2690 v3, architecture x86_64, "
+                    "memory 62.8G total, no NVIDIA GPU visible from nvidia-smi. "
+                    "This content is the source for durable records."
+                ),
+            },
+        )
+        db.finish_run(run_id, "completed")
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(
+                        name="record_findings",
+                        arguments={
+                            "findings": [
+                                {
+                                    "name": "Intel Xeon E5-2690 v3 x86_64 environment",
+                                    "category": "hardware_fact",
+                                    "reason": "Saved checkpoint states CPU Intel Xeon E5-2690 v3, x86_64, memory 62.8G total, and no NVIDIA GPU visible.",
+                                    "evidence_artifact": "art_checkpoint",
+                                }
+                            ]
+                        },
+                    )
+                ])
+            ]),
+        )
+
+        assert result.status == "completed"
+        findings = db.get_job(job_id)["metadata"]["finding_ledger"]
+        assert findings[0]["name"] == "Intel Xeon E5-2690 v3 x86_64 environment"
+    finally:
+        db.close()
+
+
 def test_run_one_step_requires_accounting_after_auto_checkpoint_read(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

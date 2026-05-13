@@ -1048,7 +1048,7 @@ def _evidence_grounding_context(
         "evidence_steps": [
             step.get("step_no")
             for step in _completed_recent_steps(recent_steps)[-window:]
-            if step.get("tool_name") in {"browser_snapshot", "shell_exec", "web_extract", "web_search"}
+            if step.get("tool_name") in {"browser_snapshot", "shell_exec", "web_extract", "web_search", "read_artifact"}
         ],
         "guidance": (
             "The proposed durable record contains concrete tokens that are not present in recent evidence. "
@@ -1067,7 +1067,7 @@ def _json_text(value: Any) -> str:
 def _recent_evidence_text(job: dict[str, Any], recent_steps: list[dict[str, Any]], *, window: int) -> str:
     parts = [str(job.get("title") or ""), str(job.get("objective") or ""), str(job.get("kind") or "")]
     for step in _completed_recent_steps(recent_steps)[-window:]:
-        if step.get("tool_name") not in {"browser_snapshot", "shell_exec", "web_extract", "web_search"}:
+        if step.get("tool_name") not in {"browser_snapshot", "shell_exec", "web_extract", "web_search", "read_artifact"}:
             continue
         parts.append(str(step.get("summary") or ""))
         input_data = step.get("input") if isinstance(step.get("input"), dict) else {}
@@ -1076,7 +1076,7 @@ def _recent_evidence_text(job: dict[str, Any], recent_steps: list[dict[str, Any]
         output = step.get("output") if isinstance(step.get("output"), dict) else {}
         if not output:
             continue
-        for key in ("stdout", "stderr", "text", "content", "query", "command"):
+        for key in ("stdout", "stderr", "text", "content", "excerpt", "query", "command"):
             if output.get(key):
                 parts.append(str(output.get(key)))
         pages = output.get("pages") if isinstance(output.get("pages"), list) else []
