@@ -3391,6 +3391,45 @@ def test_prompt_pushes_deliverable_checkpoint_after_long_research():
     assert "write_file or write_artifact" in content
 
 
+def test_low_priority_report_task_does_not_block_execution_task_prompt():
+    job = {
+        "title": "execution",
+        "kind": "generic",
+        "objective": "keep useful work moving",
+        "metadata": {
+            "task_queue": [
+                {
+                    "title": "Review saved output later",
+                    "status": "open",
+                    "priority": 4,
+                    "output_contract": "report",
+                },
+                {
+                    "title": "Run current experiment",
+                    "status": "active",
+                    "priority": 9,
+                    "output_contract": "experiment",
+                },
+            ],
+        },
+    }
+    steps = [
+        {
+            "step_no": index + 1,
+            "status": "completed",
+            "kind": "tool",
+            "tool_name": "shell_exec",
+            "input": {"arguments": {"command": f"probe_{index}"}},
+        }
+        for index in range(18)
+    ]
+
+    content = build_messages(job, steps)[-1]["content"]
+
+    assert "Deliverable progress guard:\nNone." in content
+    assert "durable deliverable checkpoint" not in content
+
+
 def test_run_one_step_blocks_more_research_when_deliverable_needs_checkpoint(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

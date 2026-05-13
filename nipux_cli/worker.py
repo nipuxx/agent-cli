@@ -1516,11 +1516,29 @@ def _task_text_requires_measurement(task: dict[str, Any]) -> bool:
 
 def _job_requires_deliverable_progress(job: dict[str, Any]) -> bool:
     tasks = _metadata_list(job, "task_queue")
+    report_tasks: list[dict[str, Any]] = []
+    competing_execution_tasks: list[dict[str, Any]] = []
     for task in tasks:
         status = str(task.get("status") or "open").strip().lower()
         if status in {"done", "skipped"}:
             continue
-        if str(task.get("output_contract") or "").strip().lower() == "report":
+        contract = str(task.get("output_contract") or "").strip().lower()
+        if contract == "report":
+            report_tasks.append(task)
+        elif contract in {"action", "experiment", "monitor"}:
+            competing_execution_tasks.append(task)
+    if report_tasks:
+        active_report = any(str(task.get("status") or "open").strip().lower() == "active" for task in report_tasks)
+        active_competing = any(
+            str(task.get("status") or "open").strip().lower() == "active"
+            for task in competing_execution_tasks
+        )
+        max_report_priority = max(_as_int(task.get("priority")) for task in report_tasks)
+        higher_priority_competing = any(
+            _as_int(task.get("priority")) >= max_report_priority
+            for task in competing_execution_tasks
+        )
+        if active_report or (not active_competing and not higher_priority_competing):
             return True
     text = " ".join(str(job.get(key) or "") for key in ("title", "objective", "kind")).lower()
     tokens = set(re.findall(r"[a-z][a-z0-9_-]+", text))

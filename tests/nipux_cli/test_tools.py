@@ -1,8 +1,13 @@
 import json
+import os
+import signal
+import subprocess
+import time
 
 from nipux_cli.artifacts import ArtifactStore
 from nipux_cli.config import AppConfig, RuntimeConfig, ToolAccessConfig
 from nipux_cli.db import AgentDB
+from nipux_cli.shell_tools import cleanup_registered_shell_processes
 from nipux_cli.tools import APPROVED_TOOL_NAMES, DEFAULT_REGISTRY, ToolContext
 
 
@@ -171,6 +176,34 @@ def test_shell_exec_timeout_kills_process_group(tmp_path):
         assert result["duration_seconds"] < 4
     finally:
         db.close()
+
+
+def test_cleanup_registered_shell_processes_kills_orphaned_group(tmp_path):
+    process = subprocess.Popen("sleep 30", shell=True, start_new_session=True)
+    for _ in range(20):
+        if process.poll() is None:
+            try:
+                os.kill(process.pid, 0)
+                break
+            except ProcessLookupError:
+                pass
+        time.sleep(0.02)
+    registry = tmp_path / "runtime" / "shell_processes.jsonl"
+    registry.parent.mkdir(parents=True)
+    registry.write_text(json.dumps({"pid": process.pid, "command": "sleep 30"}) + "\n", encoding="utf-8")
+    try:
+        cleaned = cleanup_registered_shell_processes(tmp_path)
+
+        assert cleaned and cleaned[0]["pid"] == process.pid
+        process.wait(timeout=3)
+        assert not registry.exists()
+    finally:
+        if process.poll() is None:
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            process.wait(timeout=3)
 
 
 def test_shell_exec_does_not_attach_local_ssh_config(tmp_path):

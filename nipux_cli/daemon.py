@@ -21,6 +21,7 @@ from nipux_cli.db import AgentDB
 from nipux_cli.digest import write_daily_digest
 from nipux_cli.provider_errors import provider_action_required, provider_rate_limited
 from nipux_cli.scheduling import job_deferred_until, job_is_deferred, job_provider_blocked
+from nipux_cli.shell_tools import cleanup_registered_shell_processes
 
 
 class DaemonAlreadyRunning(RuntimeError):
@@ -328,6 +329,7 @@ class Daemon:
         with single_instance_lock(self.lock_path) as lock_handle:
             previous_sigterm = signal.getsignal(signal.SIGTERM)
             signal.signal(signal.SIGTERM, _raise_keyboard_interrupt)
+            cleaned_shell_processes = cleanup_registered_shell_processes(self.config.runtime.home)
             recovered = self.db.mark_interrupted_running(reason="daemon recovered abandoned running work from a previous process")
             append_daemon_event(
                 self.config,
@@ -337,8 +339,16 @@ class Daemon:
                 poll_seconds=poll_seconds,
                 recovered_steps=recovered["steps"],
                 recovered_runs=recovered["runs"],
+                cleaned_shell_processes=len(cleaned_shell_processes),
                 runtime=current_runtime_fingerprint(),
             )
+            if cleaned_shell_processes:
+                append_daemon_event(
+                    self.config,
+                    "shell_processes_cleaned",
+                    count=len(cleaned_shell_processes),
+                    processes=cleaned_shell_processes[:12],
+                )
             if recovered["steps"] or recovered["runs"]:
                 append_daemon_event(self.config, "stale_work_recovered", **recovered)
             if not quiet:

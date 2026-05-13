@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import signal
 import subprocess
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -61,6 +63,7 @@ def shell_exec(args: dict[str, Any], ctx: Any) -> str:
     if ctx.run_id:
         env["NIPUX_RUN_ID"] = ctx.run_id
     started = time.monotonic()
+    process: subprocess.Popen[str] | None = None
     try:
         process = subprocess.Popen(
             command,
@@ -73,8 +76,10 @@ def shell_exec(args: dict[str, Any], ctx: Any) -> str:
             text=True,
             start_new_session=True,
         )
+        _register_shell_process(ctx, process, command=command, cwd=cwd or os.getcwd(), timeout_seconds=timeout)
         stdout, stderr = process.communicate(timeout=timeout)
     except subprocess.TimeoutExpired:
+        assert process is not None
         _terminate_process_group(process)
         try:
             stdout, stderr = process.communicate(timeout=2)
@@ -93,6 +98,17 @@ def shell_exec(args: dict[str, Any], ctx: Any) -> str:
             "stdout": _truncate_output(stdout, max_chars),
             "stderr": _truncate_output(stderr, max_chars),
         })
+    except BaseException:
+        if process is not None and process.poll() is None:
+            _terminate_process_group(process)
+            try:
+                process.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                _kill_process_group(process)
+        raise
+    finally:
+        if process is not None:
+            _unregister_shell_process(ctx, process.pid)
     error = _shell_error(process.returncode, stdout, stderr)
     return _json({
         "success": process.returncode == 0,
@@ -104,6 +120,37 @@ def shell_exec(args: dict[str, Any], ctx: Any) -> str:
         "stdout": _truncate_output(stdout, max_chars),
         "stderr": _truncate_output(stderr, max_chars),
     })
+
+
+def cleanup_registered_shell_processes(home: str | Path) -> list[dict[str, Any]]:
+    path = _shell_process_registry_path(home)
+    records = _read_shell_process_registry(path)
+    if not records:
+        return []
+    cleaned: list[dict[str, Any]] = []
+    survivors: list[dict[str, Any]] = []
+    for record in records:
+        pid = _as_int(record.get("pid"))
+        if pid <= 0:
+            continue
+        if not _pid_exists(pid):
+            continue
+        try:
+            os.killpg(pid, signal.SIGTERM)
+        except ProcessLookupError:
+            continue
+        except PermissionError:
+            survivors.append(record)
+            continue
+        time.sleep(0.05)
+        if _pid_exists(pid):
+            with contextlib.suppress(ProcessLookupError, PermissionError):
+                os.killpg(pid, signal.SIGKILL)
+        record = dict(record)
+        record["cleaned_at"] = datetime.now(timezone.utc).isoformat()
+        cleaned.append(record)
+    _write_shell_process_registry(path, survivors)
+    return cleaned
 
 
 def _shell_error(returncode: int | None, stdout: str, stderr: str) -> str:
@@ -131,6 +178,72 @@ def _kill_process_group(process: subprocess.Popen[str]) -> None:
         os.killpg(process.pid, signal.SIGKILL)
     except ProcessLookupError:
         return
+
+
+def _register_shell_process(ctx: Any, process: subprocess.Popen[str], *, command: str, cwd: str, timeout_seconds: float) -> None:
+    path = _shell_process_registry_path(ctx.config.runtime.home)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    record = {
+        "pid": process.pid,
+        "pgid": process.pid,
+        "job_id": getattr(ctx, "job_id", ""),
+        "run_id": getattr(ctx, "run_id", "") or "",
+        "step_id": getattr(ctx, "step_id", "") or "",
+        "command": command[:1000],
+        "cwd": cwd,
+        "timeout_seconds": timeout_seconds,
+        "started_at": datetime.now(timezone.utc).isoformat(),
+    }
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(record, ensure_ascii=False) + "\n")
+
+
+def _unregister_shell_process(ctx: Any, pid: int) -> None:
+    path = _shell_process_registry_path(ctx.config.runtime.home)
+    records = [record for record in _read_shell_process_registry(path) if _as_int(record.get("pid")) != pid]
+    _write_shell_process_registry(path, records)
+
+
+def _shell_process_registry_path(home: str | Path) -> Path:
+    return Path(home).expanduser() / "runtime" / "shell_processes.jsonl"
+
+
+def _read_shell_process_registry(path: Path) -> list[dict[str, Any]]:
+    if not path.exists():
+        return []
+    records: list[dict[str, Any]] = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        try:
+            record = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(record, dict):
+            records.append(record)
+    return records
+
+
+def _write_shell_process_registry(path: Path, records: list[dict[str, Any]]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if not records:
+        with contextlib.suppress(FileNotFoundError):
+            path.unlink()
+        return
+    path.write_text("".join(json.dumps(record, ensure_ascii=False) + "\n" for record in records), encoding="utf-8")
+
+
+def _pid_exists(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+        return True
+    except ProcessLookupError:
+        return False
+
+
+def _as_int(value: Any) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return 0
 
 
 def _truncate_output(value: Any, max_chars: int) -> str:
