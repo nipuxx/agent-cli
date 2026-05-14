@@ -1230,6 +1230,7 @@ def _self_defer_context(args: dict[str, Any]) -> dict[str, Any] | None:
 EVIDENCE_GROUNDED_TOOLS = {
     "record_experiment",
     "record_findings",
+    "record_lesson",
     "record_memory_graph",
     "record_roadmap",
     "report_update",
@@ -1369,6 +1370,45 @@ STALE_CLAIM_TOKEN_IGNORE = {
     "yaml",
     "yml",
 }
+NEGATIVE_EXISTENCE_MARKERS = (
+    "cannot access",
+    "does not exist",
+    "failed to find",
+    "has not been",
+    "is not installed",
+    "missing",
+    "no ",
+    "no such",
+    "none",
+    "not available",
+    "not detected",
+    "not downloaded",
+    "not found",
+    "not installed",
+    "unavailable",
+    "was not",
+    "without",
+)
+EVIDENCE_NEGATIVE_LINE_MARKERS = (
+    "cannot access",
+    "denied",
+    "does not exist",
+    "error",
+    "failed",
+    "failure",
+    "has not been",
+    "missing",
+    "no such",
+    "not available",
+    "not detected",
+    "not downloaded",
+    "not found",
+    "not installed",
+    "permission",
+    "timeout",
+    "unavailable",
+    "was not",
+)
 
 
 def _stale_claim_tokens_from_unsupported(tokens: list[str], *, reference_text: str = "") -> list[str]:
@@ -1440,6 +1480,27 @@ def _evidence_grounding_context(
     if len(evidence_text.strip()) < 80:
         return None
     proposed_tokens = _concrete_evidence_tokens(proposed_text)
+    negative_conflicts = _negative_claim_conflicts_for_grounding(
+        tool_name=tool_name,
+        proposed_text=proposed_text,
+        fresh_evidence_text=fresh_evidence_text,
+        tokens=proposed_tokens,
+    )
+    if negative_conflicts:
+        conflict_tokens = [item["token"] for item in negative_conflicts]
+        return {
+            "unsupported_tokens": conflict_tokens[:12],
+            "negative_claim_conflicts": negative_conflicts[:6],
+            "evidence_steps": [
+                step.get("step_no")
+                for step in _evidence_steps_for_grounding(recent_steps, window=window, step_numbers=cited_steps or None)
+            ],
+            "cited_steps": sorted(cited_steps),
+            "guidance": (
+                "The proposed durable lesson negates a concrete item that appears in recent positive evidence. "
+                "Inspect the evidence again or record uncertainty instead of saving a conflicting memory."
+            ),
+        }
     stale_tokens = _active_stale_claim_token_set(job)
     proposed_stale_tokens = [token for token in _concrete_evidence_tokens(full_proposed_text) if token.lower() in stale_tokens]
     unsupported_threshold = 1 if cited_steps or proposed_stale_tokens else 3
@@ -1478,6 +1539,63 @@ def _evidence_grounding_context(
             "Use exact observed evidence, inspect the source again, or record uncertainty instead of writing unsupported claims."
         ),
     }
+
+
+def _negative_claim_conflicts_for_grounding(
+    *,
+    tool_name: str,
+    proposed_text: str,
+    fresh_evidence_text: str,
+    tokens: list[str],
+) -> list[dict[str, str]]:
+    if tool_name != "record_lesson":
+        return []
+    proposed_lower = proposed_text.lower()
+    if not any(marker in proposed_lower for marker in NEGATIVE_EXISTENCE_MARKERS):
+        return []
+    evidence_lines = [line.strip() for line in fresh_evidence_text.splitlines() if line.strip()]
+    if not evidence_lines:
+        return []
+    conflicts: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for token in tokens:
+        key = token.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        if not _token_near_negative_claim(proposed_text, token):
+            continue
+        positive_line = _positive_evidence_line_for_token(evidence_lines, token)
+        if not positive_line:
+            continue
+        conflicts.append({"token": token, "evidence": _clip_text(positive_line, 220)})
+    return conflicts
+
+
+def _token_near_negative_claim(text: str, token: str, *, window: int = 140) -> bool:
+    text_lower = text.lower()
+    token_lower = token.lower()
+    start = 0
+    while True:
+        index = text_lower.find(token_lower, start)
+        if index < 0:
+            return False
+        nearby = text_lower[max(0, index - window): index + len(token_lower) + window]
+        if any(marker in nearby for marker in NEGATIVE_EXISTENCE_MARKERS):
+            return True
+        start = index + len(token_lower)
+
+
+def _positive_evidence_line_for_token(lines: list[str], token: str) -> str:
+    token_lower = token.lower()
+    for line in lines:
+        line_lower = line.lower()
+        if token_lower not in line_lower:
+            continue
+        if any(marker in line_lower for marker in EVIDENCE_NEGATIVE_LINE_MARKERS):
+            continue
+        return line
+    return ""
 
 
 def _evidence_grounding_proposed_text(tool_name: str, args: dict[str, Any]) -> str:

@@ -2907,6 +2907,132 @@ def test_record_experiment_allows_supported_proper_noun_hardware_claims(tmp_path
         db.close()
 
 
+def test_record_lesson_blocks_negative_claim_that_conflicts_with_positive_evidence(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Keep exact observed facts durable", title="lesson-grounding", kind="generic")
+        run_id = db.start_run(job_id, model="test")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec")
+        db.finish_step(
+            step_id,
+            status="completed",
+            output_data={
+                "success": True,
+                "stdout": (
+                    "NAME ID SIZE MODIFIED\n"
+                    "ModelX-99 a50eda8ed977 17 GB 2 weeks ago\n"
+                    "OtherModel 69492d6584c5 14 GB 2 months ago\n"
+                ),
+            },
+        )
+        db.finish_run(run_id, "completed")
+
+        blocked = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(
+                        name="record_lesson",
+                        arguments={
+                            "category": "strategy",
+                            "lesson": (
+                                "No ModelX-99 model has been successfully downloaded, so keep the download branch "
+                                "as the primary blocker before any benchmark work."
+                            ),
+                        },
+                    )
+                ])
+            ]),
+        )
+
+        assert blocked.status == "blocked"
+        assert blocked.result["error"] == "evidence grounding required"
+        grounding = blocked.result["evidence_grounding"]
+        assert "ModelX-99" in grounding["unsupported_tokens"]
+        assert grounding["negative_claim_conflicts"][0]["token"] == "ModelX-99"
+    finally:
+        db.close()
+
+
+def test_record_lesson_allows_negative_claim_when_evidence_is_also_negative(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Keep exact observed facts durable", title="lesson-grounding", kind="generic")
+        run_id = db.start_run(job_id, model="test")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec")
+        db.finish_step(
+            step_id,
+            status="completed",
+            output_data={
+                "success": True,
+                "stdout": "ls: cannot access '/tmp/ModelX-99.gguf': No such file or directory\n",
+            },
+        )
+        db.finish_run(run_id, "completed")
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(
+                        name="record_lesson",
+                        arguments={
+                            "category": "strategy",
+                            "lesson": (
+                                "No ModelX-99 file exists in the checked path, so the next branch must use a "
+                                "different observed source or record the missing file as blocked."
+                            ),
+                        },
+                    )
+                ])
+            ]),
+        )
+
+        assert result.status == "completed"
+        lesson = db.get_job(job_id)["metadata"]["lessons"][0]
+        assert "ModelX-99" in lesson["lesson"]
+    finally:
+        db.close()
+
+
+def test_record_lesson_allows_generic_strategy_without_concrete_facts(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Improve a workflow", title="lesson-grounding", kind="generic")
+        run_id = db.start_run(job_id, model="test")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec")
+        db.finish_step(step_id, status="completed", output_data={"success": True, "stdout": "branch stalled\n"})
+        db.finish_run(run_id, "completed")
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(
+                        name="record_lesson",
+                        arguments={
+                            "category": "strategy",
+                            "lesson": "When a branch stalls, pivot to the next measurable action instead of adding more notes.",
+                        },
+                    )
+                ])
+            ]),
+        )
+
+        assert result.status == "completed"
+    finally:
+        db.close()
+
+
 def test_evidence_grounding_ignores_record_schema_keys(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")
