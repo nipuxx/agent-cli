@@ -26,6 +26,7 @@ def format_usage_report(
     cached = _safe_int(usage.get("cached_tokens"))
     reasoning = _safe_int(usage.get("reasoning_tokens"))
     cost = _format_usage_cost(usage, model=model, base_url=base_url)
+    cost_limit = _safe_optional_float(usage.get("max_job_cost_usd"))
     context_text = _format_compact_count(latest_prompt)
     if context_length > 0:
         context_text = f"{context_text}/{_format_compact_count(context_length)}"
@@ -38,6 +39,10 @@ def format_usage_report(
         f"latest: ctx={context_text} output={_format_compact_count(latest_completion)} total={_format_compact_count(latest_total)}",
         f"details: cached={_format_compact_count(cached)} reasoning={_format_compact_count(reasoning)} cost={cost}",
     ]
+    if cost_limit is not None and cost_limit > 0:
+        current_cost = _safe_float(usage.get("cost"))
+        remaining = max(0.0, cost_limit - current_cost)
+        lines.append(f"limit: max job cost=${cost_limit:g} remaining=${remaining:.4f}")
     if calls <= 0:
         lines.append("no model usage has been recorded for this job yet")
     elif estimated:
@@ -55,3 +60,19 @@ def _safe_int(value: Any) -> int:
         return int(float(value))
     except (TypeError, ValueError):
         return 0
+
+
+def _safe_float(value: Any) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _safe_optional_float(value: Any) -> float | None:
+    if value in (None, ""):
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None

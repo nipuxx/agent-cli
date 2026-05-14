@@ -388,6 +388,7 @@ def cmd_usage_impl(args: Any, deps: RecordCommandDeps) -> None:
         usage = db.job_token_usage(job_id)
         usage["input_cost_per_million"] = config.model.input_cost_per_million
         usage["output_cost_per_million"] = config.model.output_cost_per_million
+        usage["max_job_cost_usd"] = config.runtime.max_job_cost_usd
         if args.json:
             print(json.dumps(usage, ensure_ascii=False, indent=2, sort_keys=True))
             return

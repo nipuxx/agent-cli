@@ -1371,6 +1371,36 @@ model:
     assert "cost=~$0.0020" in out
 
 
+def test_chat_usage_shows_configured_job_cost_limit(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    (tmp_path / "config.yaml").write_text(
+        """
+model:
+  name: provider/model
+  base_url: https://example.com/v1
+runtime:
+  max_job_cost_usd: 5
+""",
+        encoding="utf-8",
+    )
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Research topic", title="research")
+        db.append_event(
+            job_id,
+            event_type="loop",
+            title="message_end",
+            metadata={"usage": {"prompt_tokens": 1000, "completion_tokens": 500, "total_tokens": 1500, "cost": 1.25}},
+        )
+    finally:
+        db.close()
+
+    assert _chat_handle_line(job_id, "/usage") is True
+
+    out = capsys.readouterr().out
+    assert "limit: max job cost=$5 remaining=$3.7500" in out
+
+
 def test_first_run_settings_slash_commands_persist_config(monkeypatch, tmp_path):
     monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
 
