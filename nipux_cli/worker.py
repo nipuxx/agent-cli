@@ -1476,6 +1476,7 @@ def _evidence_grounding_context(
         window=window,
         step_numbers=cited_steps or None,
         include_durable=False,
+        include_job_context=False,
     )
     if len(evidence_text.strip()) < 80:
         return None
@@ -1497,8 +1498,8 @@ def _evidence_grounding_context(
             ],
             "cited_steps": sorted(cited_steps),
             "guidance": (
-                "The proposed durable lesson negates a concrete item that appears in recent positive evidence. "
-                "Inspect the evidence again or record uncertainty instead of saving a conflicting memory."
+                "The proposed durable record negates a concrete item or file pattern that appears in recent positive evidence. "
+                "Inspect the evidence again or record uncertainty instead of saving a conflicting claim."
             ),
         }
     stale_tokens = _active_stale_claim_token_set(job)
@@ -1550,7 +1551,7 @@ def _negative_claim_conflicts_for_grounding(
     fresh_evidence_text: str,
     tokens: list[str],
 ) -> list[dict[str, str]]:
-    if tool_name != "record_lesson":
+    if tool_name not in EVIDENCE_GROUNDED_TOOLS:
         return []
     proposed_lower = proposed_text.lower()
     if not any(marker in proposed_lower for marker in NEGATIVE_EXISTENCE_MARKERS):
@@ -1558,9 +1559,10 @@ def _negative_claim_conflicts_for_grounding(
     evidence_lines = [line.strip() for line in fresh_evidence_text.splitlines() if line.strip()]
     if not evidence_lines:
         return []
+    candidates = tokens + _file_pattern_tokens_for_grounding(proposed_text)
     conflicts: list[dict[str, str]] = []
     seen: set[str] = set()
-    for token in tokens:
+    for token in candidates:
         key = token.lower()
         if key in seen:
             continue
@@ -1572,6 +1574,25 @@ def _negative_claim_conflicts_for_grounding(
             continue
         conflicts.append({"token": token, "evidence": _clip_text(positive_line, 220)})
     return conflicts
+
+
+def _file_pattern_tokens_for_grounding(text: str) -> list[str]:
+    tokens: list[str] = []
+    seen: set[str] = set()
+    for match in re.finditer(r"(?<![A-Za-z0-9])(?:\*\.)?\.?([A-Za-z0-9][A-Za-z0-9_-]{1,12})(?![A-Za-z0-9_-])", text or ""):
+        raw = match.group(0).strip("'\"`")
+        if not raw:
+            continue
+        if "." not in raw and not raw.startswith("*."):
+            continue
+        ext = "." + match.group(1).lower().lstrip(".")
+        if ext in {".app", ".co", ".com", ".dev", ".edu", ".gov", ".io", ".net", ".org", ".www", ".http", ".https"}:
+            continue
+        if ext in seen:
+            continue
+        seen.add(ext)
+        tokens.append(ext)
+    return tokens
 
 
 def _token_near_negative_claim(text: str, token: str, *, window: int = 140) -> bool:
@@ -1594,10 +1615,16 @@ def _positive_evidence_line_for_token(lines: list[str], token: str) -> str:
         line_lower = line.lower()
         if token_lower not in line_lower:
             continue
-        if any(marker in line_lower for marker in EVIDENCE_NEGATIVE_LINE_MARKERS):
+        if _evidence_line_is_negative(line_lower):
             continue
         return line
     return ""
+
+
+def _evidence_line_is_negative(line_lower: str) -> bool:
+    if any(marker in line_lower for marker in EVIDENCE_NEGATIVE_LINE_MARKERS):
+        return True
+    return line_lower.startswith("no ") or " no " in line_lower or line_lower.startswith("zero ") or " zero " in line_lower
 
 
 def _evidence_grounding_proposed_text(tool_name: str, args: dict[str, Any]) -> str:
@@ -1676,8 +1703,11 @@ def _recent_evidence_text(
     window: int,
     step_numbers: set[int] | None = None,
     include_durable: bool = True,
+    include_job_context: bool = True,
 ) -> str:
-    parts = [str(job.get("title") or ""), str(job.get("objective") or ""), str(job.get("kind") or "")]
+    parts: list[str] = []
+    if include_job_context:
+        parts.extend([str(job.get("title") or ""), str(job.get("objective") or ""), str(job.get("kind") or "")])
     durable_text = _durable_records_for_grounding(job) if include_durable else ""
     if include_durable and durable_text:
         parts.append(durable_text)

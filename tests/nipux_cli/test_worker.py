@@ -3058,6 +3058,106 @@ def test_record_lesson_allows_negative_claim_when_evidence_is_also_negative(tmp_
         db.close()
 
 
+def test_record_findings_blocks_negative_file_pattern_that_conflicts_with_positive_evidence(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Keep file discovery evidence exact", title="file-grounding", kind="generic")
+        run_id = db.start_run(job_id, model="test")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec")
+        db.finish_step(
+            step_id,
+            status="completed",
+            output_data={
+                "success": True,
+                "stdout": (
+                    "/srv/data/WidgetModel-99-Q4.foo\n"
+                    "/tmp/results/report.alpha\n"
+                    "/var/cache/other-file.foo\n"
+                ),
+            },
+        )
+        db.finish_run(run_id, "completed")
+
+        blocked = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(
+                        name="record_findings",
+                        arguments={
+                            "findings": [
+                                {
+                                    "name": "No .foo files found on filesystem",
+                                    "category": "environment_baseline",
+                                    "status": "confirmed",
+                                    "reason": "Shell search found zero .foo files larger than 1MB anywhere on the system.",
+                                }
+                            ]
+                        },
+                    )
+                ])
+            ]),
+        )
+
+        assert blocked.status == "blocked"
+        assert blocked.result["error"] == "evidence grounding required"
+        grounding = blocked.result["evidence_grounding"]
+        assert ".foo" in grounding["unsupported_tokens"]
+        assert grounding["negative_claim_conflicts"][0]["token"] == ".foo"
+    finally:
+        db.close()
+
+
+def test_record_findings_allows_negative_file_pattern_when_evidence_is_negative(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Keep file discovery evidence exact", title="file-grounding", kind="generic")
+        run_id = db.start_run(job_id, model="test")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec")
+        db.finish_step(
+            step_id,
+            status="completed",
+            output_data={
+                "success": True,
+                "stdout": "find: '/tmp/WidgetModel-99.foo': No such file or directory\n",
+            },
+        )
+        db.finish_run(run_id, "completed")
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(
+                        name="record_findings",
+                        arguments={
+                            "findings": [
+                                {
+                                    "name": "No .foo file exists in the checked path",
+                                    "category": "environment_baseline",
+                                    "status": "confirmed",
+                                    "reason": "The shell output says the checked .foo path does not exist.",
+                                }
+                            ]
+                        },
+                    )
+                ])
+            ]),
+        )
+
+        assert result.status == "completed"
+        findings = db.get_job(job_id)["metadata"]["finding_ledger"]
+        assert findings[0]["name"] == "No .foo file exists in the checked path"
+    finally:
+        db.close()
+
+
 def test_record_lesson_allows_generic_strategy_without_concrete_facts(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")
