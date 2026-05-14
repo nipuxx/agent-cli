@@ -68,6 +68,20 @@ def observation_for_prompt(tool_name: str | None, output: dict[str, Any]) -> str
                     + "; use only tokens present in recent observed evidence or record uncertainty",
                     700,
                 )
+        recent_artifacts = output.get("recent_artifacts") if isinstance(output.get("recent_artifacts"), list) else []
+        if tool_name == "read_artifact" and recent_artifacts:
+            refs = []
+            for artifact in recent_artifacts[:6]:
+                if not isinstance(artifact, dict):
+                    continue
+                number = str(artifact.get("number") or "").strip()
+                artifact_id = str(artifact.get("id") or "").strip()
+                title = str(artifact.get("title") or "").strip()
+                label = artifact_id or number
+                if label:
+                    refs.append(f"{label}={title}" if title else label)
+            suffix = f"; valid_recent_artifacts={'; '.join(refs)}" if refs else ""
+            return clip_text(f"error={output.get('error')}; guidance={output.get('guidance') or ''}{suffix}", 900)
         return clip_text(f"error={output.get('error')}; guidance={output.get('guidance') or ''}", 700)
     if tool_name == "web_search":
         results = output.get("results") if isinstance(output.get("results"), list) else []

@@ -132,6 +132,28 @@ def test_artifact_tools_roundtrip(tmp_path):
         db.close()
 
 
+def test_read_artifact_missing_ref_returns_valid_recent_refs(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Save evidence")
+        run_id = db.start_run(job_id, model="fake")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="write_artifact")
+        ctx = ToolContext(config=config, db=db, artifacts=ArtifactStore(tmp_path, db), job_id=job_id, run_id=run_id, step_id=step_id)
+        stored = ctx.artifacts.write_text(job_id=job_id, run_id=run_id, step_id=step_id, title="Useful Evidence", content="saved")
+
+        raw = DEFAULT_REGISTRY.handle("read_artifact", {"artifact_id": "art_missing"}, ctx)
+        result = json.loads(raw)
+
+        assert result["success"] is False
+        assert result["error"] == "artifact not found: art_missing"
+        assert "search_artifacts" in result["guidance"]
+        assert result["recent_artifacts"][0]["id"] == stored.id
+        assert result["recent_artifacts"][0]["title"] == "Useful Evidence"
+    finally:
+        db.close()
+
+
 def test_defer_job_records_resume_time_without_pausing(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

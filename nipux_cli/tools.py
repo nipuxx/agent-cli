@@ -188,12 +188,34 @@ def _read_artifact(args: dict[str, Any], ctx: ToolContext) -> str:
         return _json({"success": False, "error": "artifact_id is required"})
     resolved = _resolve_artifact_ref(ctx, artifact_ref)
     if not resolved:
-        return _json({"success": False, "error": f"artifact not found: {artifact_ref}"})
+        recent = _recent_artifact_refs(ctx)
+        return _json({
+            "success": False,
+            "error": f"artifact not found: {artifact_ref}",
+            "guidance": (
+                "The requested artifact reference does not exist. Use one of the recent_artifacts refs, "
+                "call search_artifacts with a concrete query, or continue from already observed evidence."
+            ),
+            "recent_artifacts": recent,
+        })
     try:
         content = ctx.artifacts.read_text(resolved["id"])
     except (OSError, KeyError, ValueError) as exc:
         return _json({"success": False, "artifact_id": resolved["id"], "error": str(exc)})
     return _json({"success": True, "artifact_id": resolved["id"], "title": resolved.get("title"), "path": resolved.get("path"), "content": content})
+
+
+def _recent_artifact_refs(ctx: ToolContext, limit: int = 8) -> list[dict[str, str]]:
+    artifacts = ctx.db.list_artifacts(ctx.job_id, limit=limit)
+    refs: list[dict[str, str]] = []
+    for index, artifact in enumerate(artifacts, start=1):
+        refs.append({
+            "number": str(index),
+            "id": str(artifact.get("id") or ""),
+            "title": str(artifact.get("title") or ""),
+            "path": str(artifact.get("path") or ""),
+        })
+    return refs
 
 
 def _resolve_artifact_ref(ctx: ToolContext, artifact_ref: str) -> dict[str, Any] | None:

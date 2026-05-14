@@ -2117,6 +2117,31 @@ def test_prompt_includes_recent_tool_arguments_and_observations():
     assert "read_artifact is only for those saved outputs" in content
 
 
+def test_prompt_recovers_from_missing_artifact_reference():
+    job = {"title": "artifact recovery", "kind": "generic", "objective": "use saved evidence"}
+    steps = [{
+        "step_no": 12,
+        "kind": "tool",
+        "status": "failed",
+        "tool_name": "read_artifact",
+        "summary": "read_artifact failed: artifact not found: art_missing",
+        "input": {"arguments": {"artifact_id": "art_missing"}},
+        "output": {
+            "success": False,
+            "error": "artifact not found: art_missing",
+            "guidance": "Use one of the recent_artifacts refs, call search_artifacts, or continue from evidence.",
+            "recent_artifacts": [{"number": "1", "id": "art_real", "title": "Real Evidence"}],
+        },
+    }]
+
+    messages = build_messages(job, steps)
+    content = messages[-1]["content"]
+
+    assert "valid_recent_artifacts=art_real=Real Evidence" in content
+    assert "Do not invent or retry artifact ids" in content
+    assert "search_artifacts" in content
+
+
 def test_prompt_does_not_inject_local_ssh_alias_context(monkeypatch, tmp_path):
     monkeypatch.setenv("HOME", str(tmp_path))
     ssh_dir = tmp_path / ".ssh"

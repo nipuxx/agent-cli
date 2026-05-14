@@ -942,6 +942,14 @@ def _next_action_constraint(job: dict[str, Any], recent_steps: list[dict[str, An
             "use record_tasks to open the next concrete branch, or report_update if the operator needs a checkpoint."
         )
     for step in reversed(recent_steps[-5:]):
+        if step.get("status") == "failed" and step.get("tool_name") == "read_artifact":
+            output = step.get("output") if isinstance(step.get("output"), dict) else {}
+            if "artifact not found" in str(output.get("error") or step.get("summary") or "").lower():
+                return (
+                    "The last artifact read used a reference that does not exist. Do not invent or retry artifact ids. "
+                    "Use a valid recent artifact ref, call search_artifacts with a concrete query, or continue from "
+                    "already observed evidence with a durable record."
+                )
         error = str(step.get("error") or "")
         if error == "artifact required before more research":
             return "The last blocked action needs write_artifact, not another search or browser action."
