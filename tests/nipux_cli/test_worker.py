@@ -6010,7 +6010,7 @@ def test_run_one_step_blocks_new_tasks_when_queue_sprawls(tmp_path):
         db.close()
 
 
-def test_recent_task_saturation_hides_record_tasks_from_next_turn(tmp_path):
+def test_recent_task_saturation_keeps_record_tasks_for_existing_updates(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")
     try:
@@ -6041,7 +6041,11 @@ def test_recent_task_saturation_hides_record_tasks_from_next_turn(tmp_path):
         run_one_step(job_id, config=config, db=db, llm=llm)
 
         tool_names = {tool["function"]["name"] for tool in llm.tools}
-        assert "record_tasks" not in tool_names
+        prompt = llm.messages[-1]["content"]
+        assert "Task queue saturation" in prompt
+        assert "Do not create new task branches" in prompt
+        assert "record_tasks only to update existing task titles" in prompt
+        assert "record_tasks" in tool_names
         assert "record_lesson" in tool_names
         assert "shell_exec" in tool_names
     finally:

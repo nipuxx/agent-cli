@@ -149,6 +149,7 @@ def build_messages(
     evidence_checkpoint_guard = _evidence_checkpoint_accounting_for_prompt(job, recent_steps)
     activity_stagnation = _activity_stagnation_for_prompt(job)
     task_planning_guard = _task_planning_guard_for_prompt(job)
+    task_queue_saturation = _task_queue_saturation_for_prompt(recent_steps)
     memory_consolidation_guard = _memory_consolidation_guard_for_prompt(job, recent_steps)
     durable_yield = _durable_yield_for_prompt(job, recent_steps)
     context_pressure = context_pressure_for_prompt(job)
@@ -184,6 +185,7 @@ def build_messages(
             ("Evidence checkpoint accounting guard", evidence_checkpoint_guard),
             ("Activity stagnation", activity_stagnation),
             ("Task planning guard", task_planning_guard),
+            ("Task queue saturation", task_queue_saturation),
             ("Memory consolidation guard", memory_consolidation_guard),
             ("Durable progress yield", durable_yield),
             ("Context pressure", context_pressure),
@@ -438,6 +440,25 @@ def _task_planning_guard_for_prompt(job: dict[str, Any]) -> str:
     )
 
 
+def _task_queue_saturation_for_prompt(recent_steps: list[dict[str, Any]]) -> str:
+    context = _recent_task_queue_saturation_context(recent_steps)
+    if not context:
+        return "None."
+    counts = []
+    if context.get("open_count") is not None:
+        counts.append(f"open_tasks={context.get('open_count')}")
+    if context.get("total_count") is not None:
+        counts.append(f"total_tasks={context.get('total_count')}")
+    count_text = " ".join(counts) or "queue is saturated"
+    return (
+        f"Task queue saturation was just hit at step #{context.get('step_no')}: "
+        f"{context.get('reason') or 'task queue saturated'} ({count_text}). "
+        "Do not create new task branches. Either execute an existing high-priority branch, "
+        "or use record_tasks only to update existing task titles to active, done, blocked, or skipped "
+        "with concise result/evidence. Consolidate branch sprawl into roadmap/milestones when useful."
+    )
+
+
 def _memory_consolidation_guard_for_prompt(job: dict[str, Any], recent_steps: list[dict[str, Any]]) -> str:
     context = _memory_graph_consolidation_context(job, recent_steps)
     if not context:
@@ -612,6 +633,12 @@ def _next_action_constraint(job: dict[str, Any], recent_steps: list[dict[str, An
             "Recent progress is only task planning. Do not create more new open tasks next. Execute an existing task, "
             "record evidence/measurements/validation, write a checkpoint, mark tasks done/blocked/skipped, or record "
             "a lesson before expanding the queue again."
+        )
+    task_queue_saturation = _recent_task_queue_saturation_context(recent_steps)
+    if task_queue_saturation:
+        return (
+            "The durable task queue is saturated. Do not create new task branches. Execute a current task, "
+            "or use record_tasks only to update existing task titles to active/done/blocked/skipped with evidence."
         )
     memory_consolidation = _memory_graph_consolidation_context(job, recent_steps)
     if memory_consolidation:
@@ -4793,8 +4820,6 @@ def _suppressed_tool_names(job: dict[str, Any] | None, recent_steps: list[dict[s
     if not job:
         return set()
     suppressed: set[str] = set()
-    if _recent_task_queue_saturation_context(recent_steps):
-        suppressed.add("record_tasks")
     return suppressed
 
 
