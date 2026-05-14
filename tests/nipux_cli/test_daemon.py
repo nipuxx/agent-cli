@@ -186,6 +186,21 @@ def test_failed_step_provider_config_error_gets_long_backoff():
     assert _step_failure_backoff(result, poll_seconds=0, consecutive_failures=1) == 300
 
 
+def test_failed_tool_auth_error_uses_normal_backoff():
+    result = StepExecution(
+        job_id="job",
+        run_id="run",
+        step_id="step",
+        tool_name="shell_exec",
+        status="failed",
+        result={
+            "error": "command output indicates authentication or authorization failure: permission denied",
+        },
+    )
+
+    assert _step_failure_backoff(result, poll_seconds=3, consecutive_failures=1) == 3
+
+
 def test_failed_step_rate_limit_gets_throttled_backoff():
     result = StepExecution(
         job_id="job",

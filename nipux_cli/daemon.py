@@ -595,6 +595,10 @@ def _step_failure_backoff(result: Any, poll_seconds: float, consecutive_failures
     """
 
     fallback = _failure_backoff(poll_seconds, consecutive_failures)
+    tool_name = getattr(result, "tool_name", None)
+    model_failure = tool_name in (None, "", "llm")
+    if not model_failure:
+        return fallback
     text = _step_failure_text(result)
     if _is_provider_config_text(text):
         return max(fallback, 300.0)
