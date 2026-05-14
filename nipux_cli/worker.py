@@ -4361,6 +4361,20 @@ def _registry_tools(registry: ToolRegistry, config: AppConfig) -> list[dict[str,
         return registry.openai_tools()
 
 
+def _registry_tools_for_step(registry: ToolRegistry, config: AppConfig, recent_steps: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    tools = _registry_tools(registry, config)
+    if not _browser_runtime_unavailable_context(recent_steps):
+        return tools
+    return [tool for tool in tools if not _is_browser_tool(_openai_tool_name(tool))]
+
+
+def _openai_tool_name(tool: dict[str, Any]) -> str:
+    function = tool.get("function") if isinstance(tool, dict) else None
+    if isinstance(function, dict):
+        return str(function.get("name") or "")
+    return str(tool.get("name") or "") if isinstance(tool, dict) else ""
+
+
 def _call_next_action_with_timeout(
     llm: StepLLM,
     *,
@@ -4445,7 +4459,7 @@ def run_one_step(
             response: LLMResponse = _call_next_action_with_timeout(
                 llm,
                 messages=messages,
-                tools=_registry_tools(registry, config),
+                tools=_registry_tools_for_step(registry, config, recent_steps),
                 timeout_seconds=config.model.request_timeout_seconds,
             )
         except Exception as exc:
