@@ -1423,6 +1423,7 @@ def _tool_call_matches_pending_milestone_need(tool_name: str, args: dict[str, An
         str(milestone.get("next_action") or ""),
         str(milestone.get("acceptance_criteria") or ""),
         str(milestone.get("evidence_needed") or ""),
+        str(milestone.get("validation_evidence") or ""),
         str(milestone.get("validation_result") or ""),
         " ".join(str(item) for item in milestone.get("validation_issues") or [] if item),
     ]
@@ -1443,6 +1444,22 @@ def _tool_call_matches_pending_milestone_need(tool_name: str, args: dict[str, An
     if not call_tokens:
         return False
     return bool(need_tokens & call_tokens)
+
+
+def _milestone_validation_call_matches_current(args: dict[str, Any], milestone: dict[str, Any]) -> bool:
+    requested = _norm_task_key("", str(args.get("milestone") or args.get("title") or ""))
+    if not requested:
+        return False
+    candidates = [
+        _norm_task_key("", str(milestone.get("title") or "")),
+        _norm_task_key("", str(milestone.get("key") or "")),
+    ]
+    for candidate in candidates:
+        if not candidate:
+            continue
+        if requested == candidate or requested in candidate or candidate in requested:
+            return True
+    return False
 
 
 def _latest_experiment_next_action_context(job: dict[str, Any]) -> dict[str, Any] | None:
@@ -4324,6 +4341,31 @@ def _blocked_tool_call_result(
                 ),
             }
             return result, "blocked record_tasks; task-only planning needs execution"
+
+    current_milestone_validation = _milestone_validation_needed(job)
+    if (
+        name == "record_milestone_validation"
+        and current_milestone_validation
+        and not _milestone_validation_call_matches_current(args, current_milestone_validation)
+    ):
+        result = {
+            "success": False,
+            "error": "current milestone validation required",
+            "blocked_tool": name,
+            "blocked_arguments": args,
+            "milestone": {
+                "title": current_milestone_validation.get("title"),
+                "status": current_milestone_validation.get("status"),
+                "validation_status": current_milestone_validation.get("validation_status"),
+                "acceptance_criteria": current_milestone_validation.get("acceptance_criteria"),
+                "evidence_needed": current_milestone_validation.get("evidence_needed"),
+            },
+            "guidance": (
+                "A milestone validation gate is already active. Validate that current milestone by name, "
+                "or update the roadmap to make a different milestone current before validating another one."
+            ),
+        }
+        return result, "blocked record_milestone_validation; current milestone validation required"
 
     auto_checkpoint_accounting = _auto_checkpoint_accounting_context(job, recent_steps)
     if _evidence_checkpoint_blocks_tool(name, args, auto_checkpoint_accounting):

@@ -8239,6 +8239,45 @@ def test_run_one_step_allows_matching_pending_milestone_evidence_action(tmp_path
         db.close()
 
 
+def test_run_one_step_allows_matching_pending_milestone_validation_evidence_action(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job(
+            "Validate a pending milestone",
+            title="roadmap-pending-validation-evidence",
+            metadata={
+                "roadmap": {
+                    "title": "Generic Roadmap",
+                    "status": "validating",
+                    "milestones": [{
+                        "title": "Build tools",
+                        "status": "validating",
+                        "validation_status": "pending",
+                        "validation_evidence": "Need to verify cmake and compiler paths before building.",
+                    }],
+                },
+            },
+        )
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[ToolCall(name="shell_exec", arguments={
+                    "command": "printf 'cmake compiler ok\\n'",
+                    "timeout_seconds": 5,
+                })])
+            ]),
+        )
+
+        assert result.status == "completed"
+        assert result.tool_name == "shell_exec"
+    finally:
+        db.close()
+
+
 def test_run_one_step_blocks_non_matching_pending_milestone_action(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")
@@ -8275,6 +8314,46 @@ def test_run_one_step_blocks_non_matching_pending_milestone_action(tmp_path):
 
         assert result.status == "blocked"
         assert result.result["error"] == "milestone validation required"
+    finally:
+        db.close()
+
+
+def test_run_one_step_blocks_wrong_milestone_validation_when_gate_is_active(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job(
+            "Validate the active milestone only",
+            title="roadmap-wrong-milestone",
+            metadata={
+                "roadmap": {
+                    "title": "Generic Roadmap",
+                    "status": "validating",
+                    "milestones": [{
+                        "title": "Current milestone",
+                        "status": "validating",
+                        "validation_status": "pending",
+                    }],
+                },
+            },
+        )
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[ToolCall(name="record_milestone_validation", arguments={
+                    "milestone": "Different milestone",
+                    "validation_status": "passed",
+                })])
+            ]),
+        )
+
+        assert result.status == "blocked"
+        assert result.result["error"] == "current milestone validation required"
+        roadmap = db.get_job(job_id)["metadata"]["roadmap"]
+        assert [milestone["title"] for milestone in roadmap["milestones"]] == ["Current milestone"]
     finally:
         db.close()
 
