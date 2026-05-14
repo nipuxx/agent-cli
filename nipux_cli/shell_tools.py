@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 import json
 import os
+import re
 import signal
 import subprocess
 import time
@@ -182,11 +183,37 @@ def _shell_success_anomaly(stdout: str, stderr: str) -> str:
     if any(marker in lowered for marker in auth_markers):
         excerpt = " ".join(combined.split())[:500]
         return f"command output indicates authentication or authorization failure despite exit status 0: {excerpt}"
+    command_missing_match = _shell_missing_command_anomaly(combined)
+    if command_missing_match:
+        excerpt = " ".join(combined.split())[:500]
+        return f"command output indicates missing command despite exit status 0: {excerpt}"
+    build_error_match = _shell_build_error_anomaly(combined)
+    if build_error_match:
+        excerpt = " ".join(combined.split())[:500]
+        return f"command output indicates build/tool failure despite exit status 0: {excerpt}"
     http_error_match = _shell_http_error_anomaly(lowered)
     if http_error_match:
         excerpt = " ".join(combined.split())[:500]
         return f"command output indicates HTTP failure despite exit status 0: {excerpt}"
     return ""
+
+
+def _shell_missing_command_anomaly(text: str) -> bool:
+    return bool(
+        re.search(
+            r"(?im)(?:^|\n)(?:/bin/sh:\s*\d+:\s*)?[A-Za-z0-9_.+-]+:\s*(?:command not found|not found)\s*$",
+            text,
+        )
+    )
+
+
+def _shell_build_error_anomaly(text: str) -> bool:
+    lowered = text.lower()
+    if "no rule to make target" in lowered:
+        return True
+    if "***" in text and "stop." in lowered:
+        return True
+    return bool(re.search(r"(?im)^\s*(?:make(?:\[\d+\])?:\s*)?\*\*\* .*\bstop\.\s*$", text))
 
 
 def _shell_http_error_anomaly(text: str) -> bool:
