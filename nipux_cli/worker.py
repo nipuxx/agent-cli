@@ -1451,6 +1451,7 @@ EVIDENCE_TOKEN_IGNORE = {
     "format",
     "finding",
     "findings",
+    "file-level",
     "html",
     "http",
     "https",
@@ -1469,6 +1470,8 @@ EVIDENCE_TOKEN_IGNORE = {
     "milestones",
     "model",
     "next",
+    "observation",
+    "observations",
     "open",
     "oid",
     "output",
@@ -1505,6 +1508,8 @@ EVIDENCE_TOKEN_IGNORE = {
     "xml",
     "yaml",
     "yml",
+    "confirmed",
+    "consider",
 }
 STALE_CLAIM_TOKEN_IGNORE = {
     "api",
@@ -1682,7 +1687,8 @@ def _evidence_grounding_context(
         return None
     unsupported_threshold = 1 if cited_steps or proposed_stale_tokens else 3
     candidate_tokens = proposed_stale_tokens if tool_name == "record_lesson" else proposed_tokens + proposed_stale_tokens
-    if len(candidate_tokens) < unsupported_threshold:
+    candidate_high_risk = [token for token in candidate_tokens if _high_risk_evidence_token(token)]
+    if len(candidate_tokens) < unsupported_threshold and not candidate_high_risk:
         return None
     evidence_lower = evidence_text.lower()
     fresh_evidence_lower = fresh_evidence_text.lower()
@@ -1702,10 +1708,11 @@ def _evidence_grounding_context(
             continue
         seen.add(key)
         unique.append(token)
-    if len(unique) < unsupported_threshold:
+    high_risk_unique = [token for token in unique if _high_risk_evidence_token(token)]
+    if len(unique) < unsupported_threshold and not high_risk_unique:
         return None
     return {
-        "unsupported_tokens": unique[:12],
+        "unsupported_tokens": (high_risk_unique or unique)[:12],
         "evidence_steps": [
             step.get("step_no")
             for step in _evidence_steps_for_grounding(recent_steps, window=window, step_numbers=cited_steps or None)
@@ -2089,6 +2096,21 @@ def _concrete_evidence_tokens(text: str) -> list[str]:
             tokens.append(token)
             continue
     return tokens
+
+
+def _high_risk_evidence_token(token: str) -> bool:
+    lowered = token.lower()
+    if not token or lowered in EVIDENCE_TOKEN_IGNORE:
+        return False
+    if lowered.startswith(("art_", "step_")):
+        return False
+    if lowered.endswith((".md", ".py", ".json", ".yaml", ".yml", ".gguf", ".txt", ".log")):
+        return True
+    if any(ch.isdigit() for ch in token) and any(ch.isalpha() for ch in token):
+        return True
+    if token.isupper() and len(token) >= 3:
+        return True
+    return False
 
 
 def _step_has_evidence(step: dict[str, Any]) -> bool:

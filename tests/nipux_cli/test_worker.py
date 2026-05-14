@@ -3294,6 +3294,51 @@ def test_record_lesson_allows_positive_checkpoint_summary_with_new_concrete_term
         db.close()
 
 
+def test_record_findings_blocks_single_unsupported_identifier(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Record only observed identifiers", title="grounding", kind="generic")
+        run_id = db.start_run(job_id, model="test")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec")
+        db.finish_step(
+            step_id,
+            status="completed",
+            output_data={
+                "success": True,
+                "stdout": (
+                    "Observed candidate list from tool output. "
+                    "The source contains AlphaCandidate and BetaCandidate with ordinary text evidence. "
+                    "No generated opaque identifiers are present in this evidence."
+                )
+                * 12,
+            },
+        )
+        db.finish_run(run_id, "completed")
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[ToolCall(name="record_findings", arguments={
+                    "findings": [{
+                        "name": "WWHHH5 generated candidate",
+                        "category": "test",
+                        "reason": "Observed candidate list needs follow-up, but this identifier was not in evidence.",
+                        "status": "new",
+                    }]
+                })])
+            ]),
+        )
+
+        assert result.status == "blocked"
+        assert result.result["error"] == "evidence grounding required"
+        assert result.result["evidence_grounding"]["unsupported_tokens"] == ["WWHHH5"]
+    finally:
+        db.close()
+
+
 def test_evidence_grounding_ignores_record_schema_keys(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")
