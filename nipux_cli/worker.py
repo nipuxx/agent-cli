@@ -2412,7 +2412,7 @@ def _repeated_guard_block_context(
             count += 1
             first_step_no = first_step_no or step.get("step_no")
             blocked_tools.append(str(step.get("tool_name") or step.get("kind") or "tool"))
-    effective_threshold = 1 if _already_read_checkpoint_reread(latest_blocked) else threshold
+    effective_threshold = 1 if _already_read_checkpoint_accounting_block(latest_blocked) else threshold
     if count < effective_threshold:
         return None
     progress_after_recovery = any(
@@ -2431,13 +2431,12 @@ def _repeated_guard_block_context(
     }
 
 
-def _already_read_checkpoint_reread(step: dict[str, Any]) -> bool:
+def _already_read_checkpoint_accounting_block(step: dict[str, Any]) -> bool:
     output = step.get("output") if isinstance(step.get("output"), dict) else {}
     checkpoint = output.get("pending_evidence_checkpoint") if isinstance(output.get("pending_evidence_checkpoint"), dict) else {}
     return (
-        step.get("tool_name") == "read_artifact"
-        and output.get("error") == "evidence checkpoint accounting required"
-        and bool(checkpoint.get("checkpoint_read"))
+        output.get("error") == "evidence checkpoint accounting required"
+        and (bool(output.get("checkpoint_already_read")) or bool(checkpoint.get("checkpoint_read")))
     )
 
 

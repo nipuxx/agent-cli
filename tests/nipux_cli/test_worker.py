@@ -1405,6 +1405,59 @@ def test_checkpoint_reread_block_requires_accounting_not_more_reads(tmp_path):
         db.close()
 
 
+def test_already_read_checkpoint_branch_block_recovers_immediately(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Recover checkpoint branch deadlock", title="checkpoint-branch", kind="generic")
+        db.update_job_metadata(
+            job_id,
+            {
+                "pending_evidence_checkpoint": {
+                    "artifact_id": "art_checkpoint",
+                    "title": "Auto Evidence Checkpoint after step 1",
+                    "read_at": "2026-01-01T00:00:00+00:00",
+                    "evidence_step_no": 1,
+                    "blocked_tool": "shell_exec",
+                }
+            },
+        )
+        run_id = db.start_run(job_id, model="test")
+        step_id = db.add_step(
+            job_id=job_id,
+            run_id=run_id,
+            kind="tool",
+            tool_name="shell_exec",
+            input_data={"arguments": {"command": "echo more branch work"}},
+        )
+        db.finish_step(
+            step_id,
+            status="blocked",
+            summary="blocked shell_exec; evidence checkpoint accounting required",
+            output_data={
+                "success": False,
+                "recoverable": True,
+                "error": "evidence checkpoint accounting required",
+                "checkpoint_already_read": True,
+                "pending_evidence_checkpoint": {
+                    "artifact_id": "art_checkpoint",
+                    "checkpoint_read": True,
+                },
+            },
+        )
+        db.finish_run(run_id, "completed")
+
+        result = run_one_step(job_id, config=config, db=db, llm=ExplodingLLM())
+
+        assert result.tool_name == "guard_recovery"
+        assert result.result["guard_recovery"]["count"] == 1
+        assert result.result["task"]["metadata"]["resolves_evidence_checkpoint"] is True
+        pending = db.get_job(job_id)["metadata"]["pending_evidence_checkpoint"]
+        assert pending["resolved_by_tool"] == "guard_recovery"
+    finally:
+        db.close()
+
+
 def test_evidence_grounding_ignores_format_protocol_tokens():
     tokens = _concrete_evidence_tokens(
         "Parsed JSON from HTTPS REST API URL and saved HTML/YAML/XML CDN SHA256 GGUF excerpts for Model-7B step_123_shell_output."
