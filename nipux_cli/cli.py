@@ -2283,9 +2283,6 @@ def cmd_work(args: argparse.Namespace) -> None:
 
 
 def cmd_run(args: argparse.Namespace) -> None:
-    if not args.fake and not _model_setup_verified(load_config()):
-        _ensure_model_setup_verified_for_workspace()
-        return
     requested = _job_ref_text(args.job_id)
     if requested:
         db, _ = _db()

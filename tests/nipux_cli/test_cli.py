@@ -3735,6 +3735,31 @@ def test_run_reopens_completed_focused_job(monkeypatch, tmp_path, capsys):
         db.close()
 
 
+def test_run_delegates_unverified_provider_state_to_daemon_start(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    parser = build_parser()
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        db.create_job("Keep checking provider recovery", title="provider recovery")
+    finally:
+        db.close()
+    started = {}
+
+    def fake_start(**kwargs):
+        started.update(kwargs)
+        print("model provider is not ready; starting daemon in recovery monitor mode")
+
+    monkeypatch.setattr("nipux_cli.cli._start_daemon_if_needed", fake_start)
+    args = parser.parse_args(["run", "provider recovery", "--no-follow"])
+
+    args.func(args)
+
+    out = capsys.readouterr().out
+    assert "Model setup is not verified." not in out
+    assert "recovery monitor mode" in out
+    assert started["poll_seconds"] == 0.0
+
+
 def test_create_sets_new_job_as_shell_focus(monkeypatch, tmp_path, capsys):
     monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
     _mark_test_model_ready()
