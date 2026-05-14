@@ -3760,6 +3760,40 @@ def test_run_delegates_unverified_provider_state_to_daemon_start(monkeypatch, tm
     assert started["poll_seconds"] == 0.0
 
 
+def test_run_marks_job_waiting_when_provider_recovery_is_needed(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    parser = build_parser()
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Keep checking provider recovery", title="provider recovery")
+    finally:
+        db.close()
+
+    monkeypatch.setattr(
+        "nipux_cli.cli._recoverable_remote_model_preflight_failures",
+        lambda _config: ["model_generation: key limit exceeded"],
+    )
+
+    def fake_start(**_kwargs):
+        print("model provider is not ready; starting daemon in recovery monitor mode")
+
+    monkeypatch.setattr("nipux_cli.cli._start_daemon_if_needed", fake_start)
+    args = parser.parse_args(["run", "provider recovery", "--no-follow"])
+
+    args.func(args)
+
+    out = capsys.readouterr().out
+    assert "recovery monitor mode" in out
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job = db.get_job(job_id)
+        assert job["status"] == "paused"
+        assert job["metadata"]["provider_blocked_at"]
+        assert "monitor and resume" in job["metadata"]["last_note"]
+    finally:
+        db.close()
+
+
 def test_create_sets_new_job_as_shell_focus(monkeypatch, tmp_path, capsys):
     monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
     _mark_test_model_ready()

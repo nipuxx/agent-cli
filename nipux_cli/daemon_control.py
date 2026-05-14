@@ -42,6 +42,15 @@ def _recoverable_provider_preflight(failures: list[str]) -> bool:
     return True
 
 
+def recoverable_remote_model_preflight_failures(
+    config: Any,
+    *,
+    doctor_fn: Callable[..., list[Any]] = run_doctor,
+) -> list[str]:
+    failures = remote_model_preflight_failures(config, doctor_fn=doctor_fn)
+    return failures if _recoverable_provider_preflight(failures) else []
+
+
 def ensure_remote_model_ready_for_worker(
     config: Any,
     *,

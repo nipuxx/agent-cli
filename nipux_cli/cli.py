@@ -90,6 +90,7 @@ from nipux_cli.config import (
 from nipux_cli.daemon_control import cmd_restart_impl as _cmd_restart_impl
 from nipux_cli.daemon_control import cmd_start_impl as _cmd_start_impl
 from nipux_cli.daemon_control import ensure_remote_model_ready_for_worker as _daemon_ensure_remote_model_ready
+from nipux_cli.daemon_control import recoverable_remote_model_preflight_failures as _daemon_recoverable_remote_model_preflight_failures
 from nipux_cli.daemon_control import remote_model_preflight_failures as _daemon_remote_model_preflight_failures
 from nipux_cli.daemon_control import start_daemon_if_needed_impl as _start_daemon_if_needed_impl
 from nipux_cli.daemon_control import stop_daemon_process_impl as _stop_daemon_process_impl
@@ -1601,6 +1602,10 @@ def _remote_model_preflight_failures(config) -> list[str]:
     return _daemon_remote_model_preflight_failures(config, doctor_fn=run_doctor)
 
 
+def _recoverable_remote_model_preflight_failures(config) -> list[str]:
+    return _daemon_recoverable_remote_model_preflight_failures(config, doctor_fn=run_doctor)
+
+
 def _ensure_remote_model_ready_for_worker(config, *, fake: bool) -> bool:
     return _daemon_ensure_remote_model_ready(config, fake=fake, doctor_fn=run_doctor)
 
@@ -2282,7 +2287,36 @@ def cmd_work(args: argparse.Namespace) -> None:
         db.close()
 
 
+def _pause_job_for_recoverable_provider_preflight(db: AgentDB, config: Any, job_id: str, *, fake: bool) -> bool:
+    if fake:
+        return False
+    failures = _recoverable_remote_model_preflight_failures(config)
+    if not failures:
+        return False
+    now = utc_now()
+    detail = "; ".join(failures)
+    note = "Model provider is unavailable; daemon will monitor and resume this job when calls succeed."
+    db.update_job_status(
+        job_id,
+        "paused",
+        metadata_patch={
+            "last_note": note,
+            "provider_blocked_at": now,
+            "provider_last_probe_at": now,
+            "provider_last_probe_detail": detail[:1000],
+        },
+    )
+    db.append_agent_update(
+        job_id,
+        note,
+        category="error",
+        metadata={"reason": "llm_provider_blocked", "detail": detail[:1000]},
+    )
+    return True
+
+
 def cmd_run(args: argparse.Namespace) -> None:
+    config = load_config()
     requested = _job_ref_text(args.job_id)
     if requested:
         db, _ = _db()
@@ -2294,6 +2328,7 @@ def cmd_run(args: argparse.Namespace) -> None:
             args.job_id = job["id"]
             _write_shell_state({"focus_job_id": job["id"]})
             _ensure_job_runnable(db, job["id"])
+            _pause_job_for_recoverable_provider_preflight(db, config, job["id"], fake=bool(args.fake))
             job = db.get_job(job["id"])
             daemon = daemon_lock_status(load_config().runtime.home / "agentd.lock")
             print(f"focus set: {job['title']} | job {_job_display_state(job, bool(daemon['running']))}")
@@ -2305,6 +2340,7 @@ def cmd_run(args: argparse.Namespace) -> None:
             job_id = _default_job_id(db)
             if job_id:
                 _ensure_job_runnable(db, job_id)
+                _pause_job_for_recoverable_provider_preflight(db, config, job_id, fake=bool(args.fake))
             else:
                 print("No jobs found. Create one with /new OBJECTIVE.")
                 return
