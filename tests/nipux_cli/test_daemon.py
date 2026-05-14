@@ -49,6 +49,25 @@ def test_lock_metadata_can_be_updated_while_held(tmp_path):
     assert status["running"] is True
     assert status["metadata"]["last_state"] == "step"
     assert status["metadata"]["consecutive_failures"] == 2
+    assert status["metadata"]["pid"]
+    assert status["metadata"]["started_at"]
+
+
+def test_lock_metadata_update_restores_missing_process_fields(tmp_path):
+    lock_path = tmp_path / "agentd.lock"
+    with single_instance_lock(lock_path) as handle:
+        handle.seek(0)
+        handle.truncate()
+        handle.write(json.dumps({"last_state": "idle"}))
+        handle.flush()
+
+        update_lock_metadata(handle, last_state="step")
+        status = daemon_lock_status(lock_path)
+
+    assert status["running"] is True
+    assert status["metadata"]["pid"]
+    assert status["metadata"]["started_at"]
+    assert status["metadata"]["last_state"] == "step"
 
 
 def test_daemon_lock_status_detects_stale_runtime(tmp_path):

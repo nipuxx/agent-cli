@@ -169,6 +169,8 @@ def single_instance_lock(path: str | Path):
 def update_lock_metadata(handle, **patch: Any) -> None:
     handle.seek(0)
     metadata = _parse_lock_metadata(handle.read())
+    metadata.setdefault("pid", os.getpid())
+    metadata.setdefault("started_at", datetime.now(timezone.utc).isoformat())
     metadata.update(patch)
     handle.seek(0)
     handle.truncate()
