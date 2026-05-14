@@ -2412,6 +2412,84 @@ def test_run_one_step_records_usage_pressure_without_spam(tmp_path):
         db.close()
 
 
+def test_run_one_step_defers_when_critical_usage_is_low_yield(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path), model=ModelConfig(context_length=262_144))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Keep a long-running task efficient", title="usage circuit", kind="generic")
+        db.append_event(
+            job_id,
+            event_type="loop",
+            title="message_end",
+            metadata={"usage": {"prompt_tokens": 21_000_000, "completion_tokens": 10_000, "total_tokens": 21_010_000, "cost": 11.0}},
+        )
+        for index, error_type in enumerate(["APITimeoutError", "APITimeoutError", "ProviderTimeout"], start=1):
+            run_id = db.start_run(job_id, model="test")
+            step_id = db.add_step(job_id=job_id, run_id=run_id, kind="llm", status="failed")
+            db.finish_step(
+                step_id,
+                status="failed",
+                summary=f"model call failed: {error_type}",
+                output_data={"success": False, "error": f"timeout {index}", "error_type": error_type},
+                error=f"timeout {index}",
+            )
+            db.finish_run(run_id, "failed", error=f"timeout {index}")
+
+        result = run_one_step(job_id, config=config, db=db, llm=ExplodingLLM())
+
+        assert result.status == "completed"
+        assert result.tool_name == "defer_job"
+        assert result.result["usage_pressure_circuit_breaker"]["cost"] == 11.0
+        job = db.get_job(job_id)
+        assert job["metadata"]["defer_until"]
+        assert "Critical usage pressure" in job["metadata"]["defer_reason"]
+    finally:
+        db.close()
+
+
+def test_run_one_step_does_not_defer_critical_usage_after_progress(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path), model=ModelConfig(context_length=262_144))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Keep a long-running task efficient", title="usage progress", kind="generic")
+        db.append_event(
+            job_id,
+            event_type="loop",
+            title="message_end",
+            metadata={"usage": {"prompt_tokens": 21_000_000, "completion_tokens": 10_000, "total_tokens": 21_010_000, "cost": 11.0}},
+        )
+        for error_type in ["APITimeoutError", "APITimeoutError"]:
+            run_id = db.start_run(job_id, model="test")
+            step_id = db.add_step(job_id=job_id, run_id=run_id, kind="llm", status="failed")
+            db.finish_step(
+                step_id,
+                status="failed",
+                summary=f"model call failed: {error_type}",
+                output_data={"success": False, "error": "timeout", "error_type": error_type},
+                error="timeout",
+            )
+            db.finish_run(run_id, "failed", error="timeout")
+        run_id = db.start_run(job_id, model="test")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="record_experiment")
+        db.finish_step(
+            step_id,
+            status="completed",
+            summary="recorded measured result",
+            output_data={"success": True, "experiment": {"title": "measured result"}},
+        )
+        db.finish_run(run_id, "completed")
+        llm = ScriptedLLM([
+            LLMResponse(tool_calls=[ToolCall(name="report_update", arguments={"message": "continuing from measured progress"})])
+        ])
+
+        result = run_one_step(job_id, config=config, db=db, llm=llm)
+
+        assert result.status == "completed"
+        assert result.tool_name == "report_update"
+    finally:
+        db.close()
+
+
 def test_run_one_step_drops_conversation_only_chat_from_worker_prompt(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

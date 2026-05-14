@@ -109,6 +109,13 @@ __all__ = ["MAX_WORKER_PROMPT_CHARS", "_render_worker_prompt", "build_messages",
 
 
 TRANSIENT_MODEL_COOLDOWN_MAX_SECONDS = 3600.0
+USAGE_PRESSURE_DEFER_BASE_SECONDS = 900.0
+USAGE_PRESSURE_DEFER_MAX_SECONDS = 3600.0
+USAGE_PRESSURE_CRITICAL_TOKENS = 20_000_000
+USAGE_PRESSURE_CRITICAL_CALLS = 2_000
+USAGE_PRESSURE_CRITICAL_COST = 10.0
+USAGE_PRESSURE_LOW_YIELD_WINDOW = 12
+USAGE_PRESSURE_LOW_YIELD_MIN_BLOCKS = 3
 
 
 @dataclass(frozen=True)
@@ -5362,6 +5369,168 @@ def _run_transient_model_cooldown_step(
     return StepExecution(job_id=job_id, run_id=run_id, step_id=step_id, tool_name="defer_job", status="completed", result=result)
 
 
+def _usage_pressure_circuit_breaker_context(
+    job: dict[str, Any],
+    usage: dict[str, Any],
+    recent_steps: list[dict[str, Any]],
+) -> dict[str, Any] | None:
+    if not _usage_pressure_is_critical(usage):
+        return None
+    if not recent_steps:
+        return None
+    latest = recent_steps[-1]
+    if latest.get("tool_name") == "defer_job" and latest.get("status") == "completed":
+        return None
+    latest_step_no = _as_int(latest.get("step_no"))
+    metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
+    previous = metadata.get("usage_pressure_circuit_breaker") if isinstance(metadata.get("usage_pressure_circuit_breaker"), dict) else {}
+    if latest_step_no and _as_int(previous.get("latest_step_no")) >= latest_step_no:
+        return None
+    window = recent_steps[-USAGE_PRESSURE_LOW_YIELD_WINDOW:]
+    if any(_step_has_high_value_progress(step) for step in window):
+        return None
+    blocked_or_failed = [
+        step for step in window
+        if str(step.get("status") or "").lower() in {"blocked", "failed"}
+    ]
+    llm_failures = [
+        step for step in window
+        if step.get("kind") == "llm" and str(step.get("status") or "").lower() == "failed"
+    ]
+    if len(blocked_or_failed) < USAGE_PRESSURE_LOW_YIELD_MIN_BLOCKS and len(llm_failures) < 2:
+        return None
+    return {
+        "latest_step_no": latest_step_no,
+        "window": len(window),
+        "blocked_or_failed": len(blocked_or_failed),
+        "llm_failures": len(llm_failures),
+        "calls": _as_int(usage.get("calls")),
+        "total_tokens": _as_int(usage.get("total_tokens")),
+        "prompt_tokens": _as_int(usage.get("prompt_tokens")),
+        "completion_tokens": _as_int(usage.get("completion_tokens")),
+        "cost": _as_float(usage.get("cost")) if bool(usage.get("has_cost")) else None,
+        "has_cost": bool(usage.get("has_cost")),
+        "recent_errors": [
+            str(step.get("error") or step.get("summary") or "")[:220]
+            for step in blocked_or_failed[-5:]
+        ],
+    }
+
+
+def _usage_pressure_is_critical(usage: dict[str, Any]) -> bool:
+    prompt = _as_int(usage.get("prompt_tokens"))
+    completion = _as_int(usage.get("completion_tokens"))
+    total = _as_int(usage.get("total_tokens")) or prompt + completion
+    calls = _as_int(usage.get("calls"))
+    cost = _as_float(usage.get("cost")) if bool(usage.get("has_cost")) else 0.0
+    return (
+        total >= USAGE_PRESSURE_CRITICAL_TOKENS
+        or calls >= USAGE_PRESSURE_CRITICAL_CALLS
+        or (bool(usage.get("has_cost")) and cost >= USAGE_PRESSURE_CRITICAL_COST)
+    )
+
+
+def _step_has_high_value_progress(step: dict[str, Any]) -> bool:
+    if str(step.get("status") or "").lower() != "completed":
+        return False
+    tool = str(step.get("tool_name") or "")
+    if tool in {
+        "record_experiment",
+        "record_findings",
+        "record_milestone_validation",
+        "record_roadmap",
+        "record_source",
+        "write_artifact",
+        "write_file",
+    }:
+        return True
+    if tool == "record_tasks":
+        output = step.get("output") if isinstance(step.get("output"), dict) else {}
+        return bool(output.get("tasks"))
+    return False
+
+
+def _run_usage_pressure_circuit_breaker_step(
+    context: dict[str, Any],
+    *,
+    db: AgentDB,
+    job_id: str,
+    run_id: str,
+) -> StepExecution:
+    job = db.get_job(job_id)
+    metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
+    previous = metadata.get("usage_pressure_circuit_breaker") if isinstance(metadata.get("usage_pressure_circuit_breaker"), dict) else {}
+    streak = _as_int(previous.get("streak")) + 1
+    cooldown_seconds = min(
+        USAGE_PRESSURE_DEFER_MAX_SECONDS,
+        USAGE_PRESSURE_DEFER_BASE_SECONDS * min(4, 2 ** max(0, streak - 1)),
+    )
+    until = datetime.now(timezone.utc) + timedelta(seconds=cooldown_seconds)
+    cost = context.get("cost")
+    cost_text = f", cost=${float(cost):.4f}" if isinstance(cost, (int, float)) else ""
+    reason = (
+        f"Critical usage pressure with low-yield recent turns: {context.get('blocked_or_failed')} "
+        f"blocked/failed steps in the last {context.get('window')} steps, "
+        f"{context.get('calls')} model calls, {_compact_usage_tokens(context.get('total_tokens'))} tokens{cost_text}."
+    )
+    next_action = (
+        "After cooldown, choose one high-value action: validate the active gate, record a measured result, "
+        "reject a blocked branch, or ask for operator budget/model changes if provider failures continue."
+    )
+    patch = {
+        "defer_until": until.isoformat(),
+        "defer_reason": reason,
+        "defer_next_action": next_action,
+        "usage_pressure_circuit_breaker": {
+            **context,
+            "streak": streak,
+            "defer_until": until.isoformat(),
+            "cooldown_seconds": cooldown_seconds,
+        },
+        "last_note": f"Deferred for usage-pressure cooldown until {until.isoformat()}.",
+    }
+    db.update_job_status(job_id, "running", metadata_patch=patch)
+    step_id = db.add_step(job_id=job_id, run_id=run_id, kind="recovery", tool_name="defer_job")
+    message = f"Deferred until {until.isoformat()}: {reason} Next: {next_action}"
+    result = {
+        "success": True,
+        "job_id": job_id,
+        "defer_until": until.isoformat(),
+        "reason": reason,
+        "next_action": next_action,
+        "cooldown_streak": streak,
+        "cooldown_seconds": cooldown_seconds,
+        "usage_pressure_circuit_breaker": context,
+    }
+    db.append_agent_update(
+        job_id,
+        message,
+        category="blocked",
+        metadata={
+            "defer_until": until.isoformat(),
+            "reason": reason,
+            "next_action": next_action,
+            "cooldown_streak": streak,
+            "cooldown_seconds": cooldown_seconds,
+            "usage_pressure_circuit_breaker": context,
+        },
+    )
+    db.finish_step(step_id, status="completed", summary=message, output_data=result)
+    db.finish_run(run_id, "completed")
+    _emit_loop_end(db, job_id, run_id, status="completed", step_id=step_id, tool_name="defer_job", detail=message)
+    refresh_memory_index(db, job_id)
+    return StepExecution(job_id=job_id, run_id=run_id, step_id=step_id, tool_name="defer_job", status="completed", result=result)
+
+
+def _compact_usage_tokens(value: object) -> str:
+    number = _as_int(value)
+    if number >= 1_000_000:
+        return f"{number / 1_000_000:.1f}M"
+    if number >= 1_000:
+        return f"{number / 1_000:.1f}K"
+    return str(number)
+
+
 def _transient_model_cooldown_streak(metadata: dict[str, Any]) -> int:
     with contextlib.suppress(TypeError, ValueError):
         return max(0, int(metadata.get("transient_model_cooldown_streak") or 0))
@@ -6409,6 +6578,16 @@ def run_one_step(
         active_operator_messages = _claim_operator_queue(db, job_id)
         if active_operator_messages:
             job = db.get_job(job_id)
+        usage = db.job_token_usage(job_id)
+        if not active_operator_messages:
+            usage_circuit_breaker = _usage_pressure_circuit_breaker_context(job, usage, recent_steps)
+            if usage_circuit_breaker:
+                return _run_usage_pressure_circuit_breaker_step(
+                    usage_circuit_breaker,
+                    db=db,
+                    job_id=job_id,
+                    run_id=run_id,
+                )
         messages = build_messages(
             job,
             recent_steps,
@@ -6417,7 +6596,7 @@ def run_one_step(
             timeline_events=db.list_timeline_events(job_id, limit=30),
             active_operator_messages=active_operator_messages,
             include_unclaimed_operator_messages=True,
-            token_usage=db.job_token_usage(job_id),
+            token_usage=usage,
         )
         llm = llm or OpenAIChatLLM(config.model)
         llm_started = time.monotonic()
