@@ -8589,6 +8589,50 @@ def test_run_one_step_blocks_batch_that_would_saturate_task_queue(tmp_path):
         db.close()
 
 
+def test_run_one_step_executes_accounting_before_saturated_record_tasks(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job(
+            "Keep useful recovery state",
+            title="saturated-batch-order",
+            kind="generic",
+            metadata={
+                "task_queue": [
+                    {"title": f"Existing branch {index}", "status": "done", "priority": index}
+                    for index in range(84)
+                ]
+            },
+        )
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(
+                        name="record_tasks",
+                        arguments={"tasks": [{"title": "New blocked branch", "status": "open"}]},
+                    ),
+                    ToolCall(
+                        name="record_lesson",
+                        arguments={"lesson": "Use the existing branch before adding more tasks.", "category": "strategy"},
+                    ),
+                ])
+            ]),
+        )
+
+        tool_steps = [step for step in db.list_steps(job_id=job_id) if step.get("kind") == "tool"]
+        assert [step["tool_name"] for step in tool_steps[-2:]] == ["record_lesson", "record_tasks"]
+        assert result.status == "blocked"
+        assert result.result["error"] == "task queue saturated"
+        lessons = db.get_job(job_id)["metadata"].get("lessons") or []
+        assert any("existing branch" in str(lesson.get("lesson") or "") for lesson in lessons)
+    finally:
+        db.close()
+
+
 def test_run_one_step_blocks_batch_that_would_saturate_open_tasks(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

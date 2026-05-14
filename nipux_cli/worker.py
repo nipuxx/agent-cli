@@ -6152,26 +6152,47 @@ def _ordered_tool_calls_for_execution(
         if len(tool_calls) < 2:
             return tool_calls
     checkpoint = _auto_checkpoint_accounting_context(job, recent_steps)
-    if not checkpoint:
+    saturated_record_tasks = any(
+        call.name == "record_tasks" and _task_queue_saturation_context(job, call.arguments)
+        for call in tool_calls
+    )
+    if not checkpoint and not saturated_record_tasks:
         return tool_calls
 
-    artifact_id = str(checkpoint.get("artifact_id") or "")
-    artifact_title = str(checkpoint.get("title") or "")
-    checkpoint_read = bool(checkpoint.get("checkpoint_read"))
+    artifact_id = str(checkpoint.get("artifact_id") or "") if checkpoint else ""
+    artifact_title = str(checkpoint.get("title") or "") if checkpoint else ""
+    checkpoint_read = bool(checkpoint and checkpoint.get("checkpoint_read"))
+    accounting_tools = {
+        "record_experiment",
+        "record_findings",
+        "record_lesson",
+        "record_memory_graph",
+        "record_milestone_validation",
+        "record_roadmap",
+        "record_source",
+        "report_update",
+        "write_artifact",
+    }
 
     def priority(call: ToolCall) -> int:
-        if call.name in EVIDENCE_CHECKPOINT_RESOLUTION_TOOLS:
-            return 0
-        if (
-            not checkpoint_read
-            and call.name == "read_artifact"
-            and _read_artifact_call_matches_checkpoint(
-                call.arguments,
-                artifact_id=artifact_id,
-                artifact_title=artifact_title,
-            )
-        ):
-            return 0
+        if checkpoint:
+            if call.name in EVIDENCE_CHECKPOINT_RESOLUTION_TOOLS:
+                return 0
+            if (
+                not checkpoint_read
+                and call.name == "read_artifact"
+                and _read_artifact_call_matches_checkpoint(
+                    call.arguments,
+                    artifact_id=artifact_id,
+                    artifact_title=artifact_title,
+                )
+            ):
+                return 0
+        if saturated_record_tasks:
+            if call.name == "record_tasks" and _task_queue_saturation_context(job, call.arguments):
+                return 2
+            if call.name in accounting_tools:
+                return 0
         return 1
 
     ordered = sorted(enumerate(tool_calls), key=lambda item: (priority(item[1]), item[0]))
