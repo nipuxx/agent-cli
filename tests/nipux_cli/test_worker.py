@@ -93,6 +93,22 @@ class HangingLLM:
         return LLMResponse(tool_calls=[ToolCall(name="report_update", arguments={"message": "late"})])
 
 
+class RepairableLLM:
+    tool_repair = True
+
+    def __init__(self, responses):
+        self.responses = list(responses)
+        self.messages = []
+        self.tools = []
+
+    def next_action(self, *, messages, tools):
+        self.messages.append(messages)
+        self.tools.append(tools)
+        if not self.responses:
+            return LLMResponse(content="No response left.")
+        return self.responses.pop(0)
+
+
 class SourceCodeShellRegistry:
     def openai_tools(self):
         return []
@@ -312,6 +328,31 @@ def test_run_one_step_blocks_content_only_worker_turn(tmp_path):
         assert "worker tool call required" in prompt
         job = db.get_job(job_id)
         assert job["metadata"]["last_agent_update"]["category"] == "blocked"
+    finally:
+        db.close()
+
+
+def test_run_one_step_repairs_content_only_worker_turn_with_tool_retry(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Keep taking bounded tool actions", title="tool repair", kind="generic")
+        llm = RepairableLLM([
+            LLMResponse(content="I should inspect the state next."),
+            LLMResponse(tool_calls=[ToolCall(name="report_update", arguments={"message": "Continuing with a bounded action."})]),
+        ])
+
+        result = run_one_step(job_id, config=config, db=db, llm=llm)
+
+        assert result.status == "completed"
+        assert result.tool_name == "report_update"
+        assert len(llm.messages) == 2
+        assert "did not call a tool" in llm.messages[1][-1]["content"]
+        steps = db.list_steps(job_id=job_id)
+        assert len(steps) == 1
+        assert steps[0]["tool_name"] == "report_update"
+        usage = db.job_token_usage(job_id)
+        assert usage["calls"] == 2
     finally:
         db.close()
 

@@ -46,6 +46,8 @@ class StepLLM(Protocol):
 class OpenAIChatLLM:
     """OpenAI-compatible chat-completions adapter."""
 
+    tool_repair = True
+
     def __init__(self, config: ModelConfig):
         self.config = config
         headers = {}

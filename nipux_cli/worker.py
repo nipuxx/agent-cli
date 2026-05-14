@@ -5702,6 +5702,23 @@ def _call_next_action_with_timeout(
             signal.setitimer(signal.ITIMER_REAL, remaining, previous_timer[1])
 
 
+def _tool_repair_messages(messages: list[dict[str, Any]], response: LLMResponse) -> list[dict[str, Any]]:
+    content = str(response.content or "").strip()
+    if len(content) > 2000:
+        content = content[:2000] + " ..."
+    repair_prompt = (
+        "Your previous worker response did not call a tool. This worker must advance by calling exactly "
+        "one available tool now. Do not answer in prose. Choose one bounded action that fits the current "
+        "state, such as executing existing work, recording a measurement, updating an existing task, "
+        "saving an evidence-backed output, recording a lesson/finding/source, or deferring only for a real wait."
+    )
+    repaired = list(messages)
+    if content:
+        repaired.append({"role": "assistant", "content": content})
+    repaired.append({"role": "user", "content": repair_prompt})
+    return repaired
+
+
 def run_one_step(
     job_id: str,
     *,
@@ -5812,6 +5829,39 @@ def run_one_step(
         emit_context_pressure_update(db, job_id, usage)
         emit_usage_pressure_update(db, job_id, db.job_token_usage(job_id))
 
+        tool_repair_attempted = False
+        tool_repair_error: dict[str, Any] | None = None
+        original_content = response.content
+        if not response.tool_calls and getattr(llm, "tool_repair", False):
+            tool_repair_attempted = True
+            repair_messages = _tool_repair_messages(messages, response)
+            repair_started = time.monotonic()
+            try:
+                repair_response = _call_next_action_with_timeout(
+                    llm,
+                    messages=repair_messages,
+                    tools=_registry_tools_for_step(registry, config, recent_steps, job=job),
+                    timeout_seconds=config.model.request_timeout_seconds,
+                )
+            except Exception as exc:
+                tool_repair_error = _error_result(exc)
+                tool_repair_error["duration_seconds"] = round(max(0.0, time.monotonic() - repair_started), 3)
+            else:
+                repair_duration_seconds = round(max(0.0, time.monotonic() - repair_started), 3)
+                repair_usage = _emit_assistant_message_event(
+                    db,
+                    job_id,
+                    run_id,
+                    repair_response,
+                    messages=repair_messages,
+                    context_length=config.model.context_length,
+                    duration_seconds=repair_duration_seconds,
+                )
+                emit_context_pressure_update(db, job_id, repair_usage)
+                emit_usage_pressure_update(db, job_id, db.job_token_usage(job_id))
+                if repair_response.tool_calls:
+                    response = repair_response
+
         if response.tool_calls:
             executions: list[StepExecution] = []
             details: list[str] = []
@@ -5873,6 +5923,9 @@ def run_one_step(
             "recoverable": True,
             "error": "worker tool call required",
             "content": response.content,
+            "original_content": original_content,
+            "tool_repair_attempted": tool_repair_attempted,
+            "tool_repair_error": tool_repair_error,
             "next": (
                 "Worker turns must use a tool call. Continue by choosing one bounded action such as "
                 "record_tasks, report_update, write_artifact, write_file, shell_exec, record_findings, "
