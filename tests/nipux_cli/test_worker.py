@@ -3985,6 +3985,57 @@ def test_shell_path_recovery_prompt_preserves_partial_success_paths(tmp_path):
         db.close()
 
 
+def test_shell_exec_blocks_bare_retry_when_candidate_executable_observed(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Recover with observed executable", title="candidate-retry", kind="generic")
+        run_id = db.start_run(job_id, model="test")
+        observed_step = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec")
+        db.finish_step(
+            observed_step,
+            status="completed",
+            output_data={
+                "success": True,
+                "command": "ls /tmp/tools/build-tool",
+                "stdout": "/tmp/tools/build-tool\n",
+                "stderr": "",
+            },
+        )
+        failed_step = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec")
+        db.finish_step(
+            failed_step,
+            status="failed",
+            output_data={
+                "success": False,
+                "command": "build-tool --version",
+                "stdout": "/bin/sh: 1: build-tool: not found\n",
+                "stderr": "",
+                "error": "command output indicates missing command despite exit status 0",
+            },
+        )
+        db.finish_run(run_id, "completed")
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(name="shell_exec", arguments={"command": "build-tool --version"})
+                ])
+            ]),
+            registry=SuccessRegistry(),
+        )
+
+        assert result.status == "blocked"
+        assert result.result["error"] == "observed executable recovery required"
+        assert result.result["candidate_recovery"]["missing_command"] == "build-tool"
+        assert result.result["candidate_recovery"]["candidate_executables"] == ["/tmp/tools/build-tool"]
+    finally:
+        db.close()
+
+
 def test_permission_failure_prompt_blocks_package_manager_retry(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

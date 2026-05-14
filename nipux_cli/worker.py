@@ -685,6 +685,58 @@ def _recent_privileged_shell_failure_context(recent_steps: list[dict[str, Any]],
     return None
 
 
+def _observed_candidate_recovery_required_context(recent_steps: list[dict[str, Any]], args: dict[str, Any]) -> dict[str, Any] | None:
+    command = str(args.get("command") or "")
+    if not command.strip():
+        return None
+    context = _shell_path_recovery_context(recent_steps)
+    if not context:
+        return None
+    candidate_executables = (
+        context.get("candidate_executables") if isinstance(context.get("candidate_executables"), dict) else {}
+    )
+    if not candidate_executables:
+        return None
+    for missing_command, paths in candidate_executables.items():
+        if not isinstance(paths, list) or not paths:
+            continue
+        missing_name = str(missing_command or "").strip()
+        if not missing_name:
+            continue
+        if not _shell_command_invokes_bare_executable(command, missing_name):
+            continue
+        if _shell_command_mentions_candidate_path(command, paths):
+            continue
+        return {
+            "step_no": context.get("step_no"),
+            "missing_command": missing_name,
+            "candidate_executables": paths[:6],
+            "blocked_command": command,
+        }
+    return None
+
+
+def _shell_command_invokes_bare_executable(command: str, executable_name: str) -> bool:
+    name = str(executable_name or "").strip()
+    if not name:
+        return False
+    return bool(re.search(rf"(?<![A-Za-z0-9_./-]){re.escape(name)}(?![A-Za-z0-9_.-])", command))
+
+
+def _shell_command_mentions_candidate_path(command: str, candidate_paths: list[Any]) -> bool:
+    text = str(command or "")
+    for path_value in candidate_paths:
+        path = str(path_value or "").strip()
+        if not path:
+            continue
+        if path in text:
+            return True
+        parent = str(Path(path).parent)
+        if parent and parent not in {".", "/"} and parent in text:
+            return True
+    return False
+
+
 def _candidate_file_discovery_context(job: dict[str, Any], recent_steps: list[dict[str, Any]]) -> dict[str, Any] | None:
     task_text = _open_file_dependent_task_text(job)
     if not task_text:
@@ -4153,6 +4205,21 @@ def _blocked_tool_call_result(
                 ),
             }
             return result, "blocked shell_exec; unresolved placeholder in command"
+        candidate_recovery = _observed_candidate_recovery_required_context(recent_steps, args)
+        if candidate_recovery:
+            result = {
+                "success": False,
+                "error": "observed executable recovery required",
+                "blocked_tool": name,
+                "blocked_arguments": args,
+                "candidate_recovery": candidate_recovery,
+                "guidance": (
+                    "A recent shell step reported this command as missing, and later evidence showed candidate "
+                    "executable paths. Retry with an exact observed executable path, add its directory to PATH, "
+                    "or record why that observed candidate is invalid before running the bare command again."
+                ),
+            }
+            return result, "blocked shell_exec; observed executable recovery required"
         privileged_failure = _recent_privileged_shell_failure_context(recent_steps)
         if privileged_failure and _shell_command_looks_privileged_or_package_manager(str(args.get("command") or "")):
             result = {
