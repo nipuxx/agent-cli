@@ -156,7 +156,7 @@ def cleanup_registered_shell_processes(home: str | Path) -> list[dict[str, Any]]
 
 def _shell_error(returncode: int | None, stdout: str, stderr: str, *, command: str = "") -> str:
     if returncode == 0:
-        return _shell_success_anomaly(stdout, stderr)
+        return _shell_success_anomaly(stdout, stderr, command=command)
     combined = "\n".join(part.strip() for part in (stderr, stdout) if part and part.strip())
     lowered = combined.lower()
     if "sudo:" in lowered and ("password" in lowered or "terminal is required" in lowered):
@@ -170,9 +170,12 @@ def _shell_error(returncode: int | None, stdout: str, stderr: str, *, command: s
     return f"command exited with status {returncode}: {excerpt}"
 
 
-def _shell_success_anomaly(stdout: str, stderr: str) -> str:
+def _shell_success_anomaly(stdout: str, stderr: str, *, command: str = "") -> str:
     combined = "\n".join(part.strip() for part in (stderr, stdout) if part and part.strip())
     if not combined:
+        empty_probe = _empty_observation_probe(command)
+        if empty_probe:
+            return f"command probe produced no output despite exit status 0: {empty_probe}"
         return ""
     lowered = combined.lower()
     auth_markers = (
@@ -188,6 +191,9 @@ def _shell_success_anomaly(stdout: str, stderr: str) -> str:
     if any(marker in lowered for marker in auth_markers):
         excerpt = " ".join(combined.split())[:500]
         return f"command output indicates authentication or authorization failure despite exit status 0: {excerpt}"
+    missing_probe = _missing_executable_probe(command, combined)
+    if missing_probe:
+        return f"command probe found no executable despite exit status 0: {missing_probe}"
     command_missing_match = _shell_missing_command_anomaly(combined)
     if command_missing_match:
         excerpt = " ".join(combined.split())[:500]
@@ -210,6 +216,15 @@ def _missing_executable_probe(command: str, combined_output: str) -> str:
         return ""
     if not combined_output.strip() or "not found" in combined_output.lower():
         return match.group(1)
+    return ""
+
+
+def _empty_observation_probe(command: str) -> str:
+    text = str(command or "").strip()
+    if re.match(r"^(?:which|command\s+-v)\s+([A-Za-z0-9_.+-]+)(?:\s|$)", text):
+        return "executable lookup returned no path"
+    if re.match(r"^(?:find|ls|stat|file)\b", text):
+        return "read-only filesystem probe returned no observation"
     return ""
 
 

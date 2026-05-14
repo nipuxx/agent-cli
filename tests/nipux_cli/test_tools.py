@@ -440,6 +440,53 @@ def test_shell_exec_reports_empty_which_probe_as_missing_executable(tmp_path):
         db.close()
 
 
+def test_shell_exec_flags_empty_successful_probe_as_no_observation(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Run command")
+        run_id = db.start_run(job_id, model="fake")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec")
+        ctx = ToolContext(config=config, db=db, artifacts=ArtifactStore(tmp_path, db), job_id=job_id, run_id=run_id, step_id=step_id)
+
+        raw = DEFAULT_REGISTRY.handle(
+            "shell_exec",
+            {"command": "find /tmp/definitely-missing-nipux-test-path -maxdepth 1 2>/dev/null || true", "timeout_seconds": 5},
+            ctx,
+        )
+        result = json.loads(raw)
+
+        assert result["returncode"] == 0
+        assert result["success"] is False
+        assert "produced no output" in result["error"]
+        assert "filesystem probe" in result["error"]
+    finally:
+        db.close()
+
+
+def test_shell_exec_flags_missing_which_probe_hidden_by_true(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Run command")
+        run_id = db.start_run(job_id, model="fake")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec")
+        ctx = ToolContext(config=config, db=db, artifacts=ArtifactStore(tmp_path, db), job_id=job_id, run_id=run_id, step_id=step_id)
+
+        raw = DEFAULT_REGISTRY.handle(
+            "shell_exec",
+            {"command": "which definitely-missing-nipux-test-command || true", "timeout_seconds": 5},
+            ctx,
+        )
+        result = json.loads(raw)
+
+        assert result["returncode"] == 0
+        assert result["success"] is False
+        assert "probe found no executable" in result["error"]
+    finally:
+        db.close()
+
+
 def test_shell_exec_flags_make_failure_hidden_by_pipe_status(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")
