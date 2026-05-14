@@ -2998,6 +2998,78 @@ def test_measurable_objective_blocks_shell_churn_without_experiment_accounting(t
         db.close()
 
 
+def test_measured_progress_guard_narrows_available_tools_after_shell_budget(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Optimize a measurable process", title="measured-tools", kind="generic")
+        for index in range(4):
+            run_id = db.start_run(job_id)
+            step_id = db.add_step(
+                job_id=job_id,
+                run_id=run_id,
+                kind="tool",
+                tool_name="shell_exec",
+                input_data={"arguments": {"command": f"probe {index}"}},
+            )
+            db.finish_step(step_id, status="completed", output_data={"success": True, "stdout": "no metric"})
+            db.finish_run(run_id, "completed")
+        llm = CapturingLLM(
+            LLMResponse(tool_calls=[
+                ToolCall(
+                    name="record_lesson",
+                    arguments={"lesson": "measurement blocked after probes", "category": "blocker"},
+                )
+            ])
+        )
+
+        run_one_step(job_id, config=config, db=db, llm=llm)
+
+        tool_names = {tool["function"]["name"] for tool in llm.tools}
+        assert {"record_experiment", "record_lesson", "record_tasks"}.issubset(tool_names)
+        assert "shell_exec" not in tool_names
+        assert "write_artifact" not in tool_names
+        assert "web_search" not in tool_names
+    finally:
+        db.close()
+
+
+def test_measured_progress_guard_keeps_shell_available_before_shell_budget(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Optimize a measurable process", title="measured-tools", kind="generic")
+        for index in range(19):
+            run_id = db.start_run(job_id)
+            step_id = db.add_step(
+                job_id=job_id,
+                run_id=run_id,
+                kind="tool",
+                tool_name="web_search" if index % 2 == 0 else "web_extract",
+                input_data={"arguments": {"query": f"research branch {index}"}},
+            )
+            db.finish_step(step_id, status="completed", output_data={"success": True})
+            db.finish_run(run_id, "completed")
+        llm = CapturingLLM(
+            LLMResponse(tool_calls=[
+                ToolCall(
+                    name="record_lesson",
+                    arguments={"lesson": "convert research budget into a measured trial", "category": "strategy"},
+                )
+            ])
+        )
+
+        run_one_step(job_id, config=config, db=db, llm=llm)
+
+        tool_names = {tool["function"]["name"] for tool in llm.tools}
+        assert "shell_exec" in tool_names
+        assert {"record_experiment", "record_lesson", "record_tasks"}.issubset(tool_names)
+        assert "write_artifact" not in tool_names
+        assert "web_search" not in tool_names
+    finally:
+        db.close()
+
+
 def test_measurable_objective_allows_candidate_file_validation_shell_after_budget(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

@@ -5678,6 +5678,11 @@ def _active_obligation_tool_names(job: dict[str, Any] | None, recent_steps: list
         allowed.update(EVIDENCE_CHECKPOINT_PROMPT_TOOLS)
     if _pending_measurement_obligation(job):
         allowed.update(MEASUREMENT_RESOLUTION_TOOLS)
+    measured_progress = _measured_progress_guard_context(job, recent_steps)
+    if measured_progress:
+        allowed.update(MEASUREMENT_RESOLUTION_TOOLS)
+        if _as_int(measured_progress.get("shell_actions_since_last_experiment")) < MEASURABLE_ACTION_BUDGET_STEPS:
+            allowed.add("shell_exec")
     if _pending_file_validation_obligation(job):
         allowed.update(FILE_VALIDATION_RESOLUTION_TOOLS)
     return allowed or None
