@@ -180,6 +180,8 @@ def _shell_success_anomaly(stdout: str, stderr: str) -> str:
         "invalid username or password",
         "permission denied",
     )
+    if _shell_sudo_password_anomaly(lowered):
+        return "command output indicates interactive sudo/password requirement despite exit status 0"
     if any(marker in lowered for marker in auth_markers):
         excerpt = " ".join(combined.split())[:500]
         return f"command output indicates authentication or authorization failure despite exit status 0: {excerpt}"
@@ -205,6 +207,10 @@ def _shell_missing_command_anomaly(text: str) -> bool:
             text,
         )
     )
+
+
+def _shell_sudo_password_anomaly(text: str) -> bool:
+    return "sudo:" in text and ("password" in text or "terminal is required" in text)
 
 
 def _shell_build_error_anomaly(text: str) -> bool:
