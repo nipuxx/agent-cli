@@ -1247,7 +1247,7 @@ def _is_browser_tool(name: str | None) -> bool:
 def _browser_runtime_unavailable_context(
     recent_steps: list[dict[str, Any]],
     *,
-    window: int = 32,
+    window: int = 512,
 ) -> dict[str, Any] | None:
     latest_browser_success_no = max(
         (

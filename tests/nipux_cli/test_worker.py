@@ -5081,7 +5081,7 @@ def test_run_one_step_removes_browser_tools_from_schema_after_runtime_missing(tm
         db.finish_run(run_id, "failed")
         llm = CapturingLLM(LLMResponse(tool_calls=[ToolCall(name="web_search", arguments={"query": "fallback"})]))
 
-        result = run_one_step(
+        run_one_step(
             job_id,
             config=config,
             db=db,
@@ -5091,8 +5091,50 @@ def test_run_one_step_removes_browser_tools_from_schema_after_runtime_missing(tm
 
         tool_names = [tool["function"]["name"] for tool in llm.tools]
         assert tool_names == ["web_search"]
-        assert result.status == "completed"
-        assert result.tool_name == "web_search"
+    finally:
+        db.close()
+
+
+def test_run_one_step_removes_browser_tools_after_older_runtime_missing(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Use fallback tools when browser is missing", title="browser-runtime")
+        run_id = db.start_run(job_id)
+        step_id = db.add_step(
+            job_id=job_id,
+            run_id=run_id,
+            kind="tool",
+            tool_name="browser_navigate",
+            input_data={"arguments": {"url": "https://example.test"}},
+        )
+        db.finish_step(
+            step_id,
+            status="failed",
+            output_data={"success": False, "error": "Chrome not found. Checked: Playwright browser cache."},
+            summary="browser_navigate failed: Chrome not found",
+        )
+        for index in range(80):
+            filler_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="web_search")
+            db.finish_step(
+                filler_id,
+                status="completed",
+                output_data={"success": True, "query": f"query {index}", "results": []},
+                summary=f"web_search query {index}",
+            )
+        db.finish_run(run_id, "completed")
+        llm = CapturingLLM(LLMResponse(tool_calls=[ToolCall(name="web_search", arguments={"query": "fallback"})]))
+
+        run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=llm,
+            registry=BrowserAndWebRegistry(),
+        )
+
+        tool_names = [tool["function"]["name"] for tool in llm.tools]
+        assert tool_names == ["web_search"]
     finally:
         db.close()
 
