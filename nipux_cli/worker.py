@@ -768,6 +768,15 @@ def _next_action_constraint(job: dict[str, Any], recent_steps: list[dict[str, An
         missing_paths = grounding_block.get("missing_candidate_paths") if isinstance(grounding_block.get("missing_candidate_paths"), list) else []
         path_text = "; ".join(str(path) for path in missing_paths[:6])
         detail = f" Missing exact paths: {path_text}." if path_text else ""
+        candidate_files = _candidate_file_discovery_context(job, recent_steps)
+        if candidate_files:
+            paths = candidate_files.get("paths") if isinstance(candidate_files.get("paths"), list) else []
+            current_path_text = "; ".join(str(path) for path in paths[:4])
+            if current_path_text:
+                detail += (
+                    " Current ranked candidate paths from recent/durable evidence: "
+                    f"{_clip_text(current_path_text, 520)}."
+                )
         return (
             "Recent evidence grounding blocked a durable record. Next, rewrite the record using only observed evidence, "
             "include the exact observed paths/tokens when claiming candidates or files, or explicitly record why they "

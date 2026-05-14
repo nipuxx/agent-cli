@@ -4317,6 +4317,64 @@ def test_prompt_shows_missing_candidate_paths_after_grounding_block(tmp_path):
         db.close()
 
 
+def test_prompt_adds_ranked_current_candidates_to_stale_grounding_block(tmp_path):
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Benchmark OmegaModel throughput", title="grounding-current-candidates", kind="generic")
+        db.update_job_metadata(
+            job_id,
+            {
+                "task_queue": [
+                    {
+                        "title": "Validate OmegaModel file path",
+                        "status": "open",
+                        "contract": "experiment",
+                        "acceptance_criteria": "Use a validated candidate path.",
+                        "evidence_needed": "Shell output with file size and benchmark result.",
+                    }
+                ]
+            },
+        )
+        run_id = db.start_run(job_id, model="test")
+        shell_step = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec")
+        db.finish_step(
+            shell_step,
+            status="completed",
+            output_data={
+                "success": True,
+                "stdout": (
+                    "/tmp/aux/ggml-vocab-alpha.foo\n"
+                    "/srv/models/OmegaModel-primary.foo\n"
+                ),
+            },
+        )
+        block_step = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="record_experiment")
+        db.finish_step(
+            block_step,
+            status="blocked",
+            summary="blocked record_experiment; evidence grounding required",
+            output_data={
+                "success": True,
+                "recoverable": True,
+                "error": "evidence grounding required",
+                "evidence_grounding": {
+                    "missing_candidate_paths": ["/tmp/aux/ggml-vocab-alpha.foo"],
+                    "unsupported_tokens": ["/tmp/aux/ggml-vocab-alpha.foo"],
+                },
+            },
+        )
+
+        content = build_messages(db.get_job(job_id), db.list_steps(job_id=job_id))[-1]["content"]
+        idx = content.index("Next-action constraint:")
+        next_constraint = content[idx: idx + 1200]
+
+        assert "Current ranked candidate paths" in next_constraint
+        ranked_text = next_constraint[next_constraint.index("Current ranked candidate paths"):]
+        assert ranked_text.index("/srv/models/OmegaModel-primary.foo") < ranked_text.index("/tmp/aux/ggml-vocab-alpha.foo")
+    finally:
+        db.close()
+
+
 def test_prompt_does_not_resurface_grounding_block_after_durable_resolution(tmp_path):
     db = AgentDB(tmp_path / "state.db")
     try:
