@@ -7841,6 +7841,96 @@ def test_run_one_step_blocks_new_tasks_when_queue_is_saturated(tmp_path):
         db.close()
 
 
+def test_run_one_step_blocks_batch_that_would_saturate_task_queue(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job(
+            "Keep long-running work focused",
+            title="projected-sprawl",
+            kind="generic",
+            metadata={
+                "task_queue": [
+                    {"title": f"Existing branch {index}", "status": "done", "priority": index}
+                    for index in range(74)
+                ]
+            },
+        )
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(
+                        name="record_tasks",
+                        arguments={
+                            "tasks": [
+                                {"title": f"New branch {index}", "status": "open"}
+                                for index in range(10)
+                            ]
+                        },
+                    )
+                ])
+            ]),
+        )
+
+        assert result.status == "blocked"
+        assert result.result["error"] == "task queue saturated"
+        assert result.result["task_queue"]["reason"] == "total task queue is too large"
+        assert result.result["task_queue"]["projected_total_count"] == 84
+        job = db.get_job(job_id)
+        assert len(job["metadata"]["task_queue"]) == 74
+    finally:
+        db.close()
+
+
+def test_run_one_step_blocks_batch_that_would_saturate_open_tasks(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job(
+            "Execute current branches before planning more",
+            title="projected-open-sprawl",
+            kind="generic",
+            metadata={
+                "task_queue": [
+                    {"title": f"Open branch {index}", "status": "open", "priority": index}
+                    for index in range(35)
+                ]
+            },
+        )
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(
+                        name="record_tasks",
+                        arguments={
+                            "tasks": [
+                                {"title": f"New open branch {index}", "status": "open"}
+                                for index in range(5)
+                            ]
+                        },
+                    )
+                ])
+            ]),
+        )
+
+        assert result.status == "blocked"
+        assert result.result["error"] == "task queue saturated"
+        assert result.result["task_queue"]["reason"] == "too many open tasks"
+        assert result.result["task_queue"]["projected_open_count"] == 40
+        job = db.get_job(job_id)
+        assert len(job["metadata"]["task_queue"]) == 35
+    finally:
+        db.close()
+
+
 def test_run_one_step_ignores_guard_recovery_tasks_for_queue_saturation(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

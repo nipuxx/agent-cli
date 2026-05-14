@@ -1374,10 +1374,13 @@ def _task_queue_saturation_context(job: dict[str, Any], args: dict[str, Any]) ->
             new_titles.append(str(task.get("title") or "").strip())
         if status in {"open", "active"} and key not in existing_keys:
             new_open_titles.append(str(task.get("title") or "").strip())
-    if len(objective_tasks) >= TASK_QUEUE_TOTAL_SOFT_LIMIT and new_titles:
+    projected_total = len(objective_tasks) + len(new_titles)
+    projected_open = len(open_tasks) + len(new_open_titles)
+    if projected_total > TASK_QUEUE_TOTAL_SOFT_LIMIT and new_titles:
         return {
             "reason": "total task queue is too large",
             "total_count": len(objective_tasks),
+            "projected_total_count": projected_total,
             "total_threshold": TASK_QUEUE_TOTAL_SOFT_LIMIT,
             "open_count": len(open_tasks),
             "open_titles": [
@@ -1389,13 +1392,14 @@ def _task_queue_saturation_context(job: dict[str, Any], args: dict[str, Any]) ->
             "new_titles": new_titles[:8],
             "recovery_task_count": len(tasks) - len(objective_tasks),
         }
-    if len(open_tasks) < TASK_QUEUE_SATURATION_OPEN_TASKS:
+    if projected_open < TASK_QUEUE_SATURATION_OPEN_TASKS:
         return None
     if not new_open_titles:
         return None
     return {
         "reason": "too many open tasks",
         "open_count": len(open_tasks),
+        "projected_open_count": projected_open,
         "open_threshold": TASK_QUEUE_SATURATION_OPEN_TASKS,
         "total_count": len(objective_tasks),
         "open_titles": [
