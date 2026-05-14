@@ -117,6 +117,22 @@ def test_failed_step_rate_limit_gets_throttled_backoff():
     assert _step_failure_backoff(result, poll_seconds=0, consecutive_failures=1) == 60
 
 
+def test_failed_step_provider_timeout_gets_throttled_backoff():
+    result = StepExecution(
+        job_id="job",
+        run_id="run",
+        step_id="step",
+        tool_name=None,
+        status="failed",
+        result={
+            "error_type": "APITimeoutError",
+            "error": "Request timed out.",
+        },
+    )
+
+    assert _step_failure_backoff(result, poll_seconds=0, consecutive_failures=1) == 60
+
+
 def test_retry_after_parses_epoch_milliseconds():
     future_ms = str(int((time.time() + 5) * 1000))
 

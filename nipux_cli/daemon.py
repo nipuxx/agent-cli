@@ -553,6 +553,8 @@ def _step_failure_backoff(result: Any, poll_seconds: float, consecutive_failures
         return max(fallback, 300.0)
     if _is_rate_limit_text(text):
         return max(fallback, 60.0)
+    if _is_transient_provider_text(text):
+        return max(fallback, 60.0)
     return fallback
 
 
@@ -592,6 +594,25 @@ def _is_rate_limit_text(text: str) -> bool:
 
 def _is_provider_config_text(text: str) -> bool:
     return provider_action_required(text)
+
+
+def _is_transient_provider_text(text: str) -> bool:
+    lowered = str(text or "").lower()
+    return any(
+        marker in lowered
+        for marker in (
+            "apitimeouterror",
+            "api timeout",
+            "request timed out",
+            "read timeout",
+            "connection timed out",
+            "timeout while",
+            "temporarily unavailable",
+            "service unavailable",
+            "upstream timeout",
+            "gateway timeout",
+        )
+    )
 
 
 def _retry_after_seconds(exc: Exception) -> float | None:
