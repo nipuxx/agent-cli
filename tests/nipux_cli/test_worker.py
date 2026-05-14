@@ -2581,6 +2581,108 @@ def test_run_one_step_blocks_durable_records_with_unsupported_concrete_claims(tm
         db.close()
 
 
+def test_record_experiment_blocks_unsupported_proper_noun_hardware_claims(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Record exact observed environment", title="grounding", kind="generic")
+        run_id = db.start_run(job_id, model="test")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec")
+        db.finish_step(
+            step_id,
+            status="completed",
+            output_data={
+                "success": True,
+                "stdout": (
+                    "NO_NVIDIA_GPU\n"
+                    "GPU: Advanced Micro Devices Device 7590\n"
+                    "Threads: 24\n"
+                    "CPU: AMD Ryzen 9 7900X 12-Core Processor\n"
+                ),
+            },
+        )
+        db.finish_run(run_id, "completed")
+
+        blocked = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(
+                        name="record_experiment",
+                        arguments={
+                            "title": "Environment Baseline - Hardware Runtime Facts",
+                            "status": "measured",
+                            "metric_name": "cpu_threads",
+                            "metric_value": 16,
+                            "metric_unit": "threads",
+                            "result": "Environment baseline captured. Hardware: Dual Intel Xeon CPUs, 16 threads total.",
+                            "next_action": "Continue from exact observed hardware facts.",
+                        },
+                    )
+                ])
+            ]),
+        )
+
+        assert blocked.status == "blocked"
+        assert blocked.result["error"] == "evidence grounding required"
+        assert {"Dual", "Intel", "Xeon"} <= set(blocked.result["evidence_grounding"]["unsupported_tokens"])
+    finally:
+        db.close()
+
+
+def test_record_experiment_allows_supported_proper_noun_hardware_claims(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Record exact observed environment", title="grounding", kind="generic")
+        run_id = db.start_run(job_id, model="test")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec")
+        db.finish_step(
+            step_id,
+            status="completed",
+            output_data={
+                "success": True,
+                "stdout": (
+                    "NO_NVIDIA_GPU\n"
+                    "GPU: Advanced Micro Devices Device 7590\n"
+                    "Threads: 24\n"
+                    "CPU: AMD Ryzen 9 7900X 12-Core Processor\n"
+                ),
+            },
+        )
+        db.finish_run(run_id, "completed")
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(
+                        name="record_experiment",
+                        arguments={
+                            "title": "Environment Baseline - Hardware Runtime Facts",
+                            "status": "measured",
+                            "metric_name": "cpu_threads",
+                            "metric_value": 24,
+                            "metric_unit": "threads",
+                            "result": "Environment baseline captured. Hardware: AMD Ryzen 9 7900X, 24 threads total.",
+                            "next_action": "Continue from exact observed hardware facts.",
+                        },
+                    )
+                ])
+            ]),
+        )
+
+        assert result.status == "completed"
+        experiment = db.get_job(job_id)["metadata"]["experiment_ledger"][0]
+        assert "AMD Ryzen 9 7900X" in experiment["result"]
+    finally:
+        db.close()
+
+
 def test_evidence_grounding_ignores_record_schema_keys(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

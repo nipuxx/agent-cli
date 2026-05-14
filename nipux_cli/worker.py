@@ -1162,6 +1162,7 @@ EVIDENCE_TOKEN_IGNORE = {
     "data",
     "deliverable",
     "done",
+    "environment",
     "evidence",
     "experiment",
     "experiments",
@@ -1552,6 +1553,9 @@ def _concrete_evidence_tokens(text: str) -> list[str]:
             tokens.append(token)
             continue
         if any(ch.isdigit() for ch in token) and any(ch.isalpha() for ch in token):
+            tokens.append(token)
+            continue
+        if token[:1].isupper() and token[1:].islower() and len(token) >= 4:
             tokens.append(token)
             continue
     return tokens
@@ -2617,6 +2621,18 @@ def _blocked_tool_call_result(
             ),
         }
         return result, f"blocked {name}; file validation required after write_file"
+
+    early_anti_bot_context = _recent_anti_bot_context(recent_steps)
+    if early_anti_bot_context and name == "write_artifact" and not _artifact_args_acknowledge_block(args):
+        result = {
+            "success": False,
+            "error": "misleading blocked-source artifact blocked",
+            "blocked_tool": name,
+            "blocked_arguments": args,
+            "anti_bot_source": early_anti_bot_context,
+            "guidance": "The latest browser evidence is an anti-bot/CAPTCHA block. Write only a blocked-source note or pivot.",
+        }
+        return result, f"blocked misleading write_artifact; anti-bot source at step #{early_anti_bot_context.get('step_no')}"
 
     evidence_grounding = _evidence_grounding_context(job, recent_steps, tool_name=name, args=args)
     if evidence_grounding:
