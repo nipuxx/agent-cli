@@ -1817,6 +1817,7 @@ EVIDENCE_TOKEN_IGNORE = {
     "discovered",
     "discovery",
     "environment",
+    "existing",
     "evidence",
     "experiment",
     "experiments",
@@ -1854,6 +1855,9 @@ EVIDENCE_TOKEN_IGNORE = {
     "output",
     "outputs",
     "plan",
+    "planned",
+    "pending",
+    "priority",
     "progress",
     "parse",
     "parsed",
@@ -1891,6 +1895,7 @@ EVIDENCE_TOKEN_IGNORE = {
     "validity",
     "validate",
     "validated",
+    "validating",
     "validation",
     "worker",
     "xml",
@@ -1898,7 +1903,12 @@ EVIDENCE_TOKEN_IGNORE = {
     "yml",
     "confirmed",
     "consider",
+    "checking",
+    "ongoing",
+    "proceed",
+    "proceeding",
 }
+EVIDENCE_TOKEN_IGNORE.update({f"p{index}" for index in range(10)})
 STALE_CLAIM_TOKEN_IGNORE = {
     "api",
     "ascii",

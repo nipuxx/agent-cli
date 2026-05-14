@@ -4396,6 +4396,48 @@ def test_evidence_grounding_ignores_json_literals_even_when_stale_tokens_exist(t
         db.close()
 
 
+def test_evidence_grounding_ignores_planning_and_status_labels(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Record observed build validation", title="status-grounding", kind="generic")
+        run_id = db.start_run(job_id, model="test")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec")
+        db.finish_step(
+            step_id,
+            status="completed",
+            output_data={
+                "success": True,
+                "stdout": (
+                    "Observed file /srv/models/AlphaModel-Q4.foo exists. "
+                    "The tool output showed rc=0 and the benchmark branch can continue. "
+                )
+                * 4,
+            },
+        )
+        db.finish_run(run_id, "completed")
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[ToolCall(name="record_roadmap", arguments={
+                    "title": "Build validation roadmap",
+                    "scope": "Checking the observed candidate before ongoing benchmark work.",
+                    "milestones": [
+                        {"title": "P1 validate observed candidate", "status": "active"},
+                        {"title": "P2 proceed to benchmark", "status": "planned"},
+                    ],
+                })])
+            ]),
+        )
+
+        assert result.status == "completed"
+    finally:
+        db.close()
+
+
 def test_run_one_step_blocks_memory_graph_with_unsupported_claims(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")
