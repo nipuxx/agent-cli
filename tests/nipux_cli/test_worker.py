@@ -6317,6 +6317,7 @@ def test_failed_next_action_requires_accounting_before_more_shell(tmp_path):
         assert result.status == "blocked"
         assert result.result["error"] == "action result accounting required"
         assert result.result["action_failure"]["step_no"] == 1
+        assert result.result["action_failure"]["missing_commands"] == ["build-tool"]
         assert "build-tool: not found" in result.result["action_failure"]["excerpt"]
     finally:
         db.close()
@@ -6355,8 +6356,67 @@ def test_failed_next_action_prompt_prioritizes_accounting(tmp_path):
         prompt = messages[-1]["content"]
 
         assert "latest experiment next action was attempted" in prompt
+        assert "Missing commands: build-tool" in prompt
         assert "record_experiment" in prompt
         assert "build-tool: not found" in prompt
+    finally:
+        db.close()
+
+
+def test_accounted_next_action_failure_does_not_keep_blocking(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Improve a generic runtime", title="runtime", kind="generic")
+        db.update_job_metadata(job_id, {
+            "experiment_ledger": [{
+                "title": "runtime gap",
+                "status": "measured",
+                "metric_name": "valid_files",
+                "metric_value": 1,
+                "metric_unit": "files",
+                "next_action": "build runner binary then run benchmark with validated file",
+            }],
+        })
+        run_id = db.start_run(job_id, model="test")
+        failed_step_id = db.add_step(
+            job_id=job_id,
+            run_id=run_id,
+            kind="tool",
+            tool_name="shell_exec",
+            input_data={"arguments": {"command": "cd /tmp/runtime && build-tool .."}},
+        )
+        db.finish_step(
+            failed_step_id,
+            status="completed",
+            output_data={"success": True, "returncode": 0, "stdout": "/bin/sh: 1: build-tool: not found\n"},
+        )
+        accounted_step_id = db.add_step(
+            job_id=job_id,
+            run_id=run_id,
+            kind="tool",
+            tool_name="record_experiment",
+            input_data={"arguments": {"title": "build failed"}},
+        )
+        db.finish_step(
+            accounted_step_id,
+            status="completed",
+            output_data={"success": True, "experiment": {"title": "build failed", "status": "failed"}},
+        )
+        db.finish_run(run_id, "completed")
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([LLMResponse(tool_calls=[
+                ToolCall(name="shell_exec", arguments={"command": "printf updated > /tmp/runtime/recovery-plan.txt"})
+            ])]),
+            registry=SuccessRegistry(),
+        )
+
+        assert result.status == "completed"
+        assert result.tool_name == "shell_exec"
     finally:
         db.close()
 

@@ -372,10 +372,16 @@ def _shell_path_recovery_for_prompt(recent_steps: list[dict[str, Any]]) -> str:
     if not context:
         return "None."
     paths = context.get("missing_paths") if isinstance(context.get("missing_paths"), list) else []
+    commands = context.get("missing_commands") if isinstance(context.get("missing_commands"), list) else []
     lines = [
         f"Recent shell step #{context.get('step_no') or '?'} reported a missing command or path.",
-        "Missing paths: " + ", ".join(str(path) for path in paths[:6]) if paths else "Missing path was not parsed.",
     ]
+    if commands:
+        lines.append("Missing commands: " + ", ".join(str(command) for command in commands[:6]))
+    if paths:
+        lines.append("Missing paths: " + ", ".join(str(path) for path in paths[:6]))
+    if not commands and not paths:
+        lines.append("Missing command/path was not parsed.")
     command = str(context.get("command") or "")
     if command:
         lines.append(f"Failed command: {_clip_text(command, 420)}")
@@ -404,6 +410,7 @@ def _shell_path_recovery_context(recent_steps: list[dict[str, Any]], *, window: 
         return {
             "step_no": step.get("step_no"),
             "command": output.get("command"),
+            "missing_commands": _missing_commands_from_shell_output(text),
             "missing_paths": missing_paths,
             "excerpt": text.strip(),
         }
@@ -438,6 +445,31 @@ def _missing_paths_from_shell_output(text: str) -> list[str]:
             if len(paths) >= 12:
                 return paths
     return paths
+
+
+def _missing_commands_from_shell_output(text: str) -> list[str]:
+    patterns = [
+        r"(?:^|\n)(?:/bin/sh:\s*\d+:\s*)?(?P<cmd>[A-Za-z0-9_.+-]+):\s*(?:not found|command not found)",
+        r"(?:^|\n)(?:sh|bash|zsh):\s*(?P<shell_cmd>[A-Za-z0-9_.+-]+):\s*command not found",
+        r"command not found:\s*(?P<suffix_cmd>[A-Za-z0-9_.+-]+)",
+    ]
+    commands: list[str] = []
+    seen: set[str] = set()
+    for pattern in patterns:
+        for match in re.finditer(pattern, text, flags=re.IGNORECASE):
+            command = str(
+                match.groupdict().get("cmd")
+                or match.groupdict().get("shell_cmd")
+                or match.groupdict().get("suffix_cmd")
+                or ""
+            ).strip()
+            if not command or "/" in command or command in seen:
+                continue
+            seen.add(command)
+            commands.append(command)
+            if len(commands) >= 12:
+                return commands
+    return commands
 
 
 def _candidate_file_discovery_context(job: dict[str, Any], recent_steps: list[dict[str, Any]]) -> dict[str, Any] | None:
@@ -1152,9 +1184,19 @@ def _experiment_next_action_failure_context(job: dict[str, Any], recent_steps: l
     context = _latest_experiment_next_action_context(job)
     if not _experiment_next_action_requires_delivery(context):
         return None
+    latest_experiment_step_no = max(
+        (
+            _as_int(step.get("step_no"))
+            for step in recent_steps
+            if step.get("tool_name") == "record_experiment" and step.get("status") == "completed"
+        ),
+        default=0,
+    )
     next_action = str(context.get("next_action") or "") if context else ""
     for step in reversed(_completed_recent_steps(recent_steps)[-window:]):
         if step.get("tool_name") != "shell_exec":
+            continue
+        if latest_experiment_step_no and _as_int(step.get("step_no")) <= latest_experiment_step_no:
             continue
         text = _shell_step_failure_text(step)
         if not text.strip() or not _shell_output_has_missing_command(text):
@@ -1166,6 +1208,7 @@ def _experiment_next_action_failure_context(job: dict[str, Any], recent_steps: l
             "step_no": step.get("step_no"),
             "command": command,
             "excerpt": text.strip(),
+            "missing_commands": _missing_commands_from_shell_output(text),
             "missing_paths": _missing_paths_from_shell_output(text),
             "experiment_next_action": context,
         }
