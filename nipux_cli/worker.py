@@ -308,12 +308,27 @@ def _candidate_file_discovery_for_prompt(job: dict[str, Any], recent_steps: list
     task_text = _open_file_dependent_task_text(job)
     if not task_text:
         return "None."
-    paths = _candidate_file_paths_from_recent_shell(recent_steps)
+    recent_paths = _candidate_file_paths_from_recent_shell(recent_steps)
+    durable_paths = _candidate_file_paths_from_durable_records(job)
+    paths: list[str] = []
+    seen: set[str] = set()
+    for path in [*recent_paths, *durable_paths]:
+        key = path.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        paths.append(path)
     if not paths:
         return "None."
+    source_text = "Recent shell output or durable records listed candidate file paths"
+    if recent_paths and not durable_paths:
+        source_text = "Recent shell output listed candidate file paths"
+    elif durable_paths and not recent_paths:
+        source_text = "Durable records mention candidate file paths"
     lines = [
-        "Recent shell output listed candidate file paths while open work depends on file/path validation.",
-        "Validate likely candidates with shell_exec before recording a no-file/no-progress claim or searching for alternatives.",
+        f"{source_text} while open work depends on file/path validation.",
+        "Validate likely candidates with shell_exec before recording a no-file/no-progress claim or searching for alternatives. "
+        "Treat durable-record candidates as leads until revalidated.",
         "Candidate paths:",
     ]
     for path in paths[:8]:
@@ -358,6 +373,43 @@ def _candidate_file_paths_from_recent_shell(recent_steps: list[dict[str, Any]], 
             seen.add(key)
             paths.append(path)
             if len(paths) >= 12:
+                return paths
+    return paths
+
+
+def _candidate_file_paths_from_durable_records(job: dict[str, Any], *, max_records: int = 80) -> list[str]:
+    metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
+    paths: list[str] = []
+    seen: set[str] = set()
+    record_groups = [
+        _metadata_list(job, "experiment_ledger"),
+        _metadata_list(job, "finding_ledger"),
+        _metadata_list(job, "lessons"),
+        _metadata_list(job, "source_ledger"),
+        _metadata_list(job, "task_queue"),
+    ]
+    roadmap = metadata.get("roadmap") if isinstance(metadata.get("roadmap"), dict) else {}
+    milestones = roadmap.get("milestones") if isinstance(roadmap.get("milestones"), list) else []
+    record_groups.append([item for item in milestones if isinstance(item, dict)])
+    checked = 0
+    for records in record_groups:
+        for record in reversed(records[-max_records:]):
+            if not isinstance(record, dict):
+                continue
+            checked += 1
+            try:
+                text = json.dumps(record, ensure_ascii=False, sort_keys=True)
+            except (TypeError, ValueError):
+                text = str(record)
+            for path in _extract_candidate_file_paths(text):
+                key = path.lower()
+                if key in seen:
+                    continue
+                seen.add(key)
+                paths.append(path)
+                if len(paths) >= 12:
+                    return paths
+            if checked >= max_records * len(record_groups):
                 return paths
     return paths
 

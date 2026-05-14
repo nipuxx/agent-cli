@@ -3875,6 +3875,42 @@ def test_prompt_prioritizes_structured_candidate_file_paths(tmp_path):
         db.close()
 
 
+def test_prompt_resurfaces_durable_candidate_file_paths(tmp_path):
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Validate a remembered file candidate", title="durable-candidate", kind="generic")
+        db.update_job_metadata(
+            job_id,
+            {
+                "task_queue": [
+                    {
+                        "title": "Validate remembered file path",
+                        "status": "open",
+                        "contract": "action",
+                        "acceptance_criteria": "A candidate file path is validated before use.",
+                        "evidence_needed": "Shell output with file size or hash.",
+                    }
+                ],
+                "experiment_ledger": [
+                    {
+                        "title": "Prior candidate discovery",
+                        "result": "A previous branch listed /opt/models/Remembered-Model-Q4.foo as a candidate.",
+                        "next_action": "Validate /opt/models/Remembered-Model-Q4.foo before declaring no usable file.",
+                    }
+                ],
+            },
+        )
+
+        content = build_messages(db.get_job(job_id), db.list_steps(job_id=job_id))[-1]["content"]
+
+        assert "Candidate file discovery:" in content
+        assert "Durable records mention candidate file paths" in content
+        assert "/opt/models/Remembered-Model-Q4.foo" in content
+        assert "Treat durable-record candidates as leads until revalidated" in content
+    finally:
+        db.close()
+
+
 def test_prompt_filters_stale_generated_and_objective_tokens(tmp_path):
     db = AgentDB(tmp_path / "state.db")
     try:
