@@ -2182,6 +2182,44 @@ def test_measurement_obligation_blocks_research_until_recorded(tmp_path):
         db.close()
 
 
+def test_measurement_obligation_blocks_operator_acknowledgement_churn(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Improve a measurable process", title="measure-ack", kind="generic")
+        db.update_job_metadata(
+            job_id,
+            {
+                "pending_measurement_obligation": {
+                    "source_step_no": 12,
+                    "tool": "shell_exec",
+                    "metric_candidates": ["2.7 tok/s"],
+                    "command": "run benchmark",
+                }
+            },
+        )
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(
+                        name="acknowledge_operator_context",
+                        arguments={"message_ids": [], "summary": "acknowledged"},
+                    )
+                ])
+            ]),
+        )
+
+        assert result.status == "blocked"
+        assert result.tool_name == "acknowledge_operator_context"
+        assert result.result["error"] == "measurement obligation pending"
+    finally:
+        db.close()
+
+
 def test_diagnostic_shell_output_does_not_create_measurement_obligation(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

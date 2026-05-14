@@ -165,7 +165,7 @@ LEDGER_PROGRESS_TOOLS = {
     "record_experiment",
     "record_lesson",
 }
-MEASUREMENT_RESOLUTION_TOOLS = {"record_experiment", "record_lesson", "record_tasks", "record_milestone_validation", "acknowledge_operator_context"}
+MEASUREMENT_RESOLUTION_TOOLS = {"record_experiment", "record_lesson", "record_tasks", "record_milestone_validation"}
 FILE_VALIDATION_RESOLUTION_TOOLS = {
     "shell_exec",
     "record_experiment",
@@ -189,7 +189,9 @@ MEASUREMENT_BLOCKED_TOOLS = INFORMATION_GATHERING_TOOLS | {
     "write_file",
     "write_artifact",
     "record_findings",
+    "record_memory_graph",
     "record_source",
+    "acknowledge_operator_context",
     "report_update",
 }
 FILE_VALIDATION_BLOCKED_TOOLS = INFORMATION_GATHERING_TOOLS | ARTIFACT_REVIEW_TOOLS | MEMORY_REVIEW_TOOLS | {
