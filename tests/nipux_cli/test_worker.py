@@ -6625,6 +6625,50 @@ def test_failed_next_action_prompt_prioritizes_accounting(tmp_path):
         db.close()
 
 
+def test_failed_next_action_narrows_available_tools_to_accounting(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Improve a generic runtime", title="runtime", kind="generic")
+        db.update_job_metadata(job_id, {
+            "experiment_ledger": [{
+                "title": "runtime gap",
+                "status": "measured",
+                "metric_name": "valid_files",
+                "metric_value": 1,
+                "metric_unit": "files",
+                "next_action": "build runner binary then run benchmark with validated file",
+            }],
+        })
+        run_id = db.start_run(job_id, model="test")
+        step_id = db.add_step(
+            job_id=job_id,
+            run_id=run_id,
+            kind="tool",
+            tool_name="shell_exec",
+            input_data={"arguments": {"command": "cd /tmp/runtime && build-tool .."}},
+        )
+        db.finish_step(
+            step_id,
+            status="completed",
+            output_data={"success": True, "returncode": 0, "stdout": "/bin/sh: 1: build-tool: not found\n"},
+        )
+        db.finish_run(run_id, "completed")
+        llm = CapturingLLM(
+            LLMResponse(tool_calls=[ToolCall(name="record_lesson", arguments={"lesson": "missing build tool"})])
+        )
+
+        run_one_step(job_id, config=config, db=db, llm=llm)
+
+        tool_names = {tool["function"]["name"] for tool in llm.tools}
+        assert {"record_experiment", "record_lesson", "record_tasks"}.issubset(tool_names)
+        assert "shell_exec" not in tool_names
+        assert "web_search" not in tool_names
+        assert "write_artifact" not in tool_names
+    finally:
+        db.close()
+
+
 def test_accounted_next_action_failure_does_not_keep_blocking(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

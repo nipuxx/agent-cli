@@ -5709,6 +5709,8 @@ def _active_obligation_tool_names(job: dict[str, Any] | None, recent_steps: list
         allowed.update(EVIDENCE_CHECKPOINT_PROMPT_TOOLS)
     if _pending_measurement_obligation(job):
         allowed.update(MEASUREMENT_RESOLUTION_TOOLS)
+    if _experiment_next_action_failure_context(job, recent_steps):
+        allowed.update(MEASUREMENT_RESOLUTION_TOOLS)
     measured_progress = _measured_progress_guard_context(job, recent_steps)
     if measured_progress:
         allowed.update(MEASUREMENT_RESOLUTION_TOOLS)
