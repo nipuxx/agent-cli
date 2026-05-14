@@ -839,6 +839,37 @@ def test_record_tasks_accepts_generic_output_contracts(tmp_path):
         db.close()
 
 
+def test_record_tasks_promotes_output_contract_from_metadata(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Improve measurable process")
+        run_id = db.start_run(job_id, model="fake")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="record_tasks")
+        ctx = ToolContext(config=config, db=db, artifacts=ArtifactStore(tmp_path, db), job_id=job_id, run_id=run_id, step_id=step_id)
+
+        raw = DEFAULT_REGISTRY.handle(
+            "record_tasks",
+            {
+                "tasks": [{
+                    "title": "Validate concrete candidate",
+                    "status": "open",
+                    "metadata": {"output_contract": "action", "source": "planner"},
+                    "acceptance_criteria": "candidate is tested",
+                }]
+            },
+            ctx,
+        )
+        result = json.loads(raw)
+        task = db.get_job(job_id)["metadata"]["task_queue"][0]
+
+        assert result["success"] is True
+        assert task["output_contract"] == "action"
+        assert task["metadata"]["source"] == "planner"
+    finally:
+        db.close()
+
+
 def test_record_tasks_downgrades_done_artifact_without_delivery_evidence(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

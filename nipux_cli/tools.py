@@ -601,9 +601,15 @@ def _record_tasks(args: dict[str, Any], ctx: ToolContext) -> str:
         if not title:
             continue
         status = str(task.get("status") or "open")
-        output_contract = str(task.get("output_contract") or task.get("contract") or "")
-        result_text = str(task.get("result") or task.get("outcome") or "")
         metadata = task.get("metadata") if isinstance(task.get("metadata"), dict) else {}
+        output_contract = str(
+            task.get("output_contract")
+            or task.get("contract")
+            or metadata.get("output_contract")
+            or metadata.get("contract")
+            or ""
+        )
+        result_text = str(task.get("result") or task.get("outcome") or "")
         status, metadata = _validated_task_status(
             ctx,
             status=status,
@@ -801,7 +807,13 @@ def _record_milestone_validation(args: dict[str, Any], ctx: ToolContext) -> str:
             source_hint=str(task.get("source_hint") or task.get("source") or ""),
             result=str(task.get("result") or task.get("outcome") or ""),
             parent=str(task.get("parent") or milestone),
-            output_contract=str(task.get("output_contract") or task.get("contract") or "action"),
+            output_contract=str(
+                task.get("output_contract")
+                or task.get("contract")
+                or (task.get("metadata") if isinstance(task.get("metadata"), dict) else {}).get("output_contract")
+                or (task.get("metadata") if isinstance(task.get("metadata"), dict) else {}).get("contract")
+                or "action"
+            ),
             acceptance_criteria=str(task.get("acceptance_criteria") or ""),
             evidence_needed=str(task.get("evidence_needed") or ""),
             stall_behavior=str(task.get("stall_behavior") or ""),
