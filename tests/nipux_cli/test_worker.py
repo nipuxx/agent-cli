@@ -4455,6 +4455,53 @@ def test_run_one_step_allows_non_browser_work_after_runtime_missing(tmp_path):
         db.close()
 
 
+def test_run_one_step_skips_batched_browser_call_when_runtime_missing_and_fallback_present(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Use fallback tools when browser is missing", title="browser-runtime")
+        run_id = db.start_run(job_id)
+        step_id = db.add_step(
+            job_id=job_id,
+            run_id=run_id,
+            kind="tool",
+            tool_name="browser_navigate",
+            input_data={"arguments": {"url": "https://example.test"}},
+        )
+        db.finish_step(
+            step_id,
+            status="failed",
+            output_data={"success": False, "error": "Chrome not found. Checked: Playwright browser cache."},
+            summary="browser_navigate failed: Chrome not found",
+        )
+        db.finish_run(run_id, "failed")
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(name="browser_navigate", arguments={"url": "https://example.test/next"}),
+                    ToolCall(name="web_search", arguments={"query": "public docs", "limit": 5}),
+                ])
+            ]),
+            registry=SuccessRegistry(),
+        )
+
+        tool_steps = [step for step in db.list_steps(job_id=job_id) if step.get("kind") == "tool"]
+        assert result.status == "completed"
+        assert result.tool_name == "web_search"
+        assert tool_steps[-1]["tool_name"] == "web_search"
+        assert all(
+            step["input"].get("arguments", {}).get("url") != "https://example.test/next"
+            for step in tool_steps
+            if step.get("tool_name") == "browser_navigate"
+        )
+    finally:
+        db.close()
+
+
 def test_run_one_step_allows_repeated_defer_for_monitor_intervals(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

@@ -4323,6 +4323,10 @@ def _ordered_tool_calls_for_execution(
 
     if len(tool_calls) < 2:
         return tool_calls
+    if _browser_runtime_unavailable_context(recent_steps) and any(not _is_browser_tool(call.name) for call in tool_calls):
+        tool_calls = [call for call in tool_calls if not _is_browser_tool(call.name)]
+        if len(tool_calls) < 2:
+            return tool_calls
     checkpoint = _auto_checkpoint_accounting_context(job, recent_steps)
     if not checkpoint:
         return tool_calls
