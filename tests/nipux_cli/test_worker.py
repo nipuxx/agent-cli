@@ -3090,6 +3090,45 @@ def test_record_lesson_allows_generic_strategy_without_concrete_facts(tmp_path):
         db.close()
 
 
+def test_record_lesson_allows_positive_checkpoint_summary_with_new_concrete_terms(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Summarize a broad checkpoint", title="lesson-grounding", kind="generic")
+        run_id = db.start_run(job_id, model="test")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec")
+        db.finish_step(
+            step_id,
+            status="completed",
+            output_data={"success": True, "stdout": "checkpoint read and accounting required\n"},
+        )
+        db.finish_run(run_id, "completed")
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(
+                        name="record_lesson",
+                        arguments={
+                            "category": "memory",
+                            "lesson": (
+                                "Recording checkpoint context says PackageManager-42 and RuntimeProbe-7 should stay "
+                                "available for the next branch, but no final benchmark decision has been made."
+                            ),
+                        },
+                    )
+                ])
+            ]),
+        )
+
+        assert result.status == "completed"
+    finally:
+        db.close()
+
+
 def test_evidence_grounding_ignores_record_schema_keys(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

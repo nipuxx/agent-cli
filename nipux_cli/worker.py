@@ -1503,8 +1503,10 @@ def _evidence_grounding_context(
         }
     stale_tokens = _active_stale_claim_token_set(job)
     proposed_stale_tokens = [token for token in _concrete_evidence_tokens(full_proposed_text) if token.lower() in stale_tokens]
+    if tool_name == "record_lesson" and not proposed_stale_tokens:
+        return None
     unsupported_threshold = 1 if cited_steps or proposed_stale_tokens else 3
-    candidate_tokens = proposed_tokens + proposed_stale_tokens
+    candidate_tokens = proposed_stale_tokens if tool_name == "record_lesson" else proposed_tokens + proposed_stale_tokens
     if len(candidate_tokens) < unsupported_threshold:
         return None
     evidence_lower = evidence_text.lower()
