@@ -3906,6 +3906,126 @@ def test_shell_path_recovery_prompt_shows_missing_executable(tmp_path):
         db.close()
 
 
+def test_shell_path_recovery_prompt_prefers_observed_candidate_executable(tmp_path):
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Build and benchmark a generic project", title="candidate-executable", kind="generic")
+        run_id = db.start_run(job_id, model="test")
+        observed_step = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec")
+        db.finish_step(
+            observed_step,
+            status="completed",
+            output_data={
+                "success": True,
+                "command": "ls /tmp/tools/build-tool",
+                "stdout": "/tmp/tools/build-tool\n---\nbuild-tool\nhelper\n",
+                "stderr": "",
+            },
+        )
+        failed_step = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec")
+        db.finish_step(
+            failed_step,
+            status="failed",
+            output_data={
+                "success": False,
+                "command": "cd /tmp/project && build-tool ..",
+                "stdout": "/bin/sh: 1: build-tool: not found\n",
+                "stderr": "",
+                "error": "command output indicates missing command despite exit status 0",
+            },
+        )
+        db.finish_run(run_id, "completed")
+
+        messages = build_messages(db.get_job(job_id), db.list_steps(job_id=job_id))
+        prompt = messages[-1]["content"]
+
+        assert "Shell path recovery" in prompt
+        assert "Missing commands: build-tool" in prompt
+        assert "Observed candidate executable for build-tool: /tmp/tools/build-tool" in prompt
+        assert "try the exact candidate path or add its directory to PATH" in prompt
+    finally:
+        db.close()
+
+
+def test_permission_failure_prompt_blocks_package_manager_retry(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Recover from generic build prerequisites", title="permission-recovery", kind="generic")
+        run_id = db.start_run(job_id, model="test")
+        step_id = db.add_step(
+            job_id=job_id,
+            run_id=run_id,
+            kind="tool",
+            tool_name="shell_exec",
+            input_data={"arguments": {"command": "apt-get install -y build-tool"}},
+        )
+        db.finish_step(
+            step_id,
+            status="failed",
+            output_data={
+                "success": False,
+                "command": "apt-get install -y build-tool",
+                "returncode": 0,
+                "stdout": (
+                    "E: Could not open lock file /var/lib/dpkg/lock-frontend - open (13: Permission denied)\n"
+                    "E: Unable to acquire the dpkg frontend lock (/var/lib/dpkg/lock-frontend), are you root?\n"
+                ),
+                "stderr": "",
+                "error": "command output indicates authentication or authorization failure despite exit status 0",
+            },
+        )
+        db.finish_run(run_id, "completed")
+        llm = ScriptedLLM([LLMResponse(tool_calls=[
+            ToolCall(name="shell_exec", arguments={"command": "apt-get install -y another-tool"})
+        ])])
+
+        result = run_one_step(job_id, config=config, db=db, llm=llm, registry=SuccessRegistry())
+
+        assert result.status == "blocked"
+        assert result.result["error"] == "privileged command recovery required"
+        assert result.result["privileged_failure"]["step_no"] == 1
+        assert "non-privileged recovery" in result.result["guidance"]
+    finally:
+        db.close()
+
+
+def test_permission_failure_prompt_mentions_non_privileged_recovery(tmp_path):
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Recover from generic build prerequisites", title="permission-prompt", kind="generic")
+        run_id = db.start_run(job_id, model="test")
+        step_id = db.add_step(
+            job_id=job_id,
+            run_id=run_id,
+            kind="tool",
+            tool_name="shell_exec",
+            input_data={"arguments": {"command": "sudo package-manager install build-tool"}},
+        )
+        db.finish_step(
+            step_id,
+            status="failed",
+            output_data={
+                "success": False,
+                "command": "sudo package-manager install build-tool",
+                "stdout": "sudo: a password is required\n",
+                "stderr": "",
+                "error": "authentication or authorization failure",
+            },
+        )
+        db.finish_run(run_id, "completed")
+
+        messages = build_messages(db.get_job(job_id), db.list_steps(job_id=job_id))
+        prompt = messages[-1]["content"]
+
+        assert "Shell permission recovery" in prompt
+        assert "failed because a privileged/package-manager command lacked permission" in prompt
+        assert "non-privileged alternatives" in prompt
+        assert "operator credentials" in prompt
+    finally:
+        db.close()
+
+
 def test_record_findings_blocks_negative_file_pattern_that_conflicts_with_positive_evidence(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

@@ -170,6 +170,7 @@ def build_messages(
     file_validation_obligation = _file_validation_obligation_for_prompt(job)
     candidate_file_discovery = _candidate_file_discovery_for_prompt(job, recent_steps)
     shell_path_recovery = _shell_path_recovery_for_prompt(recent_steps)
+    shell_permission_recovery = _shell_permission_recovery_for_prompt(recent_steps)
     measured_progress_guard = _measured_progress_guard_for_prompt(job, recent_steps)
     research_balance_guard = _research_balance_guard_for_prompt(job, recent_steps)
     deliverable_progress_guard = _deliverable_progress_guard_for_prompt(job, recent_steps)
@@ -208,6 +209,7 @@ def build_messages(
             ("Pending file validation obligation", file_validation_obligation),
             ("Candidate file discovery", candidate_file_discovery),
             ("Shell path recovery", shell_path_recovery),
+            ("Shell permission recovery", shell_permission_recovery),
             ("Measured progress guard", measured_progress_guard),
             ("Research balance guard", research_balance_guard),
             ("Deliverable progress guard", deliverable_progress_guard),
@@ -373,11 +375,22 @@ def _shell_path_recovery_for_prompt(recent_steps: list[dict[str, Any]]) -> str:
         return "None."
     paths = context.get("missing_paths") if isinstance(context.get("missing_paths"), list) else []
     commands = context.get("missing_commands") if isinstance(context.get("missing_commands"), list) else []
+    candidate_executables = (
+        context.get("candidate_executables") if isinstance(context.get("candidate_executables"), dict) else {}
+    )
     lines = [
         f"Recent shell step #{context.get('step_no') or '?'} reported a missing command or path.",
     ]
     if commands:
         lines.append("Missing commands: " + ", ".join(str(command) for command in commands[:6]))
+    if candidate_executables:
+        for command, command_paths in list(candidate_executables.items())[:6]:
+            if not isinstance(command_paths, list) or not command_paths:
+                continue
+            lines.append(
+                f"Observed candidate executable for {command}: "
+                + ", ".join(str(path) for path in command_paths[:4])
+            )
     if paths:
         lines.append("Missing paths: " + ", ".join(str(path) for path in paths[:6]))
     if not commands and not paths:
@@ -388,15 +401,17 @@ def _shell_path_recovery_for_prompt(recent_steps: list[dict[str, Any]]) -> str:
     excerpt = str(context.get("excerpt") or "")
     if excerpt:
         lines.append(f"Observed output: {_clip_text(excerpt, 360)}")
+    if candidate_executables:
+        lines.append("Recovery priority: try the exact candidate path or add its directory to PATH before package-manager/install retries.")
     lines.append(
         "Do not treat this output as a successful measurement or deliverable. Next, locate or verify the real "
         "executable/file path with a bounded shell probe such as command -v, find, ls, or an equivalent platform "
-        "tool; retry using only a validated path, or record the branch as blocked/skipped with the observed reason."
+        "tool. Retry using only a validated path, or record the branch as blocked/skipped with the observed reason."
     )
     return "\n".join(lines)
 
 
-def _shell_path_recovery_context(recent_steps: list[dict[str, Any]], *, window: int = 8) -> dict[str, Any] | None:
+def _shell_path_recovery_context(recent_steps: list[dict[str, Any]], *, window: int = 16) -> dict[str, Any] | None:
     for step in reversed(_completed_or_failed_recent_steps(recent_steps)[-window:]):
         if step.get("tool_name") != "shell_exec":
             continue
@@ -407,14 +422,38 @@ def _shell_path_recovery_context(recent_steps: list[dict[str, Any]], *, window: 
         missing_paths = _missing_paths_from_shell_output(text)
         if not missing_paths and not _shell_output_has_missing_command(text):
             continue
+        commands = _missing_commands_from_shell_output(text)
         return {
             "step_no": step.get("step_no"),
             "command": output.get("command"),
-            "missing_commands": _missing_commands_from_shell_output(text),
+            "missing_commands": commands,
+            "candidate_executables": _candidate_executable_paths_for_missing_commands(recent_steps, commands),
             "missing_paths": missing_paths,
             "excerpt": text.strip(),
         }
     return None
+
+
+def _shell_permission_recovery_for_prompt(recent_steps: list[dict[str, Any]]) -> str:
+    context = _recent_privileged_shell_failure_context(recent_steps)
+    if not context:
+        return "None."
+    lines = [
+        f"Recent shell step #{context.get('step_no') or '?'} failed because a privileged/package-manager command lacked permission.",
+    ]
+    command = str(context.get("command") or "")
+    if command:
+        lines.append(f"Failed command: {_clip_text(command, 420)}")
+    excerpt = str(context.get("excerpt") or "")
+    if excerpt:
+        lines.append(f"Observed output: {_clip_text(excerpt, 360)}")
+    lines.append("Recovery priority: try non-privileged alternatives first; record when operator credentials are required.")
+    lines.append(
+        "Do not retry the same privileged/package-manager path. Prefer observed executables, user-writable installs, "
+        "existing project files, or other non-privileged alternatives; otherwise record the branch as blocked, skipped, "
+        "or needing operator credentials."
+    )
+    return "\n".join(lines)
 
 
 def _shell_step_failure_text(step: dict[str, Any]) -> str:
@@ -470,6 +509,132 @@ def _missing_commands_from_shell_output(text: str) -> list[str]:
             if len(commands) >= 12:
                 return commands
     return commands
+
+
+def _candidate_executable_paths_for_missing_commands(
+    recent_steps: list[dict[str, Any]], missing_commands: list[str], *, window: int = 20, max_paths_per_command: int = 6
+) -> dict[str, list[str]]:
+    command_names = {str(command or "").strip().lower() for command in missing_commands}
+    command_names = {command for command in command_names if command}
+    if not command_names:
+        return {}
+    matches: dict[str, list[str]] = {command: [] for command in command_names}
+    seen: set[tuple[str, str]] = set()
+    for step in _completed_or_failed_recent_steps(recent_steps)[-window:]:
+        if step.get("tool_name") != "shell_exec":
+            continue
+        output = step.get("output") if isinstance(step.get("output"), dict) else {}
+        text = "\n".join(str(output.get(key) or "") for key in ("stdout", "stderr", "error"))
+        for path in _extract_candidate_executable_paths(text, command_names):
+            name = Path(path).name.lower()
+            if name not in command_names:
+                continue
+            key = (name, path.lower())
+            if key in seen or len(matches.get(name, [])) >= max_paths_per_command:
+                continue
+            seen.add(key)
+            matches.setdefault(name, []).append(path)
+    return {command: paths for command, paths in matches.items() if paths}
+
+
+def _extract_candidate_executable_paths(text: str, command_names: set[str] | None = None) -> list[str]:
+    commands = {command.lower() for command in (command_names or set()) if command}
+    paths: list[str] = []
+    seen: set[str] = set()
+    for match in re.finditer(r"(?<![A-Za-z0-9])(?:~|/)[^\s'\"<>|;&]{2,}", text or ""):
+        raw = _clean_candidate_file_path(match.group(0))
+        if not _looks_like_candidate_executable_path(raw):
+            continue
+        name = Path(raw).name.lower()
+        if commands and name not in commands:
+            continue
+        key = raw.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        paths.append(raw)
+    return paths
+
+
+def _looks_like_candidate_executable_path(value: str) -> bool:
+    raw = str(value or "").strip()
+    if not raw or len(raw) > 500:
+        return False
+    if "://" in raw or raw.startswith("//") or "..." in raw or "…" in raw or "*" in raw:
+        return False
+    if not raw.startswith(("/", "~")):
+        return False
+    name = Path(raw).name
+    if not name or name.startswith(".") or name in {".", ".."}:
+        return False
+    if any(char in name for char in ("$", "{", "}", "`")):
+        return False
+    return True
+
+
+PACKAGE_MANAGER_WRITE_COMMAND_PATTERN = re.compile(
+    r"(?is)(?:^|[;&|]{1,2}\s*)(?:sudo\s+|doas\s+|pkexec\s+)?"
+    r"(?:apt-get|apt|dnf|yum|apk|pacman|zypper|brew|port)\s+"
+    r"(?:install|upgrade|update|remove|erase|add|sync|build-dep)\b"
+)
+PRIVILEGED_COMMAND_PATTERN = re.compile(r"(?is)(?:^|[;&|]{1,2}\s*)(?:sudo|doas|pkexec)\b")
+
+
+def _shell_command_looks_privileged_or_package_manager(command: str) -> bool:
+    text = str(command or "").strip()
+    if not text:
+        return False
+    return bool(PRIVILEGED_COMMAND_PATTERN.search(text) or PACKAGE_MANAGER_WRITE_COMMAND_PATTERN.search(text))
+
+
+def _shell_output_has_permission_failure(text: str) -> bool:
+    lowered = str(text or "").lower()
+    return any(
+        marker in lowered
+        for marker in (
+            "permission denied",
+            "not permitted",
+            "operation not permitted",
+            "authentication",
+            "authorization",
+            "are you root",
+            "sudo:",
+            "password is required",
+            "unable to acquire the dpkg frontend lock",
+            "could not open lock file",
+        )
+    )
+
+
+def _recent_privileged_shell_failure_context(recent_steps: list[dict[str, Any]], *, window: int = 12) -> dict[str, Any] | None:
+    accounting_tools = {"record_experiment", "record_tasks", "record_lesson", "record_roadmap", "record_milestone_validation"}
+    latest_accounting_step = max(
+        (
+            _as_int(step.get("step_no"))
+            for step in recent_steps[-window:]
+            if step.get("status") == "completed" and step.get("tool_name") in accounting_tools
+        ),
+        default=0,
+    )
+    for step in reversed(_completed_or_failed_recent_steps(recent_steps)[-window:]):
+        step_no = _as_int(step.get("step_no"))
+        if latest_accounting_step and step_no <= latest_accounting_step:
+            continue
+        if step.get("tool_name") != "shell_exec":
+            continue
+        output = step.get("output") if isinstance(step.get("output"), dict) else {}
+        command = _step_command(step) or str(output.get("command") or "")
+        text = _shell_step_failure_text(step)
+        if not _shell_output_has_permission_failure(text):
+            continue
+        if not _shell_command_looks_privileged_or_package_manager(command):
+            continue
+        return {
+            "step_no": step.get("step_no"),
+            "command": command,
+            "excerpt": text.strip(),
+        }
+    return None
 
 
 def _candidate_file_discovery_context(job: dict[str, Any], recent_steps: list[dict[str, Any]]) -> dict[str, Any] | None:
@@ -3940,6 +4105,22 @@ def _blocked_tool_call_result(
                 ),
             }
             return result, "blocked shell_exec; unresolved placeholder in command"
+        privileged_failure = _recent_privileged_shell_failure_context(recent_steps)
+        if privileged_failure and _shell_command_looks_privileged_or_package_manager(str(args.get("command") or "")):
+            result = {
+                "success": False,
+                "error": "privileged command recovery required",
+                "blocked_tool": name,
+                "blocked_arguments": args,
+                "privileged_failure": privileged_failure,
+                "guidance": (
+                    "A recent privileged/package-manager shell command failed due permission or authorization. "
+                    "Do not retry that class of command until the failure is accounted for. Use observed executable "
+                    "paths, user-writable installs, existing project files, or record_tasks/record_lesson/"
+                    "record_experiment to mark the branch blocked or choose a non-privileged recovery."
+                ),
+            }
+            return result, "blocked shell_exec; privileged command recovery required"
 
     unpersisted_evidence = _unpersisted_evidence_step(recent_steps)
     if unpersisted_evidence and name in BRANCH_WORK_TOOLS:
