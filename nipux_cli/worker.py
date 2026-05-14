@@ -1850,6 +1850,7 @@ def _evidence_grounding_context(
             ),
         }
     missing_paths = _missing_candidate_paths_for_grounding(
+        job=job,
         tool_name=tool_name,
         proposed_text=proposed_text,
         full_proposed_text=full_proposed_text,
@@ -1915,6 +1916,7 @@ def _evidence_grounding_context(
 
 def _missing_candidate_paths_for_grounding(
     *,
+    job: dict[str, Any],
     tool_name: str,
     proposed_text: str,
     full_proposed_text: str,
@@ -1937,7 +1939,7 @@ def _missing_candidate_paths_for_grounding(
         return []
     distinctive_paths: list[str] = []
     seen: set[str] = set()
-    for path in evidence_paths:
+    for path in _rank_candidate_file_paths(job, full_proposed_text, evidence_paths):
         key = path.lower()
         if key in seen:
             continue
@@ -2075,6 +2077,8 @@ def _negative_claim_conflicts_for_grounding(
         if key in seen:
             continue
         seen.add(key)
+        if not token.startswith(".") and "/" not in token and not _high_risk_evidence_token(token):
+            continue
         if not _token_near_negative_claim(proposed_text, token):
             continue
         positive_line = _positive_evidence_line_for_token(evidence_lines, token)

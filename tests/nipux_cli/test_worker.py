@@ -3234,6 +3234,45 @@ def test_record_lesson_blocks_negative_claim_that_conflicts_with_positive_eviden
         db.close()
 
 
+def test_record_lesson_ignores_plain_titlecase_negative_conflict_tokens(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Keep exact observed facts durable", title="lesson-grounding", kind="generic")
+        run_id = db.start_run(job_id, model="test")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec")
+        db.finish_step(
+            step_id,
+            status="completed",
+            output_data={
+                "success": True,
+                "stdout": "/srv/vendor/lmstudio-community/Model.foo\n",
+            },
+        )
+        db.finish_run(run_id, "completed")
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(
+                        name="record_lesson",
+                        arguments={
+                            "category": "strategy",
+                            "lesson": "No Studio-specific conclusion should be drawn from this branch yet.",
+                        },
+                    )
+                ])
+            ]),
+        )
+
+        assert result.status == "completed"
+    finally:
+        db.close()
+
+
 def test_record_lesson_allows_negative_claim_when_evidence_is_also_negative(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")
@@ -3438,6 +3477,56 @@ def test_record_findings_requires_exact_paths_when_file_candidates_exist(tmp_pat
         grounding = blocked.result["evidence_grounding"]
         assert "/srv/models/AlphaModel-Q4.foo" in grounding["missing_candidate_paths"]
         assert "exact observed candidate paths" in grounding["guidance"]
+    finally:
+        db.close()
+
+
+def test_missing_candidate_paths_are_ranked_before_grounding_guidance(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Validate OmegaModel file before benchmarking", title="omega benchmark", kind="generic")
+        run_id = db.start_run(job_id, model="test")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec")
+        db.finish_step(
+            step_id,
+            status="completed",
+            output_data={
+                "success": True,
+                "stdout": "\n".join(
+                    [f"/srv/models/ggml-vocab-{index}.foo" for index in range(20)]
+                    + ["/srv/models/OmegaModel-primary.foo"]
+                ),
+            },
+        )
+        db.finish_run(run_id, "completed")
+
+        blocked = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(
+                        name="record_findings",
+                        arguments={
+                            "findings": [
+                                {
+                                    "name": "Candidate files found",
+                                    "category": "environment",
+                                    "status": "new",
+                                    "reason": "A file search found candidate files to validate.",
+                                }
+                            ]
+                        },
+                    )
+                ])
+            ]),
+        )
+
+        assert blocked.status == "blocked"
+        grounding = blocked.result["evidence_grounding"]
+        assert grounding["missing_candidate_paths"][0] == "/srv/models/OmegaModel-primary.foo"
     finally:
         db.close()
 
