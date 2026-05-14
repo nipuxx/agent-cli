@@ -4124,8 +4124,11 @@ def test_prompt_shows_evidence_grounding_tokens_after_block(tmp_path):
 def test_prompt_shows_missing_candidate_paths_after_grounding_block(tmp_path):
     db = AgentDB(tmp_path / "state.db")
     try:
-        job_id = db.create_job("Use exact file evidence", title="grounding-paths", kind="generic")
+        job_id = db.create_job("Optimize benchmark speed with exact file evidence", title="grounding-paths", kind="generic")
         run_id = db.start_run(job_id, model="test")
+        for index in range(18):
+            shell_step = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec")
+            db.finish_step(shell_step, status="completed", output_data={"success": True, "stdout": f"probe {index}"})
         step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="record_experiment")
         db.finish_step(
             step_id,
@@ -4151,6 +4154,7 @@ def test_prompt_shows_missing_candidate_paths_after_grounding_block(tmp_path):
         content = build_messages(job, db.list_steps(job_id=job_id))[-1]["content"]
 
         assert "Recent evidence grounding blocked a durable record" in content
+        assert "This job needs measured progress" not in content
         assert "/srv/models/AlphaModel-Q4.foo" in content
         assert "rewrite the durable record with exact observed paths" in content
     finally:

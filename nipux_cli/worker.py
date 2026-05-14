@@ -677,6 +677,16 @@ def _next_action_constraint(job: dict[str, Any], recent_steps: list[dict[str, An
             "record_experiment, record_tasks, record_roadmap, record_milestone_validation, or record_lesson before "
             "more shell, search, file, report, or artifact work."
         )
+    grounding_block = _latest_evidence_grounding_block(recent_steps)
+    if grounding_block:
+        missing_paths = grounding_block.get("missing_candidate_paths") if isinstance(grounding_block.get("missing_candidate_paths"), list) else []
+        path_text = "; ".join(str(path) for path in missing_paths[:6])
+        detail = f" Missing exact paths: {path_text}." if path_text else ""
+        return (
+            "Recent evidence grounding blocked a durable record. Next, rewrite the record using only observed evidence, "
+            "include the exact observed paths/tokens when claiming candidates or files, or explicitly record why they "
+            f"are irrelevant/invalid.{detail}"
+        )
     measured_guard = _measured_progress_guard_context(job, recent_steps)
     if measured_guard:
         return (
@@ -758,16 +768,6 @@ def _next_action_constraint(job: dict[str, Any], recent_steps: list[dict[str, An
             f"You have unsaved evidence from step #{evidence_step['step_no']} "
             f"({evidence_step.get('tool_name') or evidence_step['kind']}). "
             "Your next tool call should usually be write_artifact. If this evidence taught a durable rule, record_lesson after saving it."
-        )
-    grounding_block = _latest_evidence_grounding_block(recent_steps)
-    if grounding_block:
-        missing_paths = grounding_block.get("missing_candidate_paths") if isinstance(grounding_block.get("missing_candidate_paths"), list) else []
-        path_text = "; ".join(str(path) for path in missing_paths[:6])
-        detail = f" Missing exact paths: {path_text}." if path_text else ""
-        return (
-            "Recent evidence grounding blocked a durable record. Next, rewrite the record using only observed evidence, "
-            "include the exact observed paths/tokens when claiming candidates or files, or explicitly record why they "
-            f"are irrelevant/invalid.{detail}"
         )
     if _task_queue_exhausted(job):
         return (
