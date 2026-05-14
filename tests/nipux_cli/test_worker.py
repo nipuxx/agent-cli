@@ -3143,6 +3143,53 @@ def test_prompt_suppresses_memory_graph_nodes_matching_stale_claim_tokens(tmp_pa
         db.close()
 
 
+def test_prompt_suppresses_negative_memory_graph_nodes_matching_stale_file_type(tmp_path):
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Prefer current file evidence", title="stale-file-type", kind="generic")
+        db.update_job_metadata(
+            job_id,
+            {
+                "stale_negative_records": [
+                    {
+                        "kind": "memory_node",
+                        "record_id": "old-absence",
+                        "token": ".foo",
+                        "evidence": "/srv/models/AlphaModel.foo",
+                    }
+                ]
+            },
+        )
+        db.append_memory_graph_records(
+            job_id,
+            nodes=[
+                {
+                    "key": "download-blocker",
+                    "title": "Model file download critical blocker",
+                    "kind": "constraint",
+                    "status": "active",
+                    "summary": "FOO model download attempts return 0 files. All downstream work is blocked until a model file exists locally.",
+                },
+                {
+                    "key": "format-skill",
+                    "title": "FOO format tuning",
+                    "kind": "skill",
+                    "status": "active",
+                    "summary": "Use the FOO runtime flags after a valid file is selected.",
+                },
+            ],
+        )
+
+        job = db.get_job(job_id)
+        content = build_messages(job, db.list_steps(job_id=job_id))[-1]["content"]
+
+        assert "Suppressed 1 stale memory node" in content
+        assert "Model file download critical blocker" not in content
+        assert "FOO format tuning" in content
+    finally:
+        db.close()
+
+
 def test_prompt_pushes_memory_graph_consolidation_when_ledgers_exist_without_nodes():
     job = {
         "title": "research",

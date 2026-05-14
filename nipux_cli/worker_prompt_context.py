@@ -621,6 +621,11 @@ def _stale_claim_tokens_for_prompt(metadata: dict[str, Any], *, reference_text: 
     reference_norm = _normalize_claim_text(reference_text)
     if isinstance(raw_tokens, list):
         candidates.extend(raw_tokens)
+    stale_records = metadata.get("stale_negative_records")
+    if isinstance(stale_records, list):
+        for record in stale_records:
+            if isinstance(record, dict):
+                candidates.append(record.get("token"))
     lessons = metadata.get("lessons")
     if isinstance(lessons, list):
         for lesson in lessons[-25:]:
@@ -657,6 +662,8 @@ def _unsupported_tokens_from_lesson(lesson: str) -> list[str]:
 
 def _stale_token_is_distinctive(token: str) -> bool:
     lowered = token.lower()
+    if lowered.startswith(".") and re.match(r"^\.[a-z0-9][a-z0-9_-]{1,12}$", lowered):
+        return lowered not in {".app", ".co", ".com", ".dev", ".edu", ".gov", ".io", ".net", ".org", ".www"}
     if lowered in {
         "api",
         "ascii",

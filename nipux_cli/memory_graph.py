@@ -26,6 +26,28 @@ NODE_KINDS = {
 NODE_STATUSES = {"active", "blocked", "deprecated", "open", "resolved", "stable"}
 DEFAULT_NODE_KIND = "fact"
 DEFAULT_NODE_STATUS = "active"
+NEGATIVE_MEMORY_MARKERS = (
+    "0 files",
+    "0 results",
+    "blocked until",
+    "cannot access",
+    "critical blocker",
+    "does not exist",
+    "failed to find",
+    "missing",
+    "must be downloaded",
+    "no ",
+    "no such",
+    "none",
+    "not available",
+    "not detected",
+    "not downloaded",
+    "not found",
+    "not installed",
+    "prevents",
+    "unavailable",
+    "without",
+)
 
 
 def memory_graph_from_job(job: dict[str, Any]) -> dict[str, Any]:
@@ -119,11 +141,21 @@ def _node_contains_stale_token(node: dict[str, Any], stale_tokens: list[str]) ->
         " ".join(_clean_string_list(node.get("tags"))),
     ]
     text = " ".join(str(part or "") for part in text_parts)
+    text_lower = text.lower()
+    negative_node = _node_has_negative_memory_marker(text_lower)
     for token in stale_tokens:
         pattern = r"(?<![A-Za-z0-9])" + re.escape(token) + r"(?![A-Za-z0-9])"
         if re.search(pattern, text, flags=re.IGNORECASE):
             return True
+        if negative_node and token.startswith("."):
+            bare = token[1:].strip()
+            if bare and re.search(r"(?<![A-Za-z0-9])" + re.escape(bare) + r"(?![A-Za-z0-9])", text_lower):
+                return True
     return False
+
+
+def _node_has_negative_memory_marker(text_lower: str) -> bool:
+    return any(marker in text_lower for marker in NEGATIVE_MEMORY_MARKERS)
 
 
 def _node_has_stale_id(node: dict[str, Any], stale_node_ids: set[str]) -> bool:

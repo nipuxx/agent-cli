@@ -2064,8 +2064,8 @@ def _refresh_contradicted_negative_claims(
     now = datetime.now(timezone.utc).isoformat()
     new_records: list[dict[str, Any]] = []
     for kind, records in (
-        ("finding", _metadata_list(job, "finding_ledger")),
-        ("lesson", _metadata_list(job, "lessons")),
+        ("finding", _metadata_list(job, "finding_ledger")[-80:]),
+        ("lesson", _metadata_list(job, "lessons")[-80:]),
         (
             "memory_node",
             (
@@ -2076,7 +2076,7 @@ def _refresh_contradicted_negative_claims(
             ),
         ),
     ):
-        for record in records[-80:]:
+        for record in records:
             if not isinstance(record, dict):
                 continue
             record_text = _negative_record_text(kind, record)
