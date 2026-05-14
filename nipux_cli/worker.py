@@ -2490,6 +2490,28 @@ def _evidence_grounding_context(
         for token in _concrete_evidence_tokens_for_grounding(tool_name, proposed_text)
         if not _grounding_token_in_reference_text(token, job_reference_text)
     ]
+    positive_path_conflicts = _positive_path_claim_conflicts_for_grounding(
+        tool_name=tool_name,
+        proposed_text=proposed_text,
+        full_proposed_text=full_proposed_text,
+        fresh_evidence_text=fresh_evidence_text,
+    )
+    if positive_path_conflicts:
+        conflict_paths = [item["path"] for item in positive_path_conflicts]
+        return {
+            "unsupported_tokens": conflict_paths[:12],
+            "negative_path_conflicts": positive_path_conflicts[:6],
+            "evidence_steps": [
+                step.get("step_no")
+                for step in _evidence_steps_for_grounding(recent_steps, window=window, step_numbers=cited_steps or None)
+            ],
+            "cited_steps": sorted(cited_steps),
+            "guidance": (
+                "The proposed durable record claims a path or executable is present/available, but recent shell "
+                "evidence says that same path is missing or inaccessible. Inspect again, record it as missing, "
+                "or cite a newer positive check before saving the claim."
+            ),
+        }
     negative_conflicts = _negative_claim_conflicts_for_grounding(
         tool_name=tool_name,
         proposed_text=proposed_text,
@@ -2636,6 +2658,84 @@ def _missing_candidate_paths_for_grounding(
         if len(distinctive_paths) >= 8:
             break
     return distinctive_paths
+
+
+POSITIVE_PATH_CLAIM_MARKERS = (
+    "available",
+    "exists",
+    "found",
+    "located",
+    "present",
+    "ready",
+    "usable",
+    "valid",
+    "verified",
+)
+
+
+def _positive_path_claim_conflicts_for_grounding(
+    *,
+    tool_name: str,
+    proposed_text: str,
+    full_proposed_text: str,
+    fresh_evidence_text: str,
+) -> list[dict[str, str]]:
+    if tool_name not in {"record_findings", "record_experiment", "record_source", "record_lesson", "write_artifact", "report_update"}:
+        return []
+    proposed_combined = f"{proposed_text}\n{full_proposed_text}"
+    proposed_lower = proposed_combined.lower()
+    conflicts: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for line in str(fresh_evidence_text or "").splitlines():
+        line_lower = line.lower()
+        if not _evidence_line_is_negative(line_lower):
+            continue
+        paths = [
+            *_extract_candidate_file_paths(line),
+            *_extract_candidate_executable_paths(line),
+        ]
+        for path in paths:
+            path = str(path or "").strip()
+            if not path:
+                continue
+            key = path.lower()
+            if key in seen:
+                continue
+            if key not in proposed_lower:
+                continue
+            if not _path_near_positive_claim(proposed_combined, path):
+                continue
+            seen.add(key)
+            conflicts.append({
+                "path": path,
+                "evidence": _clip_text(line.strip(), 220),
+                "claim": _clip_text(_excerpt_around(proposed_combined, path, window=96), 220),
+            })
+            if len(conflicts) >= 8:
+                return conflicts
+    return conflicts
+
+
+def _path_near_positive_claim(text: str, path: str, *, window: int = 96) -> bool:
+    excerpt = _excerpt_around(text, path, window=window).lower()
+    if not excerpt:
+        return False
+    if _evidence_line_is_negative(excerpt):
+        return False
+    return any(marker in excerpt for marker in POSITIVE_PATH_CLAIM_MARKERS)
+
+
+def _excerpt_around(text: str, needle: str, *, window: int = 80) -> str:
+    source = str(text or "")
+    needle_text = str(needle or "")
+    if not source or not needle_text:
+        return ""
+    index = source.lower().find(needle_text.lower())
+    if index < 0:
+        return ""
+    start = max(0, index - window)
+    end = min(len(source), index + len(needle_text) + window)
+    return source[start:end]
 
 
 def _path_mentioned_in_text(path: str, text_lower: str) -> bool:

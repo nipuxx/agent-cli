@@ -4388,6 +4388,60 @@ def test_record_findings_allows_exact_candidate_path_summary(tmp_path):
         db.close()
 
 
+def test_evidence_grounding_blocks_positive_claim_for_missing_path(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Verify a generic executable path", title="path polarity", kind="generic")
+        run_id = db.start_run(job_id, model="test")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec")
+        db.finish_step(
+            step_id,
+            status="completed",
+            output_data={
+                "success": True,
+                "command": "ls /tmp/tools/build-tool /usr/bin/make",
+                "stdout": (
+                    "ls: cannot access '/tmp/tools/build-tool': No such file or directory\n"
+                    "/usr/bin/make\n"
+                    "This shell probe checked candidate executable paths before the build step.\n"
+                ),
+                "stderr": "",
+            },
+        )
+        db.finish_run(run_id, "completed")
+
+        blocked = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(
+                        name="record_experiment",
+                        arguments={
+                            "title": "Build tool path verification",
+                            "status": "measured",
+                            "metric_name": "build_prerequisites",
+                            "metric_value": 2,
+                            "metric_unit": "items",
+                            "result": "Found build tool at /tmp/tools/build-tool and make at /usr/bin/make. Build prerequisites are verified.",
+                        },
+                    )
+                ])
+            ]),
+        )
+
+        assert blocked.status == "blocked"
+        assert blocked.result["error"] == "evidence grounding required"
+        grounding = blocked.result["evidence_grounding"]
+        assert "/tmp/tools/build-tool" in grounding["unsupported_tokens"]
+        assert grounding["negative_path_conflicts"][0]["path"] == "/tmp/tools/build-tool"
+        assert "claims a path or executable is present" in grounding["guidance"]
+    finally:
+        db.close()
+
+
 def test_record_findings_allows_negative_file_pattern_when_evidence_is_negative(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")
