@@ -8,14 +8,14 @@ import re
 import signal
 import threading
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace as dataclass_replace
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
 from nipux_cli.artifacts import ArtifactStore
-from nipux_cli.config import AppConfig, load_config
+from nipux_cli.config import AppConfig, ModelConfig, load_config
 from nipux_cli.compression import refresh_memory_index
 from nipux_cli.context_pressure import (
     context_pressure_for_prompt,
@@ -109,6 +109,7 @@ __all__ = ["MAX_WORKER_PROMPT_CHARS", "_render_worker_prompt", "build_messages",
 
 
 TRANSIENT_MODEL_COOLDOWN_MAX_SECONDS = 3600.0
+TRANSIENT_MODEL_TIMEOUT_MAX_SECONDS = 900.0
 USAGE_PRESSURE_DEFER_BASE_SECONDS = 900.0
 USAGE_PRESSURE_DEFER_MAX_SECONDS = 3600.0
 USAGE_PRESSURE_CRITICAL_TOKENS = 20_000_000
@@ -5591,6 +5592,21 @@ def _transient_model_cooldown_streak(metadata: dict[str, Any]) -> int:
     return 0
 
 
+def _effective_model_config_for_job(config: AppConfig, job: dict[str, Any]) -> ModelConfig:
+    metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
+    streak = _transient_model_cooldown_streak(metadata)
+    if streak <= 0:
+        return config.model
+    base_timeout = max(0.0, float(config.model.request_timeout_seconds or 0.0))
+    if base_timeout <= 0:
+        return config.model
+    multiplier = min(4, 2 ** min(streak, 2))
+    timeout = min(TRANSIENT_MODEL_TIMEOUT_MAX_SECONDS, base_timeout * multiplier)
+    if timeout <= base_timeout:
+        return config.model
+    return dataclass_replace(config.model, request_timeout_seconds=timeout)
+
+
 def _reset_transient_model_cooldown_streak(db: AgentDB, job_id: str, job: dict[str, Any]) -> dict[str, Any]:
     metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
     if _transient_model_cooldown_streak(metadata) <= 0:
@@ -6615,6 +6631,7 @@ def run_one_step(
         recent_steps = db.list_steps(job_id=job_id)
         if _refresh_contradicted_negative_claims(db, job_id, job, recent_steps):
             job = db.get_job(job_id)
+        model_config = _effective_model_config_for_job(config, job)
         if _should_reflect(job, recent_steps):
             return _run_reflection_step(job, recent_steps, db=db, job_id=job_id, run_id=run_id)
         guard_recovery = _repeated_guard_block_context(recent_steps)
@@ -6627,7 +6644,7 @@ def run_one_step(
                 db=db,
                 job_id=job_id,
                 run_id=run_id,
-                timeout_seconds=config.model.request_timeout_seconds,
+                timeout_seconds=model_config.request_timeout_seconds,
             )
         active_operator_messages = _claim_operator_queue(db, job_id)
         if active_operator_messages:
@@ -6660,14 +6677,14 @@ def run_one_step(
             include_unclaimed_operator_messages=True,
             token_usage=usage,
         )
-        llm = llm or OpenAIChatLLM(config.model)
+        llm = llm or OpenAIChatLLM(model_config)
         llm_started = time.monotonic()
         try:
             response: LLMResponse = _call_next_action_with_timeout(
                 llm,
                 messages=messages,
                 tools=_registry_tools_for_step(registry, config, recent_steps, job=job),
-                timeout_seconds=config.model.request_timeout_seconds,
+                timeout_seconds=model_config.request_timeout_seconds,
             )
         except Exception as exc:
             llm_duration_seconds = round(max(0.0, time.monotonic() - llm_started), 3)
@@ -6677,7 +6694,11 @@ def run_one_step(
                 kind="llm",
                 status="failed",
                 summary=f"model call failed: {type(exc).__name__}",
-                input_data={"model": config.model.model, "duration_seconds": llm_duration_seconds},
+                input_data={
+                    "model": config.model.model,
+                    "duration_seconds": llm_duration_seconds,
+                    "request_timeout_seconds": model_config.request_timeout_seconds,
+                },
             )
             result = _error_result(exc)
             result["duration_seconds"] = llm_duration_seconds
@@ -6731,7 +6752,7 @@ def run_one_step(
                     llm,
                     messages=repair_messages,
                     tools=_registry_tools_for_step(registry, config, recent_steps, job=job),
-                    timeout_seconds=config.model.request_timeout_seconds,
+                    timeout_seconds=model_config.request_timeout_seconds,
                 )
             except Exception as exc:
                 tool_repair_error = _error_result(exc)

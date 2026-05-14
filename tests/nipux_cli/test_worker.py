@@ -95,6 +95,18 @@ class HangingLLM:
         return LLMResponse(tool_calls=[ToolCall(name="report_update", arguments={"message": "late"})])
 
 
+class SlowLLM:
+    def __init__(self, sleep_seconds: float):
+        self.sleep_seconds = sleep_seconds
+
+    def next_action(self, *, messages, tools):
+        del messages, tools
+        import time
+
+        time.sleep(self.sleep_seconds)
+        return LLMResponse(tool_calls=[ToolCall(name="report_update", arguments={"message": "slow but recovered"})])
+
+
 class RepairableLLM:
     tool_repair = True
 
@@ -2121,6 +2133,27 @@ def test_repeated_transient_model_cooldowns_back_off_progressively(tmp_path):
         assert result.result["cooldown_seconds"] >= 700
         job = db.get_job(job_id)
         assert job["metadata"]["transient_model_cooldown_streak"] == 3
+    finally:
+        db.close()
+
+
+def test_transient_model_cooldown_expands_next_request_timeout(tmp_path):
+    config = AppConfig(
+        runtime=RuntimeConfig(home=tmp_path),
+        model=ModelConfig(request_timeout_seconds=0.2),
+    )
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Let slow provider recover", title="provider timeout adaptive")
+        db.update_job_metadata(job_id, {"transient_model_cooldown_streak": 1})
+
+        result = run_one_step(job_id, config=config, db=db, llm=SlowLLM(0.3))
+
+        assert result.status == "completed"
+        assert result.tool_name == "report_update"
+        job = db.get_job(job_id)
+        assert job["metadata"]["transient_model_cooldown_streak"] == 0
+        assert job["metadata"]["transient_model_recovered_at"]
     finally:
         db.close()
 
