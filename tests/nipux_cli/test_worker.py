@@ -3158,6 +3158,67 @@ def test_record_findings_allows_negative_file_pattern_when_evidence_is_negative(
         db.close()
 
 
+def test_run_one_step_marks_contradicted_negative_finding_stale(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Keep durable findings aligned with fresh evidence", title="stale-finding", kind="generic")
+        db.append_finding_record(
+            job_id,
+            name="No .foo files found",
+            category="environment_baseline",
+            reason="Shell search found zero .foo files anywhere in the checked filesystem.",
+            status="confirmed",
+        )
+        run_id = db.start_run(job_id, model="test")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec")
+        db.finish_step(
+            step_id,
+            status="completed",
+            output_data={
+                "success": True,
+                "stdout": (
+                    "discovery results from current filesystem scan:\n"
+                    "/srv/data/WidgetModel-99-Q4.foo\n"
+                    "/var/cache/other-file.foo\n"
+                ),
+            },
+        )
+        db.finish_run(run_id, "completed")
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(
+                        name="record_lesson",
+                        arguments={
+                            "category": "strategy",
+                            "lesson": "Fresh file-discovery evidence should override older absence claims.",
+                        },
+                    )
+                ])
+            ]),
+        )
+
+        assert result.status == "completed"
+        job = db.get_job(job_id)
+        stale_records = job["metadata"].get("stale_negative_records")
+        assert isinstance(stale_records, list)
+        assert stale_records[0]["kind"] == "finding"
+        assert stale_records[0]["token"] == ".foo"
+
+        from nipux_cli.worker_prompt_context import _ledgers_for_prompt
+
+        ledgers = _ledgers_for_prompt(job)
+        assert "Contradicted negative findings suppressed" in ledgers
+        assert "Suppressed 1 stale finding" in ledgers
+    finally:
+        db.close()
+
+
 def test_record_lesson_allows_generic_strategy_without_concrete_facts(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

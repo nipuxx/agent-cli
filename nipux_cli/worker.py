@@ -1544,6 +1544,102 @@ def _evidence_grounding_context(
     }
 
 
+def _refresh_contradicted_negative_claims(
+    db: AgentDB,
+    job_id: str,
+    job: dict[str, Any],
+    recent_steps: list[dict[str, Any]],
+) -> int:
+    fresh_evidence_text = _recent_evidence_text(
+        job,
+        recent_steps,
+        window=8,
+        include_durable=False,
+        include_job_context=False,
+    )
+    if len(fresh_evidence_text.strip()) < 80:
+        return 0
+    metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
+    existing = metadata.get("stale_negative_records") if isinstance(metadata.get("stale_negative_records"), list) else []
+    seen = {
+        (
+            str(item.get("kind") or ""),
+            str(item.get("record_id") or ""),
+            str(item.get("token") or "").lower(),
+        )
+        for item in existing
+        if isinstance(item, dict)
+    }
+    now = datetime.now(timezone.utc).isoformat()
+    new_records: list[dict[str, Any]] = []
+    for kind, records in (
+        ("finding", _metadata_list(job, "finding_ledger")),
+        ("lesson", _metadata_list(job, "lessons")),
+    ):
+        for record in records[-80:]:
+            if not isinstance(record, dict):
+                continue
+            record_text = _negative_record_text(kind, record)
+            if not record_text:
+                continue
+            conflicts = _negative_claim_conflicts_for_grounding(
+                tool_name="record_findings",
+                proposed_text=record_text,
+                fresh_evidence_text=fresh_evidence_text,
+                tokens=_concrete_evidence_tokens(record_text),
+            )
+            if not conflicts:
+                continue
+            record_id = _negative_record_id(kind, record)
+            for conflict in conflicts[:4]:
+                token = str(conflict.get("token") or "")
+                key = (kind, record_id, token.lower())
+                if key in seen:
+                    continue
+                seen.add(key)
+                new_records.append({
+                    "kind": kind,
+                    "record_id": record_id,
+                    "title": _negative_record_title(kind, record),
+                    "token": token,
+                    "evidence": conflict.get("evidence") or "",
+                    "observed_at": now,
+                })
+    if not new_records:
+        return 0
+    db.update_job_metadata(job_id, {"stale_negative_records": (existing + new_records)[-120:]})
+    db.append_agent_update(
+        job_id,
+        f"Suppressed {len(new_records)} contradicted negative durable claim(s) after fresh evidence.",
+        category="memory",
+        metadata={"stale_negative_records": new_records[:12]},
+    )
+    return len(new_records)
+
+
+def _negative_record_text(kind: str, record: dict[str, Any]) -> str:
+    if kind == "lesson":
+        return str(record.get("lesson") or "")
+    return " ".join(
+        str(record.get(key) or "")
+        for key in ("name", "category", "reason", "status", "source_url", "url")
+    )
+
+
+def _negative_record_id(kind: str, record: dict[str, Any]) -> str:
+    for key in ("key", "event_id", "id"):
+        value = str(record.get(key) or "").strip()
+        if value:
+            return value
+    return _normalize_claim_text(f"{kind}:{_negative_record_title(kind, record)}")[:120]
+
+
+def _negative_record_title(kind: str, record: dict[str, Any]) -> str:
+    if kind == "lesson":
+        return _clip_text(str(record.get("lesson") or "lesson"), 120)
+    return str(record.get("name") or record.get("title") or "finding")
+
+
 def _negative_claim_conflicts_for_grounding(
     *,
     tool_name: str,
@@ -4680,6 +4776,8 @@ def run_one_step(
         run_id = db.start_run(job_id, model=config.model.model)
         _emit_loop_start(db, job_id, run_id)
         recent_steps = db.list_steps(job_id=job_id)
+        if _refresh_contradicted_negative_claims(db, job_id, job, recent_steps):
+            job = db.get_job(job_id)
         if _should_reflect(job, recent_steps):
             return _run_reflection_step(job, recent_steps, db=db, job_id=job_id, run_id=run_id)
         guard_recovery = _repeated_guard_block_context(recent_steps)

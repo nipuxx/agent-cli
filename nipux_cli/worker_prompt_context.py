@@ -187,12 +187,14 @@ def _lessons_for_prompt(job: dict[str, Any]) -> str:
         return "No durable lessons yet."
     reference_text = " ".join(str(job.get(key) or "") for key in ("title", "objective", "kind"))
     positive_lines = _positive_durable_lines_for_lesson_conflicts(metadata)
+    stale_lesson_ids = _stale_negative_record_ids(metadata, kind="lesson")
     lines = []
     for entry in lessons[-5:]:
         if not isinstance(entry, dict):
             continue
         category = str(entry.get("category") or "memory")
         raw_lesson = str(entry.get("lesson") or "")
+        record_id = _record_id_for_staleness(entry)
         conflicting_tokens = _negative_lesson_conflict_tokens(raw_lesson, positive_lines)
         if conflicting_tokens:
             lesson = (
@@ -200,6 +202,8 @@ def _lessons_for_prompt(job: dict[str, Any]) -> str:
                 + ", ".join(conflicting_tokens[:6])
                 + ". Re-verify against fresh evidence before using this claim."
             )
+        elif record_id in stale_lesson_ids:
+            lesson = "Potentially stale negative lesson suppressed after fresh contradictory evidence. Re-verify before using this claim."
         else:
             lesson = _lesson_prompt_text(raw_lesson, reference_text=reference_text)
         if lesson:
@@ -498,7 +502,13 @@ def _ledgers_for_prompt(job: dict[str, Any]) -> str:
         metadata,
         reference_text=" ".join(str(job.get(key) or "") for key in ("title", "objective", "kind")),
     )
-    stale_findings = [finding for finding in findings if _record_contains_stale_token(finding, stale_tokens)]
+    stale_record_ids = _stale_negative_record_ids(metadata, kind="finding")
+    stale_findings = [
+        finding
+        for finding in findings
+        if _record_contains_stale_token(finding, stale_tokens)
+        or _record_id_for_staleness(finding) in stale_record_ids
+    ]
     active_findings = [finding for finding in findings if finding not in stale_findings]
     lines = [
         f"Finding ledger: {len(findings)} unique candidates.",
@@ -524,6 +534,17 @@ def _ledgers_for_prompt(job: dict[str, Any]) -> str:
             f"Suppressed {len(stale_findings)} stale finding(s) matching unsupported tokens; "
             "do not use them as facts until observed again."
         )
+    stale_negative_records = _stale_negative_records_for_prompt(metadata, kind="finding")
+    if stale_negative_records:
+        lines.append("Contradicted negative findings suppressed:")
+        for record in stale_negative_records[-4:]:
+            lines.append(
+                "- "
+                + _clip_text(
+                    f"{record.get('title') or 'finding'} token={record.get('token') or ''} evidence={record.get('evidence') or ''}",
+                    360,
+                )
+            )
     if sources:
         usable_sources = [
             source
@@ -682,6 +703,34 @@ def _record_contains_stale_token(record: dict[str, Any], stale_tokens: list[str]
         if re.search(pattern, text, flags=re.IGNORECASE):
             return True
     return False
+
+
+def _stale_negative_records_for_prompt(metadata: dict[str, Any], *, kind: str) -> list[dict[str, Any]]:
+    records = metadata.get("stale_negative_records")
+    if not isinstance(records, list):
+        return []
+    return [
+        record
+        for record in records
+        if isinstance(record, dict) and str(record.get("kind") or "") == kind
+    ]
+
+
+def _stale_negative_record_ids(metadata: dict[str, Any], *, kind: str) -> set[str]:
+    ids: set[str] = set()
+    for record in _stale_negative_records_for_prompt(metadata, kind=kind):
+        record_id = str(record.get("record_id") or "").strip()
+        if record_id:
+            ids.add(record_id)
+    return ids
+
+
+def _record_id_for_staleness(record: dict[str, Any]) -> str:
+    for key in ("key", "event_id", "id"):
+        value = str(record.get(key) or "").strip()
+        if value:
+            return value
+    return _normalize_claim_text(str(record.get("name") or record.get("title") or ""))[:120]
 
 
 def _experiments_for_prompt(job: dict[str, Any]) -> str:
