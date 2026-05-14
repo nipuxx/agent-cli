@@ -1474,7 +1474,8 @@ def test_already_read_checkpoint_branch_block_recovers_immediately(tmp_path):
 
 def test_evidence_grounding_ignores_format_protocol_tokens():
     tokens = _concrete_evidence_tokens(
-        "Parsed JSON from HTTPS REST API URL and saved HTML/YAML/XML CDN SHA256 GGUF excerpts for Model-7B step_123_shell_output."
+        "Parsed JSON from HTTPS REST API URL and saved HTML/YAML/XML CDN SHA256 GGUF excerpts for Model-7B step_123_shell_output. "
+        "Download investigation parsed direct API results."
     )
 
     assert "JSON" not in tokens
@@ -1485,6 +1486,9 @@ def test_evidence_grounding_ignores_format_protocol_tokens():
     assert "SHA256" not in tokens
     assert "GGUF" not in tokens
     assert "URL" not in tokens
+    assert "Download" not in tokens
+    assert "investigation" not in tokens
+    assert "direct" not in tokens
     assert "step_123_shell_output" not in tokens
     assert "Model-7B" in tokens
 
