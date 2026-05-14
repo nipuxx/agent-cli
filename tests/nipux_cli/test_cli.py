@@ -3397,7 +3397,7 @@ def test_chat_status_marks_provider_blocked_jobs_before_daemon_retry():
 
     frame = _build_chat_frame(snapshot, "", [], width=132, height=30, right_view="status")
 
-    assert "blocked" in frame
+    assert "provider wait" in frame
     assert "Provider" in frame
     assert "action needed" in frame
     assert "advancing" not in frame

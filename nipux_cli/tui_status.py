@@ -36,7 +36,7 @@ from nipux_cli.tui_style import (
 def worker_label(job: dict[str, Any], daemon_running: bool) -> str:
     status = str(job.get("status") or "")
     if job_provider_blocked(job):
-        return "blocked"
+        return "provider wait"
     if status == "planning":
         return "waiting"
     if status in {"paused", "completed", "cancelled", "failed"}:
@@ -49,7 +49,7 @@ def worker_label(job: dict[str, Any], daemon_running: bool) -> str:
 def job_display_state(job: dict[str, Any], daemon_running: bool) -> str:
     status = str(job.get("status") or "")
     if job_provider_blocked(job):
-        return "blocked"
+        return "provider wait"
     if status in {"running", "queued"}:
         if job_deferred_until(job):
             return "waiting"
