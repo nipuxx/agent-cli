@@ -1743,6 +1743,8 @@ STALE_CLAIM_TOKEN_IGNORE = {
     "yml",
 }
 NEGATIVE_EXISTENCE_MARKERS = (
+    "0 files",
+    "0 results",
     "cannot access",
     "does not exist",
     "failed to find",
@@ -1780,6 +1782,8 @@ NEGATIVE_ROLE_CLASSIFICATION_MARKERS = (
     "support files",
 )
 EVIDENCE_NEGATIVE_LINE_MARKERS = (
+    "0 files",
+    "0 results",
     "cannot access",
     "denied",
     "does not exist",
@@ -2062,6 +2066,15 @@ def _refresh_contradicted_negative_claims(
     for kind, records in (
         ("finding", _metadata_list(job, "finding_ledger")),
         ("lesson", _metadata_list(job, "lessons")),
+        (
+            "memory_node",
+            (
+                metadata.get("memory_graph", {}).get("nodes", [])
+                if isinstance(metadata.get("memory_graph"), dict)
+                and isinstance(metadata.get("memory_graph", {}).get("nodes"), list)
+                else []
+            ),
+        ),
     ):
         for record in records[-80:]:
             if not isinstance(record, dict):
@@ -2107,6 +2120,11 @@ def _refresh_contradicted_negative_claims(
 def _negative_record_text(kind: str, record: dict[str, Any]) -> str:
     if kind == "lesson":
         return str(record.get("lesson") or "")
+    if kind == "memory_node":
+        return " ".join(
+            str(record.get(key) or "")
+            for key in ("key", "title", "kind", "status", "summary")
+        )
     return " ".join(
         str(record.get(key) or "")
         for key in ("name", "category", "reason", "status", "source_url", "url")

@@ -3931,6 +3931,75 @@ def test_run_one_step_marks_contradicted_negative_finding_stale(tmp_path):
         db.close()
 
 
+def test_run_one_step_marks_contradicted_negative_memory_node_stale(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Keep memory aligned with fresh evidence", title="stale-memory", kind="generic")
+        db.append_memory_graph_records(
+            job_id,
+            nodes=[
+                {
+                    "key": "fact-no-local-foo",
+                    "title": "No local foo files",
+                    "kind": "fact",
+                    "status": "active",
+                    "summary": "Filesystem searches for *.foo files return 0 results.",
+                },
+                {
+                    "key": "current-branch",
+                    "title": "Current branch",
+                    "kind": "strategy",
+                    "status": "active",
+                    "summary": "Use fresh shell evidence before recording durable claims.",
+                },
+            ],
+        )
+        run_id = db.start_run(job_id, model="test")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec")
+        db.finish_step(
+            step_id,
+            status="completed",
+            output_data={
+                "success": True,
+                "stdout": (
+                    "Fresh filesystem discovery found an exact candidate path with enough surrounding context "
+                    "to count as evidence: /srv/data/WidgetModel-99-Q4.foo\n"
+                ),
+            },
+        )
+        db.finish_run(run_id, "completed")
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(
+                        name="record_lesson",
+                        arguments={
+                            "category": "strategy",
+                            "lesson": "Fresh file evidence overrides stale absence memory.",
+                        },
+                    )
+                ])
+            ]),
+        )
+
+        assert result.status == "completed"
+        job = db.get_job(job_id)
+        stale_records = job["metadata"].get("stale_negative_records")
+        assert any(record["kind"] == "memory_node" and record["record_id"] == "fact-no-local-foo" for record in stale_records)
+
+        content = build_messages(job, db.list_steps(job_id=job_id))[-1]["content"]
+        assert "Suppressed 1 stale memory node" in content
+        assert "No local foo files" not in content
+        assert "Current branch" in content
+    finally:
+        db.close()
+
+
 def test_record_lesson_allows_generic_strategy_without_concrete_facts(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

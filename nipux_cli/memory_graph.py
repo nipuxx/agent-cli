@@ -42,8 +42,18 @@ def memory_graph_from_job(job: dict[str, Any]) -> dict[str, Any]:
 
 def memory_graph_for_prompt(job: dict[str, Any], *, limit: int = 10, stale_tokens: list[str] | None = None) -> str:
     graph = memory_graph_from_job(job)
+    metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
     stale_tokens = [str(token) for token in stale_tokens or [] if str(token).strip()]
-    stale_nodes = [node for node in graph["nodes"] if _node_contains_stale_token(node, stale_tokens)]
+    stale_node_ids = {
+        str(record.get("record_id") or "")
+        for record in metadata.get("stale_negative_records", [])
+        if isinstance(record, dict) and str(record.get("kind") or "") == "memory_node"
+    } if isinstance(metadata.get("stale_negative_records"), list) else set()
+    stale_nodes = [
+        node
+        for node in graph["nodes"]
+        if _node_contains_stale_token(node, stale_tokens) or _node_has_stale_id(node, stale_node_ids)
+    ]
     active_nodes = [node for node in graph["nodes"] if node not in stale_nodes]
     nodes = rank_memory_nodes(active_nodes, limit=limit)
     durable_count = _durable_signal_count(job)
@@ -112,6 +122,16 @@ def _node_contains_stale_token(node: dict[str, Any], stale_tokens: list[str]) ->
     for token in stale_tokens:
         pattern = r"(?<![A-Za-z0-9])" + re.escape(token) + r"(?![A-Za-z0-9])"
         if re.search(pattern, text, flags=re.IGNORECASE):
+            return True
+    return False
+
+
+def _node_has_stale_id(node: dict[str, Any], stale_node_ids: set[str]) -> bool:
+    if not stale_node_ids:
+        return False
+    for key in ("key", "event_id", "id"):
+        value = str(node.get(key) or "").strip()
+        if value and value in stale_node_ids:
             return True
     return False
 
