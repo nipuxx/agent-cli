@@ -63,11 +63,21 @@ class OpenAIChatLLM:
         )
 
     def next_action(self, *, messages: list[dict[str, Any]], tools: list[dict[str, Any]]) -> LLMResponse:
-        response = self._openai.chat.completions.create(
-            model=self.config.model,
-            messages=messages,
-            tools=tools,
-        )
+        request: dict[str, Any] = {
+            "model": self.config.model,
+            "messages": messages,
+            "tools": tools,
+        }
+        if tools:
+            request["tool_choice"] = "required"
+        try:
+            response = self._openai.chat.completions.create(**request)
+        except Exception as exc:
+            if "tool_choice" not in request or not _is_unsupported_tool_choice_error(exc):
+                raise
+            fallback_request = dict(request)
+            fallback_request.pop("tool_choice", None)
+            response = self._openai.chat.completions.create(**fallback_request)
         choices = response.choices or []
         if not choices:
             payload = _response_payload(response)
@@ -243,6 +253,21 @@ def _safe_int(value: Any) -> int | None:
         return int(float(value))
     except (TypeError, ValueError):
         return None
+
+
+def _is_unsupported_tool_choice_error(exc: Exception) -> bool:
+    text = f"{type(exc).__name__} {exc}".lower()
+    return "tool_choice" in text and any(
+        marker in text
+        for marker in (
+            "unsupported",
+            "unknown parameter",
+            "unrecognized",
+            "not supported",
+            "invalid_request",
+            "extra inputs are not permitted",
+        )
+    )
 
 
 def _estimate_token_count(text: str) -> int:
