@@ -6195,6 +6195,38 @@ def test_delivery_experiment_next_action_blocks_read_only_shell(tmp_path):
         db.close()
 
 
+def test_delivery_experiment_next_action_allows_bounded_verification_shell(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Improve a generic runtime", title="runtime", kind="generic")
+        db.update_job_metadata(job_id, {
+            "experiment_ledger": [{
+                "title": "runtime gap",
+                "status": "measured",
+                "metric_name": "valid_files",
+                "metric_value": 1,
+                "metric_unit": "files",
+                "next_action": "build runner binary then run benchmark with validated file",
+            }],
+        })
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([LLMResponse(tool_calls=[
+                ToolCall(name="shell_exec", arguments={"command": "ls build/bin/runner 2>/dev/null || command -v runner"})
+            ])]),
+            registry=SuccessRegistry(),
+        )
+
+        assert result.status == "completed"
+        assert result.tool_name == "shell_exec"
+    finally:
+        db.close()
+
+
 def test_delivery_experiment_next_action_allows_write_shell(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

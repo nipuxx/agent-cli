@@ -121,6 +121,23 @@ class StepExecution:
     result: dict[str, Any]
 
 
+EXPERIMENT_NEXT_ACTION_VERIFY_SHELL_PATTERN = re.compile(
+    r"(?is)^\s*(?:command\s+-v\b|which\b|type\b|test\b|ls\b|find\b|stat\b|file\b)"
+)
+EXPERIMENT_NEXT_ACTION_VERIFY_STOPWORDS = {
+    "action",
+    "after",
+    "before",
+    "from",
+    "into",
+    "next",
+    "real",
+    "then",
+    "using",
+    "with",
+}
+
+
 def build_messages(
     job: dict[str, Any],
     recent_steps: list[dict[str, Any]],
@@ -1152,6 +1169,37 @@ def _shell_command_looks_read_only(command: str) -> bool:
         mutating_flags = r"\b-X\s*(?:POST|PUT|PATCH|DELETE)\b|--request\s+(?:POST|PUT|PATCH|DELETE)\b|(?:^|\s)(?:-d|--data|--form|-F|-T|--upload-file)\b"
         return not bool(re.search(mutating_flags, text))
     return False
+
+
+def _shell_command_supports_experiment_next_action(command: str, context: dict[str, Any] | None) -> bool:
+    if not context:
+        return False
+    text = command.strip()
+    if not text or not EXPERIMENT_NEXT_ACTION_VERIFY_SHELL_PATTERN.search(text):
+        return False
+    next_action = str(context.get("next_action") or "")
+    if not next_action.strip():
+        return False
+    action_tokens = _substantive_next_action_tokens(next_action)
+    if not action_tokens:
+        return False
+    command_tokens = _substantive_next_action_tokens(text)
+    return bool(action_tokens & command_tokens)
+
+
+def _substantive_next_action_tokens(text: str) -> set[str]:
+    tokens = set()
+    for token in re.findall(r"[a-z0-9][a-z0-9_.-]{2,}", text.lower()):
+        token = token.strip("._-")
+        if len(token) < 3:
+            continue
+        if token in TEXT_TOKEN_STOPWORDS or token in EXPERIMENT_NEXT_ACTION_VERIFY_STOPWORDS:
+            continue
+        tokens.add(token)
+        for part in re.split(r"[._/-]+", token):
+            if len(part) >= 3 and part not in TEXT_TOKEN_STOPWORDS and part not in EXPERIMENT_NEXT_ACTION_VERIFY_STOPWORDS:
+                tokens.add(part)
+    return tokens
 
 
 def _roadmap_staleness_context(job: dict[str, Any], recent_steps: list[dict[str, Any]]) -> dict[str, Any] | None:
@@ -4063,6 +4111,7 @@ def _blocked_tool_call_result(
             or (
                 name == "shell_exec"
                 and _shell_command_looks_read_only(str(args.get("command") or ""))
+                and not _shell_command_supports_experiment_next_action(str(args.get("command") or ""), experiment_next_action)
             )
         )
     ):
