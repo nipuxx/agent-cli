@@ -73,6 +73,7 @@ from nipux_cli.worker_policy import (
     REFLECTION_INTERVAL_STEPS,
     RESEARCH_BALANCE_BLOCKED_TOOLS,
     ROADMAP_STALENESS_BLOCKED_TOOLS,
+    SOURCE_YIELD_BLOCKED_TOOLS,
     SYSTEM_PROMPT,
     TASK_DELIVERABLE_ACTION_TERMS,
     TASK_PLANNING_STAGNATION_CHECKPOINTS,
@@ -122,6 +123,8 @@ LESSON_SPRAWL_MIN_LESSONS = 30
 LESSON_SPRAWL_RECENT_LESSONS = 3
 EXPERIMENT_STAGNATION_MIN_TRIALS = 6
 EXPERIMENT_STAGNATION_NON_IMPROVING = 4
+SOURCE_YIELD_MIN_SOURCES = 12
+SOURCE_YIELD_MIN_RECENT_GATHERING = 5
 
 
 @dataclass(frozen=True)
@@ -209,6 +212,7 @@ def build_messages(
     measured_progress_guard = _measured_progress_guard_for_prompt(job, recent_steps)
     experiment_stagnation_guard = _experiment_stagnation_guard_for_prompt(job, recent_steps)
     research_balance_guard = _research_balance_guard_for_prompt(job, recent_steps)
+    source_yield_guard = _source_yield_guard_for_prompt(job, recent_steps)
     deliverable_progress_guard = _deliverable_progress_guard_for_prompt(job, recent_steps)
     progress_accounting_guard = _progress_accounting_for_prompt(recent_steps)
     evidence_checkpoint_guard = _evidence_checkpoint_accounting_for_prompt(job, recent_steps)
@@ -251,6 +255,7 @@ def build_messages(
             ("Measured progress guard", measured_progress_guard),
             ("Experiment stagnation guard", experiment_stagnation_guard),
             ("Research balance guard", research_balance_guard),
+            ("Source yield guard", source_yield_guard),
             ("Deliverable progress guard", deliverable_progress_guard),
             ("Progress accounting guard", progress_accounting_guard),
             ("Evidence checkpoint accounting guard", evidence_checkpoint_guard),
@@ -1081,6 +1086,21 @@ def _research_balance_guard_for_prompt(job: dict[str, Any], recent_steps: list[d
         "Before another deep execution/testing loop, use available research, browser, source, documentation, or local-inspection tools "
         "to gather evidence and record it with record_source, record_findings, record_lesson, record_tasks, or an artifact. "
         "If external research is not relevant or tools are unavailable, explicitly record why and what evidence substitutes for it."
+    )
+
+
+def _source_yield_guard_for_prompt(job: dict[str, Any], recent_steps: list[dict[str, Any]]) -> str:
+    context = _source_yield_context(job, recent_steps)
+    if not context:
+        return "None."
+    return (
+        "Many sources have been gathered without enough durable synthesis. "
+        f"sources={context.get('sources')} findings={context.get('findings')} "
+        f"yielded_sources={context.get('yielded_sources')} recent_gathering={context.get('recent_gathering')} "
+        f"recent_source_titles={'; '.join(str(title) for title in context.get('recent_source_titles', [])[:4])}. "
+        "Before more search, extraction, browsing, shell work, file/output writing, or report chatter, distill the "
+        "source set into record_findings with evidence, update record_source with yield/fail outcomes, or update "
+        "tasks/roadmap/lessons to reject or pivot the low-yield source branch."
     )
 
 
@@ -3870,6 +3890,65 @@ def _research_balance_context(
     }
 
 
+def _source_yield_context(job: dict[str, Any], recent_steps: list[dict[str, Any]]) -> dict[str, Any] | None:
+    sources = _metadata_list(job, "source_ledger")
+    source_count = len(sources)
+    if source_count < SOURCE_YIELD_MIN_SOURCES:
+        return None
+    findings = _metadata_list(job, "finding_ledger")
+    yielded_sources = [
+        source
+        for source in sources
+        if _as_int(source.get("yield_count")) > 0
+        or _as_float(source.get("usefulness_score")) >= 0.8
+    ]
+    required_yield = max(2, source_count // 8)
+    if len(findings) + len(yielded_sources) >= required_yield:
+        return None
+    completed = [step for step in recent_steps if step.get("status") == "completed"]
+    last_synthesis_no = 0
+    for step in completed:
+        if step.get("tool_name") in {
+            "record_findings",
+            "record_source",
+            "record_tasks",
+            "record_roadmap",
+            "record_milestone_validation",
+            "record_lesson",
+        }:
+            last_synthesis_no = max(last_synthesis_no, _as_int(step.get("step_no")))
+    gathering_after_synthesis = [
+        step
+        for step in completed
+        if _as_int(step.get("step_no")) > last_synthesis_no
+        and step.get("tool_name") in {
+            "web_search",
+            "web_extract",
+            "browser_navigate",
+            "browser_snapshot",
+            "browser_click",
+            "browser_scroll",
+        }
+    ]
+    recent_gathering = gathering_after_synthesis[-24:]
+    if len(recent_gathering) < SOURCE_YIELD_MIN_RECENT_GATHERING:
+        return None
+    recent_source_titles = [
+        str(source.get("source") or source.get("title") or "").strip()
+        for source in sources[-8:]
+        if str(source.get("source") or source.get("title") or "").strip()
+    ]
+    return {
+        "sources": source_count,
+        "findings": len(findings),
+        "yielded_sources": len(yielded_sources),
+        "required_yield": required_yield,
+        "recent_gathering": len(recent_gathering),
+        "since_step": recent_gathering[0].get("step_no") if recent_gathering else None,
+        "recent_source_titles": recent_source_titles,
+    }
+
+
 def _artifact_accounting_context(
     recent_steps: list[dict[str, Any]],
     *,
@@ -4885,6 +4964,7 @@ def _blocked_tool_call_result(
     measured_progress_guard = _measured_progress_guard_context(job, recent_steps)
     experiment_stagnation = _experiment_stagnation_context(job, recent_steps)
     deliverable_progress_guard = _deliverable_progress_guard_context(job, recent_steps)
+    source_yield = _source_yield_context(job, recent_steps)
     progress_churn = _progress_churn_context(recent_steps)
     artifact_accounting = _artifact_accounting_context(recent_steps)
     activity_stagnation = _activity_stagnation_context(job)
@@ -4956,6 +5036,22 @@ def _blocked_tool_call_result(
             ),
         }
         return result, f"blocked {name}; durable progress required after activity-only checkpoints"
+
+    if source_yield and name in SOURCE_YIELD_BLOCKED_TOOLS:
+        result = {
+            "success": False,
+            "error": "source yield accounting required",
+            "blocked_tool": name,
+            "blocked_arguments": args,
+            "source_yield": source_yield,
+            "guidance": (
+                "The job has gathered enough sources without enough durable findings or yielded source outcomes. "
+                "Before more search, extraction, browsing, shell execution, file/output work, or report chatter, "
+                "use record_findings to save source-backed facts/candidates, record_source to mark source yield "
+                "or low-yield outcomes, or update tasks/roadmap/lessons to pivot from the source branch."
+            ),
+        }
+        return result, f"blocked {name}; source yield accounting required"
 
     if memory_consolidation and name in MEMORY_CONSOLIDATION_BLOCKED_TOOLS:
         result = {

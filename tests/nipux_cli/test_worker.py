@@ -4094,6 +4094,207 @@ def test_prompt_research_balance_guard_clears_when_sources_exist():
     assert "Recent work is execution-heavy" not in content
 
 
+def _source_yield_metadata(source_count: int = 16, finding_count: int = 1, *, include_memory_graph: bool = True) -> dict:
+    metadata = {
+        "source_ledger": [
+            {
+                "source": f"https://source.example/{index}",
+                "source_type": "web_extract",
+                "usefulness_score": 0.55,
+                "yield_count": 0,
+                "last_outcome": "extracted source text for possible use",
+            }
+            for index in range(source_count)
+        ],
+        "finding_ledger": [
+            {
+                "name": f"Finding {index}",
+                "source_url": f"https://source.example/{index}",
+            }
+            for index in range(finding_count)
+        ],
+    }
+    if include_memory_graph:
+        metadata["memory_graph"] = {
+            "nodes": [
+                {"key": f"source-node-{index}", "kind": "source", "title": f"Source set {index}"}
+                for index in range(4)
+            ],
+            "edges": [
+                {"from": "source-node-0", "to": "source-node-1", "kind": "supports"},
+                {"from": "source-node-1", "to": "source-node-2", "kind": "supports"},
+                {"from": "source-node-2", "to": "source-node-3", "kind": "supports"},
+            ],
+        }
+    return metadata
+
+
+def _source_gathering_steps(count: int = 6) -> list[dict]:
+    return [
+        {
+            "step_no": index,
+            "kind": "tool",
+            "tool_name": "web_extract" if index % 2 else "web_search",
+            "status": "completed",
+            "input": {"arguments": {"query": f"source branch {index}"}},
+        }
+        for index in range(1, count + 1)
+    ]
+
+
+def test_prompt_adds_source_yield_guard_when_sources_are_not_synthesized():
+    job = {
+        "title": "source-heavy job",
+        "kind": "generic",
+        "objective": "research and produce durable conclusions",
+        "metadata": _source_yield_metadata(),
+    }
+
+    content = build_messages(job, _source_gathering_steps())[-1]["content"]
+
+    assert "Source yield guard:" in content
+    assert "Many sources have been gathered" in content
+    assert "sources=16" in content
+    assert "findings=1" in content
+    assert "record_findings" in content
+
+
+def test_prompt_source_yield_guard_clears_when_findings_cover_sources():
+    job = {
+        "title": "source-heavy job",
+        "kind": "generic",
+        "objective": "research and produce durable conclusions",
+        "metadata": _source_yield_metadata(finding_count=2),
+    }
+
+    content = build_messages(job, _source_gathering_steps())[-1]["content"]
+
+    assert "Source yield guard:" in content
+    assert "Many sources have been gathered" not in content
+
+
+def test_run_one_step_blocks_more_source_gathering_when_source_yield_is_missing(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job(
+            "Research and produce durable conclusions",
+            title="source-yield",
+            kind="generic",
+            metadata=_source_yield_metadata(),
+        )
+        run_id = db.start_run(job_id, model="test")
+        for step in _source_gathering_steps():
+            step_id = db.add_step(
+                job_id=job_id,
+                run_id=run_id,
+                kind="tool",
+                tool_name=step["tool_name"],
+                input_data=step["input"],
+            )
+            db.finish_step(step_id, status="completed", output_data={"success": True})
+        db.finish_run(run_id, "completed")
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[ToolCall(name="web_search", arguments={"query": "more sources"})])
+            ]),
+        )
+
+        assert result.status == "blocked"
+        assert result.result["error"] == "source yield accounting required"
+        assert result.result["source_yield"]["sources"] == 16
+    finally:
+        db.close()
+
+
+def test_source_yield_guard_takes_priority_over_memory_consolidation(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job(
+            "Research and produce durable conclusions",
+            title="source-yield-priority",
+            kind="generic",
+            metadata=_source_yield_metadata(include_memory_graph=False),
+        )
+        run_id = db.start_run(job_id, model="test")
+        for step in _source_gathering_steps():
+            step_id = db.add_step(
+                job_id=job_id,
+                run_id=run_id,
+                kind="tool",
+                tool_name=step["tool_name"],
+                input_data=step["input"],
+            )
+            db.finish_step(step_id, status="completed", output_data={"success": True})
+        db.finish_run(run_id, "completed")
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[ToolCall(name="web_extract", arguments={"urls": ["https://source.example/new"]})])
+            ]),
+        )
+
+        assert result.status == "blocked"
+        assert result.result["error"] == "source yield accounting required"
+    finally:
+        db.close()
+
+
+def test_run_one_step_allows_source_yield_accounting(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job(
+            "Research and produce durable conclusions",
+            title="source-yield",
+            kind="generic",
+            metadata=_source_yield_metadata(),
+        )
+        run_id = db.start_run(job_id, model="test")
+        for step in _source_gathering_steps():
+            step_id = db.add_step(
+                job_id=job_id,
+                run_id=run_id,
+                kind="tool",
+                tool_name=step["tool_name"],
+                input_data=step["input"],
+            )
+            db.finish_step(step_id, status="completed", output_data={"success": True})
+        db.finish_run(run_id, "completed")
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(
+                        name="record_source",
+                        arguments={
+                            "source": "https://source.example/0",
+                            "source_type": "web_extract",
+                            "yield_count": 1,
+                            "outcome": "Source produced a durable conclusion for the active branch.",
+                        },
+                    )
+                ])
+            ]),
+        )
+
+        assert result.status == "completed"
+        assert result.tool_name == "record_source"
+    finally:
+        db.close()
+
+
 def test_run_one_step_blocks_execution_when_research_balance_is_missing(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

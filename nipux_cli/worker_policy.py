@@ -233,6 +233,12 @@ RESEARCH_BALANCE_BLOCKED_TOOLS = ARTIFACT_REVIEW_TOOLS | MEMORY_REVIEW_TOOLS | {
     "write_artifact",
     "report_update",
 }
+SOURCE_YIELD_BLOCKED_TOOLS = INFORMATION_GATHERING_TOOLS | ARTIFACT_REVIEW_TOOLS | MEMORY_REVIEW_TOOLS | {
+    "shell_exec",
+    "write_file",
+    "write_artifact",
+    "report_update",
+}
 MEASURABLE_RESEARCH_BLOCKED_TOOLS = INFORMATION_GATHERING_TOOLS | {
     "write_artifact",
     "record_findings",
@@ -266,6 +272,7 @@ RECOVERABLE_GUARD_ERRORS = {
     "action decision required",
     "similar artifact search blocked",
     "similar search query blocked",
+    "source yield accounting required",
     "task execution required",
     "task branch required before more work",
     "task queue saturated",
@@ -310,6 +317,7 @@ PROMPT_SECTION_BUDGETS = {
     "Candidate file discovery": 2_000,
     "Measured progress guard": 1_000,
     "Experiment stagnation guard": 1_000,
+    "Source yield guard": 1_000,
     "Deliverable progress guard": 1_000,
     "Progress accounting guard": 900,
     "Activity stagnation": 900,
