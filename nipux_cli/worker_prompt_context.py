@@ -185,7 +185,12 @@ def _lesson_prompt_text(lesson: str, *, reference_text: str = "") -> str:
 
 
 def _memory_graph_for_prompt(job: dict[str, Any]) -> str:
-    return memory_graph_for_prompt(job, limit=10)
+    metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
+    stale_tokens = _stale_claim_tokens_for_prompt(
+        metadata,
+        reference_text=" ".join(str(job.get(key) or "") for key in ("title", "objective", "kind")),
+    )
+    return memory_graph_for_prompt(job, limit=10, stale_tokens=stale_tokens)
 
 
 def _roadmap_for_prompt(job: dict[str, Any]) -> str:

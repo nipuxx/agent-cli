@@ -40,9 +40,12 @@ def memory_graph_from_job(job: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def memory_graph_for_prompt(job: dict[str, Any], *, limit: int = 10) -> str:
+def memory_graph_for_prompt(job: dict[str, Any], *, limit: int = 10, stale_tokens: list[str] | None = None) -> str:
     graph = memory_graph_from_job(job)
-    nodes = rank_memory_nodes(graph["nodes"], limit=limit)
+    stale_tokens = [str(token) for token in stale_tokens or [] if str(token).strip()]
+    stale_nodes = [node for node in graph["nodes"] if _node_contains_stale_token(node, stale_tokens)]
+    active_nodes = [node for node in graph["nodes"] if node not in stale_nodes]
+    nodes = rank_memory_nodes(active_nodes, limit=limit)
     durable_count = _durable_signal_count(job)
     if not nodes:
         hint = (
@@ -59,6 +62,11 @@ def memory_graph_for_prompt(job: dict[str, Any], *, limit: int = 10) -> str:
     lines = [
         f"Memory graph: nodes={len(graph['nodes'])} edges={len(graph['edges'])}",
     ]
+    if stale_nodes:
+        lines.append(
+            f"Suppressed {len(stale_nodes)} stale memory node(s) matching unsupported tokens; "
+            "do not use them as facts until observed again."
+        )
     if durable_count >= 8 and len(graph["nodes"]) < max(4, durable_count // 4):
         lines.append(
             "Consolidation pressure: durable ledgers are growing faster than the memory graph. "
@@ -87,6 +95,25 @@ def memory_graph_for_prompt(job: dict[str, Any], *, limit: int = 10) -> str:
         if related:
             lines.append("  links: " + clip_text("; ".join(related), 420))
     return "\n".join(lines)
+
+
+def _node_contains_stale_token(node: dict[str, Any], stale_tokens: list[str]) -> bool:
+    if not stale_tokens:
+        return False
+    text_parts = [
+        node.get("key"),
+        node.get("title"),
+        node.get("kind"),
+        node.get("status"),
+        node.get("summary"),
+        " ".join(_clean_string_list(node.get("tags"))),
+    ]
+    text = " ".join(str(part or "") for part in text_parts)
+    for token in stale_tokens:
+        pattern = r"(?<![A-Za-z0-9])" + re.escape(token) + r"(?![A-Za-z0-9])"
+        if re.search(pattern, text, flags=re.IGNORECASE):
+            return True
+    return False
 
 
 def search_memory_graph(graph: dict[str, Any], query: str, *, limit: int = 10) -> dict[str, Any]:

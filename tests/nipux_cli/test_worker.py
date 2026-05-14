@@ -2395,6 +2395,45 @@ def test_prompt_includes_memory_graph_slice():
     assert "art_1" in content
 
 
+def test_prompt_suppresses_memory_graph_nodes_matching_stale_claim_tokens(tmp_path):
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Prefer current durable evidence", title="stale-graph", kind="generic")
+        db.append_lesson(
+            job_id,
+            "Evidence grounding rejected unsupported concrete tokens for record_experiment: E5-2690, v3. Treat matching prior ledger claims as stale.",
+            category="mistake",
+        )
+        db.append_memory_graph_records(
+            job_id,
+            nodes=[
+                {
+                    "key": "old-hardware",
+                    "title": "Intel Xeon E5-2690 v3 baseline",
+                    "kind": "fact",
+                    "status": "stable",
+                    "summary": "Old baseline that should not enter the prompt after contradiction.",
+                },
+                {
+                    "key": "current-evidence",
+                    "title": "Current observed hardware needs verification",
+                    "kind": "fact",
+                    "status": "active",
+                    "summary": "Continue from fresh shell evidence only.",
+                },
+            ],
+        )
+
+        job = db.get_job(job_id)
+        content = build_messages(job, db.list_steps(job_id=job_id))[-1]["content"]
+
+        assert "Suppressed 1 stale memory node" in content
+        assert "Current observed hardware needs verification" in content
+        assert "Intel Xeon E5-2690 v3 baseline" not in content
+    finally:
+        db.close()
+
+
 def test_prompt_pushes_memory_graph_consolidation_when_ledgers_exist_without_nodes():
     job = {
         "title": "research",
