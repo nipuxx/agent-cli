@@ -2775,6 +2775,54 @@ def test_pending_measurement_narrows_available_tools(tmp_path):
         db.close()
 
 
+def test_resolution_tools_survive_task_saturation_suppression(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job(
+            "Improve a measurable process",
+            title="measure-tools-after-saturation",
+            kind="generic",
+            metadata={
+                "pending_measurement_obligation": {
+                    "source_step_no": 12,
+                    "tool": "shell_exec",
+                    "metric_candidates": ["2.7 tok/s"],
+                    "command": "run benchmark",
+                }
+            },
+        )
+        run_id = db.start_run(job_id, model="fake")
+        for step_no in range(2):
+            step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="record_tasks")
+            db.finish_step(
+                step_id,
+                status="blocked",
+                summary="blocked record_tasks; task queue saturated",
+                output_data={
+                    "success": False,
+                    "error": "task queue saturated",
+                    "task_queue": {"reason": "total task queue is too large", "total_count": 80 + step_no},
+                },
+            )
+        llm = CapturingLLM(
+            LLMResponse(tool_calls=[
+                ToolCall(
+                    name="record_lesson",
+                    arguments={"lesson": "Measurement is blocked until the current branch is reconciled."},
+                )
+            ])
+        )
+
+        run_one_step(job_id, config=config, db=db, llm=llm)
+
+        tool_names = {tool["function"]["name"] for tool in llm.tools}
+        assert {"record_experiment", "record_lesson", "record_tasks"}.issubset(tool_names)
+        assert "web_search" not in tool_names
+    finally:
+        db.close()
+
+
 def test_pending_evidence_checkpoint_narrows_available_tools(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")
@@ -8147,6 +8195,86 @@ def test_run_one_step_allows_milestone_validation_when_gate_is_active(tmp_path):
         assert result.tool_name == "record_milestone_validation"
         roadmap = db.get_job(job_id)["metadata"]["roadmap"]
         assert roadmap["milestones"][0]["validation_status"] == "passed"
+    finally:
+        db.close()
+
+
+def test_run_one_step_allows_matching_pending_milestone_evidence_action(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job(
+            "Validate a pending milestone",
+            title="roadmap-pending-shell",
+            metadata={
+                "roadmap": {
+                    "title": "Generic Roadmap",
+                    "status": "validating",
+                    "milestones": [{
+                        "title": "Environment baseline",
+                        "status": "validating",
+                        "validation_status": "pending",
+                        "next_action": "Validate candidate files with a shell probe.",
+                        "evidence_needed": "Shell output showing candidate file status.",
+                    }],
+                },
+            },
+        )
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[ToolCall(name="shell_exec", arguments={
+                    "command": "printf 'candidate file ok\\n'",
+                    "timeout_seconds": 5,
+                })])
+            ]),
+        )
+
+        assert result.status == "completed"
+        assert result.tool_name == "shell_exec"
+    finally:
+        db.close()
+
+
+def test_run_one_step_blocks_non_matching_pending_milestone_action(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job(
+            "Validate a pending milestone",
+            title="roadmap-pending-unrelated",
+            metadata={
+                "roadmap": {
+                    "title": "Generic Roadmap",
+                    "status": "validating",
+                    "milestones": [{
+                        "title": "Environment baseline",
+                        "status": "validating",
+                        "validation_status": "pending",
+                        "next_action": "Validate candidate files with a shell probe.",
+                        "evidence_needed": "Shell output showing candidate file status.",
+                    }],
+                },
+            },
+        )
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[ToolCall(name="web_search", arguments={
+                    "query": "unrelated topic",
+                    "limit": 5,
+                })])
+            ]),
+        )
+
+        assert result.status == "blocked"
+        assert result.result["error"] == "milestone validation required"
     finally:
         db.close()
 

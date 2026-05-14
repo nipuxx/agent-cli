@@ -1414,6 +1414,37 @@ def _milestone_validation_needed(job: dict[str, Any]) -> dict[str, Any] | None:
     return None
 
 
+def _tool_call_matches_pending_milestone_need(tool_name: str, args: dict[str, Any], milestone: dict[str, Any]) -> bool:
+    if str(milestone.get("validation_status") or "").strip().lower() != "pending":
+        return False
+    if tool_name not in BRANCH_WORK_TOOLS:
+        return False
+    parts = [
+        str(milestone.get("next_action") or ""),
+        str(milestone.get("acceptance_criteria") or ""),
+        str(milestone.get("evidence_needed") or ""),
+        str(milestone.get("validation_result") or ""),
+        " ".join(str(item) for item in milestone.get("validation_issues") or [] if item),
+    ]
+    features = milestone.get("features") if isinstance(milestone.get("features"), list) else []
+    for feature in features:
+        if not isinstance(feature, dict):
+            continue
+        parts.extend([
+            str(feature.get("title") or ""),
+            str(feature.get("goal") or ""),
+            str(feature.get("acceptance_criteria") or ""),
+            str(feature.get("evidence_needed") or ""),
+        ])
+    need_tokens = _substantive_next_action_tokens(" ".join(parts))
+    if not need_tokens:
+        return False
+    call_tokens = _substantive_next_action_tokens(_json_value_text(args))
+    if not call_tokens:
+        return False
+    return bool(need_tokens & call_tokens)
+
+
 def _latest_experiment_next_action_context(job: dict[str, Any]) -> dict[str, Any] | None:
     experiments = _metadata_list(job, "experiment_ledger")
     for experiment in reversed(experiments):
@@ -4618,7 +4649,17 @@ def _blocked_tool_call_result(
         return result, f"blocked {name}; roadmap update required"
 
     milestone_validation = _milestone_validation_needed(job)
-    if milestone_validation and not checkpoint_resolution_call and name in MILESTONE_VALIDATION_BLOCKED_TOOLS:
+    milestone_validation_action = milestone_validation and _tool_call_matches_pending_milestone_need(
+        name,
+        args,
+        milestone_validation,
+    )
+    if (
+        milestone_validation
+        and not milestone_validation_action
+        and not checkpoint_resolution_call
+        and name in MILESTONE_VALIDATION_BLOCKED_TOOLS
+    ):
         result = {
             "success": False,
             "error": "milestone validation required",
@@ -6114,6 +6155,8 @@ def _registry_tools_for_step(
     if resolution_tools:
         tools = [tool for tool in tools if _openai_tool_name(tool) in resolution_tools]
     suppressed_tools = _suppressed_tool_names(job, recent_steps)
+    if resolution_tools:
+        suppressed_tools -= resolution_tools
     if suppressed_tools:
         tools = [tool for tool in tools if _openai_tool_name(tool) not in suppressed_tools]
     if not _browser_runtime_unavailable_context(recent_steps):
