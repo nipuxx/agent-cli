@@ -899,6 +899,30 @@ def test_acknowledge_operator_context_tool_marks_context(tmp_path):
         db.close()
 
 
+def test_acknowledge_operator_context_requires_active_context(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Run without operator corrections")
+        run_id = db.start_run(job_id, model="fake")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="acknowledge_operator_context")
+        ctx = ToolContext(config=config, db=db, artifacts=ArtifactStore(tmp_path, db), job_id=job_id, run_id=run_id, step_id=step_id)
+
+        raw = DEFAULT_REGISTRY.handle(
+            "acknowledge_operator_context",
+            {"summary": "ordinary progress note"},
+            ctx,
+        )
+        result = json.loads(raw)
+
+        assert result["success"] is False
+        assert result["error"] == "no active operator context to acknowledge"
+        assert "report_update" in result["guidance"]
+        assert "last_operator_context_ack" not in db.get_job(job_id)["metadata"]
+    finally:
+        db.close()
+
+
 def test_record_tasks_accepts_generic_output_contracts(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

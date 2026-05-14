@@ -483,6 +483,14 @@ def _acknowledge_operator_context(args: dict[str, Any], ctx: ToolContext) -> str
     message_ids = [str(item) for item in raw_ids] if isinstance(raw_ids, list) else []
     summary = str(args.get("summary") or args.get("reason") or "").strip()
     status = str(args.get("status") or "acknowledged").strip().lower()
+    pending = _acknowledgeable_operator_messages(ctx.db.get_job(ctx.job_id), message_ids=message_ids)
+    if not pending:
+        return _json({
+            "success": False,
+            "error": "no active operator context to acknowledge",
+            "message_ids": message_ids,
+            "guidance": "Use acknowledge_operator_context only after incorporating claimed operator steering. Use report_update, record_lesson, record_tasks, or record_experiment for ordinary progress.",
+        })
     result = ctx.db.acknowledge_operator_messages(
         ctx.job_id,
         message_ids=message_ids,
@@ -505,6 +513,28 @@ def _acknowledge_operator_context(args: dict[str, Any], ctx: ToolContext) -> str
         },
     )
     return _json({"success": True, "job_id": ctx.job_id, **result})
+
+
+def _acknowledgeable_operator_messages(job: dict[str, Any], *, message_ids: list[str]) -> list[dict[str, Any]]:
+    metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
+    messages = metadata.get("operator_messages") if isinstance(metadata.get("operator_messages"), list) else []
+    wanted = {str(message_id).strip() for message_id in message_ids if str(message_id).strip()}
+    pending = []
+    for entry in messages:
+        if not isinstance(entry, dict):
+            continue
+        mode = str(entry.get("mode") or "steer").strip().lower().replace("-", "_")
+        if mode not in {"steer", "follow_up"}:
+            continue
+        event_id = str(entry.get("event_id") or "")
+        if wanted and event_id not in wanted:
+            continue
+        if not wanted and not entry.get("claimed_at"):
+            continue
+        if entry.get("acknowledged_at") or entry.get("superseded_at"):
+            continue
+        pending.append(entry)
+    return pending
 
 
 def _record_source(args: dict[str, Any], ctx: ToolContext) -> str:
