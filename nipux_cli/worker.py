@@ -1733,6 +1733,8 @@ def _self_defer_context(args: dict[str, Any]) -> dict[str, Any] | None:
     next_action = str(args.get("next_action") or "")
     text = f"{reason} {next_action}".lower()
     matched = next((term for term in SELF_DEFER_TERMS if term in text), "")
+    if not matched and next_action.strip() and not reason.strip():
+        matched = "missing wait reason"
     if not matched:
         return None
     return {
