@@ -527,22 +527,32 @@ def _extract_candidate_file_paths(text: str) -> list[str]:
     paths: list[str] = []
     for match in re.finditer(r"(?<![A-Za-z0-9])(?:~|/)[^\s'\"<>|;&]{2,}", text or ""):
         raw = _clean_candidate_file_path(match.group(0))
-        if not raw or "://" in raw or raw.startswith("//") or "..." in raw or "…" in raw:
-            continue
-        name = Path(raw).name
-        if "." not in name:
-            continue
-        if len(raw) > 500:
+        if not _looks_like_exact_candidate_file_path(raw):
             continue
         paths.append(raw)
     for match in re.finditer(r'"path"\s*:\s*"([^"]+\.[A-Za-z0-9][A-Za-z0-9_-]{1,12})"', text or ""):
         raw = _clean_candidate_file_path(match.group(1))
-        if not raw or "://" in raw or raw.startswith("//") or "..." in raw or "…" in raw:
-            continue
-        if len(raw) > 500:
+        if not _looks_like_exact_candidate_file_path(raw, allow_relative=True):
             continue
         paths.append(raw)
     return paths
+
+
+def _looks_like_exact_candidate_file_path(value: str, *, allow_relative: bool = False) -> bool:
+    raw = str(value or "").strip()
+    if not raw or len(raw) > 500:
+        return False
+    if "://" in raw or raw.startswith("//") or "..." in raw or "…" in raw or "*" in raw:
+        return False
+    if not allow_relative and not raw.startswith(("/", "~")):
+        return False
+    name = Path(raw).name
+    if not name or name.startswith("."):
+        return False
+    suffix = Path(name).suffix
+    if not suffix or not re.match(r"^\.[A-Za-z0-9][A-Za-z0-9_-]{1,12}$", suffix):
+        return False
+    return True
 
 
 def _clean_candidate_file_path(value: str) -> str:

@@ -5081,6 +5081,24 @@ def test_candidate_path_extraction_stops_at_escaped_newline_metadata():
     assert all("\\n-rw-rw-r--" not in path for path in paths)
 
 
+def test_candidate_path_extraction_skips_globs_and_truncated_fragments():
+    text = (
+        "/srv/models/*.foo\n"
+        "/srv/models/AlphaModel-Q4.foo\n"
+        "/srv/models/AlphaModel-Q4\n"
+        "/srv/models/AlphaModel-v1.2-UnfinishedFrag\n"
+        "/srv/models/BetaModel-v1.2-Q8.foo\n"
+    )
+
+    paths = _extract_candidate_file_paths(text)
+
+    assert "/srv/models/AlphaModel-Q4.foo" in paths
+    assert "/srv/models/BetaModel-v1.2-Q8.foo" in paths
+    assert "/srv/models/*.foo" not in paths
+    assert "/srv/models/AlphaModel-Q4" not in paths
+    assert "/srv/models/AlphaModel-v1.2-UnfinishedFrag" not in paths
+
+
 def test_prompt_resurfaces_durable_candidate_file_paths(tmp_path):
     db = AgentDB(tmp_path / "state.db")
     try:
