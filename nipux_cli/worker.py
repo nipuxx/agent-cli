@@ -445,7 +445,9 @@ def _open_file_dependent_task_text(job: dict[str, Any]) -> str:
     return " | ".join(parts)
 
 
-def _candidate_file_paths_from_recent_shell(recent_steps: list[dict[str, Any]], *, window: int = 8) -> list[str]:
+def _candidate_file_paths_from_recent_shell(
+    recent_steps: list[dict[str, Any]], *, window: int = 8, max_paths: int = 80
+) -> list[str]:
     paths: list[str] = []
     seen: set[str] = set()
     for step in _completed_recent_steps(recent_steps)[-window:]:
@@ -459,12 +461,14 @@ def _candidate_file_paths_from_recent_shell(recent_steps: list[dict[str, Any]], 
                 continue
             seen.add(key)
             paths.append(path)
-            if len(paths) >= 12:
+            if len(paths) >= max_paths:
                 return paths
     return paths
 
 
-def _candidate_file_paths_from_durable_records(job: dict[str, Any], *, max_records: int = 80) -> list[str]:
+def _candidate_file_paths_from_durable_records(
+    job: dict[str, Any], *, max_records: int = 80, max_paths: int = 80
+) -> list[str]:
     metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
     paths: list[str] = []
     seen: set[str] = set()
@@ -494,7 +498,7 @@ def _candidate_file_paths_from_durable_records(job: dict[str, Any], *, max_recor
                     continue
                 seen.add(key)
                 paths.append(path)
-                if len(paths) >= 12:
+                if len(paths) >= max_paths:
                     return paths
             if checked >= max_records * len(record_groups):
                 return paths

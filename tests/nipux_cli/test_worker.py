@@ -4439,6 +4439,47 @@ def test_next_action_prioritizes_candidate_file_validation_over_download_retry(t
         db.close()
 
 
+def test_prompt_ranks_late_candidate_paths_from_large_shell_listing(tmp_path):
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Benchmark OmegaModel throughput", title="omega benchmark", kind="generic")
+        db.update_job_metadata(
+            job_id,
+            {
+                "task_queue": [
+                    {
+                        "title": "Validate OmegaModel candidate file before measurement",
+                        "status": "open",
+                        "contract": "experiment",
+                        "acceptance_criteria": "Validated candidate file is used in a measurement.",
+                        "evidence_needed": "Shell output with candidate file size and benchmark result.",
+                    }
+                ]
+            },
+        )
+        run_id = db.start_run(job_id, model="test")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec")
+        db.finish_step(
+            step_id,
+            status="completed",
+            output_data={
+                "success": True,
+                "stdout": "\n".join(
+                    [f"/srv/models/ggml-vocab-{index}.foo" for index in range(30)]
+                    + ["/srv/models/OmegaModel-primary.foo"]
+                ),
+            },
+        )
+        db.finish_run(run_id, "completed")
+
+        content = build_messages(db.get_job(job_id), db.list_steps(job_id=job_id))[-1]["content"]
+        section = content[content.index("Candidate file discovery:"): content.index("Measured progress guard:")]
+
+        assert "/srv/models/Ome" in section
+    finally:
+        db.close()
+
+
 def test_prompt_prioritizes_structured_candidate_file_paths(tmp_path):
     db = AgentDB(tmp_path / "state.db")
     try:
