@@ -5499,6 +5499,44 @@ def test_run_one_step_blocks_new_tasks_when_queue_sprawls(tmp_path):
         db.close()
 
 
+def test_recent_task_saturation_hides_record_tasks_from_next_turn(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job(
+            "Execute existing work",
+            title="saturated-tools",
+            kind="generic",
+            metadata={
+                "task_queue": [
+                    {"title": f"Open branch {index}", "status": "open", "priority": index}
+                    for index in range(40)
+                ]
+            },
+        )
+        first = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(name="record_tasks", arguments={"tasks": [{"title": "New branch", "status": "open"}]})
+                ])
+            ]),
+        )
+        assert first.status == "blocked"
+        llm = CapturingLLM(LLMResponse(tool_calls=[ToolCall(name="record_lesson", arguments={"lesson": "execute existing work"})]))
+
+        run_one_step(job_id, config=config, db=db, llm=llm)
+
+        tool_names = {tool["function"]["name"] for tool in llm.tools}
+        assert "record_tasks" not in tool_names
+        assert "record_lesson" in tool_names
+        assert "shell_exec" in tool_names
+    finally:
+        db.close()
+
+
 def test_run_one_step_allows_existing_task_update_when_queue_is_saturated(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

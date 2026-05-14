@@ -804,6 +804,23 @@ def _task_queue_saturation_context(job: dict[str, Any], args: dict[str, Any]) ->
     }
 
 
+def _recent_task_queue_saturation_context(recent_steps: list[dict[str, Any]], *, window: int = 6) -> dict[str, Any] | None:
+    for step in reversed(recent_steps[-window:]):
+        if step.get("tool_name") != "record_tasks" or step.get("status") != "blocked":
+            continue
+        output = step.get("output") if isinstance(step.get("output"), dict) else {}
+        if output.get("error") != "task queue saturated":
+            continue
+        task_queue = output.get("task_queue") if isinstance(output.get("task_queue"), dict) else {}
+        return {
+            "step_no": step.get("step_no"),
+            "reason": task_queue.get("reason") or "task queue saturated",
+            "open_count": task_queue.get("open_count"),
+            "total_count": task_queue.get("total_count"),
+        }
+    return None
+
+
 def _task_planning_stagnation_context(job: dict[str, Any]) -> dict[str, Any] | None:
     metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
     streak = _as_int(metadata.get("task_planning_checkpoint_streak"))
@@ -4414,6 +4431,9 @@ def _registry_tools_for_step(
     resolution_tools = _active_obligation_tool_names(job, recent_steps) if job else None
     if resolution_tools:
         tools = [tool for tool in tools if _openai_tool_name(tool) in resolution_tools]
+    suppressed_tools = _suppressed_tool_names(job, recent_steps)
+    if suppressed_tools:
+        tools = [tool for tool in tools if _openai_tool_name(tool) not in suppressed_tools]
     if not _browser_runtime_unavailable_context(recent_steps):
         return tools
     return [tool for tool in tools if not _is_browser_tool(_openai_tool_name(tool))]
@@ -4433,6 +4453,15 @@ def _active_obligation_tool_names(job: dict[str, Any] | None, recent_steps: list
     if _pending_file_validation_obligation(job):
         allowed.update(FILE_VALIDATION_RESOLUTION_TOOLS)
     return allowed or None
+
+
+def _suppressed_tool_names(job: dict[str, Any] | None, recent_steps: list[dict[str, Any]]) -> set[str]:
+    if not job:
+        return set()
+    suppressed: set[str] = set()
+    if _recent_task_queue_saturation_context(recent_steps):
+        suppressed.add("record_tasks")
+    return suppressed
 
 
 def _openai_tool_name(tool: dict[str, Any]) -> str:
