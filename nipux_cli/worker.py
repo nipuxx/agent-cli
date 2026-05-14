@@ -2662,6 +2662,16 @@ def _read_only_shell_churn_context(recent_steps: list[dict[str, Any]], *, window
         step
         for step in tail
         if step.get("tool_name") in {"write_file", "write_artifact", "defer_job"}
+        or step.get("tool_name") in {
+            "record_experiment",
+            "record_findings",
+            "record_lesson",
+            "record_milestone_validation",
+            "record_roadmap",
+            "record_source",
+            "record_tasks",
+            "report_update",
+        }
         or (step.get("tool_name") == "shell_exec" and not _shell_command_looks_read_only(_step_command(step)))
     ]
     if action_steps:
