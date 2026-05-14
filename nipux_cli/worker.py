@@ -5447,6 +5447,56 @@ def _should_reflect(job: dict[str, Any], recent_steps: list[dict[str, Any]]) -> 
     return step_no > last_reflected
 
 
+def _lesson_already_recorded(job: dict[str, Any], lesson: str, *, category: str) -> bool:
+    text = " ".join(str(lesson or "").split())
+    wanted_category = str(category or "memory").strip().lower() or "memory"
+    return any(
+        str(entry.get("category") or "memory").strip().lower() == wanted_category
+        and " ".join(str(entry.get("lesson") or "").split()) == text
+        for entry in _metadata_list(job, "lessons")
+    )
+
+
+def _reflection_strategy(
+    *,
+    failures: list[dict[str, Any]],
+    findings: list[Any],
+    sources: list[Any],
+    tasks: list[Any],
+    measured_experiments: list[dict[str, Any]],
+    pending_measurement: bool,
+    validating_milestones: list[dict[str, Any]],
+    active_operator_messages: list[dict[str, Any]],
+) -> str:
+    if pending_measurement:
+        return "Resolve the pending measurement obligation before expanding research, outputs, or branch work."
+    if active_operator_messages:
+        return "Incorporate or supersede active operator context before choosing new autonomous branches."
+    if validating_milestones:
+        return "Validate the current roadmap milestone from evidence before adding more milestone scope."
+    if measured_experiments:
+        return "Continue from the best measured result; reject or pivot branches that do not improve the active metric."
+    yielded_sources = [
+        source
+        for source in sources
+        if isinstance(source, dict)
+        and (_as_int(source.get("yield_count")) > 0 or _as_float(source.get("usefulness_score")) >= 0.8)
+    ]
+    if len(sources) >= SOURCE_YIELD_MIN_SOURCES and len(findings) + len(yielded_sources) < max(2, len(sources) // 8):
+        return "Distill gathered sources into durable findings or source yield decisions before collecting more sources."
+    if failures:
+        return "Classify blocked or failed steps into durable task, source, experiment, or lesson outcomes before retrying."
+    open_tasks = [
+        task
+        for task in tasks
+        if isinstance(task, dict)
+        and str(task.get("status") or "open").lower() in {"open", "active", "blocked"}
+    ]
+    if open_tasks:
+        return "Execute or resolve the highest-priority open task before creating more task branches."
+    return "Choose the next branch from durable evidence, then record the result as findings, tasks, experiments, sources, or memory."
+
+
 def _claim_operator_queue(db: AgentDB, job_id: str) -> list[dict[str, Any]]:
     steering = db.claim_operator_messages(job_id, modes=("steer",), limit=1)
     if steering:
@@ -5613,11 +5663,15 @@ def _run_reflection_step(
         + (f" Roadmap '{roadmap.get('title')}' has {len(validating_milestones)} milestone(s) needing validation." if roadmap else "")
         + (" Pending measurement obligation needs resolution." if pending_measurement else "")
     )
-    strategy = (
-        "Prioritize source types that have yielded durable findings or artifacts; "
-        "downgrade repetitive, blocked, or low-evidence paths that do not advance the objective. "
-        "For measurable work, convert ideas into record_experiment trials and choose the next branch from the best observed result. "
-        "For broad work, keep roadmap milestones compact and validate milestones from evidence before expanding scope."
+    strategy = _reflection_strategy(
+        failures=failures,
+        findings=findings,
+        sources=sources,
+        tasks=tasks,
+        measured_experiments=measured_experiments,
+        pending_measurement=bool(pending_measurement),
+        validating_milestones=validating_milestones,
+        active_operator_messages=active_operator_messages,
     )
     reflection = db.append_reflection(
         job_id,
@@ -5636,9 +5690,17 @@ def _run_reflection_step(
             "pending_measurement_obligation": bool(pending_measurement),
         },
     )
-    db.append_lesson(job_id, strategy, category="strategy", confidence=0.75, metadata={"source": "reflection", "through_step": step_no})
+    lesson = None
+    if not _lesson_already_recorded(job, strategy, category="strategy"):
+        lesson = db.append_lesson(
+            job_id,
+            strategy,
+            category="strategy",
+            confidence=0.75,
+            metadata={"source": "reflection", "through_step": step_no},
+        )
     db.append_agent_update(job_id, summary, category="plan", metadata={"reflection": reflection})
-    result = {"success": True, "reflection": reflection}
+    result = {"success": True, "reflection": reflection, "lesson_recorded": bool(lesson)}
     db.finish_step(step_id, status="completed", summary=summary, output_data=result)
     db.finish_run(run_id, "completed")
     _emit_loop_end(db, job_id, run_id, status="completed", step_id=step_id, tool_name="reflect", detail=summary)

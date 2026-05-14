@@ -10826,3 +10826,73 @@ def test_run_one_step_reflects_every_fixed_interval(tmp_path):
         assert "Lessons learned:" in build_messages(job, db.list_steps(job_id=job_id))[-1]["content"]
     finally:
         db.close()
+
+
+def test_reflection_does_not_repeat_existing_strategy_lesson(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    strategy = "Choose the next branch from durable evidence, then record the result as findings, tasks, experiments, sources, or memory."
+    try:
+        job_id = db.create_job("Reflect over repeated work", title="reflect")
+        db.append_lesson(job_id, strategy, category="strategy")
+        for index in range(12):
+            run_id = db.start_run(job_id)
+            step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="web_search")
+            db.finish_step(step_id, status="completed", summary=f"step {index}", output_data={"success": True})
+            db.finish_run(run_id, "completed")
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[ToolCall(name="web_search", arguments={"query": "should not be used"})])
+            ]),
+        )
+        job = db.get_job(job_id)
+
+        assert result.tool_name == "reflect"
+        assert result.result["lesson_recorded"] is False
+        assert len(job["metadata"]["lessons"]) == 1
+        assert job["metadata"]["lessons"][0].get("seen_count") is None
+    finally:
+        db.close()
+
+
+def test_reflection_strategy_uses_current_operator_state(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job(
+            "Reflect over operator context",
+            title="reflect",
+            metadata={
+                "operator_messages": [
+                    {
+                        "id": "op_1",
+                        "mode": "steer",
+                        "message": "Use the corrected target before continuing.",
+                        "created_at": "2026-01-01T00:00:00+00:00",
+                    }
+                ]
+            },
+        )
+        for index in range(12):
+            run_id = db.start_run(job_id)
+            step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec")
+            db.finish_step(step_id, status="completed", summary=f"step {index}", output_data={"success": True})
+            db.finish_run(run_id, "completed")
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[ToolCall(name="shell_exec", arguments={"command": "should not run"})])
+            ]),
+        )
+
+        assert result.tool_name == "reflect"
+        assert "Incorporate or supersede active operator context" in result.result["reflection"]["strategy"]
+    finally:
+        db.close()
