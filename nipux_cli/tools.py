@@ -80,6 +80,26 @@ def _missing_argument(value: Any) -> bool:
     return False
 
 
+def _schema_missing_arguments(schema: dict[str, Any], value: Any, *, path: str = "") -> list[str]:
+    schema_type = schema.get("type")
+    missing: list[str] = []
+    if schema_type == "object" and isinstance(value, dict):
+        properties = schema.get("properties") if isinstance(schema.get("properties"), dict) else {}
+        for required in schema.get("required") or []:
+            name = str(required)
+            if _missing_argument(value.get(name)):
+                missing.append(f"{path}.{name}" if path else name)
+        for name, child_schema in properties.items():
+            if name in value and isinstance(child_schema, dict) and not _missing_argument(value.get(name)):
+                child_path = f"{path}.{name}" if path else str(name)
+                missing.extend(_schema_missing_arguments(child_schema, value.get(name), path=child_path))
+    elif schema_type == "array" and isinstance(value, list):
+        item_schema = schema.get("items") if isinstance(schema.get("items"), dict) else {}
+        for index, item in enumerate(value[:50]):
+            missing.extend(_schema_missing_arguments(item_schema, item, path=f"{path}[{index}]"))
+    return missing
+
+
 REQUIRED_ARGUMENT_ALIASES: dict[str, dict[str, tuple[str, ...]]] = {
     "record_experiment": {
         "title": ("title", "name", "metric_name", "hypothesis", "result", "outcome"),
@@ -1386,6 +1406,9 @@ class ToolRegistry:
         for label, fields in REQUIRED_ARGUMENT_GROUPS.get(name, ()):
             if all(_missing_argument(args.get(field)) for field in fields):
                 missing.append(label)
+        nested_schema = dict(spec.parameters)
+        nested_schema["required"] = []
+        missing.extend(item for item in _schema_missing_arguments(nested_schema, args) if item not in missing)
         if not missing:
             return None
         return {

@@ -53,6 +53,14 @@ def test_tool_registry_validates_required_arguments(tmp_path):
     experiment = DEFAULT_REGISTRY.validate_arguments("record_experiment", {"metric_name": "throughput"}, config)
     assert experiment is None
 
+    nested = DEFAULT_REGISTRY.validate_arguments("record_findings", {"findings": [{}]}, config)
+    assert nested is not None
+    assert nested["missing_arguments"] == ["findings[0].name"]
+
+    nested_task = DEFAULT_REGISTRY.validate_arguments("record_tasks", {"tasks": [{"goal": "do work"}]}, config)
+    assert nested_task is not None
+    assert nested_task["missing_arguments"] == ["tasks[0].title"]
+
 
 def test_tool_access_config_filters_worker_schema_and_blocks_calls(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path), tools=ToolAccessConfig(browser=False, web=False, shell=False, files=False))
