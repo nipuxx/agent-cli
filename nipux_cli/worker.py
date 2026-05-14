@@ -8,7 +8,7 @@ import signal
 import threading
 import time
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
@@ -2578,6 +2578,81 @@ def _already_read_checkpoint_accounting_block(step: dict[str, Any]) -> bool:
     )
 
 
+def _transient_model_failure_context(
+    recent_steps: list[dict[str, Any]],
+    *,
+    threshold: int = 2,
+    window: int = 24,
+) -> dict[str, Any] | None:
+    last_cooldown_no = 0
+    for step in recent_steps:
+        output = step.get("output") if isinstance(step.get("output"), dict) else {}
+        metadata_reason = str(output.get("reason") or output.get("defer_reason") or "")
+        if (
+            step.get("tool_name") == "defer_job"
+            and step.get("status") == "completed"
+            and "transient model" in metadata_reason.lower()
+        ):
+            last_cooldown_no = max(last_cooldown_no, int(step.get("step_no") or 0))
+    tail = [
+        step
+        for step in recent_steps[-window:]
+        if int(step.get("step_no") or 0) > last_cooldown_no
+    ]
+    if not tail:
+        return None
+    failures = [
+        step
+        for step in tail
+        if step.get("kind") == "llm"
+        and step.get("status") == "failed"
+        and _step_has_transient_model_error(step)
+    ]
+    if len(failures) < threshold:
+        return None
+    latest_step_no = int(tail[-1].get("step_no") or 0)
+    latest_failure_no = int(failures[-1].get("step_no") or 0)
+    if latest_step_no != latest_failure_no:
+        return None
+    return {
+        "error": _step_error_text(failures[-1]) or "transient model failure",
+        "count": len(failures),
+        "first_step_no": failures[0].get("step_no"),
+        "latest_step_no": failures[-1].get("step_no"),
+    }
+
+
+def _step_has_transient_model_error(step: dict[str, Any]) -> bool:
+    lowered = _step_error_text(step).lower()
+    return any(
+        marker in lowered
+        for marker in (
+            "apitimeouterror",
+            "api timeout",
+            "request timed out",
+            "read timeout",
+            "connection timed out",
+            "temporarily unavailable",
+            "service unavailable",
+            "upstream timeout",
+            "gateway timeout",
+        )
+    )
+
+
+def _step_error_text(step: dict[str, Any]) -> str:
+    output = step.get("output") if isinstance(step.get("output"), dict) else {}
+    parts = [
+        output.get("error"),
+        output.get("error_type"),
+        output.get("detail"),
+        output.get("message"),
+        step.get("error"),
+        step.get("summary"),
+    ]
+    return " ".join(str(part) for part in parts if part)
+
+
 def _blocked_tool_call_result(
     name: str,
     args: dict[str, Any],
@@ -3430,6 +3505,56 @@ def _run_guard_recovery_step(
     _emit_loop_end(db, job_id, run_id, status="completed", step_id=step_id, tool_name="guard_recovery", detail=message)
     refresh_memory_index(db, job_id)
     return StepExecution(job_id=job_id, run_id=run_id, step_id=step_id, tool_name="guard_recovery", status="completed", result=result)
+
+
+def _run_transient_model_cooldown_step(
+    context: dict[str, Any],
+    *,
+    db: AgentDB,
+    job_id: str,
+    run_id: str,
+    timeout_seconds: float,
+) -> StepExecution:
+    cooldown_seconds = min(900.0, max(120.0, float(timeout_seconds or 0.0) * 1.5))
+    until = datetime.now(timezone.utc) + timedelta(seconds=cooldown_seconds)
+    reason = (
+        f"Transient model provider failures repeated {context.get('count')} times "
+        f"from step #{context.get('first_step_no')} to #{context.get('latest_step_no')}."
+    )
+    next_action = "Retry the worker turn after provider cooldown; if failures continue, record provider instability and wait longer."
+    patch = {
+        "defer_until": until.isoformat(),
+        "defer_reason": reason,
+        "defer_next_action": next_action,
+        "last_note": f"Deferred for transient model provider cooldown until {until.isoformat()}.",
+    }
+    db.update_job_status(job_id, "running", metadata_patch=patch)
+    step_id = db.add_step(job_id=job_id, run_id=run_id, kind="recovery", tool_name="defer_job")
+    message = f"Deferred until {until.isoformat()}: {reason} Next: {next_action}"
+    result = {
+        "success": True,
+        "job_id": job_id,
+        "defer_until": until.isoformat(),
+        "reason": reason,
+        "next_action": next_action,
+        "transient_model_failure": context,
+    }
+    db.append_agent_update(
+        job_id,
+        message,
+        category="progress",
+        metadata={
+            "defer_until": until.isoformat(),
+            "reason": reason,
+            "next_action": next_action,
+            "transient_model_failure": context,
+        },
+    )
+    db.finish_step(step_id, status="completed", summary=message, output_data=result)
+    db.finish_run(run_id, "completed")
+    _emit_loop_end(db, job_id, run_id, status="completed", step_id=step_id, tool_name="defer_job", detail=message)
+    refresh_memory_index(db, job_id)
+    return StepExecution(job_id=job_id, run_id=run_id, step_id=step_id, tool_name="defer_job", status="completed", result=result)
 
 
 def _evidence_checkpoint_content(evidence_step: dict[str, Any]) -> str:
@@ -4299,6 +4424,15 @@ def run_one_step(
         guard_recovery = _repeated_guard_block_context(recent_steps)
         if guard_recovery:
             return _run_guard_recovery_step(guard_recovery, db=db, job_id=job_id, run_id=run_id)
+        transient_model_failure = _transient_model_failure_context(recent_steps)
+        if transient_model_failure:
+            return _run_transient_model_cooldown_step(
+                transient_model_failure,
+                db=db,
+                job_id=job_id,
+                run_id=run_id,
+                timeout_seconds=config.model.request_timeout_seconds,
+            )
         active_operator_messages = _claim_operator_queue(db, job_id)
         if active_operator_messages:
             job = db.get_job(job_id)
