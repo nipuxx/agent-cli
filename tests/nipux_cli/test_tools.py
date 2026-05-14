@@ -62,6 +62,24 @@ def test_tool_registry_validates_required_arguments(tmp_path):
     assert nested_task["missing_arguments"] == ["tasks[0].title"]
 
 
+def test_tool_registry_blocks_truncated_reference_arguments(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+
+    experiment = DEFAULT_REGISTRY.validate_arguments(
+        "record_experiment",
+        {
+            "title": "Measure local files",
+            "evidence_artifact": "art_fb73...",
+            "next_action": "validate the exact artifact",
+        },
+        config,
+    )
+
+    assert experiment is not None
+    assert experiment["error"] == "placeholder tool arguments"
+    assert experiment["placeholder_arguments"] == ["evidence_artifact"]
+
+
 def test_tool_access_config_filters_worker_schema_and_blocks_calls(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path), tools=ToolAccessConfig(browser=False, web=False, shell=False, files=False))
     db = AgentDB(tmp_path / "state.db")

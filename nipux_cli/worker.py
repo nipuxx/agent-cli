@@ -4668,7 +4668,9 @@ def _execute_tool_call(
     validate_arguments = getattr(registry, "validate_arguments", None)
     argument_block = validate_arguments(call.name, call.arguments, config) if callable(validate_arguments) else None
     if argument_block:
-        summary = f"blocked {call.name}; missing required arguments: {', '.join(argument_block.get('missing_arguments') or [])}"
+        concrete_fields = [*(argument_block.get("missing_arguments") or []), *(argument_block.get("placeholder_arguments") or [])]
+        reason = "missing required arguments" if argument_block.get("missing_arguments") else str(argument_block.get("error") or "invalid tool arguments")
+        summary = f"blocked {call.name}; {reason}: {', '.join(concrete_fields)}"
         db.finish_step(
             step_id,
             status="blocked",
@@ -4684,6 +4686,7 @@ def _execute_tool_call(
                 "reason": "tool_arguments_missing",
                 "tool": call.name,
                 "missing_arguments": argument_block.get("missing_arguments") or [],
+                "placeholder_arguments": argument_block.get("placeholder_arguments") or [],
             },
         )
         return (

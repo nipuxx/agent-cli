@@ -88,6 +88,42 @@ def _missing_argument(value: Any) -> bool:
     return False
 
 
+REFERENCE_LIKE_FIELD_PATTERN = re.compile(r"(?i)(?:^|_)(?:artifact|id|path|ref|source|url)(?:$|_)")
+
+
+def _placeholder_argument(value: Any) -> bool:
+    if _missing_argument(value):
+        return True
+    if not isinstance(value, str):
+        return False
+    stripped = value.strip().strip("'\"")
+    if not stripped:
+        return True
+    if re.search(r"\s", stripped):
+        return False
+    return bool(re.search(r"(?:\.{3,}|…)$", stripped))
+
+
+def _schema_placeholder_arguments(schema: dict[str, Any], value: Any, *, path: str = "") -> list[str]:
+    schema_type = schema.get("type")
+    placeholders: list[str] = []
+    if schema_type == "object" and isinstance(value, dict):
+        properties = schema.get("properties") if isinstance(schema.get("properties"), dict) else {}
+        for name, child_schema in properties.items():
+            if name not in value or not isinstance(child_schema, dict):
+                continue
+            child_path = f"{path}.{name}" if path else str(name)
+            if REFERENCE_LIKE_FIELD_PATTERN.search(str(name)) and _placeholder_argument(value.get(name)):
+                placeholders.append(child_path)
+                continue
+            placeholders.extend(_schema_placeholder_arguments(child_schema, value.get(name), path=child_path))
+    elif schema_type == "array" and isinstance(value, list):
+        item_schema = schema.get("items") if isinstance(schema.get("items"), dict) else {}
+        for index, item in enumerate(value[:50]):
+            placeholders.extend(_schema_placeholder_arguments(item_schema, item, path=f"{path}[{index}]"))
+    return placeholders
+
+
 def _schema_missing_arguments(schema: dict[str, Any], value: Any, *, path: str = "") -> list[str]:
     schema_type = schema.get("type")
     missing: list[str] = []
@@ -1417,16 +1453,19 @@ class ToolRegistry:
         nested_schema = dict(spec.parameters)
         nested_schema["required"] = []
         missing.extend(item for item in _schema_missing_arguments(nested_schema, args) if item not in missing)
-        if not missing:
+        placeholders = [] if missing else [item for item in _schema_placeholder_arguments(nested_schema, args) if item not in missing]
+        if not missing and not placeholders:
             return None
+        concrete_fields = [*missing, *placeholders]
         return {
             "success": True,
             "recoverable": True,
-            "error": "missing required tool arguments",
+            "error": "missing required tool arguments" if missing else "placeholder tool arguments",
             "missing_arguments": missing,
+            "placeholder_arguments": placeholders,
             "blocked_tool": name,
             "guidance": (
-                f"Retry {name} with concrete values for: {', '.join(missing)}. "
+                f"Retry {name} with concrete values for: {', '.join(concrete_fields)}. "
                 "Do not call a tool with placeholder or empty arguments."
             ),
         }

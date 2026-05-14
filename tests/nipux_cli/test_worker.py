@@ -1709,6 +1709,37 @@ def test_run_one_step_blocks_placeholder_tool_arguments_as_recoverable(tmp_path)
         db.close()
 
 
+def test_run_one_step_blocks_truncated_optional_reference_arguments(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Resolve concrete optional references before recording", title="truncated optional")
+        llm = ScriptedLLM([
+            LLMResponse(tool_calls=[
+                ToolCall(
+                    name="record_experiment",
+                    arguments={
+                        "title": "Validate artifact",
+                        "evidence_artifact": "art_123...",
+                        "next_action": "read the concrete artifact id",
+                    },
+                )
+            ])
+        ])
+
+        result = run_one_step(job_id, config=config, db=db, llm=llm)
+
+        assert result.status == "blocked"
+        assert result.result["recoverable"] is True
+        assert result.result["error"] == "placeholder tool arguments"
+        assert result.result["placeholder_arguments"] == ["evidence_artifact"]
+        step = db.list_steps(job_id=job_id)[0]
+        assert step["status"] == "blocked"
+        assert "placeholder tool arguments" in step["summary"]
+    finally:
+        db.close()
+
+
 def test_run_one_step_blocks_placeholder_shell_command_before_execution(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")
