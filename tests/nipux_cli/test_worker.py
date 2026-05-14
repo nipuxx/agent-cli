@@ -2290,7 +2290,8 @@ def test_pending_evidence_checkpoint_narrows_available_tools(tmp_path):
 
         tool_names = {tool["function"]["name"] for tool in llm.tools}
         assert "read_artifact" in tool_names
-        assert {"record_findings", "record_source", "record_lesson", "record_tasks"}.issubset(tool_names)
+        assert {"record_findings", "record_source", "record_lesson", "record_experiment"}.issubset(tool_names)
+        assert "record_tasks" not in tool_names
         assert "shell_exec" not in tool_names
         assert "web_search" not in tool_names
         assert "acknowledge_operator_context" not in tool_names

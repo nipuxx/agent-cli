@@ -1245,6 +1245,12 @@ EVIDENCE_CHECKPOINT_RESOLUTION_TOOLS = {
     "record_tasks",
 }
 EVIDENCE_CHECKPOINT_ACCOUNTING_TOOLS = EVIDENCE_CHECKPOINT_RESOLUTION_TOOLS | {"guard_recovery"}
+EVIDENCE_CHECKPOINT_PROMPT_TOOLS = {
+    "record_experiment",
+    "record_findings",
+    "record_lesson",
+    "record_source",
+}
 EVIDENCE_TOKEN_IGNORE = {
     "acceptance",
     "action",
@@ -4447,7 +4453,7 @@ def _active_obligation_tool_names(job: dict[str, Any] | None, recent_steps: list
     if checkpoint:
         if not checkpoint.get("checkpoint_read"):
             allowed.add("read_artifact")
-        allowed.update(EVIDENCE_CHECKPOINT_RESOLUTION_TOOLS)
+        allowed.update(EVIDENCE_CHECKPOINT_PROMPT_TOOLS)
     if _pending_measurement_obligation(job):
         allowed.update(MEASUREMENT_RESOLUTION_TOOLS)
     if _pending_file_validation_obligation(job):
