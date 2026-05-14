@@ -5504,6 +5504,60 @@ def test_run_one_step_derives_bad_shell_source_family_from_exact_failure(tmp_pat
         db.close()
 
 
+def test_run_one_step_blocks_host_after_repeated_auth_source_families(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Pivot from repeated host auth failures", title="guard")
+        for source in (
+            "https://source.example/private/a/model.bin",
+            "https://source.example/private/b/model.bin",
+            "https://source.example/private/c/model.bin",
+        ):
+            db.append_source_record(
+                job_id,
+                source,
+                source_type="shell_exec",
+                usefulness_score=0.01,
+                fail_count_delta=1,
+                warnings=["401 unauthorized"],
+                outcome="HTTP 401 Unauthorized",
+                metadata={"failure_kind": "auth_or_http"},
+            )
+
+        blocked = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[ToolCall(
+                    name="shell_exec",
+                    arguments={"command": "curl -L https://source.example/private/d/model.bin"},
+                )])
+            ]),
+        )
+        allowed = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[ToolCall(
+                    name="shell_exec",
+                    arguments={"command": "curl -L https://other.example/private/d/model.bin"},
+                )])
+            ]),
+            registry=SuccessRegistry(),
+        )
+
+        assert blocked.status == "blocked"
+        assert blocked.result["error"] == "known bad source blocked"
+        assert blocked.result["known_bad_source"]["metadata"]["host_auth_failure"] is True
+        assert "Change access strategy" in blocked.result["known_bad_source"]["last_outcome"]
+        assert allowed.status == "completed"
+    finally:
+        db.close()
+
+
 def test_run_one_step_blocks_known_bad_shell_source_path(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")
