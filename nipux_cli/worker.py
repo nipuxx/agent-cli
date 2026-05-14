@@ -429,7 +429,7 @@ def _candidate_file_paths_from_durable_records(job: dict[str, Any], *, max_recor
 def _extract_candidate_file_paths(text: str) -> list[str]:
     paths: list[str] = []
     for match in re.finditer(r"(?<![A-Za-z0-9])(?:~|/)[^\s'\"<>|;&]{2,}", text or ""):
-        raw = match.group(0).rstrip(".,:;)")
+        raw = _clean_candidate_file_path(match.group(0))
         if not raw or "://" in raw or raw.startswith("//") or "..." in raw or "…" in raw:
             continue
         name = Path(raw).name
@@ -439,13 +439,20 @@ def _extract_candidate_file_paths(text: str) -> list[str]:
             continue
         paths.append(raw)
     for match in re.finditer(r'"path"\s*:\s*"([^"]+\.[A-Za-z0-9][A-Za-z0-9_-]{1,12})"', text or ""):
-        raw = match.group(1).strip()
+        raw = _clean_candidate_file_path(match.group(1))
         if not raw or "://" in raw or raw.startswith("//") or "..." in raw or "…" in raw:
             continue
         if len(raw) > 500:
             continue
         paths.append(raw)
     return paths
+
+
+def _clean_candidate_file_path(value: str) -> str:
+    raw = str(value or "").strip().rstrip(".,:;)")
+    for separator in ("\\n", "\\r", "\\t", "\n", "\r", "\t"):
+        raw = raw.split(separator, 1)[0]
+    return raw.strip().rstrip(".,:;)")
 
 
 def _progress_accounting_for_prompt(recent_steps: list[dict[str, Any]]) -> str:

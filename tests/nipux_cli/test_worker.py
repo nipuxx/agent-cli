@@ -5,7 +5,15 @@ from nipux_cli.artifacts import ArtifactStore
 from nipux_cli.config import AppConfig, ModelConfig, RuntimeConfig
 from nipux_cli.db import AgentDB
 from nipux_cli.llm import LLMResponse, LLMResponseError, ScriptedLLM, ToolCall
-from nipux_cli.worker import MAX_WORKER_PROMPT_CHARS, SYSTEM_PROMPT, build_messages, run_one_step, _concrete_evidence_tokens, _render_worker_prompt
+from nipux_cli.worker import (
+    MAX_WORKER_PROMPT_CHARS,
+    SYSTEM_PROMPT,
+    _concrete_evidence_tokens,
+    _extract_candidate_file_paths,
+    _render_worker_prompt,
+    build_messages,
+    run_one_step,
+)
 
 
 class SnapshotRegistry:
@@ -4361,6 +4369,19 @@ def test_prompt_filters_truncated_and_url_like_candidate_file_paths(tmp_path):
         assert "/tmp/..." not in content
     finally:
         db.close()
+
+
+def test_candidate_path_extraction_stops_at_escaped_newline_metadata():
+    text = (
+        'output="/srv/models/AlphaModel-Q4.foo\\n-rw-rw-r-- owner size" '
+        '{"path": "/srv/models/BetaModel-Q8.foo\\n-rw-rw-r--"}'
+    )
+
+    paths = _extract_candidate_file_paths(text)
+
+    assert "/srv/models/AlphaModel-Q4.foo" in paths
+    assert "/srv/models/BetaModel-Q8.foo" in paths
+    assert all("\\n-rw-rw-r--" not in path for path in paths)
 
 
 def test_prompt_resurfaces_durable_candidate_file_paths(tmp_path):
