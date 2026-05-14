@@ -70,6 +70,19 @@ def test_initial_plan_adapts_to_monitoring_objectives():
     assert any("cadence" in question.lower() or "check" in question.lower() for question in plan["questions"])
 
 
+def test_initial_plan_does_not_add_meta_progress_update_task():
+    for objective in [
+        "optimize a generic process for lower latency and higher throughput",
+        "write a full research paper from evidence",
+        "monitor a recurring process and report important changes",
+        "investigate build quality and compare output changes",
+    ]:
+        plan = initial_plan_for_objective(objective)
+
+        assert all("progress update" not in title.lower() for title in plan["tasks"])
+        assert all("keep working on the next useful branch" not in title.lower() for title in plan["tasks"])
+
+
 def test_objective_profiles_stay_generic():
     profiles = objective_profiles("investigate build quality and compare output changes")
 

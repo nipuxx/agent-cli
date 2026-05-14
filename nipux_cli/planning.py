@@ -333,7 +333,6 @@ def _initial_tasks_for_profiles(profiles: list[str]) -> list[str]:
                 "Reflect on what worked, update memory, and continue with the next branch.",
             ]
         )
-    tasks.append("Publish a concise progress update and keep working on the next useful branch.")
     return tasks
 
 
