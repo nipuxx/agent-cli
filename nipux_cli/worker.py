@@ -1602,6 +1602,24 @@ NEGATIVE_EXISTENCE_MARKERS = (
     "was not",
     "without",
 )
+NEGATIVE_ROLE_CLASSIFICATION_MARKERS = (
+    "not a primary",
+    "not a required",
+    "not a target",
+    "not an expected",
+    "not suitable as",
+    "not suitable for",
+    "not the expected",
+    "not the needed",
+    "not the primary",
+    "not the required",
+    "not the target",
+    "not usable as",
+    "not usable for",
+    "only support",
+    "support file",
+    "support files",
+)
 EVIDENCE_NEGATIVE_LINE_MARKERS = (
     "cannot access",
     "denied",
@@ -1957,6 +1975,8 @@ def _file_pattern_tokens_for_grounding(text: str) -> list[str]:
         raw = match.group(0).strip("'\"`")
         if not raw:
             continue
+        if not raw.startswith((".", "*.")):
+            continue
         if "." not in raw and not raw.startswith("*."):
             continue
         ext = "." + match.group(1).lower().lstrip(".")
@@ -1969,7 +1989,7 @@ def _file_pattern_tokens_for_grounding(text: str) -> list[str]:
     return tokens
 
 
-def _token_near_negative_claim(text: str, token: str, *, window: int = 140) -> bool:
+def _token_near_negative_claim(text: str, token: str, *, window: int = 64) -> bool:
     text_lower = text.lower()
     token_lower = token.lower()
     start = 0
@@ -1979,8 +1999,15 @@ def _token_near_negative_claim(text: str, token: str, *, window: int = 140) -> b
             return False
         nearby = text_lower[max(0, index - window): index + len(token_lower) + window]
         if any(marker in nearby for marker in NEGATIVE_EXISTENCE_MARKERS):
+            if _nearby_negative_is_role_classification(nearby):
+                start = index + len(token_lower)
+                continue
             return True
         start = index + len(token_lower)
+
+
+def _nearby_negative_is_role_classification(text: str) -> bool:
+    return any(marker in text for marker in NEGATIVE_ROLE_CLASSIFICATION_MARKERS)
 
 
 def _positive_evidence_line_for_token(lines: list[str], token: str) -> str:

@@ -3322,6 +3322,64 @@ def test_record_findings_blocks_negative_file_pattern_that_conflicts_with_positi
         db.close()
 
 
+def test_record_experiment_allows_classifying_observed_files_as_non_primary(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Validate observed files before primary artifact work", title="file-classification", kind="generic")
+        run_id = db.start_run(job_id, model="test")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec")
+        db.finish_step(
+            step_id,
+            status="completed",
+            output_data={
+                "success": True,
+                "stdout": (
+                    "/srv/data/support-alpha-v2.foo\n"
+                    "/srv/data/support-beta-v2.foo\n"
+                ),
+            },
+        )
+        db.finish_run(run_id, "completed")
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(
+                        name="record_experiment",
+                        arguments={
+                            "title": "primary artifact scan",
+                            "status": "measured",
+                            "metric_name": "primary_artifacts_found",
+                            "metric_value": 0,
+                            "metric_unit": "files",
+                            "config": {
+                                "files_found": [
+                                    "/srv/data/support-alpha-v2.foo",
+                                    "/srv/data/support-beta-v2.foo",
+                                ],
+                            },
+                            "result": (
+                                "scan found only support files: /srv/data/support-alpha-v2.foo and "
+                                "/srv/data/support-beta-v2.foo. observed files are not the required "
+                                "primary artifact, so the primary artifact remains missing."
+                            ),
+                            "next_action": "select a different observed source for the primary artifact.",
+                        },
+                    )
+                ])
+            ]),
+        )
+
+        assert result.status == "completed"
+        assert result.tool_name == "record_experiment"
+    finally:
+        db.close()
+
+
 def test_record_findings_requires_exact_paths_when_file_candidates_exist(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")
