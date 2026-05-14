@@ -2220,6 +2220,84 @@ def test_measurement_obligation_blocks_operator_acknowledgement_churn(tmp_path):
         db.close()
 
 
+def test_pending_measurement_narrows_available_tools(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Improve a measurable process", title="measure-tools", kind="generic")
+        db.update_job_metadata(
+            job_id,
+            {
+                "pending_measurement_obligation": {
+                    "source_step_no": 12,
+                    "tool": "shell_exec",
+                    "metric_candidates": ["2.7 tok/s"],
+                    "command": "run benchmark",
+                }
+            },
+        )
+        llm = CapturingLLM(
+            LLMResponse(tool_calls=[
+                ToolCall(
+                    name="record_experiment",
+                    arguments={
+                        "title": "measured trial",
+                        "status": "measured",
+                        "metric_name": "speed",
+                        "metric_value": 2.7,
+                        "metric_unit": "tok/s",
+                        "next_action": "try the next measured branch",
+                    },
+                )
+            ])
+        )
+
+        run_one_step(job_id, config=config, db=db, llm=llm)
+
+        tool_names = {tool["function"]["name"] for tool in llm.tools}
+        assert {"record_experiment", "record_lesson", "record_tasks"}.issubset(tool_names)
+        assert "shell_exec" not in tool_names
+        assert "web_search" not in tool_names
+        assert "acknowledge_operator_context" not in tool_names
+    finally:
+        db.close()
+
+
+def test_pending_evidence_checkpoint_narrows_available_tools(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Account for checkpointed evidence", title="checkpoint-tools", kind="generic")
+        db.update_job_metadata(
+            job_id,
+            {
+                "pending_evidence_checkpoint": {
+                    "artifact_id": "art_checkpoint",
+                    "title": "Checkpoint",
+                    "evidence_step_no": 12,
+                    "blocked_tool": "shell_exec",
+                    "created_at": "2026-01-01T00:00:00+00:00",
+                }
+            },
+        )
+        llm = CapturingLLM(
+            LLMResponse(tool_calls=[
+                ToolCall(name="record_lesson", arguments={"lesson": "checkpoint accounted for", "category": "memory"})
+            ])
+        )
+
+        run_one_step(job_id, config=config, db=db, llm=llm)
+
+        tool_names = {tool["function"]["name"] for tool in llm.tools}
+        assert "read_artifact" in tool_names
+        assert {"record_findings", "record_source", "record_lesson", "record_tasks"}.issubset(tool_names)
+        assert "shell_exec" not in tool_names
+        assert "web_search" not in tool_names
+        assert "acknowledge_operator_context" not in tool_names
+    finally:
+        db.close()
+
+
 def test_diagnostic_shell_output_does_not_create_measurement_obligation(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

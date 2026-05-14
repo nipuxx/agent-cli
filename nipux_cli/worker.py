@@ -4403,11 +4403,36 @@ def _registry_tools(registry: ToolRegistry, config: AppConfig) -> list[dict[str,
         return registry.openai_tools()
 
 
-def _registry_tools_for_step(registry: ToolRegistry, config: AppConfig, recent_steps: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def _registry_tools_for_step(
+    registry: ToolRegistry,
+    config: AppConfig,
+    recent_steps: list[dict[str, Any]],
+    *,
+    job: dict[str, Any] | None = None,
+) -> list[dict[str, Any]]:
     tools = _registry_tools(registry, config)
+    resolution_tools = _active_obligation_tool_names(job, recent_steps) if job else None
+    if resolution_tools:
+        tools = [tool for tool in tools if _openai_tool_name(tool) in resolution_tools]
     if not _browser_runtime_unavailable_context(recent_steps):
         return tools
     return [tool for tool in tools if not _is_browser_tool(_openai_tool_name(tool))]
+
+
+def _active_obligation_tool_names(job: dict[str, Any] | None, recent_steps: list[dict[str, Any]]) -> set[str] | None:
+    if not job:
+        return None
+    allowed: set[str] = set()
+    checkpoint = _auto_checkpoint_accounting_context(job, recent_steps)
+    if checkpoint:
+        if not checkpoint.get("checkpoint_read"):
+            allowed.add("read_artifact")
+        allowed.update(EVIDENCE_CHECKPOINT_RESOLUTION_TOOLS)
+    if _pending_measurement_obligation(job):
+        allowed.update(MEASUREMENT_RESOLUTION_TOOLS)
+    if _pending_file_validation_obligation(job):
+        allowed.update(FILE_VALIDATION_RESOLUTION_TOOLS)
+    return allowed or None
 
 
 def _openai_tool_name(tool: dict[str, Any]) -> str:
@@ -4501,7 +4526,7 @@ def run_one_step(
             response: LLMResponse = _call_next_action_with_timeout(
                 llm,
                 messages=messages,
-                tools=_registry_tools_for_step(registry, config, recent_steps),
+                tools=_registry_tools_for_step(registry, config, recent_steps, job=job),
                 timeout_seconds=config.model.request_timeout_seconds,
             )
         except Exception as exc:
