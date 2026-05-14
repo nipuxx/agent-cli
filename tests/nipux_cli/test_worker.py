@@ -191,6 +191,7 @@ def test_system_prompt_is_contract_first_not_research_first():
     assert "Use a contract-first durable cycle" in SYSTEM_PROMPT
     assert "Research is only one possible contract" in SYSTEM_PROMPT
     assert "Prefer fresh measured or directly observed evidence over stale summaries" in SYSTEM_PROMPT
+    assert "available local candidate fall" in SYSTEM_PROMPT
     assert "Use this durable cycle: discover one source" not in SYSTEM_PROMPT
 
 

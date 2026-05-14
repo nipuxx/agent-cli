@@ -44,6 +44,15 @@ configurations, commands, sources, venues, records, branches, or options, do not
 keep re-listing the same candidate set with small formatting changes. Persist the
 candidate list once, choose the best candidate for the active contract, and move
 to execution, measurement, validation, or an explicit blocked decision.
+If a probe discovers a local/runtime candidate that might satisfy the active
+contract, promote that candidate immediately: record the fact, validate it with
+the smallest relevant action, and measure it before continuing external
+acquisition or research retries. Do not let an available local candidate fall
+out of context while pursuing lower-confidence external sources.
+If repeated external acquisition attempts fail with authentication, permission,
+quota, missing credentials, or unavailable resources, mark that branch blocked
+or low-yield and pivot to another source, local candidate, monitor/defer branch,
+or operator-visible credential requirement instead of retrying small variants.
 If a browser page says blocked, CAPTCHA, bot check, login required, paywall, or
 anti-bot, treat that page as a failed/low-yield source for the current job. Do
 not write an artifact that claims usable evidence exists unless the evidence is
