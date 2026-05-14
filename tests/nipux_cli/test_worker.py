@@ -3322,6 +3322,104 @@ def test_record_findings_blocks_negative_file_pattern_that_conflicts_with_positi
         db.close()
 
 
+def test_record_findings_requires_exact_paths_when_file_candidates_exist(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Keep file candidate evidence exact", title="path-grounding", kind="generic")
+        run_id = db.start_run(job_id, model="test")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec")
+        db.finish_step(
+            step_id,
+            status="completed",
+            output_data={
+                "success": True,
+                "stdout": (
+                    "/srv/models/AlphaModel-Q4.foo\n"
+                    "/srv/models/BetaModel-Q8.foo\n"
+                    "/tmp/results/summary.json\n"
+                ),
+            },
+        )
+        db.finish_run(run_id, "completed")
+
+        blocked = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(
+                        name="record_findings",
+                        arguments={
+                            "findings": [
+                                {
+                                    "name": "Model files found on disk",
+                                    "category": "environment",
+                                    "status": "new",
+                                    "reason": "Shell search found candidate files, so the next branch can validate them.",
+                                }
+                            ]
+                        },
+                    )
+                ])
+            ]),
+        )
+
+        assert blocked.status == "blocked"
+        assert blocked.result["error"] == "evidence grounding required"
+        grounding = blocked.result["evidence_grounding"]
+        assert "/srv/models/AlphaModel-Q4.foo" in grounding["missing_candidate_paths"]
+        assert "exact observed candidate paths" in grounding["guidance"]
+    finally:
+        db.close()
+
+
+def test_record_findings_allows_exact_candidate_path_summary(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Keep file candidate evidence exact", title="path-grounding", kind="generic")
+        run_id = db.start_run(job_id, model="test")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec")
+        db.finish_step(
+            step_id,
+            status="completed",
+            output_data={
+                "success": True,
+                "stdout": "/srv/models/AlphaModel-Q4.foo\n/tmp/results/summary.json\n",
+            },
+        )
+        db.finish_run(run_id, "completed")
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(
+                        name="record_findings",
+                        arguments={
+                            "findings": [
+                                {
+                                    "name": "Model file candidate",
+                                    "category": "environment",
+                                    "status": "new",
+                                    "reason": "Candidate path /srv/models/AlphaModel-Q4.foo should be validated next.",
+                                }
+                            ]
+                        },
+                    )
+                ])
+            ]),
+        )
+
+        assert result.status == "completed"
+    finally:
+        db.close()
+
+
 def test_record_findings_allows_negative_file_pattern_when_evidence_is_negative(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

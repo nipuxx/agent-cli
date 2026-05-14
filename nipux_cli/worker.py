@@ -1693,6 +1693,26 @@ def _evidence_grounding_context(
                 "Inspect the evidence again or record uncertainty instead of saving a conflicting claim."
             ),
         }
+    missing_paths = _missing_candidate_paths_for_grounding(
+        tool_name=tool_name,
+        proposed_text=proposed_text,
+        full_proposed_text=full_proposed_text,
+        fresh_evidence_text=fresh_evidence_text,
+    )
+    if missing_paths:
+        return {
+            "unsupported_tokens": missing_paths[:8],
+            "missing_candidate_paths": missing_paths[:8],
+            "evidence_steps": [
+                step.get("step_no")
+                for step in _evidence_steps_for_grounding(recent_steps, window=window, step_numbers=cited_steps or None)
+            ],
+            "cited_steps": sorted(cited_steps),
+            "guidance": (
+                "Recent evidence contains concrete file/path candidates, but the durable record only summarized them. "
+                "Record the exact observed candidate paths, or explicitly state why those paths are not relevant."
+            ),
+        }
     stale_tokens = _active_stale_claim_token_set(job)
     proposed_stale_tokens = [token for token in _concrete_evidence_tokens(full_proposed_text) if token.lower() in stale_tokens]
     if tool_name == "record_lesson" and not proposed_stale_tokens:
@@ -1735,6 +1755,49 @@ def _evidence_grounding_context(
             "Use exact observed evidence, inspect the source again, or record uncertainty instead of writing unsupported claims."
         ),
     }
+
+
+def _missing_candidate_paths_for_grounding(
+    *,
+    tool_name: str,
+    proposed_text: str,
+    full_proposed_text: str,
+    fresh_evidence_text: str,
+) -> list[str]:
+    if tool_name not in {"record_findings", "record_experiment", "record_memory_graph", "write_artifact", "report_update"}:
+        return []
+    proposed_lower = f"{proposed_text}\n{full_proposed_text}".lower()
+    if not any(term in proposed_lower for term in ("file", "files", "path", "paths", "candidate", "found", "discovered")):
+        return []
+    positive_evidence_text = "\n".join(
+        line
+        for line in str(fresh_evidence_text or "").splitlines()
+        if not _evidence_line_is_negative(line.lower())
+    )
+    evidence_paths = _extract_candidate_file_paths(positive_evidence_text)
+    if not evidence_paths:
+        return []
+    if any(_path_mentioned_in_text(path, proposed_lower) for path in evidence_paths):
+        return []
+    distinctive_paths: list[str] = []
+    seen: set[str] = set()
+    for path in evidence_paths:
+        key = path.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        distinctive_paths.append(path)
+        if len(distinctive_paths) >= 8:
+            break
+    return distinctive_paths
+
+
+def _path_mentioned_in_text(path: str, text_lower: str) -> bool:
+    path_lower = path.lower()
+    if path_lower in text_lower:
+        return True
+    name = Path(path).name.lower()
+    return bool(name and name in text_lower)
 
 
 def _refresh_contradicted_negative_claims(
