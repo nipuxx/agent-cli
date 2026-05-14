@@ -118,6 +118,8 @@ USAGE_PRESSURE_CRITICAL_CALLS = 2_000
 USAGE_PRESSURE_CRITICAL_COST = 10.0
 USAGE_PRESSURE_LOW_YIELD_WINDOW = 12
 USAGE_PRESSURE_LOW_YIELD_MIN_BLOCKS = 3
+LESSON_SPRAWL_MIN_LESSONS = 30
+LESSON_SPRAWL_RECENT_LESSONS = 3
 
 
 @dataclass(frozen=True)
@@ -211,6 +213,7 @@ def build_messages(
     task_planning_guard = _task_planning_guard_for_prompt(job)
     task_queue_saturation = _task_queue_saturation_for_prompt(job, recent_steps)
     memory_consolidation_guard = _memory_consolidation_guard_for_prompt(job, recent_steps)
+    lesson_consolidation_guard = _lesson_consolidation_guard_for_prompt(job, recent_steps)
     durable_yield = _durable_yield_for_prompt(job, recent_steps)
     context_pressure = context_pressure_for_prompt(job)
     usage_pressure = usage_pressure_for_prompt(job, token_usage)
@@ -251,6 +254,7 @@ def build_messages(
             ("Task planning guard", task_planning_guard),
             ("Task queue saturation", task_queue_saturation),
             ("Memory consolidation guard", memory_consolidation_guard),
+            ("Lesson consolidation guard", lesson_consolidation_guard),
             ("Durable progress yield", durable_yield),
             ("Context pressure", context_pressure),
             ("Usage pressure", usage_pressure),
@@ -1164,6 +1168,20 @@ def _memory_consolidation_guard_for_prompt(job: dict[str, Any], recent_steps: li
     )
 
 
+def _lesson_consolidation_guard_for_prompt(job: dict[str, Any], recent_steps: list[dict[str, Any]]) -> str:
+    context = _lesson_sprawl_context(job, recent_steps)
+    if not context:
+        return "None."
+    return (
+        "Raw lessons are accumulating faster than consolidated memory. "
+        f"lessons={context.get('lessons')} recent_lessons={context.get('recent_lessons')} "
+        f"graph_nodes={context.get('graph_nodes')} reason={context.get('reason')}. "
+        "Do not add another raw lesson next. Consolidate the reusable strategy, mistake, constraint, decision, "
+        "or question into record_memory_graph, or update existing tasks/roadmap state if the lesson only describes "
+        "branch status."
+    )
+
+
 def _memory_graph_consolidation_context(job: dict[str, Any], recent_steps: list[dict[str, Any]]) -> dict[str, Any] | None:
     if any(step.get("tool_name") == "record_memory_graph" and step.get("status") == "completed" for step in recent_steps[-8:]):
         return None
@@ -1187,6 +1205,31 @@ def _memory_graph_consolidation_context(job: dict[str, Any], recent_steps: list[
         "graph_nodes": node_count,
         "graph_edges": edge_count,
         "reason": reason,
+    }
+
+
+def _lesson_sprawl_context(job: dict[str, Any], recent_steps: list[dict[str, Any]]) -> dict[str, Any] | None:
+    memory_context = _memory_graph_consolidation_context(job, recent_steps)
+    if not memory_context:
+        return None
+    lessons = _metadata_list(job, "lessons")
+    lesson_count = len(lessons)
+    if lesson_count < LESSON_SPRAWL_MIN_LESSONS:
+        return None
+    recent_lessons = [
+        step
+        for step in recent_steps[-12:]
+        if step.get("tool_name") == "record_lesson" and str(step.get("status") or "").lower() == "completed"
+    ]
+    if len(recent_lessons) < LESSON_SPRAWL_RECENT_LESSONS and lesson_count < LESSON_SPRAWL_MIN_LESSONS * 2:
+        return None
+    return {
+        "lessons": lesson_count,
+        "recent_lessons": len(recent_lessons),
+        "graph_nodes": memory_context.get("graph_nodes"),
+        "graph_edges": memory_context.get("graph_edges"),
+        "durable_records": memory_context.get("durable_records"),
+        "reason": "raw lesson backlog needs graph consolidation",
     }
 
 
@@ -4817,6 +4860,23 @@ def _blocked_tool_call_result(
             ),
         }
         return result, f"blocked {name}; memory graph consolidation required"
+
+    lesson_sprawl = _lesson_sprawl_context(job, recent_steps)
+    if lesson_sprawl and name == "record_lesson":
+        result = {
+            "success": False,
+            "error": "lesson consolidation required",
+            "blocked_tool": name,
+            "blocked_arguments": args,
+            "lesson_consolidation": lesson_sprawl,
+            "guidance": (
+                "This job already has many raw lessons and the connected memory graph is behind. "
+                "Do not add another raw lesson. Use record_memory_graph to consolidate reusable strategy, mistake, "
+                "constraint, decision, question, skill, or episode nodes with evidence links, or update existing "
+                "tasks/roadmap/milestone state if this is only branch status."
+            ),
+        }
+        return result, "blocked record_lesson; lesson consolidation required"
 
     usage_pressure_recovery = _usage_pressure_recovery_context(job, recent_steps)
     if usage_pressure_recovery and name in USAGE_PRESSURE_RECOVERY_BLOCKED_TOOLS:

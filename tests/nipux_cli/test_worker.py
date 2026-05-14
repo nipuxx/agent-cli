@@ -7137,6 +7137,111 @@ def test_run_one_step_allows_memory_graph_consolidation_when_guard_is_active(tmp
         db.close()
 
 
+def test_prompt_adds_lesson_consolidation_guard_when_raw_lessons_sprawl():
+    job = {
+        "title": "lesson sprawl",
+        "kind": "generic",
+        "objective": "keep improving a long-running job",
+        "metadata": {
+            "lessons": [
+                {"lesson": f"Reusable lesson {index}", "category": "strategy"}
+                for index in range(30)
+            ],
+        },
+    }
+    steps = [
+        {
+            "step_no": index,
+            "kind": "tool",
+            "tool_name": "record_lesson",
+            "status": "completed",
+            "summary": f"lesson {index}",
+        }
+        for index in range(1, 4)
+    ]
+
+    content = build_messages(job, steps)[-1]["content"]
+
+    assert "Lesson consolidation guard:" in content
+    assert "Raw lessons are accumulating faster than consolidated memory" in content
+    assert "lessons=30" in content
+    assert "record_memory_graph" in content
+
+
+def test_run_one_step_blocks_more_lessons_when_lesson_sprawl_needs_graph(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Keep improving durable work", title="lesson-sprawl")
+        for index in range(30):
+            db.append_lesson(job_id, f"Reusable lesson {index}", category="strategy")
+        run_id = db.start_run(job_id, model="test")
+        for index in range(3):
+            step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="record_lesson")
+            db.finish_step(step_id, status="completed", output_data={"success": True, "lesson": {"lesson": f"recent {index}"}})
+        db.finish_run(run_id, "completed")
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[ToolCall(name="record_lesson", arguments={"lesson": "one more lesson"})])
+            ]),
+        )
+
+        assert result.status == "blocked"
+        assert result.result["error"] == "lesson consolidation required"
+        assert result.result["lesson_consolidation"]["lessons"] == 30
+        assert result.result["blocked_tool"] == "record_lesson"
+    finally:
+        db.close()
+
+
+def test_run_one_step_allows_memory_graph_when_lesson_sprawl_is_active(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Keep improving durable work", title="lesson-sprawl")
+        for index in range(30):
+            db.append_lesson(job_id, f"Reusable lesson {index}", category="strategy")
+        run_id = db.start_run(job_id, model="test")
+        for index in range(3):
+            step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="record_lesson")
+            db.finish_step(step_id, status="completed", output_data={"success": True, "lesson": {"lesson": f"recent {index}"}})
+        db.finish_run(run_id, "completed")
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(
+                    tool_calls=[
+                        ToolCall(
+                            name="record_memory_graph",
+                            arguments={
+                                "nodes": [
+                                    {
+                                        "key": "lesson-sprawl-strategy",
+                                        "kind": "strategy",
+                                        "title": "Consolidate repeated lessons",
+                                        "summary": "Compress repeated lessons into graph memory before adding more.",
+                                    }
+                                ]
+                            },
+                        )
+                    ]
+                )
+            ]),
+        )
+
+        assert result.status == "completed"
+        assert result.tool_name == "record_memory_graph"
+    finally:
+        db.close()
+
+
 def test_prompt_includes_activity_stagnation_context():
     job = {
         "title": "research",
