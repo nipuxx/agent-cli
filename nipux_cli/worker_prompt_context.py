@@ -21,6 +21,46 @@ from nipux_cli.worker_policy import (
 from nipux_cli.worker_prompt_format import clip_text as _clip_text
 
 
+NEGATIVE_EXISTENCE_MARKERS = (
+    "cannot access",
+    "does not exist",
+    "failed to find",
+    "has not been",
+    "missing",
+    "no ",
+    "no such",
+    "none",
+    "not available",
+    "not detected",
+    "not downloaded",
+    "not found",
+    "not installed",
+    "unavailable",
+    "was not",
+    "without",
+)
+NEGATIVE_EVIDENCE_LINE_MARKERS = (
+    "cannot access",
+    "denied",
+    "does not exist",
+    "error",
+    "failed",
+    "failure",
+    "has not been",
+    "missing",
+    "no such",
+    "not available",
+    "not detected",
+    "not downloaded",
+    "not found",
+    "not installed",
+    "permission",
+    "timeout",
+    "unavailable",
+    "was not",
+)
+
+
 def _memory_entries_for_prompt(memory_entries: list[dict[str, Any]], *, limit: int = 2) -> list[dict[str, Any]]:
     entries = [entry for entry in memory_entries if isinstance(entry, dict)]
     rolling = next((entry for entry in entries if entry.get("key") == "rolling_state"), None)
@@ -146,12 +186,22 @@ def _lessons_for_prompt(job: dict[str, Any]) -> str:
     if not lessons:
         return "No durable lessons yet."
     reference_text = " ".join(str(job.get(key) or "") for key in ("title", "objective", "kind"))
+    positive_lines = _positive_durable_lines_for_lesson_conflicts(metadata)
     lines = []
     for entry in lessons[-5:]:
         if not isinstance(entry, dict):
             continue
         category = str(entry.get("category") or "memory")
-        lesson = _lesson_prompt_text(str(entry.get("lesson") or ""), reference_text=reference_text)
+        raw_lesson = str(entry.get("lesson") or "")
+        conflicting_tokens = _negative_lesson_conflict_tokens(raw_lesson, positive_lines)
+        if conflicting_tokens:
+            lesson = (
+                "Potentially stale negative lesson suppressed for "
+                + ", ".join(conflicting_tokens[:6])
+                + ". Re-verify against fresh evidence before using this claim."
+            )
+        else:
+            lesson = _lesson_prompt_text(raw_lesson, reference_text=reference_text)
         if lesson:
             lines.append(f"- {category}: {_clip_text(lesson, SECTION_ITEM_CHARS)}")
     return "\n".join(lines) if lines else "No durable lessons yet."
@@ -182,6 +232,92 @@ def _lesson_prompt_text(lesson: str, *, reference_text: str = "") -> str:
             + ". Re-verify them from fresh evidence before using them."
         )
     return "Evidence grounding rejected an unsupported durable record. Re-verify from fresh evidence before using it."
+
+
+def _positive_durable_lines_for_lesson_conflicts(metadata: dict[str, Any]) -> list[str]:
+    lines: list[str] = []
+    for key in ("finding_ledger", "experiment_ledger", "source_ledger"):
+        records = metadata.get(key) if isinstance(metadata.get(key), list) else []
+        for record in records[-30:]:
+            if isinstance(record, dict):
+                text = _dict_scalar_text(record)
+                if text:
+                    lines.append(text)
+    graph = metadata.get("memory_graph") if isinstance(metadata.get("memory_graph"), dict) else {}
+    nodes = graph.get("nodes") if isinstance(graph.get("nodes"), list) else []
+    for node in nodes[-30:]:
+        if isinstance(node, dict):
+            text = _dict_scalar_text(node)
+            if text:
+                lines.append(text)
+    return lines
+
+
+def _negative_lesson_conflict_tokens(lesson: str, positive_lines: list[str]) -> list[str]:
+    lesson = " ".join(str(lesson or "").split())
+    lesson_lower = lesson.lower()
+    if not positive_lines or not any(marker in lesson_lower for marker in NEGATIVE_EXISTENCE_MARKERS):
+        return []
+    tokens = _distinctive_claim_tokens(lesson)
+    conflicts: list[str] = []
+    seen: set[str] = set()
+    for token in tokens:
+        key = token.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        if not _token_near_negative_marker(lesson, token):
+            continue
+        if _positive_line_contains_token(positive_lines, token):
+            conflicts.append(token)
+    return conflicts
+
+
+def _dict_scalar_text(record: dict[str, Any]) -> str:
+    parts: list[str] = []
+    for key, value in record.items():
+        if key in {"created_at", "updated_at", "event_id", "id"}:
+            continue
+        if isinstance(value, (str, int, float, bool)):
+            parts.append(str(value))
+        elif isinstance(value, dict):
+            parts.append(_dict_scalar_text(value))
+    return " ".join(part for part in parts if part)
+
+
+def _distinctive_claim_tokens(text: str) -> list[str]:
+    tokens: list[str] = []
+    for raw in re.findall(r"\b[A-Za-z][A-Za-z0-9_.+-]{1,}\b", text):
+        token = raw.strip("._+-")
+        if token and _stale_token_is_distinctive(token):
+            tokens.append(token)
+    return tokens
+
+
+def _token_near_negative_marker(text: str, token: str, *, window: int = 140) -> bool:
+    text_lower = text.lower()
+    token_lower = token.lower()
+    start = 0
+    while True:
+        index = text_lower.find(token_lower, start)
+        if index < 0:
+            return False
+        nearby = text_lower[max(0, index - window): index + len(token_lower) + window]
+        if any(marker in nearby for marker in NEGATIVE_EXISTENCE_MARKERS):
+            return True
+        start = index + len(token_lower)
+
+
+def _positive_line_contains_token(lines: list[str], token: str) -> bool:
+    token_lower = token.lower()
+    for line in lines:
+        line_lower = line.lower()
+        if token_lower not in line_lower:
+            continue
+        if any(marker in line_lower for marker in NEGATIVE_EVIDENCE_LINE_MARKERS):
+            continue
+        return True
+    return False
 
 
 def _memory_graph_for_prompt(job: dict[str, Any]) -> str:

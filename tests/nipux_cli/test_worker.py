@@ -2533,6 +2533,63 @@ def test_prompt_includes_durable_lessons():
     assert "Low-evidence pages are background noise" in content
 
 
+def test_prompt_suppresses_stale_negative_lessons_when_positive_durable_evidence_exists():
+    job = {
+        "title": "research",
+        "kind": "generic",
+        "objective": "keep facts current",
+        "metadata": {
+            "finding_ledger": [
+                {
+                    "name": "Observed local model",
+                    "reason": "ModelX-99 appears in the local model list with size 17 GB.",
+                }
+            ],
+            "lessons": [
+                {
+                    "category": "strategy",
+                    "lesson": (
+                        "No ModelX-99 model has been successfully downloaded, so keep the download "
+                        "branch as the primary blocker before benchmark work."
+                    ),
+                }
+            ],
+        },
+    }
+
+    content = build_messages(job, [])[-1]["content"]
+
+    assert "Potentially stale negative lesson suppressed for ModelX-99" in content
+    assert "No ModelX-99 model has been successfully downloaded" not in content
+
+
+def test_prompt_keeps_negative_lessons_when_durable_evidence_is_negative():
+    job = {
+        "title": "research",
+        "kind": "generic",
+        "objective": "keep facts current",
+        "metadata": {
+            "finding_ledger": [
+                {
+                    "name": "Missing local model",
+                    "reason": "ls cannot access ModelX-99: no such file or directory.",
+                }
+            ],
+            "lessons": [
+                {
+                    "category": "strategy",
+                    "lesson": "No ModelX-99 file exists in the checked path; use a different observed source.",
+                }
+            ],
+        },
+    }
+
+    content = build_messages(job, [])[-1]["content"]
+
+    assert "No ModelX-99 file exists" in content
+    assert "Potentially stale negative lesson suppressed" not in content
+
+
 def test_prompt_includes_memory_graph_slice():
     job = {
         "title": "research",
