@@ -1658,10 +1658,12 @@ def test_run_one_step_records_model_failures_instead_of_raising(tmp_path):
 
         assert result.status == "failed"
         assert result.result["error"] == "provider returned no choices"
+        assert result.result["duration_seconds"] >= 0
         steps = db.list_steps(job_id=job_id)
         assert steps[0]["kind"] == "llm"
         assert steps[0]["status"] == "failed"
         assert steps[0]["error"] == "provider returned no choices"
+        assert steps[0]["input"]["duration_seconds"] >= 0
         assert db.list_runs(job_id)[0]["status"] == "failed"
     finally:
         db.close()
@@ -1742,9 +1744,11 @@ def test_run_one_step_times_out_stalled_model_call(tmp_path):
 
         assert result.status == "failed"
         assert "model call timed out" in result.result["error"]
+        assert result.result["duration_seconds"] >= 0.04
         step = db.list_steps(job_id=job_id)[0]
         assert step["kind"] == "llm"
         assert step["status"] == "failed"
+        assert step["input"]["duration_seconds"] >= 0.04
     finally:
         db.close()
 
@@ -1831,6 +1835,8 @@ def test_successful_model_response_resets_transient_model_cooldown_streak(tmp_pa
         job = db.get_job(job_id)
         assert job["metadata"]["transient_model_cooldown_streak"] == 0
         assert job["metadata"]["transient_model_recovered_at"]
+        message_end = next(event for event in db.list_events(job_id=job_id, limit=10) if event["event_type"] == "loop" and event["title"] == "message_end")
+        assert message_end["metadata"]["duration_seconds"] >= 0
     finally:
         db.close()
 

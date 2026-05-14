@@ -3731,6 +3731,7 @@ def _emit_assistant_message_event(
     *,
     messages: list[dict[str, Any]],
     context_length: int,
+    duration_seconds: float | None = None,
 ) -> dict[str, Any]:
     if response.tool_calls:
         body = ", ".join(call.name for call in response.tool_calls)
@@ -3739,6 +3740,8 @@ def _emit_assistant_message_event(
         body = response.content[:1000]
         metadata = {"run_id": run_id, "tool_calls": []}
     metadata["usage"] = turn_usage_metadata(response, messages=messages, context_length=context_length)
+    if duration_seconds is not None:
+        metadata["duration_seconds"] = round(max(0.0, float(duration_seconds)), 3)
     if response.model:
         metadata["model"] = response.model
     if response.response_id:
@@ -5046,6 +5049,7 @@ def run_one_step(
             include_unclaimed_operator_messages=True,
         )
         llm = llm or OpenAIChatLLM(config.model)
+        llm_started = time.monotonic()
         try:
             response: LLMResponse = _call_next_action_with_timeout(
                 llm,
@@ -5054,15 +5058,17 @@ def run_one_step(
                 timeout_seconds=config.model.request_timeout_seconds,
             )
         except Exception as exc:
+            llm_duration_seconds = round(max(0.0, time.monotonic() - llm_started), 3)
             step_id = db.add_step(
                 job_id=job_id,
                 run_id=run_id,
                 kind="llm",
                 status="failed",
                 summary=f"model call failed: {type(exc).__name__}",
-                input_data={"model": config.model.model},
+                input_data={"model": config.model.model, "duration_seconds": llm_duration_seconds},
             )
             result = _error_result(exc)
+            result["duration_seconds"] = llm_duration_seconds
             hard_failure_note = _hard_llm_provider_failure_note(exc)
             if hard_failure_note:
                 result["provider_action_required"] = True
@@ -5087,6 +5093,7 @@ def run_one_step(
             refresh_memory_index(db, job_id)
             return StepExecution(job_id=job_id, run_id=run_id, step_id=step_id, tool_name=None, status="failed", result=result)
 
+        llm_duration_seconds = round(max(0.0, time.monotonic() - llm_started), 3)
         job = _reset_transient_model_cooldown_streak(db, job_id, db.get_job(job_id))
         usage = _emit_assistant_message_event(
             db,
@@ -5095,6 +5102,7 @@ def run_one_step(
             response,
             messages=messages,
             context_length=config.model.context_length,
+            duration_seconds=llm_duration_seconds,
         )
         emit_context_pressure_update(db, job_id, usage)
 
