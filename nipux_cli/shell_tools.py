@@ -216,7 +216,7 @@ def _missing_executable_probe(command: str, combined_output: str) -> str:
 def _shell_missing_command_anomaly(text: str) -> bool:
     return bool(
         re.search(
-            r"(?im)(?:^|\n)(?:/bin/sh:\s*\d+:\s*)?[A-Za-z0-9_.+-]+:\s*(?:command not found|not found)\s*$",
+            r"(?im)(?:^|\n)(?:/bin/sh:\s*\d+:\s*)?(?:(?:/|~)[^\s:'\"]+|[A-Za-z0-9_.+-]+):\s*(?:command not found|not found)\s*$",
             text,
         )
     )
