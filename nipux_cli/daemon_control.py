@@ -191,7 +191,12 @@ def stop_daemon_process_impl(
     metadata = status.get("metadata") or {}
     pid = metadata.get("pid")
     if not isinstance(pid, int):
-        raise SystemExit("daemon is running but lock file has no pid; stop it from the terminal that owns it")
+        recovered = _find_single_daemon_process()
+        if recovered is None:
+            raise SystemExit("daemon is running but lock file has no pid; stop it from the terminal that owns it")
+        pid = recovered
+        if not quiet:
+            print(f"daemon lock had no pid; recovered daemon pid={pid}")
     os.kill(pid, signal.SIGTERM)
     deadline = time.time() + wait
     while time.time() < deadline:
@@ -203,3 +208,36 @@ def stop_daemon_process_impl(
     if not quiet:
         print(f"sent SIGTERM to nipux daemon pid={pid}; it may still be shutting down")
     return False
+
+
+def _find_single_daemon_process() -> int | None:
+    """Best-effort recovery for older locks that lost pid metadata."""
+
+    try:
+        result = subprocess.run(["ps", "-eo", "pid=,args="], capture_output=True, text=True, timeout=5)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if result.returncode != 0:
+        return None
+    candidates: list[int] = []
+    current_pid = os.getpid()
+    for raw_line in result.stdout.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        pid_text, _, command = line.partition(" ")
+        try:
+            pid = int(pid_text)
+        except ValueError:
+            continue
+        if pid == current_pid:
+            continue
+        normalized = " ".join(command.split())
+        if "-m nipux_cli.cli daemon" in normalized or " nipux_cli.cli daemon" in normalized:
+            candidates.append(pid)
+            continue
+        parts = normalized.split()
+        if parts and Path(parts[0]).name == "nipux" and "daemon" in parts[1:]:
+            candidates.append(pid)
+    unique = sorted(set(candidates))
+    return unique[0] if len(unique) == 1 else None
