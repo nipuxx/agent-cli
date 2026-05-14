@@ -794,7 +794,8 @@ def _task_queue_saturation_for_prompt(recent_steps: list[dict[str, Any]]) -> str
         f"{title_text} "
         "Do not create new task branches. Either execute an existing high-priority branch, "
         "or use record_tasks only to update existing task titles to active, done, blocked, or skipped "
-        "with concise result/evidence. Consolidate branch sprawl into roadmap/milestones when useful."
+        "with concise result/evidence. Consolidate branch sprawl into roadmap/milestones when useful. "
+        "If this repeats, record_tasks is temporarily withheld so the worker must use a non-planning action."
     )
 
 
@@ -1424,6 +1425,26 @@ def _recent_task_queue_saturation_context(recent_steps: list[dict[str, Any]], *,
             "open_titles": task_queue.get("open_titles") if isinstance(task_queue.get("open_titles"), list) else [],
         }
     return None
+
+
+def _repeated_task_queue_saturation_context(recent_steps: list[dict[str, Any]], *, window: int = 8, threshold: int = 2) -> dict[str, Any] | None:
+    matches = []
+    for step in recent_steps[-window:]:
+        if step.get("tool_name") != "record_tasks" or step.get("status") != "blocked":
+            continue
+        output = step.get("output") if isinstance(step.get("output"), dict) else {}
+        if output.get("error") == "task queue saturated":
+            matches.append(step)
+    if len(matches) < threshold:
+        return None
+    latest = matches[-1]
+    output = latest.get("output") if isinstance(latest.get("output"), dict) else {}
+    task_queue = output.get("task_queue") if isinstance(output.get("task_queue"), dict) else {}
+    return {
+        "count": len(matches),
+        "latest_step_no": latest.get("step_no"),
+        "reason": task_queue.get("reason") or "task queue saturated",
+    }
 
 
 def _task_planning_stagnation_context(job: dict[str, Any]) -> dict[str, Any] | None:
@@ -5661,6 +5682,8 @@ def _suppressed_tool_names(job: dict[str, Any] | None, recent_steps: list[dict[s
     if not job:
         return set()
     suppressed: set[str] = set()
+    if _repeated_task_queue_saturation_context(recent_steps):
+        suppressed.add("record_tasks")
     return suppressed
 
 
