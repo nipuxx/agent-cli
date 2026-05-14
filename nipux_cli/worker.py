@@ -317,9 +317,28 @@ def _file_validation_obligation_for_prompt(job: dict[str, Any]) -> str:
 
 
 def _candidate_file_discovery_for_prompt(job: dict[str, Any], recent_steps: list[dict[str, Any]]) -> str:
+    context = _candidate_file_discovery_context(job, recent_steps)
+    if not context:
+        return "None."
+    paths = context["paths"]
+    source_text = context["source_text"]
+    lines = [
+        f"{source_text} while open work depends on file/path validation.",
+        "Validate likely candidates with shell_exec before recording a no-file/no-progress claim or searching for alternatives. "
+        "Treat durable-record candidates as leads until revalidated. This supersedes stale no-candidate/no-file memory "
+        "until validation proves those candidates are irrelevant.",
+        "Candidate paths:",
+    ]
+    for path in paths[:8]:
+        lines.append(f"- {path}")
+    lines.append(f"Relevant open work: {_clip_text(context['task_text'], 500)}")
+    return "\n".join(lines)
+
+
+def _candidate_file_discovery_context(job: dict[str, Any], recent_steps: list[dict[str, Any]]) -> dict[str, Any] | None:
     task_text = _open_file_dependent_task_text(job)
     if not task_text:
-        return "None."
+        return None
     recent_paths = _candidate_file_paths_from_recent_shell(recent_steps)
     durable_paths = _candidate_file_paths_from_durable_records(job)
     paths: list[str] = []
@@ -331,22 +350,78 @@ def _candidate_file_discovery_for_prompt(job: dict[str, Any], recent_steps: list
         seen.add(key)
         paths.append(path)
     if not paths:
-        return "None."
+        return None
     source_text = "Recent shell output or durable records listed candidate file paths"
     if recent_paths and not durable_paths:
         source_text = "Recent shell output listed candidate file paths"
     elif durable_paths and not recent_paths:
         source_text = "Durable records mention candidate file paths"
-    lines = [
-        f"{source_text} while open work depends on file/path validation.",
-        "Validate likely candidates with shell_exec before recording a no-file/no-progress claim or searching for alternatives. "
-        "Treat durable-record candidates as leads until revalidated.",
-        "Candidate paths:",
-    ]
-    for path in paths[:8]:
-        lines.append(f"- {path}")
-    lines.append(f"Relevant open work: {_clip_text(task_text, 500)}")
-    return "\n".join(lines)
+    return {
+        "paths": _rank_candidate_file_paths(job, task_text, paths),
+        "source_text": source_text,
+        "task_text": task_text,
+    }
+
+
+def _rank_candidate_file_paths(job: dict[str, Any], task_text: str, paths: list[str]) -> list[str]:
+    context_tokens = _candidate_context_tokens(job, task_text)
+    indexed = list(enumerate(paths))
+    ranked = sorted(indexed, key=lambda item: _candidate_file_path_score(item[1], context_tokens, item[0]), reverse=True)
+    return [path for _, path in ranked]
+
+
+def _candidate_context_tokens(job: dict[str, Any], task_text: str) -> set[str]:
+    text = " ".join(str(job.get(key) or "") for key in ("title", "objective", "kind")) + " " + task_text
+    tokens = set()
+    for token in re.findall(r"[A-Za-z0-9][A-Za-z0-9._-]{2,}", text.lower()):
+        cleaned = token.strip("._-")
+        if not cleaned or cleaned in QUERY_STOPWORDS or cleaned in TEXT_TOKEN_STOPWORDS:
+            continue
+        tokens.add(cleaned)
+        for part in re.split(r"[._-]+", cleaned):
+            if len(part) >= 3 and part not in QUERY_STOPWORDS and part not in TEXT_TOKEN_STOPWORDS:
+                tokens.add(part)
+    return tokens
+
+
+def _candidate_file_path_score(path: str, context_tokens: set[str], original_index: int) -> float:
+    lowered_path = path.lower()
+    name = Path(path).name.lower()
+    stem = Path(name).stem.lower()
+    path_tokens = set()
+    for token in re.findall(r"[a-z0-9][a-z0-9._-]{1,}", lowered_path):
+        path_tokens.add(token.strip("._-"))
+        path_tokens.update(part for part in re.split(r"[._-]+", token) if len(part) >= 2)
+    score = 0.0
+    matches = context_tokens & {token for token in path_tokens if token}
+    score += len(matches) * 8.0
+    if any(token and token in stem for token in context_tokens):
+        score += 6.0
+    if "/" in path:
+        score += min(path.count("/"), 8) * 0.15
+    auxiliary_markers = (
+        "vocab",
+        "tokenizer",
+        "tokeniser",
+        "mmproj",
+        "adapter",
+        "config",
+        "readme",
+        "license",
+        "metadata",
+        "sample",
+        "example",
+        "stub",
+    )
+    if any(marker in name for marker in auxiliary_markers):
+        score -= 18.0
+    if name.startswith("."):
+        score -= 20.0
+    suffix = Path(name).suffix.lower()
+    if suffix:
+        score += 1.0
+    score -= original_index * 0.01
+    return score
 
 
 def _open_file_dependent_task_text(job: dict[str, Any]) -> str:
@@ -742,6 +817,15 @@ def _next_action_constraint(job: dict[str, Any], recent_steps: list[dict[str, An
             "Balance execution with research before the next deep action loop. "
             "Gather source-backed evidence with available web/browser/documentation/local-inspection tools and record it, "
             "or record why research is not applicable and what evidence replaces it."
+        )
+    candidate_files = _candidate_file_discovery_context(job, recent_steps)
+    if candidate_files:
+        paths = candidate_files.get("paths") if isinstance(candidate_files.get("paths"), list) else []
+        path_text = "; ".join(str(path) for path in paths[:4])
+        return (
+            "Concrete candidate file paths are available while file/path-dependent work is open. "
+            f"Validate likely candidates next with shell_exec before retrying downloads, searching for alternatives, "
+            f"or recording no-file/no-progress claims. Candidate paths: {_clip_text(path_text, 520)}."
         )
     experiment_next_action = _latest_experiment_next_action_context(job)
     if experiment_next_action:

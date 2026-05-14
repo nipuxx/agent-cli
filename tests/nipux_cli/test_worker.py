@@ -10,6 +10,7 @@ from nipux_cli.worker import (
     SYSTEM_PROMPT,
     _concrete_evidence_tokens,
     _extract_candidate_file_paths,
+    _rank_candidate_file_paths,
     _render_worker_prompt,
     build_messages,
     run_one_step,
@@ -4329,6 +4330,111 @@ def test_prompt_prioritizes_validation_for_recent_candidate_file_paths(tmp_path)
         assert "Candidate file discovery:" in content
         assert "/srv/models/ExampleModel-Q4.foo" in content
         assert "Validate likely candidates with shell_exec" in content
+    finally:
+        db.close()
+
+
+def test_prompt_ranks_context_matching_candidate_paths_before_auxiliary_files(tmp_path):
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Benchmark AlphaModel throughput", title="alpha benchmark", kind="generic")
+        db.update_job_metadata(
+            job_id,
+            {
+                "task_queue": [
+                    {
+                        "title": "Validate candidate file path before benchmark",
+                        "status": "open",
+                        "contract": "experiment",
+                        "acceptance_criteria": "Validated primary file is used in a measurement.",
+                        "evidence_needed": "Shell output with file size and benchmark result.",
+                    }
+                ]
+            },
+        )
+        run_id = db.start_run(job_id, model="test")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec")
+        db.finish_step(
+            step_id,
+            status="completed",
+            output_data={
+                "success": True,
+                "stdout": (
+                    "/srv/models/ggml-vocab-alpha.foo\n"
+                    "/srv/models/sidecar-mmproj-alpha.foo\n"
+                    "/srv/models/AlphaModel-Q4.foo\n"
+                ),
+            },
+        )
+        db.finish_run(run_id, "completed")
+
+        job = db.get_job(job_id)
+        content = build_messages(job, db.list_steps(job_id=job_id))[-1]["content"]
+        ranked = _rank_candidate_file_paths(
+            job,
+            "Validate candidate file path before benchmark",
+            [
+                "/srv/models/ggml-vocab-alpha.foo",
+                "/srv/models/sidecar-mmproj-alpha.foo",
+                "/srv/models/AlphaModel-Q4.foo",
+            ],
+        )
+
+        section = content[content.index("Candidate file discovery:"): content.index("Measured progress guard:")]
+        assert "Candidate paths:" in section
+        assert ranked[0] == "/srv/models/AlphaModel-Q4.foo"
+        assert "/srv/models/Alp" in section
+        assert "This supersedes stale no-candidate/no-file memory" in section
+    finally:
+        db.close()
+
+
+def test_next_action_prioritizes_candidate_file_validation_over_download_retry(tmp_path):
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Benchmark AlphaModel throughput", title="alpha benchmark", kind="generic")
+        db.update_job_metadata(
+            job_id,
+            {
+                "task_queue": [
+                    {
+                        "title": "Run baseline benchmark with the discovered file",
+                        "status": "open",
+                        "contract": "experiment",
+                        "acceptance_criteria": "Benchmark command uses a validated file path.",
+                        "evidence_needed": "Shell output showing file size and benchmark result.",
+                    }
+                ],
+                "experiment_ledger": [
+                    {
+                        "title": "Remote download failed",
+                        "status": "failed",
+                        "metric_name": "downloaded_files",
+                        "metric_value": 0,
+                        "next_action": "Record tasks to explore alternative download methods and remote sources.",
+                    }
+                ],
+            },
+        )
+        run_id = db.start_run(job_id, model="test")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec")
+        db.finish_step(
+            step_id,
+            status="completed",
+            output_data={
+                "success": True,
+                "stdout": "/srv/models/AlphaModel-Q4.foo\n",
+            },
+        )
+        db.finish_run(run_id, "completed")
+
+        content = build_messages(db.get_job(job_id), db.list_steps(job_id=job_id))[-1]["content"]
+
+        idx = content.index("Next-action constraint:")
+        next_constraint = content[idx: idx + 900]
+        assert "Concrete candidate file paths are available" in next_constraint
+        assert "/srv/models/AlphaModel-Q4.foo" in next_constraint
+        assert "alternative download methods" not in next_constraint
     finally:
         db.close()
 
