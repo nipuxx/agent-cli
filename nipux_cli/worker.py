@@ -973,6 +973,69 @@ def _shell_guard_urls(text: str) -> list[str]:
     return path_urls or urls
 
 
+SHELL_PLACEHOLDER_URL_HOSTS = {
+    "domain",
+    "endpoint",
+    "example",
+    "file",
+    "host",
+    "input",
+    "output",
+    "path",
+    "placeholder",
+    "source",
+    "target",
+    "url",
+    "uri",
+}
+
+SHELL_PLACEHOLDER_FIELD_NAMES = (
+    "command",
+    "domain",
+    "endpoint",
+    "file",
+    "host",
+    "input",
+    "output",
+    "path",
+    "source",
+    "target",
+    "url",
+    "uri",
+)
+
+
+def _shell_placeholder_context(command: str) -> dict[str, Any] | None:
+    command = str(command or "").strip()
+    if not command:
+        return None
+    for url in _urls_from_text(command):
+        parsed = urlparse(url)
+        host = (parsed.hostname or "").lower()
+        if host in SHELL_PLACEHOLDER_URL_HOSTS:
+            return {
+                "kind": "placeholder_url",
+                "value": url,
+                "reason": "URL host looks like an unresolved placeholder field",
+            }
+    fields = "|".join(re.escape(name) for name in SHELL_PLACEHOLDER_FIELD_NAMES)
+    placeholder_patterns = [
+        rf"<\s*(?:{fields})(?:[-_ ][A-Za-z0-9]+)?\s*>",
+        rf"\{{\{{\s*(?:{fields})(?:[-_ ][A-Za-z0-9]+)?\s*\}}\}}",
+        rf"\{{\s*(?:{fields})(?:[-_ ][A-Za-z0-9]+)?\s*\}}",
+        r"\b(?:YOUR|REPLACE|TODO|INSERT)_[A-Z0-9_]{3,}\b",
+    ]
+    for pattern in placeholder_patterns:
+        match = re.search(pattern, command, flags=re.IGNORECASE)
+        if match:
+            return {
+                "kind": "placeholder_token",
+                "value": match.group(0),
+                "reason": "command contains an unresolved placeholder token",
+            }
+    return None
+
+
 def _source_failure_family_url(value: str) -> str:
     parsed = urlparse(_normalized_source_url(value))
     if not parsed.scheme or not parsed.netloc:
@@ -2569,6 +2632,23 @@ def _blocked_tool_call_result(
         }
         return result, f"blocked {name}; evidence checkpoint accounting required"
     checkpoint_resolution_call = bool(auto_checkpoint_accounting and name in EVIDENCE_CHECKPOINT_RESOLUTION_TOOLS)
+
+    if name == "shell_exec":
+        placeholder = _shell_placeholder_context(str(args.get("command") or ""))
+        if placeholder:
+            result = {
+                "success": False,
+                "error": "unresolved placeholder in shell command",
+                "blocked_tool": name,
+                "blocked_arguments": args,
+                "placeholder": placeholder,
+                "guidance": (
+                    "Do not execute shell commands that still contain placeholder URLs, paths, hosts, or template "
+                    "tokens. Resolve the concrete value from evidence, ask the operator if it is genuinely unknown, "
+                    "or record a blocked task/source before continuing."
+                ),
+            }
+            return result, "blocked shell_exec; unresolved placeholder in command"
 
     unpersisted_evidence = _unpersisted_evidence_step(recent_steps)
     if unpersisted_evidence and name in BRANCH_WORK_TOOLS:
