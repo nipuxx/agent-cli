@@ -2160,6 +2160,39 @@ def test_run_one_step_defers_after_repeated_transient_model_timeouts(tmp_path):
         db.close()
 
 
+def test_run_one_step_defers_after_repeated_model_rate_limits(tmp_path):
+    config = AppConfig(
+        runtime=RuntimeConfig(home=tmp_path),
+        model=ModelConfig(request_timeout_seconds=120),
+    )
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Keep running through provider rate limits", title="provider rate limit")
+        for _index in range(2):
+            run_id = db.start_run(job_id, model="test")
+            step_id = db.add_step(job_id=job_id, run_id=run_id, kind="llm", status="failed")
+            db.finish_step(
+                step_id,
+                status="failed",
+                summary="model call failed: RateLimitError",
+                output_data={"success": False, "error": "429 too many requests", "error_type": "RateLimitError"},
+                error="429 too many requests",
+            )
+            db.finish_run(run_id, "failed", error="429 too many requests")
+
+        result = run_one_step(job_id, config=config, db=db, llm=ExplodingLLM())
+
+        assert result.status == "completed"
+        assert result.tool_name == "defer_job"
+        assert result.result["transient_model_failure"]["count"] == 2
+        assert "429 too many requests" in result.result["transient_model_failure"]["error"]
+        job = db.get_job(job_id)
+        assert job["metadata"]["defer_until"]
+        assert "Transient model provider failures" in job["metadata"]["defer_reason"]
+    finally:
+        db.close()
+
+
 def test_repeated_transient_model_cooldowns_back_off_progressively(tmp_path):
     config = AppConfig(
         runtime=RuntimeConfig(home=tmp_path),

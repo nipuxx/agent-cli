@@ -32,7 +32,7 @@ from nipux_cli.operator_context import (
     inactive_prompt_operator_ids,
 )
 from nipux_cli.progress import build_progress_checkpoint
-from nipux_cli.provider_errors import provider_action_required_note
+from nipux_cli.provider_errors import provider_action_required_note, provider_rate_limited
 from nipux_cli.source_quality import anti_bot_reason
 from nipux_cli.tools import DEFAULT_REGISTRY, ToolContext, ToolRegistry
 from nipux_cli.worker_policy import (
@@ -4475,6 +4475,8 @@ def _transient_model_failure_context(
 
 def _step_has_transient_model_error(step: dict[str, Any]) -> bool:
     lowered = _step_error_text(step).lower()
+    if provider_rate_limited(lowered):
+        return True
     return any(
         marker in lowered
         for marker in (
