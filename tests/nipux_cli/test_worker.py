@@ -6269,6 +6269,98 @@ def test_delivery_experiment_next_action_allows_bounded_verification_shell(tmp_p
         db.close()
 
 
+def test_failed_next_action_requires_accounting_before_more_shell(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Improve a generic runtime", title="runtime", kind="generic")
+        db.update_job_metadata(job_id, {
+            "experiment_ledger": [{
+                "title": "runtime gap",
+                "status": "measured",
+                "metric_name": "valid_files",
+                "metric_value": 1,
+                "metric_unit": "files",
+                "next_action": "build runner binary then run benchmark with validated file",
+            }],
+        })
+        run_id = db.start_run(job_id, model="test")
+        step_id = db.add_step(
+            job_id=job_id,
+            run_id=run_id,
+            kind="tool",
+            tool_name="shell_exec",
+            input_data={"arguments": {"command": "cd /tmp/runtime && mkdir -p build && build-tool .."}},
+        )
+        db.finish_step(
+            step_id,
+            status="completed",
+            output_data={
+                "success": True,
+                "returncode": 0,
+                "stdout": "/bin/sh: 1: build-tool: not found\n",
+                "stderr": "",
+            },
+        )
+        db.finish_run(run_id, "completed")
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([LLMResponse(tool_calls=[
+                ToolCall(name="shell_exec", arguments={"command": "ls /tmp/runtime/build/bin/runner 2>&1"})
+            ])]),
+            registry=SuccessRegistry(),
+        )
+
+        assert result.status == "blocked"
+        assert result.result["error"] == "action result accounting required"
+        assert result.result["action_failure"]["step_no"] == 1
+        assert "build-tool: not found" in result.result["action_failure"]["excerpt"]
+    finally:
+        db.close()
+
+
+def test_failed_next_action_prompt_prioritizes_accounting(tmp_path):
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Improve a generic runtime", title="runtime", kind="generic")
+        db.update_job_metadata(job_id, {
+            "experiment_ledger": [{
+                "title": "runtime gap",
+                "status": "measured",
+                "metric_name": "valid_files",
+                "metric_value": 1,
+                "metric_unit": "files",
+                "next_action": "build runner binary then run benchmark with validated file",
+            }],
+        })
+        run_id = db.start_run(job_id, model="test")
+        step_id = db.add_step(
+            job_id=job_id,
+            run_id=run_id,
+            kind="tool",
+            tool_name="shell_exec",
+            input_data={"arguments": {"command": "cd /tmp/runtime && build-tool .."}},
+        )
+        db.finish_step(
+            step_id,
+            status="completed",
+            output_data={"success": True, "returncode": 0, "stdout": "/bin/sh: 1: build-tool: not found\n"},
+        )
+        db.finish_run(run_id, "completed")
+
+        messages = build_messages(db.get_job(job_id), db.list_steps(job_id=job_id))
+        prompt = messages[-1]["content"]
+
+        assert "latest experiment next action was attempted" in prompt
+        assert "record_experiment" in prompt
+        assert "build-tool: not found" in prompt
+    finally:
+        db.close()
+
+
 def test_delivery_experiment_next_action_allows_write_shell(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

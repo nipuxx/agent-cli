@@ -410,6 +410,11 @@ def _shell_path_recovery_context(recent_steps: list[dict[str, Any]], *, window: 
     return None
 
 
+def _shell_step_failure_text(step: dict[str, Any]) -> str:
+    output = step.get("output") if isinstance(step.get("output"), dict) else {}
+    return "\n".join(str(output.get(key) or "") for key in ("stdout", "stderr", "error"))
+
+
 def _shell_output_has_missing_command(text: str) -> bool:
     lowered = text.lower()
     return any(marker in lowered for marker in ("command not found", ": not found", "no such file or directory"))
@@ -939,6 +944,16 @@ def _next_action_constraint(job: dict[str, Any], recent_steps: list[dict[str, An
             "include the exact observed paths/tokens when claiming candidates or files, or explicitly record why they "
             f"are irrelevant/invalid.{detail}"
         )
+    action_failure = _experiment_next_action_failure_context(job, recent_steps)
+    if action_failure:
+        return (
+            "The latest experiment next action was attempted, but the observed shell output reports a missing "
+            f"command/path/prerequisite at step #{action_failure.get('step_no') or '?'}. "
+            f"Observed output: {_clip_text(str(action_failure.get('excerpt') or ''), 260)}. "
+            "Next, account for this attempted action with record_experiment, record_tasks, or record_lesson: "
+            "mark the branch failed/blocked or create the concrete recovery branch. Do not run more read-only probes "
+            "until the failed action is durable."
+        )
     measured_guard = _measured_progress_guard_context(job, recent_steps)
     if measured_guard:
         return (
@@ -1133,6 +1148,30 @@ def _experiment_next_action_requires_delivery(context: dict[str, Any] | None) ->
     return not bool(tokens & EXPERIMENT_INFORMATION_ACTION_TERMS)
 
 
+def _experiment_next_action_failure_context(job: dict[str, Any], recent_steps: list[dict[str, Any]], *, window: int = 8) -> dict[str, Any] | None:
+    context = _latest_experiment_next_action_context(job)
+    if not _experiment_next_action_requires_delivery(context):
+        return None
+    next_action = str(context.get("next_action") or "") if context else ""
+    for step in reversed(_completed_recent_steps(recent_steps)[-window:]):
+        if step.get("tool_name") != "shell_exec":
+            continue
+        text = _shell_step_failure_text(step)
+        if not text.strip() or not _shell_output_has_missing_command(text):
+            continue
+        command = _step_command(step)
+        if not _shell_command_matches_next_action(command, next_action):
+            continue
+        return {
+            "step_no": step.get("step_no"),
+            "command": command,
+            "excerpt": text.strip(),
+            "missing_paths": _missing_paths_from_shell_output(text),
+            "experiment_next_action": context,
+        }
+    return None
+
+
 def _shell_command_looks_like_write(command: str) -> bool:
     text = command.strip()
     if not text:
@@ -1184,6 +1223,14 @@ def _shell_command_supports_experiment_next_action(command: str, context: dict[s
     if not action_tokens:
         return False
     command_tokens = _substantive_next_action_tokens(text)
+    return bool(action_tokens & command_tokens)
+
+
+def _shell_command_matches_next_action(command: str, next_action: str) -> bool:
+    if not command.strip() or not next_action.strip():
+        return False
+    action_tokens = _substantive_next_action_tokens(next_action)
+    command_tokens = _substantive_next_action_tokens(command)
     return bool(action_tokens & command_tokens)
 
 
@@ -4116,6 +4163,24 @@ def _blocked_tool_call_result(
             return result, f"blocked misleading write_artifact; anti-bot source at step #{anti_bot_context.get('step_no')}"
 
     experiment_next_action = _latest_experiment_next_action_context(job)
+    action_failure = _experiment_next_action_failure_context(job, recent_steps)
+    if (
+        action_failure
+        and name not in {"record_experiment", "record_tasks", "record_lesson", "record_milestone_validation"}
+    ):
+        result = {
+            "success": False,
+            "error": "action result accounting required",
+            "blocked_tool": name,
+            "blocked_arguments": args,
+            "action_failure": action_failure,
+            "guidance": (
+                "The latest experiment next action was attempted and the observed output reports a missing command, "
+                "path, or prerequisite. Before more work, use record_experiment, record_tasks, or record_lesson to "
+                "account for the failed/blocked action and choose a concrete recovery branch."
+            ),
+        }
+        return result, f"blocked {name}; action result accounting required"
     if (
         _experiment_next_action_requires_delivery(experiment_next_action)
         and (
@@ -4135,7 +4200,7 @@ def _blocked_tool_call_result(
             "experiment_next_action": experiment_next_action,
             "guidance": (
                 "The latest measured experiment selected a delivery/action next step. "
-                "Act on that next action with an execution or ledger tool, or use record_tasks/record_lesson "
+                "Act on that next action with an execution or ledger tool, or use record_experiment/record_tasks/record_lesson "
                 "to explain why it is invalid or blocked before doing more research or artifact review."
             ),
         }
