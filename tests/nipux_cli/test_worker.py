@@ -1484,7 +1484,7 @@ def test_already_read_checkpoint_branch_block_recovers_immediately(tmp_path):
 def test_evidence_grounding_ignores_format_protocol_tokens():
     tokens = _concrete_evidence_tokens(
         "Parsed JSON from HTTPS REST API URL and saved HTML/YAML/XML CDN SHA256 GGUF excerpts for Model-7B step_123_shell_output. "
-        "Download investigation parsed direct API results."
+        "Download investigation parsed direct API results. Discovery step-2678 located a candidate file after shell_exec_step_1037."
     )
 
     assert "JSON" not in tokens
@@ -1496,10 +1496,111 @@ def test_evidence_grounding_ignores_format_protocol_tokens():
     assert "GGUF" not in tokens
     assert "URL" not in tokens
     assert "Download" not in tokens
+    assert "Discovery" not in tokens
     assert "investigation" not in tokens
     assert "direct" not in tokens
     assert "step_123_shell_output" not in tokens
+    assert "step-2678" not in tokens
+    assert "shell_exec_step_1037" not in tokens
     assert "Model-7B" in tokens
+
+
+def test_record_experiment_allows_not_stub_validation_for_observed_token(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Validate discovered file", title="grounding", kind="generic")
+        run_id = db.start_run(job_id, model="test")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec")
+        db.finish_step(
+            step_id,
+            status="completed",
+            output_data={
+                "success": True,
+                "stdout": "-rw-r--r-- 1 user user 12G /srv/models/AlphaModel-99-Q4.foo\n",
+                "stderr": "",
+            },
+        )
+        db.finish_run(run_id, "completed")
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(
+                        name="record_experiment",
+                        arguments={
+                            "title": "Candidate File Validation",
+                            "status": "measured",
+                            "metric_name": "usable_files_found",
+                            "metric_value": 1,
+                            "metric_unit": "files",
+                            "result": (
+                                "Observed /srv/models/AlphaModel-99-Q4.foo at 12G. "
+                                "AlphaModel-99-Q4.foo is not a 29-byte stub."
+                            ),
+                            "next_action": "Run the next bounded benchmark.",
+                        },
+                    )
+                ])
+            ]),
+        )
+
+        assert result.status == "completed"
+        assert result.tool_name == "record_experiment"
+    finally:
+        db.close()
+
+
+def test_record_findings_ignores_generated_step_labels_as_claims(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Record observed file candidates", title="grounding", kind="generic")
+        run_id = db.start_run(job_id, model="test")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec")
+        db.finish_step(
+            step_id,
+            status="completed",
+            output_data={
+                "success": True,
+                "stdout": "/srv/models/AlphaModel-99-Q4.foo\n",
+                "stderr": "",
+            },
+        )
+        db.finish_run(run_id, "completed")
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(
+                        name="record_findings",
+                        arguments={
+                            "findings": [
+                                {
+                                    "name": "Model file candidate located",
+                                    "category": "file_candidate",
+                                    "location": "/srv/models/AlphaModel-99-Q4.foo",
+                                    "evidence_artifact": "step-2678 shell_exec output",
+                                    "reason": "Found via step-2678 shell output.",
+                                    "status": "candidate",
+                                }
+                            ]
+                        },
+                    )
+                ])
+            ]),
+        )
+
+        assert result.status == "completed"
+        assert result.tool_name == "record_findings"
+    finally:
+        db.close()
 
 
 def test_write_artifact_allows_plain_prose_headings_without_evidence(tmp_path):

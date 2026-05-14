@@ -662,12 +662,15 @@ def _stale_token_is_distinctive(token: str) -> bool:
         "ascii",
         "blocked",
         "broken",
+        "candidate",
+        "candidates",
         "cdn",
         "cli",
         "critical",
         "cpu",
         "cuda",
         "discovered",
+        "discovery",
         "ggml",
         "gguf",
         "gpu",
@@ -689,6 +692,13 @@ def _stale_token_is_distinctive(token: str) -> bool:
         "severe",
         "sha",
         "sha256",
+        "search",
+        "usable",
+        "unvalidated",
+        "valid",
+        "validity",
+        "validate",
+        "validated",
         "vram",
         "xml",
         "xet",
@@ -696,7 +706,26 @@ def _stale_token_is_distinctive(token: str) -> bool:
         "yml",
     }:
         return False
-    if lowered.startswith(("art_", "step_", "shell_", "web_", "episode-", "fact-", "source-", "quality-", "constraint-", "baseline-", "question-", "verified_", "timeout_")):
+    if lowered.startswith((
+        "art_",
+        "step_",
+        "step-",
+        "shell_",
+        "shell-",
+        "web_",
+        "web-",
+        "episode-",
+        "fact-",
+        "source-",
+        "quality-",
+        "constraint-",
+        "baseline-",
+        "question-",
+        "verified_",
+        "verified-",
+        "timeout_",
+        "timeout-",
+    )):
         return False
     if lowered.endswith((".md", ".py", ".json", ".yaml", ".yml", ".gguf", ".txt", ".log")):
         return False

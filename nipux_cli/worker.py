@@ -1587,6 +1587,8 @@ EVIDENCE_TOKEN_IGNORE = {
     "baseline",
     "branch",
     "branches",
+    "candidate",
+    "candidates",
     "cdn",
     "checkpoint",
     "compare",
@@ -1603,6 +1605,8 @@ EVIDENCE_TOKEN_IGNORE = {
     "downloaded",
     "downloading",
     "downloads",
+    "discovered",
+    "discovery",
     "environment",
     "evidence",
     "experiment",
@@ -1627,6 +1631,7 @@ EVIDENCE_TOKEN_IGNORE = {
     "gguf",
     "hardware",
     "improve",
+    "located",
     "memory",
     "metric",
     "milestone",
@@ -1651,6 +1656,7 @@ EVIDENCE_TOKEN_IGNORE = {
     "result",
     "roadmap",
     "runtime",
+    "search",
     "server",
     "source",
     "sources",
@@ -1666,6 +1672,12 @@ EVIDENCE_TOKEN_IGNORE = {
     "tool",
     "tools",
     "url",
+    "usable",
+    "unvalidated",
+    "valid",
+    "validity",
+    "validate",
+    "validated",
     "validation",
     "worker",
     "xml",
@@ -1780,7 +1792,7 @@ def _stale_claim_tokens_from_unsupported(tokens: list[str], *, reference_text: s
         if not cleaned:
             continue
         key = cleaned.lower()
-        if key in seen or key in STALE_CLAIM_TOKEN_IGNORE:
+        if key in seen or key in STALE_CLAIM_TOKEN_IGNORE or key in EVIDENCE_TOKEN_IGNORE:
             continue
         if reference_norm and _normalize_claim_text(cleaned) in reference_norm:
             continue
@@ -1799,7 +1811,26 @@ def _stale_claim_tokens_from_unsupported(tokens: list[str], *, reference_text: s
 
 def _looks_like_generated_or_file_token(token: str) -> bool:
     lowered = token.lower()
-    if lowered.startswith(("art_", "step_", "shell_", "web_", "episode-", "fact-", "source-", "quality-", "constraint-", "baseline-", "question-", "verified_", "timeout_")):
+    if lowered.startswith((
+        "art_",
+        "step_",
+        "step-",
+        "shell_",
+        "shell-",
+        "web_",
+        "web-",
+        "episode-",
+        "fact-",
+        "source-",
+        "quality-",
+        "constraint-",
+        "baseline-",
+        "question-",
+        "verified_",
+        "verified-",
+        "timeout_",
+        "timeout-",
+    )):
         return True
     if lowered.endswith((".md", ".py", ".json", ".yaml", ".yml", ".gguf", ".txt", ".log")):
         return True
@@ -2146,12 +2177,19 @@ def _token_near_negative_claim(text: str, token: str, *, window: int = 64) -> bo
             if _nearby_negative_is_role_classification(nearby):
                 start = index + len(token_lower)
                 continue
+            if _nearby_negative_is_positive_validation(nearby):
+                start = index + len(token_lower)
+                continue
             return True
         start = index + len(token_lower)
 
 
 def _nearby_negative_is_role_classification(text: str) -> bool:
     return any(marker in text for marker in NEGATIVE_ROLE_CLASSIFICATION_MARKERS)
+
+
+def _nearby_negative_is_positive_validation(text: str) -> bool:
+    return bool(re.search(r"\bnot\s+(?:a|an|the)?\s*(?:[\w.-]+\s+){0,5}(?:stub|placeholder|empty file)\b", text))
 
 
 def _positive_evidence_line_for_token(lines: list[str], token: str) -> str:
@@ -2348,6 +2386,8 @@ def _concrete_evidence_tokens(text: str) -> list[str]:
         lowered = token.lower()
         if lowered in EVIDENCE_TOKEN_IGNORE:
             continue
+        if _looks_like_generated_evidence_token(token):
+            continue
         if lowered.startswith("art_"):
             continue
         if lowered.startswith("step_"):
@@ -2370,6 +2410,8 @@ def _high_risk_evidence_token(token: str) -> bool:
     lowered = token.lower()
     if not token or lowered in EVIDENCE_TOKEN_IGNORE:
         return False
+    if _looks_like_generated_evidence_token(token):
+        return False
     if lowered.startswith(("art_", "step_")):
         return False
     if lowered.endswith((".md", ".py", ".json", ".yaml", ".yml", ".gguf", ".txt", ".log")):
@@ -2379,6 +2421,16 @@ def _high_risk_evidence_token(token: str) -> bool:
     if token.isupper() and len(token) >= 3:
         return True
     return False
+
+
+def _looks_like_generated_evidence_token(token: str) -> bool:
+    lowered = token.lower().strip()
+    if re.match(
+        r"^(?:art|step|shell|web|episode|fact|source|quality|constraint|baseline|question|verified|timeout)[_-]\d+[a-z]*$",
+        lowered,
+    ):
+        return True
+    return bool(re.match(r"^(?:shell|web|browser|tool)[a-z0-9_-]*[_-]step[_-]?\d+[a-z]*$", lowered))
 
 
 def _step_has_evidence(step: dict[str, Any]) -> bool:
