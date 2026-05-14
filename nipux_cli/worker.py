@@ -2707,8 +2707,11 @@ def _durable_records_for_grounding(job: dict[str, Any]) -> str:
             "finding": finding.get("name") or finding.get("title"),
             "category": finding.get("category"),
             "reason": finding.get("reason") or finding.get("summary"),
+            "location": finding.get("location"),
+            "status": finding.get("status"),
             "evidence_artifact": finding.get("evidence_artifact"),
             "url": finding.get("url"),
+            "metadata": finding.get("metadata") if isinstance(finding.get("metadata"), dict) else {},
         }))
     for experiment in _metadata_list(job, "experiment_ledger")[-12:]:
         parts.append(_json_text({
@@ -2769,6 +2772,8 @@ def _concrete_evidence_tokens(text: str) -> list[str]:
             continue
         lowered = token.lower()
         if lowered in EVIDENCE_TOKEN_IGNORE:
+            continue
+        if re.match(r"^[a-z]\d+$", token):
             continue
         if _looks_like_generated_evidence_token(token):
             continue

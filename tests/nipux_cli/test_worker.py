@@ -1546,6 +1546,13 @@ def test_evidence_grounding_ignores_format_protocol_tokens():
     assert "Model-7B" in tokens
 
 
+def test_evidence_grounding_ignores_lowercase_command_shorthand_tokens():
+    tokens = _concrete_evidence_tokens("Build with cmake --build . -j16 on H100 hardware if observed.")
+
+    assert "j16" not in tokens
+    assert "H100" in tokens
+
+
 def test_record_experiment_allows_not_stub_validation_for_observed_token(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")
@@ -4394,6 +4401,49 @@ def test_evidence_grounding_ignores_record_schema_keys(tmp_path):
         assert result.status == "completed"
         experiment = db.get_job(job_id)["metadata"]["experiment_ledger"][0]
         assert experiment["config"]["python_3_installed"] is True
+    finally:
+        db.close()
+
+
+def test_evidence_grounding_uses_durable_finding_location_and_metadata(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Record known candidate from durable state", title="durable-grounding", kind="generic")
+        db.append_finding_record(
+            job_id,
+            name="Candidate runtime model",
+            category="environment",
+            location="/srv/models/AlphaModel-99-Q4.gguf",
+            reason="Observed candidate model path is ready for later measurement.",
+            status="available",
+            metadata={"quantization": "Q4"},
+        )
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(
+                        name="record_experiment",
+                        arguments={
+                            "title": "Candidate runtime model readiness",
+                            "status": "measured",
+                            "metric_name": "candidate_files",
+                            "metric_value": 1,
+                            "config": {"model": "/srv/models/AlphaModel-99-Q4.gguf"},
+                            "result": "Durable finding shows /srv/models/AlphaModel-99-Q4.gguf is available.",
+                            "next_action": "measure throughput with the durable candidate model",
+                        },
+                    )
+                ])
+            ]),
+        )
+
+        assert result.status == "completed"
+        assert result.tool_name == "record_experiment"
     finally:
         db.close()
 
