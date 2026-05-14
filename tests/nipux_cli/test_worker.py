@@ -3833,6 +3833,48 @@ def test_prompt_prioritizes_validation_for_recent_candidate_file_paths(tmp_path)
         db.close()
 
 
+def test_prompt_prioritizes_structured_candidate_file_paths(tmp_path):
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Validate a discovered remote file", title="candidate-file", kind="generic")
+        db.update_job_metadata(
+            job_id,
+            {
+                "task_queue": [
+                    {
+                        "title": "Download and validate a candidate file",
+                        "status": "open",
+                        "contract": "action",
+                        "acceptance_criteria": "A candidate file path is selected and validated before use.",
+                        "evidence_needed": "Shell output with size, hash, or validation metadata.",
+                    }
+                ]
+            },
+        )
+        run_id = db.start_run(job_id, model="test")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec")
+        db.finish_step(
+            step_id,
+            status="completed",
+            output_data={
+                "success": True,
+                "stdout": (
+                    '[{"type":"file","size":123456789,"path":"ExampleModel-Q4.foo"},'
+                    '{"type":"file","size":42,"path":".gitattributes"}]'
+                ),
+            },
+        )
+        db.finish_run(run_id, "completed")
+
+        content = build_messages(db.get_job(job_id), db.list_steps(job_id=job_id))[-1]["content"]
+
+        assert "Candidate file discovery:" in content
+        assert "ExampleModel-Q4.foo" in content
+        assert "Validate likely candidates with shell_exec" in content
+    finally:
+        db.close()
+
+
 def test_prompt_filters_stale_generated_and_objective_tokens(tmp_path):
     db = AgentDB(tmp_path / "state.db")
     try:

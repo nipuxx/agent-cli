@@ -372,6 +372,13 @@ def _extract_candidate_file_paths(text: str) -> list[str]:
         if len(raw) > 500:
             continue
         paths.append(raw)
+    for match in re.finditer(r'"path"\s*:\s*"([^"]+\.[A-Za-z0-9][A-Za-z0-9_-]{1,12})"', text or ""):
+        raw = match.group(1).strip()
+        if not raw or "://" in raw:
+            continue
+        if len(raw) > 500:
+            continue
+        paths.append(raw)
     return paths
 
 
