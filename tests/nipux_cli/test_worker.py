@@ -3070,6 +3070,90 @@ def test_measured_progress_guard_keeps_shell_available_before_shell_budget(tmp_p
         db.close()
 
 
+def test_measured_progress_guard_ignores_non_measurement_task_updates(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Optimize a measurable process", title="measured", kind="generic")
+        for index in range(18):
+            run_id = db.start_run(job_id)
+            step_id = db.add_step(
+                job_id=job_id,
+                run_id=run_id,
+                kind="tool",
+                tool_name="web_search",
+                input_data={"arguments": {"query": f"research branch {index}"}},
+            )
+            db.finish_step(step_id, status="completed", output_data={"success": True})
+            db.finish_run(run_id, "completed")
+        run_id = db.start_run(job_id)
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="record_tasks")
+        db.finish_step(
+            step_id,
+            status="completed",
+            output_data={
+                "success": True,
+                "tasks": [{"title": "Write notes", "status": "open", "output_contract": "report"}],
+            },
+        )
+        db.finish_run(run_id, "completed")
+
+        blocked = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([LLMResponse(tool_calls=[ToolCall(name="web_search", arguments={"query": "more notes"})])]),
+            registry=MeasuredShellRegistry(),
+        )
+
+        assert blocked.status == "blocked"
+        assert blocked.result["error"] == "measured progress required"
+    finally:
+        db.close()
+
+
+def test_measured_progress_guard_accepts_measurement_task_update(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Optimize a measurable process", title="measured", kind="generic")
+        for index in range(18):
+            run_id = db.start_run(job_id)
+            step_id = db.add_step(
+                job_id=job_id,
+                run_id=run_id,
+                kind="tool",
+                tool_name="web_search",
+                input_data={"arguments": {"query": f"research branch {index}"}},
+            )
+            db.finish_step(step_id, status="completed", output_data={"success": True})
+            db.finish_run(run_id, "completed")
+        run_id = db.start_run(job_id)
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="record_tasks")
+        db.finish_step(
+            step_id,
+            status="completed",
+            output_data={
+                "success": True,
+                "tasks": [{"title": "Run measured variant", "status": "open", "output_contract": "experiment"}],
+            },
+        )
+        db.finish_run(run_id, "completed")
+
+        allowed = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([LLMResponse(tool_calls=[ToolCall(name="shell_exec", arguments={"command": "run measured variant"})])]),
+            registry=MeasuredShellRegistry(),
+        )
+
+        assert allowed.status == "completed"
+        assert allowed.tool_name == "shell_exec"
+    finally:
+        db.close()
+
+
 def test_measurable_objective_allows_candidate_file_validation_shell_after_budget(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

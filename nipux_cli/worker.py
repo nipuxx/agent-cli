@@ -3420,7 +3420,7 @@ def _measured_progress_guard_context(
     shell_actions = [step for step in tail if step.get("tool_name") == "shell_exec"]
     if len(branch_activity) < budget and len(shell_actions) < MEASURABLE_ACTION_BUDGET_STEPS:
         return None
-    if any(step.get("tool_name") in {"record_tasks", "record_lesson"} for step in tail[-6:]):
+    if any(_step_accounts_for_measured_progress_guard(step) for step in tail[-6:]):
         return None
     experiments = _metadata_list(job, "experiment_ledger")
     reason = "no experiment records yet" if not experiments else "no recent experiment update"
@@ -3434,6 +3434,28 @@ def _measured_progress_guard_context(
         "since_step": branch_activity[0].get("step_no") if branch_activity else None,
         "tools": [step.get("tool_name") or step.get("kind") for step in branch_activity[-10:]],
     }
+
+
+def _step_accounts_for_measured_progress_guard(step: dict[str, Any]) -> bool:
+    tool_name = step.get("tool_name")
+    if tool_name == "record_lesson":
+        return True
+    if tool_name != "record_tasks":
+        return False
+    output = step.get("output") if isinstance(step.get("output"), dict) else {}
+    tasks = output.get("tasks") if isinstance(output.get("tasks"), list) else []
+    for task in tasks:
+        if not isinstance(task, dict):
+            continue
+        status = str(task.get("status") or "open").strip().lower().replace(" ", "_")
+        if status in {"done", "skipped"}:
+            continue
+        contract = str(task.get("output_contract") or "").strip().lower().replace(" ", "_")
+        if contract in {"experiment", "monitor"}:
+            return True
+        if contract == "action" and _task_text_requires_measurement(task):
+            return True
+    return False
 
 
 def _maybe_create_measurement_obligation(
