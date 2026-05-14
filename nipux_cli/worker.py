@@ -4359,6 +4359,43 @@ def _execute_tool_call(
         )
 
 
+def _ordered_tool_calls_for_execution(
+    tool_calls: list[ToolCall],
+    *,
+    job: dict[str, Any],
+    recent_steps: list[dict[str, Any]],
+) -> list[ToolCall]:
+    """Run guard-unblocking calls before branch work when a model batches both."""
+
+    if len(tool_calls) < 2:
+        return tool_calls
+    checkpoint = _auto_checkpoint_accounting_context(job, recent_steps)
+    if not checkpoint:
+        return tool_calls
+
+    artifact_id = str(checkpoint.get("artifact_id") or "")
+    artifact_title = str(checkpoint.get("title") or "")
+    checkpoint_read = bool(checkpoint.get("checkpoint_read"))
+
+    def priority(call: ToolCall) -> int:
+        if call.name in EVIDENCE_CHECKPOINT_RESOLUTION_TOOLS:
+            return 0
+        if (
+            not checkpoint_read
+            and call.name == "read_artifact"
+            and _read_artifact_call_matches_checkpoint(
+                call.arguments,
+                artifact_id=artifact_id,
+                artifact_title=artifact_title,
+            )
+        ):
+            return 0
+        return 1
+
+    ordered = sorted(enumerate(tool_calls), key=lambda item: (priority(item[1]), item[0]))
+    return [call for _, call in ordered]
+
+
 def _registry_tools(registry: ToolRegistry, config: AppConfig) -> list[dict[str, Any]]:
     try:
         return registry.openai_tools(config=config)
@@ -4501,7 +4538,12 @@ def run_one_step(
             executions: list[StepExecution] = []
             details: list[str] = []
             run_error: str | None = None
-            for call in response.tool_calls:
+            ordered_tool_calls = _ordered_tool_calls_for_execution(
+                response.tool_calls,
+                job=db.get_job(job_id),
+                recent_steps=db.list_steps(job_id=job_id),
+            )
+            for call in ordered_tool_calls:
                 current_job = db.get_job(job_id)
                 current_recent_steps = db.list_steps(job_id=job_id)
                 execution, stop_batch, detail, error = _execute_tool_call(

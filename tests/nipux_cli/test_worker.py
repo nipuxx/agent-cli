@@ -3411,6 +3411,90 @@ def test_run_one_step_requires_accounting_after_auto_checkpoint_read(tmp_path):
         db.close()
 
 
+def test_run_one_step_reads_checkpoint_before_batched_branch_work(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Convert evidence checkpoints into progress", title="checkpoint", kind="generic")
+        db.update_job_metadata(
+            job_id,
+            {
+                "pending_evidence_checkpoint": {
+                    "artifact_id": "art_checkpoint",
+                    "title": "Auto Evidence Checkpoint after step 1",
+                    "evidence_step_no": 1,
+                    "blocked_tool": "shell_exec",
+                }
+            },
+        )
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(name="shell_exec", arguments={"command": "echo more discovery"}),
+                    ToolCall(name="read_artifact", arguments={"artifact_id": "art_checkpoint"}),
+                ])
+            ]),
+            registry=SuccessRegistry(),
+        )
+
+        tool_steps = [step for step in db.list_steps(job_id=job_id) if step.get("kind") == "tool"]
+        assert [step["tool_name"] for step in tool_steps[-2:]] == ["read_artifact", "shell_exec"]
+        assert result.status == "blocked"
+        assert result.result["error"] == "evidence checkpoint accounting required"
+        assert result.result["blocked_tool"] == "shell_exec"
+        assert result.result["checkpoint_already_read"] is True
+        pending = db.get_job(job_id)["metadata"]["pending_evidence_checkpoint"]
+        assert pending["read_at"]
+    finally:
+        db.close()
+
+
+def test_run_one_step_accounts_checkpoint_before_batched_branch_work(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Convert evidence checkpoints into progress", title="checkpoint", kind="generic")
+        db.update_job_metadata(
+            job_id,
+            {
+                "pending_evidence_checkpoint": {
+                    "artifact_id": "art_checkpoint",
+                    "title": "Auto Evidence Checkpoint after step 1",
+                    "read_at": "2026-01-01T00:00:00+00:00",
+                    "evidence_step_no": 1,
+                    "blocked_tool": "shell_exec",
+                }
+            },
+        )
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(name="shell_exec", arguments={"command": "echo more discovery"}),
+                    ToolCall(name="record_lesson", arguments={"lesson": "checkpoint accounted", "category": "strategy"}),
+                ])
+            ]),
+            registry=SuccessRegistry(),
+        )
+
+        tool_steps = [step for step in db.list_steps(job_id=job_id) if step.get("kind") == "tool"]
+        assert [step["tool_name"] for step in tool_steps[-2:]] == ["record_lesson", "shell_exec"]
+        assert result.status == "completed"
+        assert result.tool_name == "shell_exec"
+        pending = db.get_job(job_id)["metadata"]["pending_evidence_checkpoint"]
+        assert pending["resolved_at"]
+        assert pending["resolved_by_tool"] == "record_lesson"
+    finally:
+        db.close()
+
+
 def test_run_one_step_treats_guard_recovery_as_checkpoint_accounting(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")
