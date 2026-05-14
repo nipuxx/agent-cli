@@ -1502,6 +1502,97 @@ def test_evidence_grounding_ignores_format_protocol_tokens():
     assert "Model-7B" in tokens
 
 
+def test_write_artifact_allows_plain_prose_headings_without_evidence(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Summarize observed evidence", title="artifact-grounding", kind="generic")
+        run_id = db.start_run(job_id, model="test")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec")
+        db.finish_step(
+            step_id,
+            status="completed",
+            output_data={
+                "success": True,
+                "stdout": "Observed status: candidate file exists and benchmark setup is ready for the next measured action.",
+                "stderr": "",
+            },
+        )
+        db.finish_run(run_id, "completed")
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(
+                        name="write_artifact",
+                        arguments={
+                            "title": "Evidence Consolidation Summary",
+                            "content": (
+                                "## Discovered\n"
+                                "The available observations were consolidated into a concise summary.\n\n"
+                                "## Significance\n"
+                                "This output records narrative context only and does not introduce a new model, file, or hardware identifier."
+                            ),
+                        },
+                    )
+                ])
+            ]),
+        )
+
+        assert result.status == "completed"
+        assert result.tool_name == "write_artifact"
+    finally:
+        db.close()
+
+
+def test_write_artifact_blocks_unsupported_high_risk_identifier(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Summarize observed evidence", title="artifact-grounding", kind="generic")
+        run_id = db.start_run(job_id, model="test")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec")
+        db.finish_step(
+            step_id,
+            status="completed",
+            output_data={
+                "success": True,
+                "stdout": "Observed model identifier: AlphaModel-99. No other model identifiers were observed.",
+                "stderr": "",
+            },
+        )
+        db.finish_run(run_id, "completed")
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(
+                        name="write_artifact",
+                        arguments={
+                            "title": "Benchmark Summary",
+                            "content": (
+                                "The observed candidate was AlphaModel-99.\n"
+                                "The final recommendation uses FakeModel-42 for the next benchmark branch."
+                            ),
+                        },
+                    )
+                ])
+            ]),
+        )
+
+        assert result.status == "blocked"
+        assert result.result["error"] == "evidence grounding required"
+        assert "FakeModel-42" in result.result["evidence_grounding"]["unsupported_tokens"]
+    finally:
+        db.close()
+
+
 def test_web_search_auto_records_source_quality(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

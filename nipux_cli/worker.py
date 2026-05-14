@@ -1544,6 +1544,10 @@ EVIDENCE_GROUNDED_TOOLS = {
     "report_update",
     "write_artifact",
 }
+NARRATIVE_EVIDENCE_GROUNDED_TOOLS = {
+    "report_update",
+    "write_artifact",
+}
 EVIDENCE_GROUNDING_RESOLUTION_TOOLS = {
     "record_experiment",
     "record_findings",
@@ -1836,7 +1840,7 @@ def _evidence_grounding_context(
     )
     if len(evidence_text.strip()) < 80:
         return None
-    proposed_tokens = _concrete_evidence_tokens(proposed_text)
+    proposed_tokens = _concrete_evidence_tokens_for_grounding(tool_name, proposed_text)
     negative_conflicts = _negative_claim_conflicts_for_grounding(
         tool_name=tool_name,
         proposed_text=proposed_text,
@@ -1880,7 +1884,11 @@ def _evidence_grounding_context(
             ),
         }
     stale_tokens = _active_stale_claim_token_set(job)
-    proposed_stale_tokens = [token for token in _concrete_evidence_tokens(full_proposed_text) if token.lower() in stale_tokens]
+    proposed_stale_tokens = [
+        token
+        for token in _concrete_evidence_tokens_for_grounding(tool_name, full_proposed_text)
+        if token.lower() in stale_tokens
+    ]
     if tool_name == "record_lesson" and not proposed_stale_tokens:
         return None
     unsupported_threshold = 1 if cited_steps or proposed_stale_tokens else 3
@@ -1921,6 +1929,13 @@ def _evidence_grounding_context(
             "Use exact observed evidence, inspect the source again, or record uncertainty instead of writing unsupported claims."
         ),
     }
+
+
+def _concrete_evidence_tokens_for_grounding(tool_name: str, text: str) -> list[str]:
+    tokens = _concrete_evidence_tokens(text)
+    if tool_name not in NARRATIVE_EVIDENCE_GROUNDED_TOOLS:
+        return tokens
+    return [token for token in tokens if _high_risk_evidence_token(token)]
 
 
 def _missing_candidate_paths_for_grounding(
