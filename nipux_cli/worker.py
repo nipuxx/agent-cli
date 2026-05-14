@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 import re
 import signal
@@ -100,6 +101,9 @@ from nipux_cli.worker_usage import turn_usage_metadata
 
 
 __all__ = ["MAX_WORKER_PROMPT_CHARS", "_render_worker_prompt", "build_messages", "run_one_step"]
+
+
+TRANSIENT_MODEL_COOLDOWN_MAX_SECONDS = 3600.0
 
 
 @dataclass(frozen=True)
@@ -3986,17 +3990,26 @@ def _run_transient_model_cooldown_step(
     run_id: str,
     timeout_seconds: float,
 ) -> StepExecution:
-    cooldown_seconds = min(900.0, max(120.0, float(timeout_seconds or 0.0) * 1.5))
+    job = db.get_job(job_id)
+    metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
+    cooldown_streak = _transient_model_cooldown_streak(metadata) + 1
+    base_cooldown_seconds = max(120.0, float(timeout_seconds or 0.0) * 1.5)
+    cooldown_seconds = min(
+        TRANSIENT_MODEL_COOLDOWN_MAX_SECONDS,
+        base_cooldown_seconds * min(16, 2 ** max(0, cooldown_streak - 1)),
+    )
     until = datetime.now(timezone.utc) + timedelta(seconds=cooldown_seconds)
     reason = (
         f"Transient model provider failures repeated {context.get('count')} times "
-        f"from step #{context.get('first_step_no')} to #{context.get('latest_step_no')}."
+        f"from step #{context.get('first_step_no')} to #{context.get('latest_step_no')} "
+        f"(cooldown streak {cooldown_streak})."
     )
     next_action = "Retry the worker turn after provider cooldown; if failures continue, record provider instability and wait longer."
     patch = {
         "defer_until": until.isoformat(),
         "defer_reason": reason,
         "defer_next_action": next_action,
+        "transient_model_cooldown_streak": cooldown_streak,
         "last_note": f"Deferred for transient model provider cooldown until {until.isoformat()}.",
     }
     db.update_job_status(job_id, "running", metadata_patch=patch)
@@ -4008,6 +4021,8 @@ def _run_transient_model_cooldown_step(
         "defer_until": until.isoformat(),
         "reason": reason,
         "next_action": next_action,
+        "cooldown_streak": cooldown_streak,
+        "cooldown_seconds": cooldown_seconds,
         "transient_model_failure": context,
     }
     db.append_agent_update(
@@ -4018,6 +4033,8 @@ def _run_transient_model_cooldown_step(
             "defer_until": until.isoformat(),
             "reason": reason,
             "next_action": next_action,
+            "cooldown_streak": cooldown_streak,
+            "cooldown_seconds": cooldown_seconds,
             "transient_model_failure": context,
         },
     )
@@ -4026,6 +4043,26 @@ def _run_transient_model_cooldown_step(
     _emit_loop_end(db, job_id, run_id, status="completed", step_id=step_id, tool_name="defer_job", detail=message)
     refresh_memory_index(db, job_id)
     return StepExecution(job_id=job_id, run_id=run_id, step_id=step_id, tool_name="defer_job", status="completed", result=result)
+
+
+def _transient_model_cooldown_streak(metadata: dict[str, Any]) -> int:
+    with contextlib.suppress(TypeError, ValueError):
+        return max(0, int(metadata.get("transient_model_cooldown_streak") or 0))
+    return 0
+
+
+def _reset_transient_model_cooldown_streak(db: AgentDB, job_id: str, job: dict[str, Any]) -> dict[str, Any]:
+    metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
+    if _transient_model_cooldown_streak(metadata) <= 0:
+        return job
+    db.update_job_metadata(
+        job_id,
+        {
+            "transient_model_cooldown_streak": 0,
+            "transient_model_recovered_at": datetime.now(timezone.utc).isoformat(),
+        },
+    )
+    return db.get_job(job_id)
 
 
 def _evidence_checkpoint_content(evidence_step: dict[str, Any]) -> str:
@@ -5050,6 +5087,7 @@ def run_one_step(
             refresh_memory_index(db, job_id)
             return StepExecution(job_id=job_id, run_id=run_id, step_id=step_id, tool_name=None, status="failed", result=result)
 
+        job = _reset_transient_model_cooldown_streak(db, job_id, db.get_job(job_id))
         usage = _emit_assistant_message_event(
             db,
             job_id,

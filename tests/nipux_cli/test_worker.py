@@ -1781,6 +1781,60 @@ def test_run_one_step_defers_after_repeated_transient_model_timeouts(tmp_path):
         db.close()
 
 
+def test_repeated_transient_model_cooldowns_back_off_progressively(tmp_path):
+    config = AppConfig(
+        runtime=RuntimeConfig(home=tmp_path),
+        model=ModelConfig(request_timeout_seconds=120),
+    )
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Keep running through repeated provider instability", title="provider cooldown")
+        db.update_job_metadata(job_id, {"transient_model_cooldown_streak": 2})
+        for _index in range(2):
+            run_id = db.start_run(job_id, model="test")
+            step_id = db.add_step(job_id=job_id, run_id=run_id, kind="llm", status="failed")
+            db.finish_step(
+                step_id,
+                status="failed",
+                summary="model call failed: APITimeoutError",
+                output_data={"success": False, "error": "Request timed out.", "error_type": "APITimeoutError"},
+                error="Request timed out.",
+            )
+            db.finish_run(run_id, "failed", error="Request timed out.")
+
+        result = run_one_step(job_id, config=config, db=db, llm=ExplodingLLM())
+
+        assert result.status == "completed"
+        assert result.tool_name == "defer_job"
+        assert result.result["cooldown_streak"] == 3
+        assert result.result["cooldown_seconds"] >= 700
+        job = db.get_job(job_id)
+        assert job["metadata"]["transient_model_cooldown_streak"] == 3
+    finally:
+        db.close()
+
+
+def test_successful_model_response_resets_transient_model_cooldown_streak(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Recover after provider instability", title="provider recovered")
+        db.update_job_metadata(job_id, {"transient_model_cooldown_streak": 3})
+        llm = ScriptedLLM([
+            LLMResponse(tool_calls=[ToolCall(name="report_update", arguments={"message": "provider recovered"})])
+        ])
+
+        result = run_one_step(job_id, config=config, db=db, llm=llm)
+
+        assert result.status == "completed"
+        assert result.tool_name == "report_update"
+        job = db.get_job(job_id)
+        assert job["metadata"]["transient_model_cooldown_streak"] == 0
+        assert job["metadata"]["transient_model_recovered_at"]
+    finally:
+        db.close()
+
+
 def test_run_one_step_pauses_job_on_hard_provider_failure(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")
