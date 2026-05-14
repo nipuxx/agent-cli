@@ -180,6 +180,7 @@ def _overlay_settings_modal(lines: list[str], *, width: int, height: int) -> lis
     key_state = "set" if config.model.api_key else "missing"
     input_cost = _rate_text(config.model.input_cost_per_million)
     output_cost = _rate_text(config.model.output_cost_per_million)
+    cost_limit = "none" if config.runtime.max_job_cost_usd is None else f"${config.runtime.max_job_cost_usd:g}"
     content = [
         _bold("Model"),
         _settings_row("id", config.model.model, "/model MODEL"),
@@ -206,6 +207,7 @@ def _overlay_settings_modal(lines: list[str], *, width: int, height: int) -> lis
         "",
         _bold("Cost"),
         _settings_row("rates", f"input {input_cost}, output {output_cost}", "/input-cost DOLLARS /output-cost DOLLARS"),
+        _settings_row("limit", cost_limit, "/max-cost DOLLARS"),
         "",
         _muted("Edit with slash commands in the composer. Esc closes."),
     ]

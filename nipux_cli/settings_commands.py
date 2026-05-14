@@ -56,12 +56,17 @@ def config_summary_lines() -> list[str]:
         f"home: {config.runtime.home}",
         f"step timeout: {config.runtime.max_step_seconds}s",
         f"output preview: {config.runtime.artifact_inline_char_limit} chars",
+        f"job cost limit: {_cost_limit_text(config.runtime.max_job_cost_usd)}",
         f"daily digest: {config.runtime.daily_digest_enabled} at {config.runtime.daily_digest_time}",
     ]
 
 
 def _rate_text(value: float | None) -> str:
     return "provider-reported" if value is None else f"${value:g}"
+
+
+def _cost_limit_text(value: float | None) -> str:
+    return "none" if value is None else f"${value:g}"
 
 
 def capture_setting_command(line: str) -> list[str]:

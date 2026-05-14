@@ -1196,6 +1196,7 @@ def test_chat_settings_slash_commands_persist_config(monkeypatch, tmp_path, caps
     assert _chat_handle_line(job_id, "/context 8192") is True
     assert _chat_handle_line(job_id, "/input-cost 0.10") is True
     assert _chat_handle_line(job_id, "/output-cost 0.20") is True
+    assert _chat_handle_line(job_id, "/max-cost 15") is True
     assert _chat_handle_line(job_id, "/timeout 45") is True
     assert _chat_handle_line(job_id, "/browser false") is True
     assert _chat_handle_line(job_id, "/web false") is True
@@ -1214,6 +1215,7 @@ def test_chat_settings_slash_commands_persist_config(monkeypatch, tmp_path, caps
     assert "saved model.context_length = 8192" in out
     assert "saved model.input_cost_per_million = 0.1" in out
     assert "saved model.output_cost_per_million = 0.2" in out
+    assert "saved runtime.max_job_cost_usd = 15.0" in out
     assert "saved model.request_timeout_seconds = 45.0" in out
     assert "saved tools.browser = False" in out
     assert "saved tools.web = False" in out
@@ -1233,6 +1235,7 @@ def test_chat_settings_slash_commands_persist_config(monkeypatch, tmp_path, caps
     assert _config_field_value("model.context_length") == 8192
     assert _config_field_value("model.input_cost_per_million") == 0.1
     assert _config_field_value("model.output_cost_per_million") == 0.2
+    assert _config_field_value("runtime.max_job_cost_usd") == 15.0
     assert _config_field_value("model.request_timeout_seconds") == 45.0
     assert _config_field_value("tools.browser") is False
     assert _config_field_value("tools.web") is False
@@ -1281,6 +1284,7 @@ model:
   output_cost_per_million: 0.2
 runtime:
   max_step_seconds: 90
+  max_job_cost_usd: 15
   artifact_inline_char_limit: 4096
   daily_digest_enabled: false
   daily_digest_time: "08:30"
@@ -1297,6 +1301,7 @@ runtime:
     assert "key: set (NIPUX_TEST_KEY)" in out
     assert "context: 8192" in out
     assert "cost rates: input $0.1 / output $0.2 per 1M tokens" in out
+    assert "job cost limit: $15" in out
     assert "sk-test-value" not in out
 
 

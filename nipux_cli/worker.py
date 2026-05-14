@@ -5417,6 +5417,60 @@ def _usage_pressure_circuit_breaker_context(
     }
 
 
+def _usage_budget_limit_context(config: AppConfig, usage: dict[str, Any]) -> dict[str, Any] | None:
+    limit = config.runtime.max_job_cost_usd
+    if limit is None or limit <= 0 or not bool(usage.get("has_cost")):
+        return None
+    cost = _as_float(usage.get("cost"))
+    if cost < float(limit):
+        return None
+    return {
+        "limit": float(limit),
+        "cost": cost,
+        "calls": _as_int(usage.get("calls")),
+        "total_tokens": _as_int(usage.get("total_tokens")),
+        "prompt_tokens": _as_int(usage.get("prompt_tokens")),
+        "completion_tokens": _as_int(usage.get("completion_tokens")),
+    }
+
+
+def _run_usage_budget_limit_step(
+    context: dict[str, Any],
+    *,
+    db: AgentDB,
+    job_id: str,
+    run_id: str,
+) -> StepExecution:
+    limit = float(context.get("limit") or 0.0)
+    cost = float(context.get("cost") or 0.0)
+    message = (
+        f"Paused job: configured model cost limit ${limit:g} reached "
+        f"(current cost ${cost:.4f}, {context.get('calls')} model calls, "
+        f"{_compact_usage_tokens(context.get('total_tokens'))} tokens). "
+        "Raise the limit, switch model/provider, or resume after deciding the budget is acceptable."
+    )
+    metadata = {
+        "reason": "usage_budget_limit",
+        "usage_budget_limit": context,
+        "last_note": message,
+        "usage_budget_blocked_at": datetime.now(timezone.utc).isoformat(),
+    }
+    db.update_job_status(job_id, "paused", metadata_patch=metadata)
+    step_id = db.add_step(job_id=job_id, run_id=run_id, kind="recovery", tool_name="budget_limit")
+    result = {"success": True, "job_id": job_id, "paused": True, **context}
+    db.append_agent_update(
+        job_id,
+        message,
+        category="blocked",
+        metadata={"reason": "usage_budget_limit", "usage_budget_limit": context},
+    )
+    db.finish_step(step_id, status="completed", summary=message, output_data=result)
+    db.finish_run(run_id, "completed")
+    _emit_loop_end(db, job_id, run_id, status="completed", step_id=step_id, tool_name="budget_limit", detail=message)
+    refresh_memory_index(db, job_id)
+    return StepExecution(job_id=job_id, run_id=run_id, step_id=step_id, tool_name="budget_limit", status="completed", result=result)
+
+
 def _usage_pressure_is_critical(usage: dict[str, Any]) -> bool:
     prompt = _as_int(usage.get("prompt_tokens"))
     completion = _as_int(usage.get("completion_tokens"))
@@ -6579,6 +6633,14 @@ def run_one_step(
         if active_operator_messages:
             job = db.get_job(job_id)
         usage = db.job_token_usage(job_id)
+        usage_budget_limit = _usage_budget_limit_context(config, usage)
+        if usage_budget_limit:
+            return _run_usage_budget_limit_step(
+                usage_budget_limit,
+                db=db,
+                job_id=job_id,
+                run_id=run_id,
+            )
         if not active_operator_messages:
             usage_circuit_breaker = _usage_pressure_circuit_breaker_context(job, usage, recent_steps)
             if usage_circuit_breaker:

@@ -28,6 +28,7 @@ def config_field_value(field: str, config: Any | None = None) -> Any:
         "runtime.artifact_inline_char_limit": config.runtime.artifact_inline_char_limit,
         "runtime.daily_digest_enabled": config.runtime.daily_digest_enabled,
         "runtime.daily_digest_time": config.runtime.daily_digest_time,
+        "runtime.max_job_cost_usd": config.runtime.max_job_cost_usd,
         "tools.browser": config.tools.browser,
         "tools.web": config.tools.web,
         "tools.shell": config.tools.shell,
@@ -123,6 +124,8 @@ def _save_env_secret(name: str, value: str) -> None:
 def _coerce_config_value(field: str, raw_value: str) -> Any:
     kind = SETTINGS_FIELD_TYPES.get(field, "str")
     value = raw_value.strip()
+    if field == "runtime.max_job_cost_usd" and value.lower() in {"0", "none", "off", "false", "null"}:
+        return None
     if kind == "int":
         return int(value)
     if kind == "float":

@@ -106,6 +106,7 @@ class RuntimeConfig:
     artifact_inline_char_limit: int = 12_000
     daily_digest_enabled: bool = True
     daily_digest_time: str = "08:00"
+    max_job_cost_usd: float | None = None
 
     @property
     def state_db_path(self) -> Path:
@@ -200,6 +201,7 @@ def load_config(path: str | Path | None = None) -> AppConfig:
         artifact_inline_char_limit=int(runtime_raw.get("artifact_inline_char_limit", 12_000)),
         daily_digest_enabled=bool(runtime_raw.get("daily_digest_enabled", True)),
         daily_digest_time=str(runtime_raw.get("daily_digest_time") or "08:00"),
+        max_job_cost_usd=_optional_float(runtime_raw.get("max_job_cost_usd")),
     )
     model = ModelConfig(
         model=str(model_raw.get("name") or model_raw.get("model") or DEFAULT_MODEL),
@@ -252,6 +254,7 @@ def default_config_yaml(
         "  artifact_inline_char_limit: 12000\n"
         "  daily_digest_enabled: true\n"
         "  daily_digest_time: \"08:00\"\n"
+        "  max_job_cost_usd: null\n"
         "tools:\n"
         "  browser: true\n"
         "  web: true\n"

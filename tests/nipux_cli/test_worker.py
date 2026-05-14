@@ -2447,6 +2447,62 @@ def test_run_one_step_defers_when_critical_usage_is_low_yield(tmp_path):
         db.close()
 
 
+def test_run_one_step_pauses_when_configured_cost_limit_is_reached(tmp_path):
+    config = AppConfig(
+        runtime=RuntimeConfig(home=tmp_path, max_job_cost_usd=5.0),
+        model=ModelConfig(context_length=262_144),
+    )
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Keep a long-running task inside budget", title="budget limit", kind="generic")
+        db.append_event(
+            job_id,
+            event_type="loop",
+            title="message_end",
+            metadata={"usage": {"prompt_tokens": 1_000_000, "completion_tokens": 10_000, "total_tokens": 1_010_000, "cost": 5.25}},
+        )
+
+        result = run_one_step(job_id, config=config, db=db, llm=ExplodingLLM())
+
+        assert result.status == "completed"
+        assert result.tool_name == "budget_limit"
+        assert result.result["paused"] is True
+        assert result.result["cost"] == 5.25
+        job = db.get_job(job_id)
+        assert job["status"] == "paused"
+        assert job["metadata"]["usage_budget_limit"]["limit"] == 5.0
+        assert "configured model cost limit" in job["metadata"]["last_note"]
+    finally:
+        db.close()
+
+
+def test_run_one_step_ignores_cost_limit_without_provider_cost_metadata(tmp_path):
+    config = AppConfig(
+        runtime=RuntimeConfig(home=tmp_path, max_job_cost_usd=5.0),
+        model=ModelConfig(context_length=262_144),
+    )
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Keep a long-running task inside budget", title="budget estimate", kind="generic")
+        db.append_event(
+            job_id,
+            event_type="loop",
+            title="message_end",
+            metadata={"usage": {"prompt_tokens": 1_000_000, "completion_tokens": 10_000, "total_tokens": 1_010_000}},
+        )
+        llm = ScriptedLLM([
+            LLMResponse(tool_calls=[ToolCall(name="report_update", arguments={"message": "cost not provider reported"})])
+        ])
+
+        result = run_one_step(job_id, config=config, db=db, llm=llm)
+
+        assert result.status == "completed"
+        assert result.tool_name == "report_update"
+        assert db.get_job(job_id)["status"] == "running"
+    finally:
+        db.close()
+
+
 def test_run_one_step_does_not_defer_critical_usage_after_progress(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path), model=ModelConfig(context_length=262_144))
     db = AgentDB(tmp_path / "state.db")
