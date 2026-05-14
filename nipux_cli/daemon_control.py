@@ -51,6 +51,10 @@ def recoverable_remote_model_preflight_failures(
     return failures if _recoverable_provider_preflight(failures) else []
 
 
+def provider_preflight_is_recoverable(failures: list[str]) -> bool:
+    return _recoverable_provider_preflight(failures)
+
+
 def ensure_remote_model_ready_for_worker(
     config: Any,
     *,
