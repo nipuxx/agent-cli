@@ -662,9 +662,12 @@ def _task_queue_saturation_for_prompt(recent_steps: list[dict[str, Any]]) -> str
     if context.get("total_count") is not None:
         counts.append(f"total_tasks={context.get('total_count')}")
     count_text = " ".join(counts) or "queue is saturated"
+    open_titles = [str(title).strip() for title in context.get("open_titles") or [] if str(title).strip()]
+    title_text = f" Existing runnable task titles: {json.dumps(open_titles[:8], ensure_ascii=False)}." if open_titles else ""
     return (
         f"Task queue saturation was just hit at step #{context.get('step_no')}: "
         f"{context.get('reason') or 'task queue saturated'} ({count_text}). "
+        f"{title_text} "
         "Do not create new task branches. Either execute an existing high-priority branch, "
         "or use record_tasks only to update existing task titles to active, done, blocked, or skipped "
         "with concise result/evidence. Consolidate branch sprawl into roadmap/milestones when useful."
@@ -1168,6 +1171,11 @@ def _task_queue_saturation_context(job: dict[str, Any], args: dict[str, Any]) ->
             "total_count": len(objective_tasks),
             "total_threshold": TASK_QUEUE_TOTAL_SOFT_LIMIT,
             "open_count": len(open_tasks),
+            "open_titles": [
+                str(task.get("title") or "").strip()
+                for task in open_tasks[:8]
+                if str(task.get("title") or "").strip()
+            ],
             "new_count": len(new_titles),
             "new_titles": new_titles[:8],
             "recovery_task_count": len(tasks) - len(objective_tasks),
@@ -1181,6 +1189,11 @@ def _task_queue_saturation_context(job: dict[str, Any], args: dict[str, Any]) ->
         "open_count": len(open_tasks),
         "open_threshold": TASK_QUEUE_SATURATION_OPEN_TASKS,
         "total_count": len(objective_tasks),
+        "open_titles": [
+            str(task.get("title") or "").strip()
+            for task in open_tasks[:8]
+            if str(task.get("title") or "").strip()
+        ],
         "new_open_count": len(new_open_titles),
         "new_open_titles": new_open_titles[:8],
         "recovery_task_count": len(tasks) - len(objective_tasks),
@@ -1200,6 +1213,7 @@ def _recent_task_queue_saturation_context(recent_steps: list[dict[str, Any]], *,
             "reason": task_queue.get("reason") or "task queue saturated",
             "open_count": task_queue.get("open_count"),
             "total_count": task_queue.get("total_count"),
+            "open_titles": task_queue.get("open_titles") if isinstance(task_queue.get("open_titles"), list) else [],
         }
     return None
 

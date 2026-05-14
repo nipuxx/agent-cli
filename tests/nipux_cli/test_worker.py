@@ -7671,6 +7671,8 @@ def test_recent_task_saturation_keeps_record_tasks_for_existing_updates(tmp_path
         prompt = llm.messages[-1]["content"]
         assert "Task queue saturation" in prompt
         assert "Do not create new task branches" in prompt
+        assert "Existing runnable task titles" in prompt
+        assert "Open branch 0" in prompt
         assert "record_tasks only to update existing task titles" in prompt
         assert "record_tasks" in tool_names
         assert "record_lesson" in tool_names
