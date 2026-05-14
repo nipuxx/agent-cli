@@ -16,6 +16,7 @@ DEFAULT_MODEL = "local-model"
 DEFAULT_BASE_URL = "http://localhost:8000/v1"
 DEFAULT_API_KEY_ENV = "OPENAI_API_KEY"
 DEFAULT_CONTEXT_LENGTH = 262_144
+DEFAULT_REQUEST_TIMEOUT_SECONDS = 300.0
 
 
 def get_agent_home() -> Path:
@@ -88,7 +89,7 @@ class ModelConfig:
     base_url: str = DEFAULT_BASE_URL
     api_key_env: str = DEFAULT_API_KEY_ENV
     context_length: int = DEFAULT_CONTEXT_LENGTH
-    request_timeout_seconds: float = 120.0
+    request_timeout_seconds: float = DEFAULT_REQUEST_TIMEOUT_SECONDS
     input_cost_per_million: float | None = None
     output_cost_per_million: float | None = None
 
@@ -205,7 +206,7 @@ def load_config(path: str | Path | None = None) -> AppConfig:
         base_url=str(model_raw.get("base_url") or DEFAULT_BASE_URL).rstrip("/"),
         api_key_env=str(model_raw.get("api_key_env") or DEFAULT_API_KEY_ENV),
         context_length=int(model_raw.get("context_length", DEFAULT_CONTEXT_LENGTH)),
-        request_timeout_seconds=float(model_raw.get("request_timeout_seconds", 120.0)),
+        request_timeout_seconds=float(model_raw.get("request_timeout_seconds", DEFAULT_REQUEST_TIMEOUT_SECONDS)),
         input_cost_per_million=_optional_float(model_raw.get("input_cost_per_million")),
         output_cost_per_million=_optional_float(model_raw.get("output_cost_per_million")),
     )
