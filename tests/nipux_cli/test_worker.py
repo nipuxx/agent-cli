@@ -2015,6 +2015,77 @@ def test_prompt_includes_context_pressure_constraint():
     assert "artifact references" in content
 
 
+def test_prompt_includes_cumulative_usage_pressure():
+    job = {
+        "title": "usage pressure",
+        "kind": "generic",
+        "objective": "keep a long-running job useful",
+        "metadata": {
+            "finding_ledger": [{"name": "durable fact"}],
+            "source_ledger": [{"source": "local evidence"}],
+            "experiment_ledger": [{"title": "trial", "metric_value": 1}],
+            "task_queue": [{"title": "done branch", "status": "done", "result": "validated"}],
+        },
+    }
+
+    content = build_messages(
+        job,
+        [],
+        token_usage={
+            "calls": 2_100,
+            "prompt_tokens": 21_000_000,
+            "completion_tokens": 1_000_000,
+            "total_tokens": 22_000_000,
+            "latest_prompt_tokens": 10_000,
+            "latest_context_length": 262_144,
+            "cost": 10.25,
+            "has_cost": True,
+        },
+    )[-1]["content"]
+
+    assert "Usage pressure:" in content
+    assert "Cumulative model usage pressure is critical" in content
+    assert "calls=2100" in content
+    assert "tokens=22.0M" in content
+    assert "cost=$10.2500" in content
+    assert "high leverage" in content
+
+
+def test_run_one_step_records_usage_pressure_without_spam(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path), model=ModelConfig(context_length=10_000_000))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Keep a long-running task efficient", title="usage pressure", kind="generic")
+        llm = ScriptedLLM([
+            LLMResponse(
+                tool_calls=[ToolCall(name="record_lesson", arguments={"lesson": "consolidate before spending more", "category": "strategy"})],
+                usage={"prompt_tokens": 1_100_000, "completion_tokens": 100, "total_tokens": 1_100_100, "cost": 1.1},
+            ),
+            LLMResponse(
+                tool_calls=[ToolCall(name="record_lesson", arguments={"lesson": "second consolidation", "category": "strategy"})],
+                usage={"prompt_tokens": 300_000, "completion_tokens": 100, "total_tokens": 300_100, "cost": 0.3},
+            ),
+        ])
+
+        run_one_step(job_id, config=config, db=db, llm=llm)
+        run_one_step(job_id, config=config, db=db, llm=llm)
+
+        pressure_events = [
+            event
+            for event in db.list_events(job_id=job_id, event_types=["agent_message"])
+            if event["metadata"].get("kind") == "usage_pressure"
+        ]
+        assert len(pressure_events) == 1
+        assert "Usage pressure watch" in pressure_events[0]["body"]
+        job = db.get_job(job_id)
+        pressure = job["metadata"]["usage_pressure"]
+        assert pressure["band"] == "watch"
+        assert pressure["calls"] == 2
+        assert pressure["total_tokens"] == 1_400_200
+    finally:
+        db.close()
+
+
 def test_run_one_step_drops_conversation_only_chat_from_worker_prompt(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

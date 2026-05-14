@@ -309,6 +309,7 @@ PROMPT_SECTION_BUDGETS = {
     "Memory consolidation guard": 900,
     "Durable progress yield": 900,
     "Program": 1_400,
+    "Usage pressure": 900,
     "Lessons learned": 1_100,
     "Memory graph": 1_800,
     "Roadmap": 2_000,

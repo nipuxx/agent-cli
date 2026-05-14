@@ -17,7 +17,12 @@ from urllib.parse import urlparse
 from nipux_cli.artifacts import ArtifactStore
 from nipux_cli.config import AppConfig, load_config
 from nipux_cli.compression import refresh_memory_index
-from nipux_cli.context_pressure import context_pressure_for_prompt, emit_context_pressure_update
+from nipux_cli.context_pressure import (
+    context_pressure_for_prompt,
+    emit_context_pressure_update,
+    emit_usage_pressure_update,
+    usage_pressure_for_prompt,
+)
 from nipux_cli.db import AgentDB
 from nipux_cli.llm import LLMResponse, LLMResponseError, OpenAIChatLLM, StepLLM
 from nipux_cli.measurement import measurement_candidates, measurement_candidates_are_diagnostic_only
@@ -124,6 +129,7 @@ def build_messages(
     timeline_events: list[dict[str, Any]] | None = None,
     active_operator_messages: list[dict[str, Any]] | None = None,
     include_unclaimed_operator_messages: bool = True,
+    token_usage: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     step_lines = []
     for step in recent_steps[-RECENT_STATE_STEPS:]:
@@ -157,6 +163,7 @@ def build_messages(
     memory_consolidation_guard = _memory_consolidation_guard_for_prompt(job, recent_steps)
     durable_yield = _durable_yield_for_prompt(job, recent_steps)
     context_pressure = context_pressure_for_prompt(job)
+    usage_pressure = usage_pressure_for_prompt(job, token_usage)
     lessons = _lessons_for_prompt(job)
     memory_graph = _memory_graph_for_prompt(job)
     roadmap = _roadmap_for_prompt(job)
@@ -193,6 +200,7 @@ def build_messages(
             ("Memory consolidation guard", memory_consolidation_guard),
             ("Durable progress yield", durable_yield),
             ("Context pressure", context_pressure),
+            ("Usage pressure", usage_pressure),
             ("Program", program),
             ("Lessons learned", lessons),
             ("Memory graph", memory_graph),
@@ -5050,6 +5058,7 @@ def run_one_step(
             timeline_events=db.list_timeline_events(job_id, limit=30),
             active_operator_messages=active_operator_messages,
             include_unclaimed_operator_messages=True,
+            token_usage=db.job_token_usage(job_id),
         )
         llm = llm or OpenAIChatLLM(config.model)
         llm_started = time.monotonic()
@@ -5108,6 +5117,7 @@ def run_one_step(
             duration_seconds=llm_duration_seconds,
         )
         emit_context_pressure_update(db, job_id, usage)
+        emit_usage_pressure_update(db, job_id, db.job_token_usage(job_id))
 
         if response.tool_calls:
             executions: list[StepExecution] = []
