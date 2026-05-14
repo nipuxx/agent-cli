@@ -3636,6 +3636,46 @@ def test_record_lesson_allows_negative_claim_when_evidence_is_also_negative(tmp_
         db.close()
 
 
+def test_shell_path_recovery_prompt_shows_missing_executable(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Run a measured tool after validating paths", title="missing-executable", kind="generic")
+        run_id = db.start_run(job_id, model="test")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec")
+        db.finish_step(
+            step_id,
+            status="completed",
+            output_data={
+                "success": True,
+                "command": "/opt/tools/runner --measure",
+                "stdout": "/bin/sh: 1: /opt/tools/runner: not found\n",
+                "stderr": "",
+            },
+        )
+        db.finish_run(run_id, "completed")
+        llm = CapturingLLM(LLMResponse(tool_calls=[
+            ToolCall(
+                name="record_lesson",
+                arguments={
+                    "category": "strategy",
+                    "lesson": "The /opt/tools/runner executable was missing, so validate a real executable path before measuring.",
+                },
+            )
+        ]))
+
+        result = run_one_step(job_id, config=config, db=db, llm=llm)
+
+        assert result.status == "completed"
+        prompt = llm.messages[-1]["content"]
+        assert "Shell path recovery" in prompt
+        assert "/opt/tools/runner" in prompt
+        assert "Do not treat this output as a successful measurement" in prompt
+        assert "locate or verify the real executable/file path" in prompt
+    finally:
+        db.close()
+
+
 def test_record_findings_blocks_negative_file_pattern_that_conflicts_with_positive_evidence(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

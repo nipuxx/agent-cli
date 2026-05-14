@@ -152,6 +152,7 @@ def build_messages(
     measurement_obligation = _measurement_obligation_for_prompt(job)
     file_validation_obligation = _file_validation_obligation_for_prompt(job)
     candidate_file_discovery = _candidate_file_discovery_for_prompt(job, recent_steps)
+    shell_path_recovery = _shell_path_recovery_for_prompt(recent_steps)
     measured_progress_guard = _measured_progress_guard_for_prompt(job, recent_steps)
     research_balance_guard = _research_balance_guard_for_prompt(job, recent_steps)
     deliverable_progress_guard = _deliverable_progress_guard_for_prompt(job, recent_steps)
@@ -189,6 +190,7 @@ def build_messages(
             ("Pending measurement obligation", measurement_obligation),
             ("Pending file validation obligation", file_validation_obligation),
             ("Candidate file discovery", candidate_file_discovery),
+            ("Shell path recovery", shell_path_recovery),
             ("Measured progress guard", measured_progress_guard),
             ("Research balance guard", research_balance_guard),
             ("Deliverable progress guard", deliverable_progress_guard),
@@ -346,6 +348,74 @@ def _candidate_file_discovery_for_prompt(job: dict[str, Any], recent_steps: list
     )
     lines.append(f"Relevant open work: {_clip_text(context['task_text'], 500)}")
     return "\n".join(lines)
+
+
+def _shell_path_recovery_for_prompt(recent_steps: list[dict[str, Any]]) -> str:
+    context = _shell_path_recovery_context(recent_steps)
+    if not context:
+        return "None."
+    paths = context.get("missing_paths") if isinstance(context.get("missing_paths"), list) else []
+    lines = [
+        f"Recent shell step #{context.get('step_no') or '?'} reported a missing command or path.",
+        "Missing paths: " + ", ".join(str(path) for path in paths[:6]) if paths else "Missing path was not parsed.",
+    ]
+    command = str(context.get("command") or "")
+    if command:
+        lines.append(f"Failed command: {_clip_text(command, 420)}")
+    excerpt = str(context.get("excerpt") or "")
+    if excerpt:
+        lines.append(f"Observed output: {_clip_text(excerpt, 360)}")
+    lines.append(
+        "Do not treat this output as a successful measurement or deliverable. Next, locate or verify the real "
+        "executable/file path with a bounded shell probe such as command -v, find, ls, or an equivalent platform "
+        "tool; retry using only a validated path, or record the branch as blocked/skipped with the observed reason."
+    )
+    return "\n".join(lines)
+
+
+def _shell_path_recovery_context(recent_steps: list[dict[str, Any]], *, window: int = 8) -> dict[str, Any] | None:
+    for step in reversed(_completed_recent_steps(recent_steps)[-window:]):
+        if step.get("tool_name") != "shell_exec":
+            continue
+        output = step.get("output") if isinstance(step.get("output"), dict) else {}
+        text = "\n".join(str(output.get(key) or "") for key in ("stdout", "stderr", "error"))
+        if not text.strip():
+            continue
+        missing_paths = _missing_paths_from_shell_output(text)
+        if not missing_paths and not _shell_output_has_missing_command(text):
+            continue
+        return {
+            "step_no": step.get("step_no"),
+            "command": output.get("command"),
+            "missing_paths": missing_paths,
+            "excerpt": text.strip(),
+        }
+    return None
+
+
+def _shell_output_has_missing_command(text: str) -> bool:
+    lowered = text.lower()
+    return any(marker in lowered for marker in ("command not found", ": not found", "no such file or directory"))
+
+
+def _missing_paths_from_shell_output(text: str) -> list[str]:
+    patterns = [
+        r"(?:^|\n)(?:/bin/sh:\s*\d+:\s*)?(?P<path>/[^\s:'\"]+):\s*(?:not found|No such file or directory|command not found)",
+        r"(?:cannot access|cannot stat|can't stat|stat: cannot statx?) ['\"](?P<quoted>[^'\"]+)['\"]:\s*No such file or directory",
+        r"(?:^|\n)(?P<plain>/[^\s:'\"]+):\s*No such file or directory",
+    ]
+    paths: list[str] = []
+    seen: set[str] = set()
+    for pattern in patterns:
+        for match in re.finditer(pattern, text, flags=re.IGNORECASE):
+            path = str(match.groupdict().get("path") or match.groupdict().get("quoted") or match.groupdict().get("plain") or "").strip()
+            if not path or path in seen:
+                continue
+            seen.add(path)
+            paths.append(path)
+            if len(paths) >= 12:
+                return paths
+    return paths
 
 
 def _candidate_file_discovery_context(job: dict[str, Any], recent_steps: list[dict[str, Any]]) -> dict[str, Any] | None:
