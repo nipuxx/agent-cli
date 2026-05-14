@@ -74,7 +74,15 @@ def _missing_argument(value: Any) -> bool:
     if value is None:
         return True
     if isinstance(value, str):
-        return not value.strip()
+        stripped = value.strip()
+        if not stripped:
+            return True
+        lowered = stripped.lower()
+        if lowered in {"...", "…", "<...>", "{...}", "{{...}}", "placeholder", "todo", "tbd"}:
+            return True
+        if re.fullmatch(r"[.<{\[(\s]*\.{3,}[\s>}\])]*", stripped):
+            return True
+        return False
     if isinstance(value, (list, dict, tuple, set)):
         return not value
     return False

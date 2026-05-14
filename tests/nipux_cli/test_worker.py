@@ -1687,6 +1687,26 @@ def test_run_one_step_blocks_missing_tool_arguments_as_recoverable(tmp_path):
         db.close()
 
 
+def test_run_one_step_blocks_placeholder_tool_arguments_as_recoverable(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Keep running despite placeholder tool calls", title="placeholder args")
+        llm = ScriptedLLM([LLMResponse(tool_calls=[ToolCall(name="read_artifact", arguments={"artifact_id": "..."})])])
+
+        result = run_one_step(job_id, config=config, db=db, llm=llm)
+
+        assert result.status == "blocked"
+        assert result.result["recoverable"] is True
+        assert result.result["error"] == "missing required tool arguments"
+        assert result.result["missing_arguments"] == ["artifact reference"]
+        step = db.list_steps(job_id=job_id)[0]
+        assert step["status"] == "blocked"
+        assert "missing required arguments" in step["summary"]
+    finally:
+        db.close()
+
+
 def test_run_one_step_blocks_placeholder_shell_command_before_execution(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")
