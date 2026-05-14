@@ -110,7 +110,7 @@ def shell_exec(args: dict[str, Any], ctx: Any) -> str:
     finally:
         if process is not None:
             _unregister_shell_process(ctx, process.pid)
-    error = _shell_error(process.returncode, stdout, stderr)
+    error = _shell_error(process.returncode, stdout, stderr, command=command)
     return _json({
         "success": process.returncode == 0 and not error,
         "error": error,
@@ -154,7 +154,7 @@ def cleanup_registered_shell_processes(home: str | Path) -> list[dict[str, Any]]
     return cleaned
 
 
-def _shell_error(returncode: int | None, stdout: str, stderr: str) -> str:
+def _shell_error(returncode: int | None, stdout: str, stderr: str, *, command: str = "") -> str:
     if returncode == 0:
         return _shell_success_anomaly(stdout, stderr)
     combined = "\n".join(part.strip() for part in (stderr, stdout) if part and part.strip())
@@ -163,6 +163,9 @@ def _shell_error(returncode: int | None, stdout: str, stderr: str) -> str:
         return "command requires interactive sudo/password; configure non-interactive privileges or choose a non-sudo path"
     if "permission denied" in lowered:
         return "command failed with permission denied"
+    missing_probe = _missing_executable_probe(command, combined)
+    if missing_probe:
+        return f"command probe found no executable: {missing_probe}"
     excerpt = " ".join(combined.split())[:500] if combined else "no output"
     return f"command exited with status {returncode}: {excerpt}"
 
@@ -197,6 +200,16 @@ def _shell_success_anomaly(stdout: str, stderr: str) -> str:
     if http_error_match:
         excerpt = " ".join(combined.split())[:500]
         return f"command output indicates HTTP failure despite exit status 0: {excerpt}"
+    return ""
+
+
+def _missing_executable_probe(command: str, combined_output: str) -> str:
+    text = str(command or "").strip()
+    match = re.match(r"^(?:which|command\s+-v)\s+([A-Za-z0-9_.+-]+)(?:\s|$)", text)
+    if not match:
+        return ""
+    if not combined_output.strip() or "not found" in combined_output.lower():
+        return match.group(1)
     return ""
 
 
