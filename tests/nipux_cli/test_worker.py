@@ -5681,7 +5681,7 @@ def test_run_one_step_derives_bad_shell_source_family_from_exact_failure(tmp_pat
         db.close()
 
 
-def test_run_one_step_blocks_host_after_repeated_auth_source_families(tmp_path):
+def test_run_one_step_does_not_block_entire_host_after_auth_source_families(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")
     try:
@@ -5702,7 +5702,7 @@ def test_run_one_step_blocks_host_after_repeated_auth_source_families(tmp_path):
                 metadata={"failure_kind": "auth_or_http"},
             )
 
-        blocked = run_one_step(
+        allowed_same_host = run_one_step(
             job_id,
             config=config,
             db=db,
@@ -5712,6 +5712,7 @@ def test_run_one_step_blocks_host_after_repeated_auth_source_families(tmp_path):
                     arguments={"command": "curl -L https://source.example/private/d/model.bin"},
                 )])
             ]),
+            registry=SuccessRegistry(),
         )
         allowed = run_one_step(
             job_id,
@@ -5726,10 +5727,7 @@ def test_run_one_step_blocks_host_after_repeated_auth_source_families(tmp_path):
             registry=SuccessRegistry(),
         )
 
-        assert blocked.status == "blocked"
-        assert blocked.result["error"] == "known bad source blocked"
-        assert blocked.result["known_bad_source"]["metadata"]["host_auth_failure"] is True
-        assert "Change access strategy" in blocked.result["known_bad_source"]["last_outcome"]
+        assert allowed_same_host.status == "completed"
         assert allowed.status == "completed"
     finally:
         db.close()

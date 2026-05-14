@@ -1094,53 +1094,7 @@ def _known_bad_source_for_call(name: str, args: dict[str, Any], job: dict[str, A
                         "source_type": "shell_exec_family",
                         "metadata": {**metadata, "source_family": True, "source_family_from": source_value},
                     }
-                host_context = _host_auth_failure_context(job, url)
-                if host_context:
-                    return host_context
     return None
-
-
-def _host_auth_failure_context(job: dict[str, Any], url: str, *, threshold: int = 3) -> dict[str, Any] | None:
-    host = _source_host(url)
-    if not host or not _source_url_has_path(url):
-        return None
-    failed_sources: list[dict[str, Any]] = []
-    families: set[str] = set()
-    for source in _known_bad_sources(job):
-        source_value = str(source.get("source") or "")
-        if not source_value or _source_host(source_value) != host or not _source_url_has_path(source_value):
-            continue
-        metadata = source.get("metadata") if isinstance(source.get("metadata"), dict) else {}
-        warnings = " ".join(str(warning) for warning in source.get("warnings") or []).lower()
-        outcome = str(source.get("last_outcome") or "").lower()
-        auth_like = (
-            metadata.get("failure_kind") == "auth_or_http"
-            or any(term in warnings for term in ("auth", "unauthorized", "forbidden", "http failure"))
-            or any(term in outcome for term in ("401", "403", "unauthorized", "forbidden", "authentication", "authorization"))
-        )
-        if not auth_like:
-            continue
-        failed_sources.append(source)
-        families.add(_source_failure_family_url(source_value) or source_value)
-    if len(families) < threshold:
-        return None
-    return {
-        "source": f"https://{host}",
-        "source_type": "shell_exec_host_auth_failure",
-        "usefulness_score": 0.01,
-        "fail_count": len(failed_sources),
-        "yield_count": 0,
-        "warnings": ["repeated authentication/authorization or HTTP failures across source families"],
-        "last_outcome": (
-            "Repeated source access failures on this host. Change access strategy, credentials, mirror, "
-            "or source family instead of trying another direct URL."
-        ),
-        "metadata": {
-            "host_auth_failure": True,
-            "host": host,
-            "failed_families": sorted(families)[:12],
-        },
-    }
 
 
 def _tool_signature(name: str, args: dict[str, Any]) -> str:
