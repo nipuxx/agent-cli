@@ -2051,6 +2051,31 @@ def test_prompt_includes_cumulative_usage_pressure():
     assert "high leverage" in content
 
 
+def test_prompt_renders_task_contract_from_metadata_for_existing_tasks():
+    job = {
+        "title": "contract fallback",
+        "kind": "generic",
+        "objective": "keep existing task contracts visible",
+        "metadata": {
+            "task_queue": [
+                {
+                    "title": "Validate concrete candidate",
+                    "status": "active",
+                    "priority": 9,
+                    "metadata": {"output_contract": "action"},
+                    "acceptance_criteria": "candidate tested",
+                }
+            ],
+        },
+    }
+
+    content = build_messages(job, [])[-1]["content"]
+
+    assert "Task queue:" in content
+    assert "Validate concrete candidate" in content
+    assert "contract=action" in content
+
+
 def test_run_one_step_records_usage_pressure_without_spam(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path), model=ModelConfig(context_length=10_000_000))
     db = AgentDB(tmp_path / "state.db")

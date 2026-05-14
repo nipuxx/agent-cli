@@ -420,13 +420,14 @@ def _tasks_for_prompt(job: dict[str, Any]) -> str:
     if len(selected) < 6:
         selected.extend([task for task in ranked if task not in selected][: 6 - len(selected)])
     for task in selected[:6]:
+        output_contract = _task_output_contract(task)
         bits = [
             str(task.get("status") or "open"),
             f"priority={task.get('priority') or 0}",
             str(task.get("title") or "untitled"),
         ]
-        if task.get("output_contract"):
-            bits.append(f"contract={task.get('output_contract')}")
+        if output_contract:
+            bits.append(f"contract={output_contract}")
         detail = " | ".join(bit for bit in bits if bit)
         if task.get("goal"):
             detail += f" | goal={task.get('goal')}"
@@ -442,6 +443,11 @@ def _tasks_for_prompt(job: dict[str, Any]) -> str:
             detail += f" | result={task.get('result')}"
         lines.append("- " + _clip_text(detail, 520))
     return "\n".join(lines)
+
+
+def _task_output_contract(task: dict[str, Any]) -> str:
+    metadata = task.get("metadata") if isinstance(task.get("metadata"), dict) else {}
+    return str(task.get("output_contract") or task.get("contract") or metadata.get("output_contract") or metadata.get("contract") or "")
 
 
 def _timeline_for_prompt(events: list[dict[str, Any]]) -> str:
