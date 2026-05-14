@@ -5276,7 +5276,8 @@ def test_run_one_step_records_failed_shell_url_source(tmp_path):
             ]),
             registry=FailedUrlShellRegistry(),
         )
-        source = db.get_job(job_id)["metadata"]["source_ledger"][0]
+        sources = db.get_job(job_id)["metadata"]["source_ledger"]
+        source = sources[0]
 
         assert result.status == "failed"
         assert source["source"] == url
@@ -5311,6 +5312,92 @@ def test_run_one_step_records_pathful_failed_shell_urls_not_root_health_checks(t
 
         assert result.status == "failed"
         assert [source["source"] for source in sources] == [bad_url]
+    finally:
+        db.close()
+
+
+def test_run_one_step_blocks_known_bad_shell_source_family(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Pivot from failed source family", title="guard")
+
+        first = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[ToolCall(
+                    name="shell_exec",
+                    arguments={"command": "curl -L https://source.example/downloads/private/model-a.bin"},
+                )])
+            ]),
+            registry=FailedUrlShellRegistry(),
+        )
+        blocked = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[ToolCall(
+                    name="shell_exec",
+                    arguments={"command": "curl -L https://source.example/downloads/private/model-b.bin"},
+                )])
+            ]),
+        )
+        allowed = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[ToolCall(
+                    name="shell_exec",
+                    arguments={"command": "curl -L https://source.example/downloads/public/model-b.bin"},
+                )])
+            ]),
+            registry=SuccessRegistry(),
+        )
+
+        assert first.status == "failed"
+        assert blocked.status == "blocked"
+        assert blocked.result["error"] == "known bad source blocked"
+        assert blocked.result["known_bad_source"]["source"] == "https://source.example/downloads/private"
+        assert allowed.status == "completed"
+    finally:
+        db.close()
+
+
+def test_run_one_step_derives_bad_shell_source_family_from_exact_failure(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Pivot from exact failed file source", title="guard")
+        db.append_source_record(
+            job_id,
+            "https://source.example/downloads/private/model-a.bin",
+            source_type="shell_exec",
+            usefulness_score=0.01,
+            fail_count_delta=1,
+            warnings=["auth failure"],
+            outcome="401 Unauthorized",
+        )
+
+        blocked = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[ToolCall(
+                    name="shell_exec",
+                    arguments={"command": "curl -L https://source.example/downloads/private/model-b.bin"},
+                )])
+            ]),
+        )
+
+        assert blocked.status == "blocked"
+        assert blocked.result["error"] == "known bad source blocked"
+        assert blocked.result["known_bad_source"]["source"] == "https://source.example/downloads/private"
+        assert blocked.result["known_bad_source"]["metadata"]["source_family_from"].endswith("/model-a.bin")
     finally:
         db.close()
 

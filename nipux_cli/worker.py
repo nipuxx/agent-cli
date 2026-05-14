@@ -973,6 +973,21 @@ def _shell_guard_urls(text: str) -> list[str]:
     return path_urls or urls
 
 
+def _source_failure_family_url(value: str) -> str:
+    parsed = urlparse(_normalized_source_url(value))
+    if not parsed.scheme or not parsed.netloc:
+        return ""
+    segments = [segment for segment in (parsed.path or "").split("/") if segment]
+    if len(segments) < 2:
+        return ""
+    last = segments[-1]
+    looks_file_like = "." in last
+    family_segments = segments[:-1] if looks_file_like else segments
+    if len(family_segments) < 2:
+        return ""
+    return f"{parsed.scheme}://{parsed.netloc}/{'/'.join(family_segments)}"
+
+
 def _known_bad_sources(job: dict[str, Any]) -> list[dict[str, Any]]:
     bad_sources = []
     for source in _metadata_list(job, "source_ledger"):
@@ -1006,6 +1021,16 @@ def _known_bad_source_for_call(name: str, args: dict[str, Any], job: dict[str, A
             matches = _shell_source_matches(url, source_value) if name == "shell_exec" else _source_matches(url, source_value)
             if matches:
                 return source
+            if name == "shell_exec":
+                source_family = _source_failure_family_url(source_value)
+                if source_family and _shell_source_matches(url, source_family):
+                    metadata = source.get("metadata") if isinstance(source.get("metadata"), dict) else {}
+                    return {
+                        **source,
+                        "source": source_family,
+                        "source_type": "shell_exec_family",
+                        "metadata": {**metadata, "source_family": True, "source_family_from": source_value},
+                    }
     return None
 
 
@@ -3580,17 +3605,40 @@ def _auto_record_failed_shell_sources(
         )
     ):
         return
+    recorded: set[str] = set()
     for url in _shell_guard_urls(str(args.get("command") or ""))[:3]:
-        db.append_source_record(
-            job_id,
-            url,
-            source_type="shell_exec",
-            usefulness_score=0.01,
-            fail_count_delta=1,
-            warnings=["shell command reported authentication/authorization or HTTP failure"],
-            outcome=_clip_text(str(result.get("error") or error_text), 500),
-            metadata={"auto_from_tool": "shell_exec", "failure_kind": "auth_or_http"},
-        )
+        candidates = [url]
+        family_url = _source_failure_family_url(url)
+        if family_url and not _same_source_url(family_url, url):
+            candidates.append(family_url)
+        for candidate in candidates:
+            if candidate.lower() in recorded:
+                continue
+            recorded.add(candidate.lower())
+            is_family = candidate != url
+            warning = (
+                "shell command reported authentication/authorization or HTTP failure for this source family"
+                if is_family
+                else "shell command reported authentication/authorization or HTTP failure"
+            )
+            outcome = (
+                f"Source family blocked after failed child URL {url}: {_clip_text(str(result.get('error') or error_text), 420)}"
+                if is_family
+                else _clip_text(str(result.get("error") or error_text), 500)
+            )
+            metadata = {"auto_from_tool": "shell_exec", "failure_kind": "auth_or_http"}
+            if is_family:
+                metadata.update({"source_family": True, "failed_child_url": url})
+            db.append_source_record(
+                job_id,
+                candidate,
+                source_type="shell_exec_family" if is_family else "shell_exec",
+                usefulness_score=0.01,
+                fail_count_delta=1,
+                warnings=[warning],
+                outcome=outcome,
+                metadata=metadata,
+            )
 
 
 def _auto_reconcile_artifact_tasks(
