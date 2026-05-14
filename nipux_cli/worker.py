@@ -1670,6 +1670,7 @@ def _shell_placeholder_context(command: str) -> dict[str, Any] | None:
         rf"<\s*(?:{fields})(?:[-_ ][A-Za-z0-9]+)?\s*>",
         rf"\{{\{{\s*(?:{fields})(?:[-_ ][A-Za-z0-9]+)?\s*\}}\}}",
         rf"\{{\s*(?:{fields})(?:[-_ ][A-Za-z0-9]+)?\s*\}}",
+        r"</?\s*(?:parameter|arguments?|tool_call|function_call)\b[^>]*>",
         r"\b(?:YOUR|REPLACE|TODO|INSERT)_[A-Z0-9_]{3,}\b",
     ]
     for pattern in placeholder_patterns:

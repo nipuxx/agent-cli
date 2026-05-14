@@ -2012,6 +2012,31 @@ def test_run_one_step_blocks_placeholder_shell_command_before_execution(tmp_path
         db.close()
 
 
+def test_run_one_step_blocks_tool_markup_shell_command_before_execution(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Reject malformed tool markup before shell execution", title="tool markup shell")
+        llm = ScriptedLLM([
+            LLMResponse(tool_calls=[
+                ToolCall(
+                    name="shell_exec",
+                    arguments={"command": "echo ok\n</parameter> }, {"},
+                )
+            ])
+        ])
+
+        result = run_one_step(job_id, config=config, db=db, llm=llm)
+
+        assert result.status == "blocked"
+        assert result.result["error"] == "unresolved placeholder in shell command"
+        assert result.result["placeholder"]["value"] == "</parameter>"
+        step = db.list_steps(job_id=job_id)[0]
+        assert step["status"] == "blocked"
+    finally:
+        db.close()
+
+
 def test_run_one_step_times_out_stalled_model_call(tmp_path):
     config = AppConfig(
         runtime=RuntimeConfig(home=tmp_path),
