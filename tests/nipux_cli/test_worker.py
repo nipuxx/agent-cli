@@ -4317,6 +4317,45 @@ def test_evidence_grounding_ignores_record_schema_keys(tmp_path):
         db.close()
 
 
+def test_evidence_grounding_ignores_json_literals_even_when_stale_tokens_exist(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Record observed benchmark plan", title="literal-grounding", kind="generic")
+        db.update_job_metadata(job_id, {"unsupported_claim_tokens": ["true"]})
+        run_id = db.start_run(job_id, model="test")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec")
+        db.finish_step(
+            step_id,
+            status="completed",
+            output_data={
+                "success": True,
+                "stdout": "Observed benchmark harness is ready and next action is to measure throughput. " * 4,
+            },
+        )
+        db.finish_run(run_id, "completed")
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[ToolCall(name="record_experiment", arguments={
+                    "title": "Baseline benchmark plan",
+                    "status": "planned",
+                    "higher_is_better": True,
+                    "metric_name": "throughput",
+                    "metric_unit": "tokens/sec",
+                    "next_action": "Run the benchmark and record the observed metric.",
+                })])
+            ]),
+        )
+
+        assert result.status == "completed"
+    finally:
+        db.close()
+
+
 def test_run_one_step_blocks_memory_graph_with_unsupported_claims(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")
