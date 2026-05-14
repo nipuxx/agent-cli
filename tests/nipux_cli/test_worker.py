@@ -4815,6 +4815,60 @@ def test_prompt_redacts_stale_tokens_from_recent_state(tmp_path):
         db.close()
 
 
+def test_prompt_does_not_redact_stale_tokens_inside_exact_paths(tmp_path):
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job(
+            "Validate exact candidate paths",
+            title="path-redaction",
+            kind="generic",
+            metadata={"unsupported_claim_tokens": ["AlphaModel-99"]},
+        )
+        db.update_job_metadata(
+            job_id,
+            {
+                "task_queue": [
+                    {
+                        "title": "Validate candidate file path",
+                        "status": "open",
+                        "contract": "experiment",
+                        "acceptance_criteria": "Exact path is validated.",
+                        "evidence_needed": "Shell output with file size.",
+                    }
+                ]
+            },
+        )
+        run_id = db.start_run(job_id, model="test")
+        step_id = db.add_step(
+            job_id=job_id,
+            run_id=run_id,
+            kind="tool",
+            tool_name="record_findings",
+            input_data={"arguments": {"finding": "Old unsupported AlphaModel-99 claim"}},
+        )
+        db.finish_step(
+            step_id,
+            status="blocked",
+            output_data={
+                "success": False,
+                "error": "evidence grounding required",
+                "evidence_grounding": {
+                    "missing_candidate_paths": ["/srv/models/AlphaModel-99-Q4.foo"],
+                    "unsupported_tokens": ["/srv/models/AlphaModel-99-Q4.foo"],
+                },
+            },
+            summary="blocked record_findings; AlphaModel-99 unsupported",
+        )
+        db.finish_run(run_id, "blocked")
+
+        content = build_messages(db.get_job(job_id), db.list_steps(job_id=job_id))[-1]["content"]
+
+        assert "/srv/models/AlphaModel-99-Q4.foo" in content
+        assert "unsupported [unsupported-stale-claim] claim" in content
+    finally:
+        db.close()
+
+
 def test_prompt_redacts_older_stale_tokens_from_task_queue(tmp_path):
     stale_tail = [f"GPU{i}X" for i in range(60)]
     job = {

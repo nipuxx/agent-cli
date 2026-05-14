@@ -119,8 +119,24 @@ def _redact_stale_tokens_for_prompt(text: str, stale_tokens: list[str]) -> str:
     redacted = str(text or "")
     for token in sorted((str(token) for token in stale_tokens if str(token).strip()), key=len, reverse=True):
         pattern = r"(?<![A-Za-z0-9])" + re.escape(token) + r"(?![A-Za-z0-9])"
-        redacted = re.sub(pattern, "[unsupported-stale-claim]", redacted, flags=re.IGNORECASE)
+        redacted = re.sub(
+            pattern,
+            lambda match: match.group(0) if _match_inside_path_like_span(match.string, match.start(), match.end()) else "[unsupported-stale-claim]",
+            redacted,
+            flags=re.IGNORECASE,
+        )
     return redacted
+
+
+def _match_inside_path_like_span(text: str, start: int, end: int) -> bool:
+    left = start
+    while left > 0 and not text[left - 1].isspace() and text[left - 1] not in "'\"`<>|;":
+        left -= 1
+    right = end
+    while right < len(text) and not text[right].isspace() and text[right] not in "'\"`<>|;":
+        right += 1
+    span = text[left:right]
+    return "/" in span or "\\" in span or span.startswith(("~", "."))
 
 
 def _operator_messages_for_prompt(
