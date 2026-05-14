@@ -3792,6 +3792,50 @@ def test_run_marks_job_waiting_when_provider_recovery_is_needed(monkeypatch, tmp
         db.close()
 
 
+def test_run_does_not_reopen_already_provider_blocked_job(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    parser = build_parser()
+    db = AgentDB(tmp_path / "state.db")
+    blocked_at = "2026-05-01T00:00:00+00:00"
+    try:
+        job_id = db.create_job("Keep checking provider recovery", title="provider recovery")
+        db.update_job_status(
+            job_id,
+            "paused",
+            metadata_patch={
+                "provider_blocked_at": blocked_at,
+                "last_note": "Model provider is unavailable; daemon will monitor and resume this job when calls succeed.",
+            },
+        )
+        event_count = len(db.list_events(job_id=job_id, limit=20))
+    finally:
+        db.close()
+
+    monkeypatch.setattr("nipux_cli.cli._remote_model_preflight_failures", lambda _config: ["model_generation: key limit exceeded"])
+
+    def fake_start(**_kwargs):
+        print("model provider is not ready; starting daemon in recovery monitor mode")
+
+    monkeypatch.setattr("nipux_cli.cli._start_daemon_if_needed", fake_start)
+    args = parser.parse_args(["run", "provider recovery", "--no-follow"])
+
+    args.func(args)
+
+    out = capsys.readouterr().out
+    assert "recovery monitor mode" in out
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job = db.get_job(job_id)
+        assert job["status"] == "paused"
+        assert job["metadata"]["provider_blocked_at"] == blocked_at
+        assert "still unavailable" in job["metadata"]["last_note"]
+        events = db.list_events(job_id=job_id, limit=20)
+        assert len(events) == event_count
+        assert all("Reopened from" not in str(event.get("body") or "") for event in events)
+    finally:
+        db.close()
+
+
 def test_run_does_not_reopen_job_when_provider_preflight_is_hard_failure(monkeypatch, tmp_path):
     monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
     parser = build_parser()

@@ -2307,23 +2307,38 @@ def _pause_job_for_recoverable_provider_preflight(
         return False
     now = utc_now()
     detail = "; ".join(failures)
+    job = db.get_job(job_id)
+    already_provider_blocked = job_provider_blocked(job)
+    if already_provider_blocked and str(job.get("status") or "") == "paused":
+        db.update_job_metadata(
+            job_id,
+            {
+                "provider_last_probe_at": now,
+                "provider_last_probe_detail": detail[:1000],
+                "last_note": "Model provider still unavailable; daemon will check again later.",
+            },
+        )
+        return True
     note = "Model provider is unavailable; daemon will monitor and resume this job when calls succeed."
     db.update_job_status(
         job_id,
         "paused",
         metadata_patch={
             "last_note": note,
-            "provider_blocked_at": now,
+            "provider_blocked_at": str(job.get("metadata", {}).get("provider_blocked_at") or now)
+            if already_provider_blocked
+            else now,
             "provider_last_probe_at": now,
             "provider_last_probe_detail": detail[:1000],
         },
     )
-    db.append_agent_update(
-        job_id,
-        note,
-        category="error",
-        metadata={"reason": "llm_provider_blocked", "detail": detail[:1000]},
-    )
+    if not already_provider_blocked:
+        db.append_agent_update(
+            job_id,
+            note,
+            category="error",
+            metadata={"reason": "llm_provider_blocked", "detail": detail[:1000]},
+        )
     return True
 
 
@@ -2343,7 +2358,9 @@ def cmd_run(args: argparse.Namespace) -> None:
             args.job_id = job["id"]
             _write_shell_state({"focus_job_id": job["id"]})
             if can_prepare_job:
-                _ensure_job_runnable(db, job["id"])
+                already_provider_blocked = preflight_recoverable and job_provider_blocked(job)
+                if not already_provider_blocked:
+                    _ensure_job_runnable(db, job["id"])
                 if preflight_recoverable:
                     _pause_job_for_recoverable_provider_preflight(
                         db,
@@ -2363,7 +2380,10 @@ def cmd_run(args: argparse.Namespace) -> None:
             job_id = _default_job_id(db)
             if job_id:
                 if can_prepare_job:
-                    _ensure_job_runnable(db, job_id)
+                    job = db.get_job(job_id)
+                    already_provider_blocked = preflight_recoverable and job_provider_blocked(job)
+                    if not already_provider_blocked:
+                        _ensure_job_runnable(db, job_id)
                     if preflight_recoverable:
                         _pause_job_for_recoverable_provider_preflight(
                             db,
