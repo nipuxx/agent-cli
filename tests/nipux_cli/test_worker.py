@@ -10,6 +10,7 @@ from nipux_cli.worker import (
     SYSTEM_PROMPT,
     _concrete_evidence_tokens,
     _extract_candidate_file_paths,
+    _file_pattern_tokens_for_grounding,
     _rank_candidate_file_paths,
     _render_worker_prompt,
     build_messages,
@@ -3931,6 +3932,20 @@ def test_record_findings_blocks_negative_file_pattern_that_conflicts_with_positi
         assert grounding["negative_claim_conflicts"][0]["token"] == ".foo"
     finally:
         db.close()
+
+
+def test_file_pattern_grounding_ignores_hidden_path_components():
+    text = (
+        "No compiled binary exists yet. Valid data is at "
+        "/srv/cache/.lmstudio/models/ModelX.gguf and /tmp/.cache/item.bin. "
+        "No *.foo files were found."
+    )
+
+    tokens = _file_pattern_tokens_for_grounding(text)
+
+    assert ".lmstudio" not in tokens
+    assert ".cache" not in tokens
+    assert ".foo" in tokens
 
 
 def test_record_experiment_allows_classifying_observed_files_as_non_primary(tmp_path):

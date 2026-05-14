@@ -2531,6 +2531,11 @@ def _file_pattern_tokens_for_grounding(text: str) -> list[str]:
             continue
         if "." not in raw and not raw.startswith("*."):
             continue
+        if raw.startswith(".") and not raw.startswith("*."):
+            previous_char = text[match.start() - 1] if match.start() > 0 else ""
+            next_char = text[match.end()] if match.end() < len(text) else ""
+            if previous_char == "/" or next_char == "/":
+                continue
         ext = "." + match.group(1).lower().lstrip(".")
         if ext in {".app", ".co", ".com", ".dev", ".edu", ".gov", ".io", ".net", ".org", ".www", ".http", ".https"}:
             continue
