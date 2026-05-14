@@ -6609,8 +6609,13 @@ def test_failed_next_action_prompt_prioritizes_accounting(tmp_path):
         )
         db.finish_step(
             step_id,
-            status="completed",
-            output_data={"success": True, "returncode": 0, "stdout": "/bin/sh: 1: build-tool: not found\n"},
+            status="failed",
+            output_data={
+                "success": False,
+                "returncode": 0,
+                "stdout": "/bin/sh: 1: build-tool: not found\n",
+                "error": "command output indicates missing command despite exit status 0",
+            },
         )
         db.finish_run(run_id, "completed")
 

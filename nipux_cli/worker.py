@@ -397,7 +397,7 @@ def _shell_path_recovery_for_prompt(recent_steps: list[dict[str, Any]]) -> str:
 
 
 def _shell_path_recovery_context(recent_steps: list[dict[str, Any]], *, window: int = 8) -> dict[str, Any] | None:
-    for step in reversed(_completed_recent_steps(recent_steps)[-window:]):
+    for step in reversed(_completed_or_failed_recent_steps(recent_steps)[-window:]):
         if step.get("tool_name") != "shell_exec":
             continue
         output = step.get("output") if isinstance(step.get("output"), dict) else {}
@@ -1194,7 +1194,7 @@ def _experiment_next_action_failure_context(job: dict[str, Any], recent_steps: l
         default=0,
     )
     next_action = str(context.get("next_action") or "") if context else ""
-    for step in reversed(_completed_recent_steps(recent_steps)[-window:]):
+    for step in reversed(_completed_or_failed_recent_steps(recent_steps)[-window:]):
         if step.get("tool_name") != "shell_exec":
             continue
         if latest_experiment_step_no and _as_int(step.get("step_no")) <= latest_experiment_step_no:
@@ -1770,6 +1770,10 @@ def _duplicate_recent_tool_call(
 
 def _completed_recent_steps(recent_steps: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [step for step in recent_steps if step.get("status") == "completed"]
+
+
+def _completed_or_failed_recent_steps(recent_steps: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [step for step in recent_steps if step.get("status") in {"completed", "failed"}]
 
 
 BROWSER_RUNTIME_UNAVAILABLE_TERMS = (
