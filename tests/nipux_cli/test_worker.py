@@ -1553,6 +1553,26 @@ def test_run_one_step_records_model_failures_instead_of_raising(tmp_path):
         db.close()
 
 
+def test_run_one_step_blocks_missing_tool_arguments_as_recoverable(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Keep running despite malformed tool calls", title="tool args")
+        llm = ScriptedLLM([LLMResponse(tool_calls=[ToolCall(name="shell_exec", arguments={})])])
+
+        result = run_one_step(job_id, config=config, db=db, llm=llm)
+
+        assert result.status == "blocked"
+        assert result.result["recoverable"] is True
+        assert result.result["missing_arguments"] == ["command"]
+        step = db.list_steps(job_id=job_id)[0]
+        assert step["status"] == "blocked"
+        assert "missing required arguments" in step["summary"]
+        assert not step["error"]
+    finally:
+        db.close()
+
+
 def test_run_one_step_times_out_stalled_model_call(tmp_path):
     config = AppConfig(
         runtime=RuntimeConfig(home=tmp_path),

@@ -70,6 +70,28 @@ class ToolSpec:
         }
 
 
+def _missing_argument(value: Any) -> bool:
+    if value is None:
+        return True
+    if isinstance(value, str):
+        return not value.strip()
+    if isinstance(value, (list, dict, tuple, set)):
+        return not value
+    return False
+
+
+REQUIRED_ARGUMENT_ALIASES: dict[str, dict[str, tuple[str, ...]]] = {
+    "record_experiment": {
+        "title": ("title", "name", "metric_name", "hypothesis", "result", "outcome"),
+    },
+}
+
+REQUIRED_ARGUMENT_GROUPS: dict[str, tuple[tuple[str, tuple[str, ...]], ...]] = {
+    "read_artifact": (("artifact reference", ("artifact_id", "path", "title", "ref")),),
+    "record_memory_graph": (("nodes or edges", ("nodes", "edges")),),
+}
+
+
 def _json(value: Any) -> str:
     return json.dumps(value, ensure_ascii=False)
 
@@ -1349,6 +1371,34 @@ class ToolRegistry:
 
     def openai_tools(self, config: AppConfig | None = None) -> list[dict[str, Any]]:
         return [self._specs[name].as_openai_tool() for name in self.names() if _tool_enabled(name, config)]
+
+    def validate_arguments(self, name: str, args: dict[str, Any], config: AppConfig | None = None) -> dict[str, Any] | None:
+        if name not in self._specs or not _tool_enabled(name, config):
+            return None
+        args = args if isinstance(args, dict) else {}
+        spec = self._specs[name]
+        missing: list[str] = []
+        aliases = REQUIRED_ARGUMENT_ALIASES.get(name, {})
+        for required in spec.parameters.get("required") or []:
+            candidates = aliases.get(str(required), (str(required),))
+            if all(_missing_argument(args.get(candidate)) for candidate in candidates):
+                missing.append(" or ".join(candidates))
+        for label, fields in REQUIRED_ARGUMENT_GROUPS.get(name, ()):
+            if all(_missing_argument(args.get(field)) for field in fields):
+                missing.append(label)
+        if not missing:
+            return None
+        return {
+            "success": True,
+            "recoverable": True,
+            "error": "missing required tool arguments",
+            "missing_arguments": missing,
+            "blocked_tool": name,
+            "guidance": (
+                f"Retry {name} with concrete values for: {', '.join(missing)}. "
+                "Do not call a tool with placeholder or empty arguments."
+            ),
+        }
 
     def handle(self, name: str, args: dict[str, Any], ctx: ToolContext) -> str:
         if name not in self._specs:

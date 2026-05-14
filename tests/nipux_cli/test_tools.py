@@ -34,6 +34,26 @@ def test_static_tool_surface_is_focused():
     assert "acknowledge_operator_context" in DEFAULT_REGISTRY.names()
 
 
+def test_tool_registry_validates_required_arguments(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+
+    missing = DEFAULT_REGISTRY.validate_arguments("shell_exec", {}, config)
+    assert missing is not None
+    assert missing["missing_arguments"] == ["command"]
+    assert missing["recoverable"] is True
+
+    artifact_ref = DEFAULT_REGISTRY.validate_arguments("read_artifact", {}, config)
+    assert artifact_ref is not None
+    assert artifact_ref["missing_arguments"] == ["artifact reference"]
+
+    graph = DEFAULT_REGISTRY.validate_arguments("record_memory_graph", {}, config)
+    assert graph is not None
+    assert graph["missing_arguments"] == ["nodes or edges"]
+
+    experiment = DEFAULT_REGISTRY.validate_arguments("record_experiment", {"metric_name": "throughput"}, config)
+    assert experiment is None
+
+
 def test_tool_access_config_filters_worker_schema_and_blocks_calls(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path), tools=ToolAccessConfig(browser=False, web=False, shell=False, files=False))
     db = AgentDB(tmp_path / "state.db")

@@ -3796,6 +3796,40 @@ def _execute_tool_call(
         tool_name=call.name,
         input_data={"tool_call_id": call.id, "arguments": call.arguments},
     )
+    validate_arguments = getattr(registry, "validate_arguments", None)
+    argument_block = validate_arguments(call.name, call.arguments, config) if callable(validate_arguments) else None
+    if argument_block:
+        summary = f"blocked {call.name}; missing required arguments: {', '.join(argument_block.get('missing_arguments') or [])}"
+        db.finish_step(
+            step_id,
+            status="blocked",
+            summary=summary,
+            output_data=argument_block,
+            error=None,
+        )
+        db.append_agent_update(
+            job_id,
+            summary,
+            category="blocked",
+            metadata={
+                "reason": "tool_arguments_missing",
+                "tool": call.name,
+                "missing_arguments": argument_block.get("missing_arguments") or [],
+            },
+        )
+        return (
+            StepExecution(
+                job_id=job_id,
+                run_id=run_id,
+                step_id=step_id,
+                tool_name=call.name,
+                status="blocked",
+                result=argument_block,
+            ),
+            True,
+            summary,
+            None,
+        )
     blocked = _blocked_tool_call_result(call.name, call.arguments, recent_steps, job)
     if blocked:
         result, summary = blocked
