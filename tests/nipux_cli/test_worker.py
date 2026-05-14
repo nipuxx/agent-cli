@@ -4442,6 +4442,55 @@ def test_evidence_grounding_blocks_positive_claim_for_missing_path(tmp_path):
         db.close()
 
 
+def test_evidence_grounding_checks_later_positive_path_mentions(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Verify executable path polarity", title="path later mention", kind="generic")
+        run_id = db.start_run(job_id, model="test")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec")
+        db.finish_step(
+            step_id,
+            status="completed",
+            output_data={
+                "success": True,
+                "stdout": (
+                    "ls: cannot access '/tmp/tools/build-tool': No such file or directory\n"
+                    "The probe also checked unrelated files and returned partial output for review.\n"
+                ),
+                "stderr": "",
+            },
+        )
+        db.finish_run(run_id, "completed")
+
+        blocked = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(
+                        name="record_lesson",
+                        arguments={
+                            "category": "constraint",
+                            "lesson": (
+                                "candidate path /tmp/tools/build-tool was examined. "
+                                "The executable is at /tmp/tools/build-tool and should be used for the next build."
+                            ),
+                        },
+                    )
+                ])
+            ]),
+        )
+
+        assert blocked.status == "blocked"
+        assert blocked.result["error"] == "evidence grounding required"
+        grounding = blocked.result["evidence_grounding"]
+        assert grounding["negative_path_conflicts"][0]["path"] == "/tmp/tools/build-tool"
+    finally:
+        db.close()
+
+
 def test_record_findings_allows_negative_file_pattern_when_evidence_is_negative(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

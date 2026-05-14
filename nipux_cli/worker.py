@@ -2664,9 +2664,11 @@ POSITIVE_PATH_CLAIM_MARKERS = (
     "available",
     "exists",
     "found",
+    "is at",
     "located",
     "present",
     "ready",
+    "succeed",
     "usable",
     "valid",
     "verified",
@@ -2717,25 +2719,38 @@ def _positive_path_claim_conflicts_for_grounding(
 
 
 def _path_near_positive_claim(text: str, path: str, *, window: int = 96) -> bool:
-    excerpt = _excerpt_around(text, path, window=window).lower()
-    if not excerpt:
-        return False
-    if _evidence_line_is_negative(excerpt):
-        return False
-    return any(marker in excerpt for marker in POSITIVE_PATH_CLAIM_MARKERS)
+    for excerpt in _excerpts_around_all(text, path, window=window):
+        excerpt_lower = excerpt.lower()
+        if _evidence_line_is_negative(excerpt_lower):
+            continue
+        if any(marker in excerpt_lower for marker in POSITIVE_PATH_CLAIM_MARKERS):
+            return True
+    return False
 
 
 def _excerpt_around(text: str, needle: str, *, window: int = 80) -> str:
+    excerpts = _excerpts_around_all(text, needle, window=window, max_matches=1)
+    return excerpts[0] if excerpts else ""
+
+
+def _excerpts_around_all(text: str, needle: str, *, window: int = 80, max_matches: int = 8) -> list[str]:
     source = str(text or "")
     needle_text = str(needle or "")
     if not source or not needle_text:
-        return ""
-    index = source.lower().find(needle_text.lower())
-    if index < 0:
-        return ""
-    start = max(0, index - window)
-    end = min(len(source), index + len(needle_text) + window)
-    return source[start:end]
+        return []
+    source_lower = source.lower()
+    needle_lower = needle_text.lower()
+    excerpts: list[str] = []
+    index = 0
+    while len(excerpts) < max_matches:
+        found = source_lower.find(needle_lower, index)
+        if found < 0:
+            break
+        start = max(0, found - window)
+        end = min(len(source), found + len(needle_text) + window)
+        excerpts.append(source[start:end])
+        index = found + max(1, len(needle_text))
+    return excerpts
 
 
 def _path_mentioned_in_text(path: str, text_lower: str) -> bool:
