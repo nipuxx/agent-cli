@@ -22,6 +22,7 @@ from nipux_cli.daemon import (
 )
 from nipux_cli.db import AgentDB
 from nipux_cli.worker import StepExecution
+from nipux_cli.doctor import Check
 
 
 def test_single_instance_lock_rejects_second_holder(tmp_path):
@@ -203,6 +204,66 @@ def test_daemon_quarantines_provider_blocked_jobs(tmp_path):
         assert "provider" in blocked_job["metadata"]["last_note"].lower()
         events = db.list_events(job_id=blocked, limit=10)
         assert any(event["event_type"] == "agent_message" and event["metadata"].get("reason") == "llm_provider_blocked" for event in events)
+    finally:
+        db.close()
+
+
+def test_daemon_leaves_provider_blocked_job_paused_until_model_recovers(monkeypatch, tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        blocked_at = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
+        job_id = db.create_job("Provider blocked job", title="blocked")
+        db.update_job_status(
+            job_id,
+            "paused",
+            metadata_patch={"provider_blocked_at": blocked_at},
+        )
+
+        def fake_doctor(*, config, check_model):
+            assert check_model is True
+            return [Check("model_generation", False, "key limit exceeded")]
+
+        monkeypatch.setattr("nipux_cli.daemon.run_doctor", fake_doctor)
+        daemon = Daemon(config=config, db=db)
+
+        assert daemon.next_runnable_job() is None
+        job = db.get_job(job_id)
+        assert job["status"] == "paused"
+        assert job["metadata"]["provider_last_probe_detail"].startswith("model_generation")
+        assert read_daemon_events(config, limit=1)[0]["event"] == "provider_recovery_wait"
+    finally:
+        db.close()
+
+
+def test_daemon_resumes_provider_blocked_job_when_model_recovers(monkeypatch, tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        blocked_at = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
+        job_id = db.create_job("Provider blocked job", title="blocked")
+        db.update_job_status(
+            job_id,
+            "paused",
+            metadata_patch={"provider_blocked_at": blocked_at},
+        )
+
+        def fake_doctor(*, config, check_model):
+            assert check_model is True
+            return []
+
+        monkeypatch.setattr("nipux_cli.daemon.run_doctor", fake_doctor)
+        daemon = Daemon(config=config, db=db)
+
+        job = daemon.next_runnable_job()
+        stored = db.get_job(job_id)
+
+        assert job is not None
+        assert job["id"] == job_id
+        assert stored["status"] == "queued"
+        assert stored["metadata"]["provider_unblocked_at"]
+        events = db.list_events(job_id=job_id, limit=10)
+        assert any(event["event_type"] == "agent_message" and event["metadata"].get("reason") == "llm_provider_recovered" for event in events)
     finally:
         db.close()
 

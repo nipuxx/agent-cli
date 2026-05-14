@@ -15,6 +15,7 @@ from nipux_cli.config import AppConfig, load_config
 from nipux_cli.cli_state import clear_model_setup_verified, mark_model_setup_verified
 from nipux_cli.daemon import daemon_lock_status
 from nipux_cli.doctor import run_doctor
+from nipux_cli.provider_errors import provider_action_required, provider_rate_limited
 
 
 ReadyFn = Callable[[Any], bool]
@@ -29,6 +30,18 @@ def remote_model_preflight_failures(config: Any, *, doctor_fn: Callable[..., lis
     return [f"{check.name}: {check.detail}" for check in checks if not check.ok and check.name in blocking]
 
 
+def _recoverable_provider_preflight(failures: list[str]) -> bool:
+    if not failures:
+        return False
+    for failure in failures:
+        name = failure.split(":", 1)[0].strip()
+        if name != "model_generation":
+            return False
+        if not (provider_action_required(failure) or provider_rate_limited(failure)):
+            return False
+    return True
+
+
 def ensure_remote_model_ready_for_worker(
     config: Any,
     *,
@@ -40,6 +53,13 @@ def ensure_remote_model_ready_for_worker(
     failures = remote_model_preflight_failures(config, doctor_fn=doctor_fn)
     if not failures:
         mark_model_setup_verified(config)
+        return True
+    if _recoverable_provider_preflight(failures):
+        clear_model_setup_verified()
+        print("model provider is not ready; starting daemon in recovery monitor mode")
+        for failure in failures:
+            print(f"  wait {failure}")
+        print("The daemon will periodically re-check the configured model and resume provider-blocked jobs when it works.")
         return True
     clear_model_setup_verified()
     print("model is not ready; daemon not started")

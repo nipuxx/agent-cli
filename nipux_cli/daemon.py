@@ -19,6 +19,7 @@ from typing import Any
 from nipux_cli.config import AppConfig, load_config
 from nipux_cli.db import AgentDB
 from nipux_cli.digest import write_daily_digest
+from nipux_cli.doctor import run_doctor
 from nipux_cli.provider_errors import provider_action_required, provider_rate_limited
 from nipux_cli.scheduling import job_deferred_until, job_is_deferred, job_provider_blocked
 from nipux_cli.shell_tools import cleanup_registered_shell_processes
@@ -84,6 +85,7 @@ def _runtime_code_paths(package_dir: Path) -> list[Path]:
 
 
 RUNTIME_CODE_FILES = runtime_code_file_names()
+PROVIDER_RECOVERY_PROBE_SECONDS = 300.0
 
 
 def runtime_stale(metadata: dict[str, Any] | None) -> bool:
@@ -251,6 +253,7 @@ class Daemon:
         """
 
         now = datetime.now(timezone.utc)
+        self._maybe_recover_provider_blocked_jobs(now=now)
         runnable_jobs = self.db.list_jobs(statuses=["queued", "running"])
         for job in runnable_jobs:
             if job_provider_blocked(job):
@@ -275,6 +278,50 @@ class Daemon:
                 continue
             return job
         return None
+
+    def _maybe_recover_provider_blocked_jobs(self, *, now: datetime) -> None:
+        paused = [job for job in self.db.list_jobs(statuses=["paused"]) if job_provider_blocked(job)]
+        due = [job for job in paused if _provider_probe_due(job, now=now)]
+        if not due:
+            return
+        ok, detail = _model_generation_ready(self.config)
+        timestamp = now.isoformat()
+        if not ok:
+            for job in due:
+                self.db.update_job_status(
+                    job["id"],
+                    "paused",
+                    metadata_patch={
+                        "provider_last_probe_at": timestamp,
+                        "provider_last_probe_detail": detail[:1000],
+                        "last_note": "Model provider still unavailable; daemon will check again later.",
+                    },
+                )
+            append_daemon_event(
+                self.config,
+                "provider_recovery_wait",
+                checked_jobs=len(due),
+                detail=detail[:500],
+                next_probe_seconds=PROVIDER_RECOVERY_PROBE_SECONDS,
+            )
+            return
+        for job in paused:
+            self.db.update_job_status(
+                job["id"],
+                "queued",
+                metadata_patch={
+                    "provider_last_probe_at": timestamp,
+                    "provider_unblocked_at": timestamp,
+                    "last_note": "Model provider recovered; daemon resumed this job.",
+                },
+            )
+            self.db.append_agent_update(
+                job["id"],
+                "Model provider recovered; continuing queued work.",
+                category="progress",
+                metadata={"reason": "llm_provider_recovered"},
+            )
+        append_daemon_event(self.config, "provider_recovered", resumed_jobs=len(paused), detail=detail[:500])
 
     def idle_sleep_seconds(self, *, poll_seconds: float, now: datetime | None = None) -> float:
         """Return the next idle sleep, capped by the nearest deferred job wake."""
@@ -583,6 +630,28 @@ def _parse_retry_after(value: str) -> float | None:
             parsed = parsed.replace(tzinfo=timezone.utc)
         return max(0.0, parsed.timestamp() - time.time())
     return None
+
+
+def _provider_probe_due(job: dict[str, Any], *, now: datetime) -> bool:
+    metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
+    raw = str(metadata.get("provider_last_probe_at") or "").strip()
+    if not raw:
+        return True
+    with contextlib.suppress(ValueError):
+        previous = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        if previous.tzinfo is None:
+            previous = previous.replace(tzinfo=timezone.utc)
+        return (now.astimezone(timezone.utc) - previous.astimezone(timezone.utc)).total_seconds() >= PROVIDER_RECOVERY_PROBE_SECONDS
+    return True
+
+
+def _model_generation_ready(config: AppConfig) -> tuple[bool, str]:
+    checks = run_doctor(config=config, check_model=True)
+    failures = [check for check in checks if not check.ok and check.name in {"model_config", "model_auth", "model_endpoint", "model_generation"}]
+    if not failures:
+        return True, "model_generation accepted"
+    detail = "; ".join(f"{check.name}: {check.detail}" for check in failures)
+    return False, detail
 
 
 def _sleep_or_stop(seconds: float, max_iterations: int | None, iterations: int) -> None:

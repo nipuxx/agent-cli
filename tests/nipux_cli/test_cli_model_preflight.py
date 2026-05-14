@@ -30,6 +30,20 @@ def test_remote_model_preflight_blocks_rejected_auth(monkeypatch, capsys):
     assert "doctor --check-model" in out
 
 
+def test_remote_model_preflight_allows_recovery_monitor_for_quota(monkeypatch, capsys):
+    def fake_doctor(*, config, check_model):
+        assert check_model is True
+        return [Check("model_generation", False, "Key limit exceeded (total limit) (code=403)")]
+
+    monkeypatch.setattr("nipux_cli.cli.run_doctor", fake_doctor)
+
+    assert _ensure_remote_model_ready_for_worker(_config("https://openrouter.ai/api/v1"), fake=False) is True
+
+    out = capsys.readouterr().out
+    assert "recovery monitor mode" in out
+    assert "Key limit exceeded" in out
+
+
 def test_remote_model_preflight_skips_fake_runs(monkeypatch):
     def fake_doctor(*, config, check_model):
         raise AssertionError("fake runs should not need remote model auth")
