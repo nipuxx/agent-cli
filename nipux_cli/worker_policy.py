@@ -301,6 +301,7 @@ PROMPT_SECTION_BUDGETS = {
     "Workspace": 520,
     "Operator context": 2_200,
     "Pending measurement obligation": 1_100,
+    "Candidate file discovery": 2_000,
     "Measured progress guard": 1_000,
     "Deliverable progress guard": 1_000,
     "Progress accounting guard": 900,

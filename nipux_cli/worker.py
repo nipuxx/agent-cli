@@ -331,13 +331,15 @@ def _candidate_file_discovery_for_prompt(job: dict[str, Any], recent_steps: list
     source_text = context["source_text"]
     lines = [
         f"{source_text} while open work depends on file/path validation.",
-        "Validate likely candidates with shell_exec before recording a no-file/no-progress claim or searching for alternatives. "
-        "Treat durable-record candidates as leads until revalidated. This supersedes stale no-candidate/no-file memory "
-        "until validation proves those candidates are irrelevant.",
         "Candidate paths:",
     ]
     for path in paths[:8]:
         lines.append(f"- {path}")
+    lines.append(
+        "Validate likely candidates with shell_exec before recording a no-file/no-progress claim or searching for alternatives. "
+        "Treat durable-record candidates as leads until revalidated. This supersedes stale no-candidate/no-file memory "
+        "until validation proves those candidates are irrelevant."
+    )
     lines.append(f"Relevant open work: {_clip_text(context['task_text'], 500)}")
     return "\n".join(lines)
 
