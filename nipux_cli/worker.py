@@ -141,6 +141,7 @@ def build_messages(
     )
     measurement_obligation = _measurement_obligation_for_prompt(job)
     file_validation_obligation = _file_validation_obligation_for_prompt(job)
+    candidate_file_discovery = _candidate_file_discovery_for_prompt(job, recent_steps)
     measured_progress_guard = _measured_progress_guard_for_prompt(job, recent_steps)
     research_balance_guard = _research_balance_guard_for_prompt(job, recent_steps)
     deliverable_progress_guard = _deliverable_progress_guard_for_prompt(job, recent_steps)
@@ -175,6 +176,7 @@ def build_messages(
             ("Operator context", operator_messages),
             ("Pending measurement obligation", measurement_obligation),
             ("Pending file validation obligation", file_validation_obligation),
+            ("Candidate file discovery", candidate_file_discovery),
             ("Measured progress guard", measured_progress_guard),
             ("Research balance guard", research_balance_guard),
             ("Deliverable progress guard", deliverable_progress_guard),
@@ -298,6 +300,79 @@ def _file_validation_obligation_for_prompt(job: dict[str, Any]) -> str:
         "or use record_tasks/record_lesson/record_experiment to explain the blocked or deferred validation."
     )
     return "\n".join(lines)
+
+
+def _candidate_file_discovery_for_prompt(job: dict[str, Any], recent_steps: list[dict[str, Any]]) -> str:
+    task_text = _open_file_dependent_task_text(job)
+    if not task_text:
+        return "None."
+    paths = _candidate_file_paths_from_recent_shell(recent_steps)
+    if not paths:
+        return "None."
+    lines = [
+        "Recent shell output listed candidate file paths while open work depends on file/path validation.",
+        "Validate likely candidates with shell_exec before recording a no-file/no-progress claim or searching for alternatives.",
+        "Candidate paths:",
+    ]
+    for path in paths[:8]:
+        lines.append(f"- {path}")
+    lines.append(f"Relevant open work: {_clip_text(task_text, 500)}")
+    return "\n".join(lines)
+
+
+def _open_file_dependent_task_text(job: dict[str, Any]) -> str:
+    tasks = _metadata_list(job, "task_queue")
+    parts: list[str] = []
+    for task in tasks:
+        if not isinstance(task, dict):
+            continue
+        status = str(task.get("status") or "open").lower()
+        if status not in {"open", "active", "waiting", "blocked"}:
+            continue
+        text = " ".join(
+            str(task.get(key) or "")
+            for key in ("title", "description", "acceptance_criteria", "evidence_needed", "stall_behavior", "contract")
+        )
+        lowered = text.lower()
+        if any(term in lowered for term in ("file", "path", "download", "artifact", "validate", "benchmark", "script", "config")):
+            parts.append(" ".join(text.split()))
+        if len(parts) >= 4:
+            break
+    return " | ".join(parts)
+
+
+def _candidate_file_paths_from_recent_shell(recent_steps: list[dict[str, Any]], *, window: int = 8) -> list[str]:
+    paths: list[str] = []
+    seen: set[str] = set()
+    for step in _completed_recent_steps(recent_steps)[-window:]:
+        if step.get("tool_name") != "shell_exec":
+            continue
+        output = step.get("output") if isinstance(step.get("output"), dict) else {}
+        text = "\n".join(str(output.get(key) or "") for key in ("stdout", "stderr"))
+        for path in _extract_candidate_file_paths(text):
+            key = path.lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            paths.append(path)
+            if len(paths) >= 12:
+                return paths
+    return paths
+
+
+def _extract_candidate_file_paths(text: str) -> list[str]:
+    paths: list[str] = []
+    for match in re.finditer(r"(?<![A-Za-z0-9])(?:~|/)[^\s'\"<>|;&]{2,}", text or ""):
+        raw = match.group(0).rstrip(".,:;)")
+        if not raw or "://" in raw:
+            continue
+        name = Path(raw).name
+        if "." not in name:
+            continue
+        if len(raw) > 500:
+            continue
+        paths.append(raw)
+    return paths
 
 
 def _progress_accounting_for_prompt(recent_steps: list[dict[str, Any]]) -> str:

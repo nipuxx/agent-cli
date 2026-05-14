@@ -3790,6 +3790,49 @@ def test_prompt_suppresses_findings_matching_stale_claim_tokens(tmp_path):
         db.close()
 
 
+def test_prompt_prioritizes_validation_for_recent_candidate_file_paths(tmp_path):
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Validate a discovered runtime file", title="candidate-file", kind="generic")
+        db.update_job_metadata(
+            job_id,
+            {
+                "task_queue": [
+                    {
+                        "title": "Run baseline benchmark with the discovered file",
+                        "status": "open",
+                        "contract": "experiment",
+                        "acceptance_criteria": "Benchmark command uses a validated file path.",
+                        "evidence_needed": "Shell output showing file size and benchmark result.",
+                    }
+                ]
+            },
+        )
+        run_id = db.start_run(job_id, model="test")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec")
+        db.finish_step(
+            step_id,
+            status="completed",
+            output_data={
+                "success": True,
+                "stdout": (
+                    "candidate files:\n"
+                    "/srv/models/ExampleModel-Q4.foo\n"
+                    "/srv/models/sidecar.txt\n"
+                ),
+            },
+        )
+        db.finish_run(run_id, "completed")
+
+        content = build_messages(db.get_job(job_id), db.list_steps(job_id=job_id))[-1]["content"]
+
+        assert "Candidate file discovery:" in content
+        assert "/srv/models/ExampleModel-Q4.foo" in content
+        assert "Validate likely candidates with shell_exec" in content
+    finally:
+        db.close()
+
+
 def test_prompt_filters_stale_generated_and_objective_tokens(tmp_path):
     db = AgentDB(tmp_path / "state.db")
     try:
