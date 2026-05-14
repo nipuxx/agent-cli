@@ -759,6 +759,16 @@ def _next_action_constraint(job: dict[str, Any], recent_steps: list[dict[str, An
             f"({evidence_step.get('tool_name') or evidence_step['kind']}). "
             "Your next tool call should usually be write_artifact. If this evidence taught a durable rule, record_lesson after saving it."
         )
+    grounding_block = _latest_evidence_grounding_block(recent_steps)
+    if grounding_block:
+        missing_paths = grounding_block.get("missing_candidate_paths") if isinstance(grounding_block.get("missing_candidate_paths"), list) else []
+        path_text = "; ".join(str(path) for path in missing_paths[:6])
+        detail = f" Missing exact paths: {path_text}." if path_text else ""
+        return (
+            "Recent evidence grounding blocked a durable record. Next, rewrite the record using only observed evidence, "
+            "include the exact observed paths/tokens when claiming candidates or files, or explicitly record why they "
+            f"are irrelevant/invalid.{detail}"
+        )
     if _task_queue_exhausted(job):
         return (
             "All durable task branches are done, skipped, or blocked. Before more research or execution, "
@@ -779,6 +789,18 @@ def _next_action_constraint(job: dict[str, Any], recent_steps: list[dict[str, An
                 return "Do not rerun the same shell discovery command. Use the prior output to inspect a specific file/item, save it, or update findings/tasks."
             return "Change source, extract an existing result, save an artifact, or record a lesson about the failed strategy."
     return "No special constraint beyond taking one bounded useful action."
+
+
+def _latest_evidence_grounding_block(recent_steps: list[dict[str, Any]]) -> dict[str, Any] | None:
+    for step in reversed(recent_steps[-8:]):
+        if step.get("status") != "blocked":
+            continue
+        output = step.get("output") if isinstance(step.get("output"), dict) else {}
+        if output.get("error") != "evidence grounding required":
+            continue
+        grounding = output.get("evidence_grounding") if isinstance(output.get("evidence_grounding"), dict) else {}
+        return grounding or {"unsupported_tokens": []}
+    return None
 
 
 def _milestone_validation_needed(job: dict[str, Any]) -> dict[str, Any] | None:

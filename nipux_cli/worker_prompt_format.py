@@ -50,6 +50,14 @@ def observation_for_prompt(tool_name: str | None, output: dict[str, Any]) -> str
             return clip_text(f"error={output.get('error')}; guidance={output.get('recovery_guidance', '')}{suffix}", 700)
         evidence_grounding = output.get("evidence_grounding") if isinstance(output.get("evidence_grounding"), dict) else {}
         if evidence_grounding:
+            missing_paths = evidence_grounding.get("missing_candidate_paths")
+            if isinstance(missing_paths, list) and missing_paths:
+                return clip_text(
+                    "error=evidence grounding required; missing_exact_paths="
+                    + ", ".join(str(path) for path in missing_paths[:8])
+                    + "; rewrite the durable record with exact observed paths or state why they are irrelevant",
+                    900,
+                )
             unsupported = evidence_grounding.get("unsupported_tokens")
             if isinstance(unsupported, list) and unsupported:
                 return clip_text(

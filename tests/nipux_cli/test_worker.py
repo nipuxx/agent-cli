@@ -4121,6 +4121,42 @@ def test_prompt_shows_evidence_grounding_tokens_after_block(tmp_path):
         db.close()
 
 
+def test_prompt_shows_missing_candidate_paths_after_grounding_block(tmp_path):
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Use exact file evidence", title="grounding-paths", kind="generic")
+        run_id = db.start_run(job_id, model="test")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="record_experiment")
+        db.finish_step(
+            step_id,
+            status="blocked",
+            summary="blocked record_experiment; evidence grounding required",
+            output_data={
+                "success": True,
+                "recoverable": True,
+                "error": "evidence grounding required",
+                "evidence_grounding": {
+                    "missing_candidate_paths": [
+                        "/srv/models/AlphaModel-Q4.foo",
+                        "/srv/models/BetaModel-Q8.foo",
+                    ],
+                    "unsupported_tokens": [
+                        "/srv/models/AlphaModel-Q4.foo",
+                        "/srv/models/BetaModel-Q8.foo",
+                    ],
+                },
+            },
+        )
+        job = db.get_job(job_id)
+        content = build_messages(job, db.list_steps(job_id=job_id))[-1]["content"]
+
+        assert "Recent evidence grounding blocked a durable record" in content
+        assert "/srv/models/AlphaModel-Q4.foo" in content
+        assert "rewrite the durable record with exact observed paths" in content
+    finally:
+        db.close()
+
+
 def test_prompt_suppresses_findings_matching_stale_claim_tokens(tmp_path):
     db = AgentDB(tmp_path / "state.db")
     try:
