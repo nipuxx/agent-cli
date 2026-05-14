@@ -5174,6 +5174,39 @@ def test_run_one_step_blocks_known_bad_extract_source_from_ledger(tmp_path):
         db.close()
 
 
+def test_run_one_step_allows_child_url_when_bad_web_source_is_domain_root(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Avoid over-broad domain source blocks", title="guard")
+        db.append_source_record(
+            job_id,
+            "https://source.example",
+            source_type="web_source",
+            usefulness_score=0.05,
+            fail_count_delta=1,
+            outcome="root health check failed",
+        )
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[ToolCall(
+                    name="web_extract",
+                    arguments={"urls": ["https://source.example/api/public/models"]},
+                )])
+            ]),
+            registry=SuccessRegistry(),
+        )
+
+        assert result.status == "completed"
+        assert result.tool_name == "web_extract"
+    finally:
+        db.close()
+
+
 def test_run_one_step_records_failed_shell_url_source(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

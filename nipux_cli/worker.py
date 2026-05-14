@@ -919,9 +919,13 @@ def _source_host(value: str) -> str:
 def _source_matches(left: str, right: str) -> bool:
     if _same_source_url(left, right):
         return True
-    left_host = _source_host(left)
-    right_host = _source_host(right)
-    return bool(left_host and right_host and left_host == right_host)
+    left_host, left_path = _source_path_key(left)
+    right_host, right_path = _source_path_key(right)
+    if not left_host or left_host != right_host:
+        return False
+    if right_path in {"", "/"} or left_path in {"", "/"}:
+        return False
+    return left_path == right_path or left_path.startswith(right_path + "/") or right_path.startswith(left_path + "/")
 
 
 def _source_path_key(value: str) -> tuple[str, str]:
