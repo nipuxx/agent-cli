@@ -5135,6 +5135,125 @@ def test_prompt_resurfaces_durable_candidate_file_paths(tmp_path):
         db.close()
 
 
+def test_prompt_resurfaces_candidate_paths_from_recent_grounding_block(tmp_path):
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Validate a candidate file", title="candidate-file", kind="generic")
+        db.update_job_metadata(
+            job_id,
+            {
+                "task_queue": [
+                    {
+                        "title": "Validate candidate file path",
+                        "status": "open",
+                        "contract": "action",
+                        "acceptance_criteria": "A candidate file path is validated before use.",
+                        "evidence_needed": "Shell output with file size or hash.",
+                    }
+                ]
+            },
+        )
+        run_id = db.start_run(job_id, model="test")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="record_findings")
+        db.finish_step(
+            step_id,
+            status="blocked",
+            output_data={
+                "success": True,
+                "error": "evidence grounding required",
+                "evidence_grounding": {
+                    "missing_candidate_paths": [
+                        "/srv/models/ExactModel-Q4.foo",
+                        "/srv/models/*.foo",
+                        "/srv/models/Fragment-v1.2-Unfinished",
+                    ]
+                },
+            },
+            summary="blocked record_findings; evidence grounding required",
+        )
+        db.finish_run(run_id, "blocked")
+
+        content = build_messages(db.get_job(job_id), db.list_steps(job_id=job_id))[-1]["content"]
+
+        assert "Candidate file discovery:" in content
+        assert "/srv/models/ExactModel-Q4.foo" in content
+        assert "/srv/models/*.foo" not in content
+        assert "/srv/models/Fragment-v1.2-Unfinished" not in content
+    finally:
+        db.close()
+
+
+def test_grounding_uses_recent_missing_candidate_paths_after_raw_evidence_ages(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Validate a candidate file", title="candidate-file", kind="generic")
+        db.update_job_metadata(
+            job_id,
+            {
+                "task_queue": [
+                    {
+                        "title": "Validate candidate file path",
+                        "status": "open",
+                        "contract": "experiment",
+                        "acceptance_criteria": "A candidate file path is validated before use.",
+                        "evidence_needed": "Shell output with file size or hash.",
+                    }
+                ]
+            },
+        )
+        run_id = db.start_run(job_id, model="test")
+        for index in range(10):
+            step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="record_lesson")
+            db.finish_step(
+                step_id,
+                status="completed",
+                output_data={"success": True, "lesson": {"lesson": f"filler {index}"}},
+                summary=f"filler {index}",
+            )
+        blocked_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="record_findings")
+        db.finish_step(
+            blocked_id,
+            status="blocked",
+            output_data={
+                "success": True,
+                "error": "evidence grounding required",
+                "evidence_grounding": {
+                    "missing_candidate_paths": ["/srv/models/ExactModel-Q4.foo"]
+                },
+            },
+            summary="blocked record_findings; evidence grounding required",
+        )
+        db.finish_run(run_id, "blocked")
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(
+                        name="record_experiment",
+                        arguments={
+                            "title": "Candidate file validation",
+                            "hypothesis": "A candidate model file may be available.",
+                            "metric_name": "validated_files",
+                            "metric_value": 0,
+                            "metric_unit": "files",
+                            "result": "Candidate files were summarized but not named.",
+                        },
+                    )
+                ])
+            ]),
+        )
+
+        assert result.status == "blocked"
+        grounding = result.result["evidence_grounding"]
+        assert "/srv/models/ExactModel-Q4.foo" in grounding["missing_candidate_paths"]
+    finally:
+        db.close()
+
+
 def test_prompt_filters_stale_generated_and_objective_tokens(tmp_path):
     db = AgentDB(tmp_path / "state.db")
     try:

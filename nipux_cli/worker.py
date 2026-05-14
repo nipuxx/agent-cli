@@ -348,7 +348,10 @@ def _candidate_file_discovery_context(job: dict[str, Any], recent_steps: list[di
     task_text = _open_file_dependent_task_text(job)
     if not task_text:
         return None
-    recent_paths = _candidate_file_paths_from_recent_shell(recent_steps)
+    recent_paths = [
+        *_candidate_file_paths_from_recent_shell(recent_steps),
+        *_candidate_file_paths_from_recent_grounding_blocks(recent_steps),
+    ]
     durable_paths = _candidate_file_paths_from_durable_records(job)
     paths: list[str] = []
     seen: set[str] = set()
@@ -486,6 +489,31 @@ def _candidate_file_paths_from_recent_shell(
     return paths
 
 
+def _candidate_file_paths_from_recent_grounding_blocks(
+    recent_steps: list[dict[str, Any]], *, window: int = 8, max_paths: int = 80
+) -> list[str]:
+    paths: list[str] = []
+    seen: set[str] = set()
+    for step in recent_steps[-window:]:
+        output = step.get("output") if isinstance(step.get("output"), dict) else {}
+        grounding = output.get("evidence_grounding") if isinstance(output.get("evidence_grounding"), dict) else {}
+        candidates = grounding.get("missing_candidate_paths")
+        if not isinstance(candidates, list):
+            continue
+        for candidate in candidates:
+            path = _clean_candidate_file_path(str(candidate or ""))
+            if not _looks_like_exact_candidate_file_path(path):
+                continue
+            key = path.lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            paths.append(path)
+            if len(paths) >= max_paths:
+                return paths
+    return paths
+
+
 def _candidate_file_paths_from_durable_records(
     job: dict[str, Any], *, max_records: int = 80, max_paths: int = 80
 ) -> list[str]:
@@ -552,7 +580,7 @@ def _looks_like_exact_candidate_file_path(value: str, *, allow_relative: bool = 
     if not name or name.startswith("."):
         return False
     suffix = Path(name).suffix
-    if not suffix or not re.match(r"^\.[A-Za-z0-9][A-Za-z0-9_-]{1,12}$", suffix):
+    if not suffix or not re.match(r"^\.[A-Za-z0-9][A-Za-z0-9_]{1,12}$", suffix) or not any(ch.isalpha() for ch in suffix):
         return False
     return True
 
@@ -795,7 +823,12 @@ def _next_action_constraint(job: dict[str, Any], recent_steps: list[dict[str, An
         )
     grounding_block = _latest_evidence_grounding_block(recent_steps)
     if grounding_block:
-        missing_paths = grounding_block.get("missing_candidate_paths") if isinstance(grounding_block.get("missing_candidate_paths"), list) else []
+        raw_missing_paths = grounding_block.get("missing_candidate_paths") if isinstance(grounding_block.get("missing_candidate_paths"), list) else []
+        missing_paths = [
+            path
+            for path in (_clean_candidate_file_path(str(item or "")) for item in raw_missing_paths)
+            if _looks_like_exact_candidate_file_path(path)
+        ]
         path_text = "; ".join(str(path) for path in missing_paths[:6])
         detail = f" Missing exact paths: {path_text}." if path_text else ""
         candidate_files = _candidate_file_discovery_context(job, recent_steps)
@@ -1903,7 +1936,8 @@ def _evidence_grounding_context(
         include_durable=False,
         include_job_context=False,
     )
-    if len(evidence_text.strip()) < 80:
+    recent_grounding_paths = _candidate_file_paths_from_recent_grounding_blocks(recent_steps, window=window)
+    if len(evidence_text.strip()) < 80 and not recent_grounding_paths:
         return None
     proposed_tokens = _concrete_evidence_tokens_for_grounding(tool_name, proposed_text)
     negative_conflicts = _negative_claim_conflicts_for_grounding(
@@ -1929,6 +1963,8 @@ def _evidence_grounding_context(
         }
     missing_paths = _missing_candidate_paths_for_grounding(
         job=job,
+        recent_steps=recent_steps,
+        recent_grounding_paths=recent_grounding_paths,
         tool_name=tool_name,
         proposed_text=proposed_text,
         full_proposed_text=full_proposed_text,
@@ -2006,6 +2042,8 @@ def _concrete_evidence_tokens_for_grounding(tool_name: str, text: str) -> list[s
 def _missing_candidate_paths_for_grounding(
     *,
     job: dict[str, Any],
+    recent_steps: list[dict[str, Any]],
+    recent_grounding_paths: list[str] | None = None,
     tool_name: str,
     proposed_text: str,
     full_proposed_text: str,
@@ -2021,7 +2059,10 @@ def _missing_candidate_paths_for_grounding(
         for line in str(fresh_evidence_text or "").splitlines()
         if not _evidence_line_is_negative(line.lower())
     )
-    evidence_paths = _extract_candidate_file_paths(positive_evidence_text)
+    evidence_paths = [
+        *_extract_candidate_file_paths(positive_evidence_text),
+        *(recent_grounding_paths or _candidate_file_paths_from_recent_grounding_blocks(recent_steps)),
+    ]
     if not evidence_paths:
         return []
     if any(_path_mentioned_in_text(path, proposed_lower) for path in evidence_paths):

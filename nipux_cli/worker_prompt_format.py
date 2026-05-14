@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+from pathlib import Path
 from typing import Any
 
 from nipux_cli.metric_format import format_metric_value
@@ -52,6 +53,7 @@ def observation_for_prompt(tool_name: str | None, output: dict[str, Any]) -> str
         if evidence_grounding:
             missing_paths = evidence_grounding.get("missing_candidate_paths")
             if isinstance(missing_paths, list) and missing_paths:
+                missing_paths = [path for path in (clean_prompt_candidate_path(item) for item in missing_paths) if path]
                 return clip_text(
                     "error=evidence grounding required; missing_exact_paths="
                     + ", ".join(str(path) for path in missing_paths[:8])
@@ -151,6 +153,19 @@ def observation_for_prompt(tool_name: str | None, output: dict[str, Any]) -> str
         candidate_suffix = f"; candidates={candidates}" if candidates else ""
         return clip_text(f"snapshot_chars={len(snapshot)}{suffix}{candidate_suffix}", 700)
     return compact(output, 700)
+
+
+def clean_prompt_candidate_path(value: Any) -> str:
+    raw = str(value or "").strip().rstrip(".,:;)")
+    if not raw or "://" in raw or raw.startswith("//") or "..." in raw or "…" in raw or "*" in raw:
+        return ""
+    name = Path(raw).name
+    suffix = Path(name).suffix
+    if not name or name.startswith(".") or not suffix:
+        return ""
+    if not re.match(r"^\.[A-Za-z0-9][A-Za-z0-9_]{1,12}$", suffix) or not any(ch.isalpha() for ch in suffix):
+        return ""
+    return raw
 
 
 def browser_candidates_for_prompt(output: dict[str, Any], *, limit: int = 18) -> str:
