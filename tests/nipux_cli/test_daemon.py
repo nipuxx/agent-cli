@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 import json
+import threading
 import time
 
 import pytest
@@ -69,6 +70,46 @@ def test_lock_metadata_update_restores_missing_process_fields(tmp_path):
     assert status["metadata"]["pid"]
     assert status["metadata"]["started_at"]
     assert status["metadata"]["last_state"] == "step"
+
+
+def test_daemon_lock_heartbeat_updates_while_worker_turn_runs(monkeypatch, tmp_path):
+    monkeypatch.setattr("nipux_cli.daemon.WORK_HEARTBEAT_INTERVAL_SECONDS", 0.01)
+    monkeypatch.setattr("nipux_cli.daemon.signal.getsignal", lambda _sig: None)
+    monkeypatch.setattr("nipux_cli.daemon.signal.signal", lambda _sig, _handler: None)
+
+    class SlowDaemon(Daemon):
+        def run_once(self, *, fake: bool = False, verbose: bool = False):  # noqa: ARG002
+            time.sleep(0.2)
+            return None
+
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path, daily_digest_enabled=False))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        daemon = SlowDaemon(config=config, db=db)
+        thread = threading.Thread(
+            target=daemon.run_forever,
+            kwargs={"poll_seconds": 0, "quiet": True, "max_iterations": 1},
+            daemon=True,
+        )
+        thread.start()
+        seen_working: dict | None = None
+        deadline = time.time() + 1.0
+        while time.time() < deadline:
+            status = daemon_lock_status(tmp_path / "agentd.lock")
+            metadata = status.get("metadata") or {}
+            if status.get("running") and metadata.get("last_state") == "working":
+                seen_working = metadata
+                break
+            time.sleep(0.01)
+
+        thread.join(timeout=2.0)
+
+        assert seen_working is not None
+        assert seen_working["last_heartbeat"]
+        assert seen_working["runtime"]["runtime_hash"]
+        assert not thread.is_alive()
+    finally:
+        db.close()
 
 
 def test_stop_daemon_recovers_pidless_lock_from_process_list(tmp_path, monkeypatch):

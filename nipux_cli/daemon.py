@@ -8,13 +8,14 @@ import hashlib
 import json
 import os
 import signal
+import threading
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 from functools import lru_cache
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from nipux_cli.config import AppConfig, load_config
 from nipux_cli.db import AgentDB
@@ -86,6 +87,7 @@ def _runtime_code_paths(package_dir: Path) -> list[Path]:
 
 RUNTIME_CODE_FILES = runtime_code_file_names()
 PROVIDER_RECOVERY_PROBE_SECONDS = 300.0
+WORK_HEARTBEAT_INTERVAL_SECONDS = 15.0
 
 
 def runtime_stale(metadata: dict[str, Any] | None) -> bool:
@@ -176,6 +178,44 @@ def update_lock_metadata(handle, **patch: Any) -> None:
     handle.truncate()
     handle.write(json.dumps(metadata, sort_keys=True))
     handle.flush()
+
+
+@contextlib.contextmanager
+def _work_heartbeat(
+    update_metadata: Callable[..., None],
+    *,
+    interval_seconds: float | None = None,
+    state: str = "working",
+    **metadata: Any,
+):
+    """Keep daemon lock metadata fresh while a worker turn is in progress."""
+
+    raw_interval = WORK_HEARTBEAT_INTERVAL_SECONDS if interval_seconds is None else interval_seconds
+    interval = max(0.01, float(raw_interval))
+    stop = threading.Event()
+
+    def beat() -> None:
+        while not stop.wait(interval):
+            update_metadata(
+                last_heartbeat=datetime.now(timezone.utc).isoformat(),
+                last_state=state,
+                runtime=current_runtime_fingerprint(),
+                **metadata,
+            )
+
+    update_metadata(
+        last_heartbeat=datetime.now(timezone.utc).isoformat(),
+        last_state=state,
+        runtime=current_runtime_fingerprint(),
+        **metadata,
+    )
+    thread = threading.Thread(target=beat, name="nipux-daemon-heartbeat", daemon=True)
+    thread.start()
+    try:
+        yield
+    finally:
+        stop.set()
+        thread.join(timeout=1.0)
 
 
 def append_daemon_event(config: AppConfig, event: str, **fields: Any) -> Path:
@@ -376,6 +416,12 @@ class Daemon:
         consecutive_failures = 0
         iterations = 0
         with single_instance_lock(self.lock_path) as lock_handle:
+            metadata_lock = threading.Lock()
+
+            def locked_update_metadata(**patch: Any) -> None:
+                with metadata_lock:
+                    update_lock_metadata(lock_handle, **patch)
+
             previous_sigterm = signal.getsignal(signal.SIGTERM)
             signal.signal(signal.SIGTERM, _raise_keyboard_interrupt)
             cleaned_shell_processes = cleanup_registered_shell_processes(self.config.runtime.home)
@@ -405,8 +451,7 @@ class Daemon:
             try:
                 while True:
                     iterations += 1
-                    update_lock_metadata(
-                        lock_handle,
+                    locked_update_metadata(
                         last_heartbeat=datetime.now(timezone.utc).isoformat(),
                         last_state="checking",
                         consecutive_failures=consecutive_failures,
@@ -419,12 +464,15 @@ class Daemon:
                             append_daemon_event(self.config, "daily_digest", **digest)
                             if not quiet:
                                 print(f"daily_digest {json.dumps(digest, ensure_ascii=False)}", flush=True)
-                        result = self.run_once(fake=fake, verbose=verbose and not quiet)
+                        with _work_heartbeat(
+                            locked_update_metadata,
+                            consecutive_failures=consecutive_failures,
+                        ):
+                            result = self.run_once(fake=fake, verbose=verbose and not quiet)
                     except Exception as exc:
                         consecutive_failures += 1
                         payload = _exception_payload(exc)
-                        update_lock_metadata(
-                            lock_handle,
+                        locked_update_metadata(
                             last_heartbeat=datetime.now(timezone.utc).isoformat(),
                             last_state="error",
                             last_error=payload["error"],
@@ -444,8 +492,7 @@ class Daemon:
                         continue
 
                     if result is None:
-                        update_lock_metadata(
-                            lock_handle,
+                        locked_update_metadata(
                             last_heartbeat=datetime.now(timezone.utc).isoformat(),
                             last_state="idle",
                             runtime=current_runtime_fingerprint(),
@@ -456,8 +503,7 @@ class Daemon:
                         _sleep_or_stop(idle_sleep, max_iterations, iterations)
                     else:
                         consecutive_failures = consecutive_failures + 1 if result.status == "failed" else 0
-                        update_lock_metadata(
-                            lock_handle,
+                        locked_update_metadata(
                             last_heartbeat=datetime.now(timezone.utc).isoformat(),
                             last_state="step",
                             last_job_id=result.job_id,
@@ -500,8 +546,7 @@ class Daemon:
                         return
             except KeyboardInterrupt:
                 interrupted = self.db.mark_interrupted_running(reason="daemon stopped during active work")
-                update_lock_metadata(
-                    lock_handle,
+                locked_update_metadata(
                     last_heartbeat=datetime.now(timezone.utc).isoformat(),
                     last_state="stopped",
                     consecutive_failures=consecutive_failures,
