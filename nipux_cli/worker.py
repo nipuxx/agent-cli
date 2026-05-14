@@ -3017,14 +3017,21 @@ def _json_value_text(value: Any) -> str:
 
 def _cited_step_numbers(text: str) -> set[int]:
     numbers = set()
-    for match in re.finditer(r"(?i)\bsteps?\s*#?\s*(\d+)\b|#(\d+)\b", text):
-        raw = match.group(1) or match.group(2)
-        try:
-            value = int(raw)
-        except (TypeError, ValueError):
-            continue
-        if value > 0:
-            numbers.add(value)
+    patterns = [
+        r"(?i)\bsteps?\s*(?:#|-)?\s*(\d+)\b",
+        r"(?i)\bstep[_-](\d+)\b",
+        r"(?i)\bshell_exec[_\s-]*step[_\s#-]*(\d+)\b",
+        r"(?i)\btool[_\s-]*step[_\s#-]*(\d+)\b",
+    ]
+    for pattern in patterns:
+        for match in re.finditer(pattern, text):
+            raw = match.group(1)
+            try:
+                value = int(raw)
+            except (TypeError, ValueError):
+                continue
+            if value > 0:
+                numbers.add(value)
     return numbers
 
 

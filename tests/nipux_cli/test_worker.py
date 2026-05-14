@@ -9,6 +9,7 @@ from nipux_cli.worker import (
     MAX_WORKER_PROMPT_CHARS,
     SYSTEM_PROMPT,
     _concrete_evidence_tokens,
+    _cited_step_numbers,
     _extract_candidate_file_paths,
     _file_pattern_tokens_for_grounding,
     _rank_candidate_file_paths,
@@ -5444,6 +5445,16 @@ def test_run_one_step_scopes_grounding_to_cited_step(tmp_path):
         assert "E5-2690" in db.get_job(job_id)["metadata"]["unsupported_claim_tokens"]
     finally:
         db.close()
+
+
+def test_cited_step_numbers_ignore_ordinal_hash_labels():
+    text = (
+        "llama.cpp Build Attempt #3 should not cite old evidence. "
+        "Use step #42 and shell_exec_step_1037 if explicit evidence is needed. "
+        "The older step-2678 reference is also explicit."
+    )
+
+    assert _cited_step_numbers(text) == {42, 1037, 2678}
 
 
 def test_prompt_shows_evidence_grounding_tokens_after_block(tmp_path):
