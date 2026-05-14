@@ -8358,6 +8358,56 @@ def test_run_one_step_blocks_wrong_milestone_validation_when_gate_is_active(tmp_
         db.close()
 
 
+def test_run_one_step_normalizes_matching_validation_to_active_milestone(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job(
+            "Validate the active milestone from matching evidence",
+            title="roadmap-normalize-milestone-validation",
+            metadata={
+                "roadmap": {
+                    "title": "Generic Roadmap",
+                    "status": "validating",
+                    "milestones": [{
+                        "title": "Environment baseline evidence: check build tools",
+                        "status": "validating",
+                        "validation_status": "pending",
+                        "validation_evidence": "Need to verify cmake, compiler, and candidate files before building.",
+                    }],
+                },
+            },
+        )
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[ToolCall(name="record_milestone_validation", arguments={
+                    "milestone": "Validate candidate files and build environment",
+                    "validation_status": "blocked",
+                    "result": "cmake path failed, compiler still needs verification, and candidate file status is unclear.",
+                    "evidence": "shell output showed missing cmake path and file checks are still needed.",
+                    "issues": ["cmake path missing", "candidate file status unresolved"],
+                })])
+            ]),
+        )
+
+        assert result.status == "completed"
+        assert result.tool_name == "record_milestone_validation"
+        roadmap = db.get_job(job_id)["metadata"]["roadmap"]
+        assert [milestone["title"] for milestone in roadmap["milestones"]] == [
+            "Environment baseline evidence: check build tools"
+        ]
+        milestone = roadmap["milestones"][0]
+        assert milestone["validation_status"] == "blocked"
+        assert milestone["metadata"]["normalized_from_milestone"] == "Validate candidate files and build environment"
+        assert milestone["metadata"]["normalized_to_active_gate"] is True
+    finally:
+        db.close()
+
+
 def test_run_one_step_blocks_task_churn_when_roadmap_stalls(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

@@ -136,6 +136,28 @@ EXPERIMENT_NEXT_ACTION_VERIFY_STOPWORDS = {
     "using",
     "with",
 }
+MILESTONE_MATCH_STOPWORDS = {
+    "acceptance",
+    "blocked",
+    "criteria",
+    "current",
+    "done",
+    "evidence",
+    "failed",
+    "issue",
+    "issues",
+    "milestone",
+    "needed",
+    "pending",
+    "passed",
+    "result",
+    "roadmap",
+    "status",
+    "title",
+    "validating",
+    "validation",
+    "validate",
+}
 
 
 def build_messages(
@@ -1419,7 +1441,12 @@ def _tool_call_matches_pending_milestone_need(tool_name: str, args: dict[str, An
         return False
     if tool_name not in BRANCH_WORK_TOOLS:
         return False
+    return _text_matches_pending_milestone_need(_json_value_text(args), milestone)
+
+
+def _text_matches_pending_milestone_need(text: str, milestone: dict[str, Any]) -> bool:
     parts = [
+        str(milestone.get("title") or ""),
         str(milestone.get("next_action") or ""),
         str(milestone.get("acceptance_criteria") or ""),
         str(milestone.get("evidence_needed") or ""),
@@ -1437,10 +1464,10 @@ def _tool_call_matches_pending_milestone_need(tool_name: str, args: dict[str, An
             str(feature.get("acceptance_criteria") or ""),
             str(feature.get("evidence_needed") or ""),
         ])
-    need_tokens = _substantive_next_action_tokens(" ".join(parts))
+    need_tokens = _substantive_next_action_tokens(" ".join(parts)) - MILESTONE_MATCH_STOPWORDS
     if not need_tokens:
         return False
-    call_tokens = _substantive_next_action_tokens(_json_value_text(args))
+    call_tokens = _substantive_next_action_tokens(text) - MILESTONE_MATCH_STOPWORDS
     if not call_tokens:
         return False
     return bool(need_tokens & call_tokens)
@@ -1460,6 +1487,29 @@ def _milestone_validation_call_matches_current(args: dict[str, Any], milestone: 
         if requested == candidate or requested in candidate or candidate in requested:
             return True
     return False
+
+
+def _normalize_milestone_validation_args_for_active_gate(
+    tool_name: str,
+    args: dict[str, Any],
+    job: dict[str, Any],
+) -> dict[str, Any]:
+    if tool_name != "record_milestone_validation":
+        return args
+    milestone = _milestone_validation_needed(job)
+    if not milestone or _milestone_validation_call_matches_current(args, milestone):
+        return args
+    if not _text_matches_pending_milestone_need(_json_value_text(args), milestone):
+        return args
+    normalized = dict(args)
+    normalized["milestone"] = str(milestone.get("title") or args.get("milestone") or "")
+    metadata = normalized.get("metadata") if isinstance(normalized.get("metadata"), dict) else {}
+    normalized["metadata"] = {
+        **metadata,
+        "normalized_from_milestone": str(args.get("milestone") or ""),
+        "normalized_to_active_gate": True,
+    }
+    return normalized
 
 
 def _latest_experiment_next_action_context(job: dict[str, Any]) -> dict[str, Any] | None:
@@ -5922,15 +5972,19 @@ def _execute_tool_call(
     job_id: str,
     run_id: str,
 ) -> tuple[StepExecution, bool, str, str | None]:
+    args = _normalize_milestone_validation_args_for_active_gate(call.name, call.arguments, job)
+    input_data = {"tool_call_id": call.id, "arguments": args}
+    if args != call.arguments:
+        input_data["original_arguments"] = call.arguments
     step_id = db.add_step(
         job_id=job_id,
         run_id=run_id,
         kind="tool",
         tool_name=call.name,
-        input_data={"tool_call_id": call.id, "arguments": call.arguments},
+        input_data=input_data,
     )
     validate_arguments = getattr(registry, "validate_arguments", None)
-    argument_block = validate_arguments(call.name, call.arguments, config) if callable(validate_arguments) else None
+    argument_block = validate_arguments(call.name, args, config) if callable(validate_arguments) else None
     if argument_block:
         concrete_fields = [*(argument_block.get("missing_arguments") or []), *(argument_block.get("placeholder_arguments") or [])]
         reason = "missing required arguments" if argument_block.get("missing_arguments") else str(argument_block.get("error") or "invalid tool arguments")
@@ -5966,7 +6020,7 @@ def _execute_tool_call(
             summary,
             None,
         )
-    blocked = _blocked_tool_call_result(call.name, call.arguments, recent_steps, job)
+    blocked = _blocked_tool_call_result(call.name, args, recent_steps, job)
     if blocked:
         result, summary = blocked
         result = {**result, "success": True, "recoverable": True}
@@ -6029,22 +6083,22 @@ def _execute_tool_call(
         task_id=job_id,
     )
     try:
-        raw_result = registry.handle(call.name, call.arguments, ctx)
+        raw_result = registry.handle(call.name, args, ctx)
         result = _parse_tool_result(raw_result)
         ok = bool(result.get("success", True)) and not result.get("error")
         status = "completed" if ok else "failed"
         if ok:
             _auto_record_tool_source_quality(db=db, job_id=job_id, tool_name=call.name, result=result)
         elif call.name == "shell_exec":
-            _auto_record_failed_shell_sources(db=db, job_id=job_id, args=call.arguments, result=result)
-        summary = _summarize_tool_result(call.name, call.arguments, result, ok=ok)
+            _auto_record_failed_shell_sources(db=db, job_id=job_id, args=args, result=result)
+        summary = _summarize_tool_result(call.name, args, result, ok=ok)
         db.finish_step(step_id, status=status, summary=summary, output_data=result, error=result.get("error"))
         if call.name == "shell_exec":
             _maybe_resolve_file_validation_obligation(
                 db=db,
                 job_id=job_id,
                 tool_name=call.name,
-                args=call.arguments,
+                args=args,
                 result=result,
                 ok=ok,
             )
@@ -6054,7 +6108,7 @@ def _execute_tool_call(
                 db=db,
                 job_id=job_id,
                 tool_name=call.name,
-                args=call.arguments,
+                args=args,
                 step=finished_step,
             )
             _resolve_evidence_checkpoint(
@@ -6068,7 +6122,7 @@ def _execute_tool_call(
                 job_id=job_id,
                 step=finished_step,
                 tool_name=call.name,
-                args=call.arguments,
+                args=args,
                 result=result,
             )
             if call.name == "write_file":
@@ -6076,7 +6130,7 @@ def _execute_tool_call(
                     db=db,
                     job_id=job_id,
                     step=finished_step,
-                    args=call.arguments,
+                    args=args,
                     result=result,
                 )
             elif call.name in {"record_lesson", "record_tasks", "record_experiment", "record_milestone_validation"}:
@@ -6084,7 +6138,7 @@ def _execute_tool_call(
                     db=db,
                     job_id=job_id,
                     tool_name=call.name,
-                    args=call.arguments,
+                    args=args,
                     result=result,
                     ok=ok,
                 )
@@ -6093,14 +6147,14 @@ def _execute_tool_call(
                 job_id=job_id,
                 step_no=(finished_step or db.list_steps(job_id=job_id)[-1])["step_no"],
                 tool_name=call.name,
-                args=call.arguments,
+                args=args,
                 result=result,
             )
             if call.name == "write_artifact":
                 reconciled_tasks = _auto_reconcile_artifact_tasks(
                     db=db,
                     job_id=job_id,
-                    args=call.arguments,
+                    args=args,
                     result=result,
                 )
                 if reconciled_tasks:
@@ -6111,7 +6165,7 @@ def _execute_tool_call(
                 revision_task = _auto_open_revision_task_for_deliverable(
                     db=db,
                     job_id=job_id,
-                    args=call.arguments,
+                    args=args,
                     result=result,
                 )
                 if revision_task:
