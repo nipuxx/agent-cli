@@ -4188,6 +4188,51 @@ def test_record_findings_blocks_single_unsupported_identifier(tmp_path):
         db.close()
 
 
+def test_evidence_grounding_ignores_job_context_labels(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job(
+            "Benchmark AlphaModel throughput",
+            title="alphamodel throughput fixed",
+            kind="generic",
+        )
+        run_id = db.start_run(job_id, model="test")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec")
+        db.finish_step(
+            step_id,
+            status="completed",
+            output_data={
+                "success": True,
+                "stdout": (
+                    "Observed benchmark setup is ready. Runtime exists, candidate file exists, "
+                    "and the next action is a planned baseline measurement. "
+                )
+                * 6,
+            },
+        )
+        db.finish_run(run_id, "completed")
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[ToolCall(name="record_experiment", arguments={
+                    "title": "Baseline Throughput - AlphaModel",
+                    "status": "planned",
+                    "higher_is_better": True,
+                    "metadata": {"project": "alphamodel-throughput"},
+                    "next_action": "Run the baseline measurement and record the observed metric.",
+                })])
+            ]),
+        )
+
+        assert result.status == "completed"
+    finally:
+        db.close()
+
+
 def test_evidence_grounding_ignores_record_schema_keys(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")
@@ -4865,6 +4910,7 @@ def test_prompt_prioritizes_validation_for_recent_candidate_file_paths(tmp_path)
         assert "Candidate file discovery:" in content
         assert "/srv/models/ExampleModel-Q4.foo" in content
         assert "Validate likely candidates with shell_exec" in content
+        assert "Do not reject a non-empty candidate binary from `file` output alone" in content
     finally:
         db.close()
 
@@ -4920,6 +4966,7 @@ def test_prompt_ranks_context_matching_candidate_paths_before_auxiliary_files(tm
         assert ranked[0] == "/srv/models/AlphaModel-Q4.foo"
         assert "/srv/models/Alp" in section
         assert "This supersedes stale no-candidate/no-file memory" in section
+        assert "header/signature bytes" in section
     finally:
         db.close()
 

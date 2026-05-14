@@ -318,6 +318,8 @@ def _file_validation_obligation_for_prompt(job: dict[str, Any]) -> str:
         lines.append(f"suggested_validation={suggested}")
     lines.append(
         "Before more research/output churn, validate the file with shell_exec, "
+        "corroborating any `file` output with header/signature bytes, checksum/size, or a parser/loader when the expected "
+        "format matters, "
         "or use record_tasks/record_lesson/record_experiment to explain the blocked or deferred validation."
     )
     return "\n".join(lines)
@@ -337,6 +339,8 @@ def _candidate_file_discovery_for_prompt(job: dict[str, Any], recent_steps: list
         lines.append(f"- {path}")
     lines.append(
         "Validate likely candidates with shell_exec before recording a no-file/no-progress claim or searching for alternatives. "
+        "Do not reject a non-empty candidate binary from `file` output alone; corroborate with header/signature bytes, "
+        "checksum/size, or a parser/loader for the expected format, or record uncertainty. "
         "Treat durable-record candidates as leads until revalidated. This supersedes stale no-candidate/no-file memory "
         "until validation proves those candidates are irrelevant."
     )
@@ -1947,7 +1951,12 @@ def _evidence_grounding_context(
     recent_grounding_paths = _candidate_file_paths_from_recent_grounding_blocks(recent_steps, window=window)
     if len(evidence_text.strip()) < 80 and not recent_grounding_paths:
         return None
-    proposed_tokens = _concrete_evidence_tokens_for_grounding(tool_name, proposed_text)
+    job_reference_text = " ".join(str(job.get(key) or "") for key in ("title", "objective", "kind"))
+    proposed_tokens = [
+        token
+        for token in _concrete_evidence_tokens_for_grounding(tool_name, proposed_text)
+        if not _grounding_token_in_reference_text(token, job_reference_text)
+    ]
     negative_conflicts = _negative_claim_conflicts_for_grounding(
         tool_name=tool_name,
         proposed_text=proposed_text,
@@ -1996,6 +2005,7 @@ def _evidence_grounding_context(
     proposed_stale_tokens = [
         token
         for token in _concrete_evidence_tokens_for_grounding(tool_name, full_proposed_text)
+        if not _grounding_token_in_reference_text(token, job_reference_text)
         if token.lower() in stale_tokens
     ]
     if tool_name == "record_lesson" and not proposed_stale_tokens:
@@ -2045,6 +2055,13 @@ def _concrete_evidence_tokens_for_grounding(tool_name: str, text: str) -> list[s
     if tool_name not in NARRATIVE_EVIDENCE_GROUNDED_TOOLS:
         return tokens
     return [token for token in tokens if _high_risk_evidence_token(token)]
+
+
+def _grounding_token_in_reference_text(token: str, reference_text: str) -> bool:
+    normalized_token = _normalize_claim_text(token)
+    if not normalized_token:
+        return False
+    return normalized_token in _normalize_claim_text(reference_text)
 
 
 def _missing_candidate_paths_for_grounding(
