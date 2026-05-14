@@ -1673,6 +1673,24 @@ def _evidence_checkpoint_blocks_tool(name: str, args: dict[str, Any], context: d
     return True
 
 
+def _evidence_checkpoint_block_guidance(context: dict[str, Any]) -> str:
+    tools = (
+        "record_findings, record_source, record_experiment, record_tasks, "
+        "record_roadmap, record_milestone_validation, or record_lesson"
+    )
+    if context.get("checkpoint_read"):
+        return (
+            "The auto-saved evidence checkpoint has already been read. Do not read it again. "
+            f"Use {tools} to account for what the checkpoint proved, rejected, changed, or blocked "
+            "before more shell, search, file, report, artifact, or branch work."
+        )
+    return (
+        "An auto-saved evidence checkpoint is waiting to be converted into durable progress. "
+        f"Read that checkpoint artifact once, or use {tools} to account for it before more shell, "
+        "search, file, report, artifact, or other branch work."
+    )
+
+
 def _read_artifact_args_match_checkpoint(step: dict[str, Any], *, artifact_id: str, artifact_title: str) -> bool:
     input_data = step.get("input") if isinstance(step.get("input"), dict) else {}
     args = input_data.get("arguments") if isinstance(input_data.get("arguments"), dict) else {}
@@ -2459,18 +2477,17 @@ def _blocked_tool_call_result(
 
     auto_checkpoint_accounting = _auto_checkpoint_accounting_context(job, recent_steps)
     if _evidence_checkpoint_blocks_tool(name, args, auto_checkpoint_accounting):
+        checkpoint_already_read = bool(auto_checkpoint_accounting and auto_checkpoint_accounting.get("checkpoint_read"))
         result = {
             "success": False,
             "error": "evidence checkpoint accounting required",
             "blocked_tool": name,
             "blocked_arguments": args,
             "pending_evidence_checkpoint": auto_checkpoint_accounting,
-            "guidance": (
-                "An auto-saved evidence checkpoint is waiting to be converted into durable progress. "
-                "Read that checkpoint artifact if it has not been read yet, or use record_findings, record_source, "
-                "record_experiment, record_tasks, record_roadmap, record_milestone_validation, or record_lesson "
-                "to account for it before more shell, search, file, report, artifact, or other branch work."
-            ),
+            "checkpoint_already_read": checkpoint_already_read,
+            "required_next_action": "durable_checkpoint_accounting" if checkpoint_already_read else "read_or_account_checkpoint",
+            "allowed_resolution_tools": sorted(EVIDENCE_CHECKPOINT_RESOLUTION_TOOLS),
+            "guidance": _evidence_checkpoint_block_guidance(auto_checkpoint_accounting or {}),
         }
         return result, f"blocked {name}; evidence checkpoint accounting required"
     checkpoint_resolution_call = bool(auto_checkpoint_accounting and name in EVIDENCE_CHECKPOINT_RESOLUTION_TOOLS)
@@ -3164,13 +3181,39 @@ def _run_guard_recovery_step(
     run_id: str,
 ) -> StepExecution:
     error = str(context.get("error") or "recoverable guard")
+    checkpoint_accounting = error == "evidence checkpoint accounting required"
+    task_goal = "Convert the repeated guard block into durable progress before retrying the blocked action."
+    acceptance = (
+        "Use record_tasks, record_findings, record_source, record_experiment, or record_lesson to state what "
+        "changed, what branch is rejected, or what concrete branch should run next."
+    )
+    stall_behavior = "If the same guard appears again, pivot to a different branch or record the branch as blocked."
+    if checkpoint_accounting:
+        task_goal = (
+            "Account for the already-read evidence checkpoint as durable progress, a rejected branch, "
+            "or a blocked branch before continuing."
+        )
+        acceptance = (
+            "Use record_findings, record_source, record_experiment, record_tasks, record_roadmap, "
+            "record_milestone_validation, or record_lesson to state exactly what the checkpoint proved, "
+            "invalidated, changed, or failed to provide. Do not read the same checkpoint again."
+        )
+        stall_behavior = (
+            "If the checkpoint cannot produce durable progress, record a lesson or task that names the blocker "
+            "and choose a different branch."
+        )
     step_id = db.add_step(job_id=job_id, run_id=run_id, kind="recovery", tool_name="guard_recovery")
     lesson = db.append_lesson(
         job_id,
         (
             f"Repeated guard block '{error}' occurred {context.get('count')} times. "
-            "Do not retry the same blocked tool pattern; update durable progress state, create a new branch, "
-            "or explicitly reject the branch before continuing."
+            + (
+                "The checkpoint has already been read; do not reread it. Account for the evidence with a durable "
+                "record or reject/block that branch before continuing."
+                if checkpoint_accounting
+                else "Do not retry the same blocked tool pattern; update durable progress state, create a new branch, "
+                "or explicitly reject the branch before continuing."
+            )
         ),
         category="strategy",
         confidence=0.75,
@@ -3181,15 +3224,12 @@ def _run_guard_recovery_step(
         title=f"Resolve guard: {error}",
         status="open",
         priority=9,
-        goal="Convert the repeated guard block into durable progress before retrying the blocked action.",
+        goal=task_goal,
         output_contract="decision",
-        acceptance_criteria=(
-            "Use record_tasks, record_findings, record_source, record_experiment, or record_lesson to state what "
-            "changed, what branch is rejected, or what concrete branch should run next."
-        ),
+        acceptance_criteria=acceptance,
         evidence_needed=f"Recent blocked tools: {', '.join(context.get('blocked_tools') or [])}",
-        stall_behavior="If the same guard appears again, pivot to a different branch or record the branch as blocked.",
-        metadata={"guard_recovery": context},
+        stall_behavior=stall_behavior,
+        metadata={"guard_recovery": context, "resolves_evidence_checkpoint": checkpoint_accounting},
     )
     message = (
         f"Guard recovery opened a task after repeated '{error}' blocks "

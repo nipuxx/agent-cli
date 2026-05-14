@@ -1362,6 +1362,49 @@ def test_prompt_does_not_tell_worker_to_reread_checkpoint_after_it_was_read(tmp_
         db.close()
 
 
+def test_checkpoint_reread_block_requires_accounting_not_more_reads(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Account for checkpoint", title="checkpoint-reread", kind="generic")
+        db.update_job_metadata(
+            job_id,
+            {
+                "pending_evidence_checkpoint": {
+                    "artifact_id": "art_checkpoint",
+                    "title": "Auto Evidence Checkpoint after step 1",
+                    "read_at": "2026-01-01T00:00:00+00:00",
+                    "evidence_step_no": 1,
+                    "blocked_tool": "shell_exec",
+                }
+            },
+        )
+
+        blocked = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[ToolCall(name="read_artifact", arguments={"artifact_id": "art_checkpoint"})])
+            ]),
+        )
+
+        assert blocked.status == "blocked"
+        assert blocked.result["error"] == "evidence checkpoint accounting required"
+        assert blocked.result["checkpoint_already_read"] is True
+        assert blocked.result["required_next_action"] == "durable_checkpoint_accounting"
+        assert "Do not read it again" in blocked.result["guidance"]
+
+        recovery = run_one_step(job_id, config=config, db=db, llm=ExplodingLLM())
+
+        assert recovery.tool_name == "guard_recovery"
+        task = recovery.result["task"]
+        assert task["metadata"]["resolves_evidence_checkpoint"] is True
+        assert "Do not read the same checkpoint again" in task["acceptance_criteria"]
+    finally:
+        db.close()
+
+
 def test_evidence_grounding_ignores_format_protocol_tokens():
     tokens = _concrete_evidence_tokens(
         "Parsed JSON from HTTPS REST API URL and saved HTML/YAML/XML CDN SHA256 GGUF excerpts for Model-7B step_123_shell_output."
