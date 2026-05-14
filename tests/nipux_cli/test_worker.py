@@ -7413,6 +7413,259 @@ def test_prompt_includes_experiment_ledger_and_best_result():
     assert "try another independent variant" in content
 
 
+def _stagnant_experiments():
+    return [
+        {
+            "title": "best variant",
+            "status": "measured",
+            "metric_name": "score",
+            "metric_value": 10.0,
+            "metric_unit": "units",
+            "higher_is_better": True,
+            "best_observed": True,
+            "next_action": "try a materially different branch",
+        },
+        *[
+            {
+                "title": f"flat variant {index}",
+                "status": "measured",
+                "metric_name": "score",
+                "metric_value": 8.0 + index * 0.1,
+                "metric_unit": "units",
+                "higher_is_better": True,
+                "best_observed": False,
+                "next_action": "try another small variant",
+            }
+            for index in range(1, 6)
+        ],
+    ]
+
+
+def _stagnant_experiment_metadata():
+    return {
+        "experiment_ledger": _stagnant_experiments(),
+        "memory_graph": {
+            "nodes": [
+                {"key": "best-variant", "kind": "decision", "title": "Best measured variant"},
+                {"key": "stagnant-branch", "kind": "strategy", "title": "Stagnant branch should pivot"},
+            ]
+        },
+    }
+
+
+def test_prompt_includes_experiment_stagnation_guard():
+    job = {
+        "title": "improve measured process",
+        "kind": "generic",
+        "objective": "optimize throughput and keep improving",
+        "metadata": _stagnant_experiment_metadata(),
+    }
+
+    content = build_messages(job, [])[-1]["content"]
+
+    assert "Experiment stagnation guard:" in content
+    assert "Recent measured trials have not improved" in content
+    assert "best=10.0" in content
+    assert "non_improving=5" in content
+
+
+def test_prompt_infers_experiment_stagnation_from_metric_direction():
+    job = {
+        "title": "improve measured process",
+        "kind": "generic",
+        "objective": "reduce latency and keep improving",
+        "metadata": {
+            "experiment_ledger": [
+                {
+                    "title": "best latency",
+                    "status": "measured",
+                    "metric_name": "latency",
+                    "metric_value": 1.0,
+                    "metric_unit": "s",
+                    "higher_is_better": False,
+                },
+                *[
+                    {
+                        "title": f"slower variant {index}",
+                        "status": "measured",
+                        "metric_name": "latency",
+                        "metric_value": 1.0 + index * 0.1,
+                        "metric_unit": "s",
+                        "higher_is_better": False,
+                    }
+                    for index in range(1, 6)
+                ],
+            ],
+            "memory_graph": {
+                "nodes": [
+                    {"key": "latency-best", "kind": "decision", "title": "Best latency"},
+                    {"key": "latency-pivot", "kind": "strategy", "title": "Pivot stagnant latency branch"},
+                ]
+            },
+        },
+    }
+
+    content = build_messages(job, [])[-1]["content"]
+
+    assert "Experiment stagnation guard:" in content
+    assert "best=1.0" in content
+    assert "latest=1.5" in content
+    assert "Recent measured trials have not improved" in content
+
+
+def test_prompt_does_not_treat_unmarked_improvements_as_stagnation():
+    job = {
+        "title": "improve measured process",
+        "kind": "generic",
+        "objective": "increase score and keep improving",
+        "metadata": {
+            "experiment_ledger": [
+                {
+                    "title": f"better variant {index}",
+                    "status": "measured",
+                    "metric_name": "score",
+                    "metric_value": float(index),
+                    "metric_unit": "points",
+                    "higher_is_better": True,
+                    "best_observed": False,
+                }
+                for index in range(1, 7)
+            ],
+            "memory_graph": {
+                "nodes": [
+                    {"key": "score-progress", "kind": "decision", "title": "Score is improving"},
+                    {"key": "score-next", "kind": "strategy", "title": "Continue measured branch"},
+                ]
+            },
+        },
+    }
+
+    content = build_messages(job, [])[-1]["content"]
+
+    assert "Experiment stagnation guard:" in content
+    assert "Recent measured trials have not improved" not in content
+
+
+def test_run_one_step_blocks_branch_work_after_experiment_stagnation(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job(
+            "Optimize a measurable process and keep improving",
+            title="experiment-stagnation",
+            kind="generic",
+            metadata=_stagnant_experiment_metadata(),
+        )
+        run_id = db.start_run(job_id, model="test")
+        for index in range(6):
+            step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="record_experiment")
+            db.finish_step(step_id, status="completed", output_data={"success": True, "experiment": {"title": f"trial {index}"}})
+        db.finish_run(run_id, "completed")
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[ToolCall(name="shell_exec", arguments={"command": "python run_next_trial.py"})])
+            ]),
+        )
+
+        assert result.status == "blocked"
+        assert result.result["error"] == "experiment stagnation decision required"
+        assert result.result["blocked_tool"] == "shell_exec"
+        assert result.result["experiment_stagnation"]["non_improving_count"] == 5
+    finally:
+        db.close()
+
+
+def test_run_one_step_allows_branch_decision_after_experiment_stagnation(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job(
+            "Optimize a measurable process and keep improving",
+            title="experiment-stagnation",
+            kind="generic",
+            metadata=_stagnant_experiment_metadata(),
+        )
+        run_id = db.start_run(job_id, model="test")
+        for index in range(6):
+            step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="record_experiment")
+            db.finish_step(step_id, status="completed", output_data={"success": True, "experiment": {"title": f"trial {index}"}})
+        db.finish_run(run_id, "completed")
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(
+                        name="record_tasks",
+                        arguments={
+                            "tasks": [
+                                {
+                                    "title": "Pivot away from stagnant measured branch",
+                                    "status": "open",
+                                    "output_contract": "decision",
+                                    "acceptance_criteria": "A materially different branch is selected.",
+                                }
+                            ]
+                        },
+                    )
+                ])
+            ]),
+        )
+
+        assert result.status == "completed"
+        assert result.tool_name == "record_tasks"
+    finally:
+        db.close()
+
+
+def test_run_one_step_allows_blocked_experiment_after_experiment_stagnation(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job(
+            "Optimize a measurable process and keep improving",
+            title="experiment-stagnation",
+            kind="generic",
+            metadata=_stagnant_experiment_metadata(),
+        )
+        run_id = db.start_run(job_id, model="test")
+        for index in range(6):
+            step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="record_experiment")
+            db.finish_step(step_id, status="completed", output_data={"success": True, "experiment": {"title": f"trial {index}"}})
+        db.finish_run(run_id, "completed")
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(
+                        name="record_experiment",
+                        arguments={
+                            "title": "Stagnant branch decision",
+                            "status": "blocked",
+                            "metric_name": "score",
+                            "metric_unit": "units",
+                            "next_action": "pivot to a materially different branch",
+                        },
+                    )
+                ])
+            ]),
+        )
+
+        assert result.status == "completed"
+        assert result.tool_name == "record_experiment"
+    finally:
+        db.close()
+
+
 def test_delivery_experiment_next_action_blocks_unrelated_research(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

@@ -120,6 +120,8 @@ USAGE_PRESSURE_LOW_YIELD_WINDOW = 12
 USAGE_PRESSURE_LOW_YIELD_MIN_BLOCKS = 3
 LESSON_SPRAWL_MIN_LESSONS = 30
 LESSON_SPRAWL_RECENT_LESSONS = 3
+EXPERIMENT_STAGNATION_MIN_TRIALS = 6
+EXPERIMENT_STAGNATION_NON_IMPROVING = 4
 
 
 @dataclass(frozen=True)
@@ -205,6 +207,7 @@ def build_messages(
     shell_path_recovery = _shell_path_recovery_for_prompt(recent_steps)
     shell_permission_recovery = _shell_permission_recovery_for_prompt(recent_steps)
     measured_progress_guard = _measured_progress_guard_for_prompt(job, recent_steps)
+    experiment_stagnation_guard = _experiment_stagnation_guard_for_prompt(job, recent_steps)
     research_balance_guard = _research_balance_guard_for_prompt(job, recent_steps)
     deliverable_progress_guard = _deliverable_progress_guard_for_prompt(job, recent_steps)
     progress_accounting_guard = _progress_accounting_for_prompt(recent_steps)
@@ -246,6 +249,7 @@ def build_messages(
             ("Shell path recovery", shell_path_recovery),
             ("Shell permission recovery", shell_permission_recovery),
             ("Measured progress guard", measured_progress_guard),
+            ("Experiment stagnation guard", experiment_stagnation_guard),
             ("Research balance guard", research_balance_guard),
             ("Deliverable progress guard", deliverable_progress_guard),
             ("Progress accounting guard", progress_accounting_guard),
@@ -337,6 +341,21 @@ def _deliverable_progress_guard_for_prompt(job: dict[str, Any], recent_steps: li
         "Next useful actions: write_file or write_artifact for a partial deliverable, record_tasks for a smaller "
         "deliverable branch, record_roadmap/record_milestone_validation for validation, or record_lesson if the "
         "deliverable is blocked."
+    )
+
+
+def _experiment_stagnation_guard_for_prompt(job: dict[str, Any], recent_steps: list[dict[str, Any]]) -> str:
+    context = _experiment_stagnation_context(job, recent_steps)
+    if not context:
+        return "None."
+    return (
+        "Recent measured trials have not improved the best observed result. "
+        f"metric={context.get('metric_name')} unit={context.get('metric_unit')} "
+        f"best={context.get('best_value')} latest={context.get('latest_value')} "
+        f"non_improving={context.get('non_improving_count')} recent_trials={context.get('recent_trials')}. "
+        "Before more experiments, shell execution, research, or output churn, record a decision: reject or block the "
+        "stale branch, pivot to a materially different branch, update the roadmap/task queue, or explain why the "
+        "stagnant measurements are still useful."
     )
 
 
@@ -4052,6 +4071,95 @@ def _read_only_shell_churn_context(recent_steps: list[dict[str, Any]], *, window
     }
 
 
+def _experiment_metric_group_key(experiment: dict[str, Any]) -> tuple[str, str, bool] | None:
+    metric_name = str(experiment.get("metric_name") or "").strip().lower()
+    if not metric_name:
+        return None
+    if experiment.get("metric_value") is None:
+        return None
+    return (
+        metric_name,
+        str(experiment.get("metric_unit") or "").strip().lower(),
+        bool(experiment.get("higher_is_better", True)),
+    )
+
+
+def _experiment_metric_number(experiment: dict[str, Any]) -> float | None:
+    try:
+        return float(experiment.get("metric_value"))
+    except (TypeError, ValueError):
+        return None
+
+
+def _experiment_value_improves(*, value: float, best_value: float, higher_is_better: bool) -> bool:
+    return value > best_value if higher_is_better else value < best_value
+
+
+def _experiment_stagnation_context(job: dict[str, Any], recent_steps: list[dict[str, Any]]) -> dict[str, Any] | None:
+    if not _job_requires_measured_progress(job):
+        return None
+    experiments = [
+        experiment
+        for experiment in _metadata_list(job, "experiment_ledger")
+        if str(experiment.get("status") or "").lower() == "measured"
+        and _experiment_metric_group_key(experiment) is not None
+    ]
+    if len(experiments) < EXPERIMENT_STAGNATION_MIN_TRIALS:
+        return None
+    latest = experiments[-1]
+    key = _experiment_metric_group_key(latest)
+    if key is None:
+        return None
+    group = [experiment for experiment in experiments if _experiment_metric_group_key(experiment) == key]
+    if len(group) < EXPERIMENT_STAGNATION_MIN_TRIALS:
+        return None
+    higher_is_better = bool(latest.get("higher_is_better", True))
+    best_index = 0
+    best_value = _experiment_metric_number(group[0])
+    for index, experiment in enumerate(group[1:], start=1):
+        value = _experiment_metric_number(experiment)
+        if value is None:
+            continue
+        if best_value is None or _experiment_value_improves(
+            value=value,
+            best_value=best_value,
+            higher_is_better=higher_is_better,
+        ):
+            best_index = index
+            best_value = value
+    if best_value is None:
+        return None
+    non_improving = group[best_index + 1:]
+    if len(non_improving) < EXPERIMENT_STAGNATION_NON_IMPROVING:
+        return None
+    last_experiment_step_no = 0
+    for step in recent_steps:
+        if step.get("tool_name") == "record_experiment" and str(step.get("status") or "").lower() == "completed":
+            last_experiment_step_no = max(last_experiment_step_no, _as_int(step.get("step_no")))
+    if last_experiment_step_no > 0:
+        decision_tools = {"record_lesson", "record_tasks", "record_roadmap", "record_milestone_validation"}
+        if any(
+            _as_int(step.get("step_no")) > last_experiment_step_no
+            and str(step.get("status") or "").lower() == "completed"
+            and step.get("tool_name") in decision_tools
+            for step in recent_steps
+        ):
+            return None
+    best = group[best_index]
+    return {
+        "metric_name": latest.get("metric_name"),
+        "metric_unit": latest.get("metric_unit"),
+        "higher_is_better": higher_is_better,
+        "best_title": best.get("title"),
+        "best_value": best.get("metric_value"),
+        "latest_title": latest.get("title"),
+        "latest_value": latest.get("metric_value"),
+        "non_improving_count": len(non_improving),
+        "recent_trials": len(group),
+        "recent_titles": [str(experiment.get("title") or "") for experiment in non_improving[-5:]],
+    }
+
+
 def _measured_progress_guard_context(
     job: dict[str, Any],
     recent_steps: list[dict[str, Any]],
@@ -4775,6 +4883,7 @@ def _blocked_tool_call_result(
         return result, f"blocked {name}; evidence grounding required"
 
     measured_progress_guard = _measured_progress_guard_context(job, recent_steps)
+    experiment_stagnation = _experiment_stagnation_context(job, recent_steps)
     deliverable_progress_guard = _deliverable_progress_guard_context(job, recent_steps)
     progress_churn = _progress_churn_context(recent_steps)
     artifact_accounting = _artifact_accounting_context(recent_steps)
@@ -4862,6 +4971,33 @@ def _blocked_tool_call_result(
             ),
         }
         return result, f"blocked {name}; memory graph consolidation required"
+
+    record_experiment_closes_branch = (
+        name == "record_experiment"
+        and str(args.get("status") or "").strip().lower().replace(" ", "_") in {"failed", "blocked", "skipped"}
+    )
+    if (
+        experiment_stagnation
+        and not record_experiment_closes_branch
+        and (
+            name in BRANCH_WORK_TOOLS
+            or name in {"record_experiment", "write_artifact", "write_file", "report_update"}
+        )
+    ):
+        result = {
+            "success": False,
+            "error": "experiment stagnation decision required",
+            "blocked_tool": name,
+            "blocked_arguments": args,
+            "experiment_stagnation": experiment_stagnation,
+            "guidance": (
+                "Recent measured trials have not improved the best observed result. Before more experiments, "
+                "execution, research, file/output work, or report chatter, make a durable decision: use "
+                "record_tasks, record_roadmap, record_milestone_validation, record_lesson, or a blocked/skipped/"
+                "failed record_experiment to reject, block, or pivot the stagnant branch."
+            ),
+        }
+        return result, f"blocked {name}; experiment stagnation decision required"
 
     lesson_sprawl = _lesson_sprawl_context(job, recent_steps)
     if lesson_sprawl and name == "record_lesson":
