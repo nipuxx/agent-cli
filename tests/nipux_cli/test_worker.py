@@ -4227,6 +4227,46 @@ def test_prompt_shows_missing_candidate_paths_after_grounding_block(tmp_path):
         db.close()
 
 
+def test_prompt_does_not_resurface_grounding_block_after_durable_resolution(tmp_path):
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Use exact file evidence", title="grounding-resolved", kind="generic")
+        run_id = db.start_run(job_id, model="test")
+        block_step = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="record_findings")
+        db.finish_step(
+            block_step,
+            status="blocked",
+            summary="blocked record_findings; evidence grounding required",
+            output_data={
+                "success": True,
+                "recoverable": True,
+                "error": "evidence grounding required",
+                "evidence_grounding": {
+                    "missing_candidate_paths": ["/srv/models/AlphaModel-Q4.foo"],
+                    "unsupported_tokens": ["/srv/models/AlphaModel-Q4.foo"],
+                },
+            },
+        )
+        resolved_step = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="record_findings")
+        db.finish_step(
+            resolved_step,
+            status="completed",
+            output_data={
+                "success": True,
+                "findings": [{"name": "Exact path accounted", "reason": "/srv/models/AlphaModel-Q4.foo was validated."}],
+            },
+        )
+        db.finish_run(run_id, "completed")
+
+        content = build_messages(db.get_job(job_id), db.list_steps(job_id=job_id))[-1]["content"]
+        next_action = content.split("Next-action constraint:", 1)[1].split("\n\n", 1)[0]
+
+        assert "Recent evidence grounding blocked a durable record" not in content
+        assert "/srv/models/AlphaModel-Q4.foo" not in next_action
+    finally:
+        db.close()
+
+
 def test_prompt_suppresses_findings_matching_stale_claim_tokens(tmp_path):
     db = AgentDB(tmp_path / "state.db")
     try:

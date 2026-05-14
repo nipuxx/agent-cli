@@ -799,12 +799,21 @@ def _next_action_constraint(job: dict[str, Any], recent_steps: list[dict[str, An
 
 
 def _latest_evidence_grounding_block(recent_steps: list[dict[str, Any]]) -> dict[str, Any] | None:
+    resolution_after_block = False
     for step in reversed(recent_steps[-8:]):
+        if (
+            step.get("status") == "completed"
+            and step.get("tool_name") in EVIDENCE_GROUNDING_RESOLUTION_TOOLS
+        ):
+            resolution_after_block = True
+            continue
         if step.get("status") != "blocked":
             continue
         output = step.get("output") if isinstance(step.get("output"), dict) else {}
         if output.get("error") != "evidence grounding required":
             continue
+        if resolution_after_block:
+            return None
         grounding = output.get("evidence_grounding") if isinstance(output.get("evidence_grounding"), dict) else {}
         return grounding or {"unsupported_tokens": []}
     return None
@@ -1435,6 +1444,18 @@ EVIDENCE_GROUNDED_TOOLS = {
     "record_lesson",
     "record_memory_graph",
     "record_roadmap",
+    "report_update",
+    "write_artifact",
+}
+EVIDENCE_GROUNDING_RESOLUTION_TOOLS = {
+    "record_experiment",
+    "record_findings",
+    "record_lesson",
+    "record_memory_graph",
+    "record_milestone_validation",
+    "record_roadmap",
+    "record_source",
+    "record_tasks",
     "report_update",
     "write_artifact",
 }
