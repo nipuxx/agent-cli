@@ -242,11 +242,18 @@ def _measured_progress_guard_for_prompt(job: dict[str, Any], recent_steps: list[
     if not context:
         return "None."
     if _as_int(context.get("shell_actions_since_last_experiment")) >= _as_int(context.get("shell_action_budget")):
+        candidate_context = _candidate_file_discovery_context(job, recent_steps)
+        shell_guidance = "Do not call shell_exec or do more research next."
+        if candidate_context:
+            shell_guidance = (
+                "Do not call broad shell_exec or do more research next. A single bounded shell_exec is allowed only "
+                "when it validates one exact candidate path already listed in Candidate file discovery."
+            )
         return (
             "This objective or active task is measurably framed, and the shell/action budget since the last experiment "
             f"is exhausted. completed_since_last_experiment={context.get('completed_since_last_experiment')} "
             f"shell_actions={context.get('shell_actions_since_last_experiment')} shell_budget={context.get('shell_action_budget')} "
-            f"reason={context.get('reason')}. Do not call shell_exec or do more research next. Use record_experiment "
+            f"reason={context.get('reason')}. {shell_guidance} Use record_experiment "
             "for a known result, record_tasks to create a missing experiment/monitor branch, or record_lesson if the "
             "branch is blocked or the recent outputs were not valid measurements."
         )
@@ -361,6 +368,17 @@ def _candidate_file_discovery_context(job: dict[str, Any], recent_steps: list[di
         "source_text": source_text,
         "task_text": task_text,
     }
+
+
+def _shell_exec_targets_candidate_file(job: dict[str, Any], recent_steps: list[dict[str, Any]], args: dict[str, Any]) -> bool:
+    command = str(args.get("command") or "")
+    if not command.strip():
+        return False
+    context = _candidate_file_discovery_context(job, recent_steps)
+    if not context:
+        return False
+    command_text = command.replace("\\ ", " ")
+    return any(path and path in command_text for path in context.get("paths", [])[:12])
 
 
 def _rank_candidate_file_paths(job: dict[str, Any], task_text: str, paths: list[str]) -> list[str]:
@@ -3871,10 +3889,13 @@ def _blocked_tool_call_result(
         name == "shell_exec"
         and _as_int(measured_progress_guard.get("shell_actions_since_last_experiment")) >= MEASURABLE_ACTION_BUDGET_STEPS
     ) if measured_progress_guard else False
+    candidate_validation_shell = (
+        name == "shell_exec" and _shell_exec_targets_candidate_file(job, recent_steps, args)
+    )
     if (
         measured_progress_guard
         and not checkpoint_resolution_call
-        and (name in MEASURABLE_RESEARCH_BLOCKED_TOOLS or shell_budget_exhausted)
+        and (name in MEASURABLE_RESEARCH_BLOCKED_TOOLS or (shell_budget_exhausted and not candidate_validation_shell))
     ):
         result = {
             "success": False,

@@ -2925,6 +2925,61 @@ def test_measurable_objective_blocks_shell_churn_without_experiment_accounting(t
         db.close()
 
 
+def test_measurable_objective_allows_candidate_file_validation_shell_after_budget(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Optimize a measurable file-backed process", title="measured-file", kind="generic")
+        db.update_job_metadata(
+            job_id,
+            {
+                "task_queue": [
+                    {
+                        "title": "Validate candidate file and benchmark",
+                        "status": "active",
+                        "acceptance_criteria": "Exact candidate path is validated before benchmarking.",
+                        "evidence_needed": "Shell output showing file size for /srv/models/AlphaModel-99-Q4.foo.",
+                        "output_contract": "experiment",
+                    }
+                ]
+            },
+        )
+        for index in range(4):
+            run_id = db.start_run(job_id)
+            stdout = "no metric"
+            if index == 0:
+                stdout = "/srv/models/AlphaModel-99-Q4.foo\n"
+            step_id = db.add_step(
+                job_id=job_id,
+                run_id=run_id,
+                kind="tool",
+                tool_name="shell_exec",
+                input_data={"arguments": {"command": f"probe {index}"}},
+            )
+            db.finish_step(step_id, status="completed", output_data={"success": True, "stdout": stdout})
+            db.finish_run(run_id, "completed")
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(
+                        name="shell_exec",
+                        arguments={"command": "ls -lh /srv/models/AlphaModel-99-Q4.foo && file /srv/models/AlphaModel-99-Q4.foo"},
+                    )
+                ])
+            ]),
+            registry=MeasuredShellRegistry(),
+        )
+
+        assert result.status == "completed"
+        assert result.tool_name == "shell_exec"
+    finally:
+        db.close()
+
+
 def test_prompt_includes_durable_lessons():
     job = {
         "title": "research",
