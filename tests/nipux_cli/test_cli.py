@@ -2016,6 +2016,7 @@ def test_update_checkout_falls_back_to_tool_install_for_non_git_path(monkeypatch
             "--force",
             "--upgrade",
             "--reinstall",
+            "--refresh",
             "git+https://github.com/nipuxx/agent-cli.git@main",
         ]
         return subprocess.CompletedProcess(command, 0, stdout="Installed nipux\n")
@@ -2049,6 +2050,7 @@ def test_update_checkout_upgrades_uv_tool_when_installed_package(monkeypatch):
             "--force",
             "--upgrade",
             "--reinstall",
+            "--refresh",
             "git+https://github.com/nipuxx/agent-cli.git@main",
         )
     ]

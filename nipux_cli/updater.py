@@ -99,7 +99,7 @@ def _update_uv_tool_install(*, runner: CommandRunner | None = None) -> tuple[int
     current = shutil.which("nipux")
     if current:
         lines.append(f"Command: {current}")
-    updated = run([uv, "tool", "install", "--force", "--upgrade", "--reinstall", spec])
+    updated = run([uv, "tool", "install", "--force", "--upgrade", "--reinstall", "--refresh", spec])
     lines.extend(_process_lines(updated))
     if updated.returncode != 0:
         return updated.returncode, ["Update failed.", *lines]
