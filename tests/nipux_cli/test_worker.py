@@ -3947,6 +3947,44 @@ def test_shell_path_recovery_prompt_prefers_observed_candidate_executable(tmp_pa
         db.close()
 
 
+def test_shell_path_recovery_prompt_preserves_partial_success_paths(tmp_path):
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Recover from mixed shell output", title="partial-shell-paths", kind="generic")
+        run_id = db.start_run(job_id, model="test")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec")
+        db.finish_step(
+            step_id,
+            status="failed",
+            output_data={
+                "success": False,
+                "command": "ls /tmp/bin/build-tool /tmp/bin/compiler; which compiler",
+                "returncode": 1,
+                "stdout": (
+                    "ls: cannot access '/tmp/bin/compiler': No such file or directory\n"
+                    "lrwxrwxrwx 1 user user 30 Jan 1 00:00 /tmp/bin/build-tool -> /tmp/runtime/build-tool\n"
+                    "/usr/bin/compiler\n"
+                ),
+                "stderr": "",
+                "error": "command exited with status 1",
+            },
+        )
+        db.finish_run(run_id, "completed")
+
+        messages = build_messages(db.get_job(job_id), db.list_steps(job_id=job_id))
+        prompt = messages[-1]["content"]
+
+        assert "Shell path recovery" in prompt
+        assert "Missing paths: /tmp/bin/compiler" in prompt
+        assert "Observed executable paths in partial shell output" in prompt
+        assert "/tmp/bin/build-tool" in prompt
+        assert "/tmp/runtime/build-tool" in prompt
+        assert "/usr/bin/compiler" in prompt
+        assert "Observed executable paths in partial shell output: /tmp/bin/compiler" not in prompt
+    finally:
+        db.close()
+
+
 def test_permission_failure_prompt_blocks_package_manager_retry(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

@@ -378,6 +378,9 @@ def _shell_path_recovery_for_prompt(recent_steps: list[dict[str, Any]]) -> str:
     candidate_executables = (
         context.get("candidate_executables") if isinstance(context.get("candidate_executables"), dict) else {}
     )
+    observed_executables = (
+        context.get("observed_executables") if isinstance(context.get("observed_executables"), list) else []
+    )
     lines = [
         f"Recent shell step #{context.get('step_no') or '?'} reported a missing command or path.",
     ]
@@ -391,8 +394,11 @@ def _shell_path_recovery_for_prompt(recent_steps: list[dict[str, Any]]) -> str:
                 f"Observed candidate executable for {command}: "
                 + ", ".join(str(path) for path in command_paths[:4])
             )
+        lines.append("Recovery priority: try the exact candidate path or add its directory to PATH before package-manager/install retries.")
     if paths:
         lines.append("Missing paths: " + ", ".join(str(path) for path in paths[:6]))
+    if observed_executables:
+        lines.append("Observed executable paths in partial shell output: " + ", ".join(str(path) for path in observed_executables[:8]))
     if not commands and not paths:
         lines.append("Missing command/path was not parsed.")
     command = str(context.get("command") or "")
@@ -401,8 +407,6 @@ def _shell_path_recovery_for_prompt(recent_steps: list[dict[str, Any]]) -> str:
     excerpt = str(context.get("excerpt") or "")
     if excerpt:
         lines.append(f"Observed output: {_clip_text(excerpt, 360)}")
-    if candidate_executables:
-        lines.append("Recovery priority: try the exact candidate path or add its directory to PATH before package-manager/install retries.")
     lines.append(
         "Do not treat this output as a successful measurement or deliverable. Next, locate or verify the real "
         "executable/file path with a bounded shell probe such as command -v, find, ls, or an equivalent platform "
@@ -428,6 +432,10 @@ def _shell_path_recovery_context(recent_steps: list[dict[str, Any]], *, window: 
             "command": output.get("command"),
             "missing_commands": commands,
             "candidate_executables": _candidate_executable_paths_for_missing_commands(recent_steps, commands),
+            "observed_executables": _observed_executable_paths_from_recent_shell(
+                recent_steps,
+                exclude_paths=missing_paths,
+            ),
             "missing_paths": missing_paths,
             "excerpt": text.strip(),
         }
@@ -520,21 +528,61 @@ def _candidate_executable_paths_for_missing_commands(
         return {}
     matches: dict[str, list[str]] = {command: [] for command in command_names}
     seen: set[tuple[str, str]] = set()
+    for path in _observed_executable_paths_from_recent_shell(recent_steps, command_names=command_names, window=window):
+        name = Path(path).name.lower()
+        if name not in command_names:
+            continue
+        key = (name, path.lower())
+        if key in seen or len(matches.get(name, [])) >= max_paths_per_command:
+            continue
+        seen.add(key)
+        matches.setdefault(name, []).append(path)
+    return {command: paths for command, paths in matches.items() if paths}
+
+
+def _observed_executable_paths_from_recent_shell(
+    recent_steps: list[dict[str, Any]],
+    *,
+    command_names: set[str] | None = None,
+    exclude_paths: list[str] | None = None,
+    window: int = 20,
+    max_paths: int = 12,
+) -> list[str]:
+    excluded = {str(path or "").lower() for path in (exclude_paths or []) if path}
+    paths: list[str] = []
+    seen: set[str] = set()
     for step in _completed_or_failed_recent_steps(recent_steps)[-window:]:
         if step.get("tool_name") != "shell_exec":
             continue
         output = step.get("output") if isinstance(step.get("output"), dict) else {}
         text = "\n".join(str(output.get(key) or "") for key in ("stdout", "stderr", "error"))
-        for path in _extract_candidate_executable_paths(text, command_names):
-            name = Path(path).name.lower()
-            if name not in command_names:
+        for line in text.splitlines():
+            if _shell_line_reports_missing_candidate(line):
                 continue
-            key = (name, path.lower())
-            if key in seen or len(matches.get(name, [])) >= max_paths_per_command:
-                continue
-            seen.add(key)
-            matches.setdefault(name, []).append(path)
-    return {command: paths for command, paths in matches.items() if paths}
+            for path in _extract_candidate_executable_paths(line, command_names):
+                key = path.lower()
+                if key in excluded or key in seen:
+                    continue
+                seen.add(key)
+                paths.append(path)
+                if len(paths) >= max_paths:
+                    return paths
+    return paths
+
+
+def _shell_line_reports_missing_candidate(line: str) -> bool:
+    lowered = str(line or "").lower()
+    return any(
+        marker in lowered
+        for marker in (
+            "not found",
+            "no such file or directory",
+            "cannot access",
+            "cannot stat",
+            "can't stat",
+            "missing",
+        )
+    )
 
 
 def _extract_candidate_executable_paths(text: str, command_names: set[str] | None = None) -> list[str]:
