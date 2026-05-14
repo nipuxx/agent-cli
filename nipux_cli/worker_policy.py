@@ -224,6 +224,9 @@ CHURN_TOOLS = INFORMATION_GATHERING_TOOLS | ARTIFACT_REVIEW_TOOLS | MEMORY_REVIE
 MEMORY_CONSOLIDATION_BLOCKED_TOOLS = CHURN_TOOLS | {"write_artifact", "write_file", "report_update"}
 ACTIVITY_STAGNATION_BLOCKED_TOOLS = CHURN_TOOLS | {"write_artifact", "write_file", "report_update"}
 DELIVERABLE_PROGRESS_BLOCKED_TOOLS = INFORMATION_GATHERING_TOOLS | ARTIFACT_REVIEW_TOOLS | {"report_update"}
+USAGE_PRESSURE_RECOVERY_BLOCKED_TOOLS = INFORMATION_GATHERING_TOOLS | ARTIFACT_REVIEW_TOOLS | MEMORY_REVIEW_TOOLS | {
+    "report_update",
+}
 RESEARCH_BALANCE_BLOCKED_TOOLS = ARTIFACT_REVIEW_TOOLS | MEMORY_REVIEW_TOOLS | {
     "shell_exec",
     "write_file",
@@ -264,6 +267,7 @@ RECOVERABLE_GUARD_ERRORS = {
     "task execution required",
     "task branch required before more work",
     "task queue saturated",
+    "usage pressure recovery required",
     "worker tool call required",
 }
 MEASURABLE_RESEARCH_BUDGET_STEPS = 18

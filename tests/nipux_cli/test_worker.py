@@ -1137,6 +1137,62 @@ def test_run_one_step_recovers_repeated_guard_blocks_without_llm(tmp_path):
         db.close()
 
 
+def test_guard_recovery_does_not_add_task_for_queue_saturation(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job(
+            "Consolidate a saturated backlog",
+            title="guard-saturated-tasks",
+            kind="generic",
+            metadata={
+                "task_queue": [
+                    {"title": f"Existing branch {index}", "status": "open", "priority": index}
+                    for index in range(40)
+                ]
+            },
+        )
+        for index in range(3):
+            run_id = db.start_run(job_id, model="test")
+            step_id = db.add_step(
+                job_id=job_id,
+                run_id=run_id,
+                kind="tool",
+                tool_name="record_tasks",
+                input_data={"arguments": {"tasks": [{"title": f"New branch {index}", "status": "open"}]}},
+            )
+            db.finish_step(
+                step_id,
+                status="blocked",
+                summary="blocked record_tasks; total task queue is too large",
+                output_data={
+                    "success": False,
+                    "recoverable": True,
+                    "error": "task queue saturated",
+                    "task_queue": {
+                        "reason": "total task queue is too large",
+                        "open_count": 40,
+                        "total_count": 40,
+                    },
+                },
+            )
+            db.finish_run(run_id, "completed")
+
+        result = run_one_step(job_id, config=config, db=db, llm=ExplodingLLM())
+
+        assert result.status == "completed"
+        assert result.tool_name == "guard_recovery"
+        assert result.result["task_opened"] is False
+        job = db.get_job(job_id)
+        tasks = job["metadata"]["task_queue"]
+        assert len(tasks) == 40
+        assert not any(task["title"].startswith("Resolve guard:") for task in tasks)
+        assert job["metadata"]["task_backlog_pressure"]["total_count"] == 40
+        assert any("Do not open guard-recovery tasks for saturation" in lesson["lesson"] for lesson in job["metadata"]["lessons"])
+    finally:
+        db.close()
+
+
 def test_run_one_step_recovers_repeated_evidence_grounding_blocks(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")
@@ -2410,6 +2466,121 @@ def test_prompt_renders_task_contract_from_metadata_for_existing_tasks():
     assert "contract=action" in content
 
 
+def test_prompt_keeps_persistent_task_backlog_pressure_visible():
+    job = {
+        "title": "persistent backlog pressure",
+        "kind": "generic",
+        "objective": "keep a long-running job focused",
+        "metadata": {
+            "task_backlog_pressure": {
+                "reason": "total task queue is too large",
+                "open_count": 42,
+                "total_count": 81,
+                "guard_recovery": {
+                    "latest_step_no": 123,
+                    "task_queue": {"open_titles": ["Existing branch"]},
+                },
+            },
+            "task_queue": [
+                {"title": f"Existing branch {index}", "status": "open", "priority": 9}
+                for index in range(81)
+            ],
+        },
+    }
+
+    content = build_messages(job, [])[-1]["content"]
+
+    assert "Task queue saturation:" in content
+    assert "Task backlog pressure remains active from guard recovery #123" in content
+    assert "open_tasks=81" in content
+    assert "total_tasks=81" in content
+    assert "Do not create new task branches" in content
+
+
+def test_prompt_shows_current_task_backlog_pressure_without_prior_block():
+    job = {
+        "title": "large backlog",
+        "kind": "generic",
+        "objective": "execute a broad long-running job",
+        "metadata": {
+            "task_queue": [
+                {"title": f"Existing branch {index}", "status": "done", "priority": index}
+                for index in range(81)
+            ],
+        },
+    }
+
+    content = build_messages(job, [])[-1]["content"]
+
+    assert "Task queue saturation:" in content
+    assert "Task backlog pressure remains active from current queue #current" in content
+    assert "total_tasks=81" in content
+    assert "Do not create new task branches" in content
+
+
+def test_prompt_ignores_stale_task_backlog_pressure_after_queue_is_cleaned_up():
+    job = {
+        "title": "clean backlog",
+        "kind": "generic",
+        "objective": "execute a focused long-running job",
+        "metadata": {
+            "task_backlog_pressure": {
+                "reason": "total task queue is too large",
+                "open_count": 42,
+                "total_count": 80,
+                "latest_step_no": 123,
+                "source": "blocked_record_tasks",
+            },
+            "task_queue": [
+                {"title": "Focused branch", "status": "active", "priority": 9},
+            ],
+        },
+    }
+
+    content = build_messages(job, [])[-1]["content"]
+
+    assert "Task backlog pressure remains active" not in content
+    assert "Task queue saturation:\nNone." in content
+
+
+def test_run_one_step_clears_stale_task_backlog_pressure(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job(
+            "Continue after backlog cleanup",
+            title="cleaned-backlog",
+            kind="generic",
+            metadata={
+                "task_backlog_pressure": {
+                    "reason": "total task queue is too large",
+                    "open_count": 42,
+                    "total_count": 80,
+                    "source": "blocked_record_tasks",
+                },
+                "task_queue": [
+                    {"title": "Focused branch", "status": "active", "priority": 9},
+                ],
+            },
+        )
+        llm = CapturingLLM(LLMResponse(tool_calls=[ToolCall(name="record_lesson", arguments={"lesson": "continue focused work"})]))
+
+        result = run_one_step(job_id, config=config, db=db, llm=llm)
+
+        assert result.status == "completed"
+        job = db.get_job(job_id)
+        assert job["metadata"]["task_backlog_pressure"] == {}
+        assert "Task queue saturation:\nNone." in llm.messages[-1]["content"]
+        assert any(
+            event["event_type"] == "agent_message"
+            and event["title"] == "progress"
+            and "Task backlog pressure cleared" in event["body"]
+            for event in db.list_events(job_id=job_id, limit=20)
+        )
+    finally:
+        db.close()
+
+
 def test_run_one_step_records_usage_pressure_without_spam(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path), model=ModelConfig(context_length=10_000_000))
     db = AgentDB(tmp_path / "state.db")
@@ -2476,6 +2647,139 @@ def test_run_one_step_defers_when_critical_usage_is_low_yield(tmp_path):
         job = db.get_job(job_id)
         assert job["metadata"]["defer_until"]
         assert "Critical usage pressure" in job["metadata"]["defer_reason"]
+    finally:
+        db.close()
+
+
+def test_prompt_keeps_usage_pressure_recovery_visible_until_progress():
+    job = {
+        "title": "usage recovery",
+        "kind": "generic",
+        "objective": "Keep long-running work efficient.",
+        "metadata": {
+            "usage_pressure_circuit_breaker": {
+                "latest_step_no": 12,
+                "streak": 2,
+                "calls": 2200,
+                "total_tokens": 25_000_000,
+                "prompt_tokens": 24_000_000,
+                "completion_tokens": 1_000_000,
+                "cost": 12.5,
+                "has_cost": True,
+            },
+            "task_queue": [{"title": "Focused task", "status": "active", "priority": 9}],
+        },
+    }
+    steps = [
+        {"step_no": 13, "kind": "recovery", "status": "completed", "tool_name": "defer_job", "summary": "cooldown"},
+        {"step_no": 14, "kind": "tool", "status": "blocked", "tool_name": "web_search", "summary": "blocked search"},
+    ]
+
+    content = build_messages(job, steps)[-1]["content"]
+
+    assert "Usage pressure recovery" in content
+    assert "cooldown is still unresolved" in content
+    assert "25.0M tokens" in content
+    assert "Do not resume low-yield search" in content
+
+
+def test_prompt_clears_usage_pressure_recovery_after_high_value_progress():
+    job = {
+        "title": "usage recovery",
+        "kind": "generic",
+        "objective": "Keep long-running work efficient.",
+        "metadata": {
+            "usage_pressure_circuit_breaker": {
+                "latest_step_no": 12,
+                "streak": 1,
+                "calls": 2200,
+                "total_tokens": 25_000_000,
+                "has_cost": False,
+            },
+            "task_queue": [{"title": "Focused task", "status": "active", "priority": 9}],
+        },
+    }
+    steps = [
+        {"step_no": 13, "kind": "recovery", "status": "completed", "tool_name": "defer_job", "summary": "cooldown"},
+        {"step_no": 14, "kind": "tool", "status": "completed", "tool_name": "record_experiment", "summary": "measured result"},
+    ]
+
+    content = build_messages(job, steps)[-1]["content"]
+
+    assert "Usage pressure recovery:\nNone." in content
+
+
+def test_run_one_step_blocks_low_yield_tool_after_usage_pressure_cooldown(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path), model=ModelConfig(context_length=262_144))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Keep long-running work efficient", title="usage recovery block", kind="generic")
+        db.update_job_metadata(
+            job_id,
+            {
+                "usage_pressure_circuit_breaker": {
+                    "latest_step_no": 1,
+                    "streak": 1,
+                    "calls": 2500,
+                    "total_tokens": 25_000_000,
+                    "has_cost": False,
+                },
+                "task_queue": [{"title": "Focused task", "status": "active", "priority": 9}],
+            },
+        )
+        llm = ScriptedLLM([
+            LLMResponse(tool_calls=[ToolCall(name="web_search", arguments={"query": "more background research"})])
+        ])
+
+        result = run_one_step(job_id, config=config, db=db, llm=llm)
+
+        assert result.status == "blocked"
+        assert result.tool_name == "web_search"
+        assert result.result["error"] == "usage pressure recovery required"
+        assert result.result["usage_pressure_recovery"]["total_tokens"] == 25_000_000
+    finally:
+        db.close()
+
+
+def test_run_one_step_allows_low_yield_tool_after_usage_pressure_progress(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path), model=ModelConfig(context_length=262_144))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Keep long-running work efficient", title="usage recovery resolved", kind="generic")
+        db.update_job_metadata(
+            job_id,
+            {
+                "usage_pressure_circuit_breaker": {
+                    "latest_step_no": 1,
+                    "streak": 1,
+                    "calls": 2500,
+                    "total_tokens": 25_000_000,
+                    "has_cost": False,
+                },
+                "task_queue": [{"title": "Focused task", "status": "active", "priority": 9}],
+            },
+        )
+        blocked_run_id = db.start_run(job_id, model="test")
+        blocked_step_id = db.add_step(job_id=job_id, run_id=blocked_run_id, kind="tool", tool_name="web_search")
+        db.finish_step(blocked_step_id, status="blocked", summary="prior low-yield step", output_data={"success": True})
+        db.finish_run(blocked_run_id, "completed")
+        run_id = db.start_run(job_id, model="test")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="record_experiment")
+        db.finish_step(
+            step_id,
+            status="completed",
+            summary="recorded measurement",
+            output_data={"success": True, "experiment": {"title": "measured"}},
+        )
+        db.finish_run(run_id, "completed")
+        llm = ScriptedLLM([
+            LLMResponse(tool_calls=[ToolCall(name="web_search", arguments={"query": "fresh branch research"})])
+        ])
+
+        result = run_one_step(job_id, config=config, db=db, llm=llm, registry=SuccessRegistry())
+
+        assert result.status == "completed"
+        assert result.tool_name == "web_search"
     finally:
         db.close()
 
@@ -6189,7 +6493,7 @@ def test_prompt_resurfaces_durable_candidate_file_paths(tmp_path):
         assert "Candidate file discovery:" in content
         assert "Durable records mention candidate file paths" in content
         assert "/opt/models/Remembered-Model-Q4.foo" in content
-        assert "Treat durable-record candidates as leads until revalidated" in content
+        assert "Treat durable-record candidates as candidates until revalidated" in content
     finally:
         db.close()
 
@@ -8757,6 +9061,11 @@ def test_run_one_step_blocks_new_tasks_when_queue_is_saturated(tmp_path):
         assert result.status == "blocked"
         assert result.result["error"] == "task queue saturated"
         assert result.result["task_queue"]["open_count"] == 40
+        job = db.get_job(job_id)
+        pressure = job["metadata"]["task_backlog_pressure"]
+        assert pressure["source"] == "blocked_record_tasks"
+        assert pressure["open_count"] == 40
+        assert pressure["reason"] == "too many open tasks"
     finally:
         db.close()
 

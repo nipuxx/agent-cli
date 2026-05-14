@@ -79,6 +79,7 @@ from nipux_cli.worker_policy import (
     TASK_QUEUE_SATURATION_OPEN_TASKS,
     TASK_QUEUE_TOTAL_SOFT_LIMIT,
     TEXT_TOKEN_STOPWORDS,
+    USAGE_PRESSURE_RECOVERY_BLOCKED_TOOLS,
 )
 from nipux_cli.worker_prompt_context import (
     _as_float,
@@ -208,11 +209,12 @@ def build_messages(
     evidence_checkpoint_guard = _evidence_checkpoint_accounting_for_prompt(job, recent_steps)
     activity_stagnation = _activity_stagnation_for_prompt(job)
     task_planning_guard = _task_planning_guard_for_prompt(job)
-    task_queue_saturation = _task_queue_saturation_for_prompt(recent_steps)
+    task_queue_saturation = _task_queue_saturation_for_prompt(job, recent_steps)
     memory_consolidation_guard = _memory_consolidation_guard_for_prompt(job, recent_steps)
     durable_yield = _durable_yield_for_prompt(job, recent_steps)
     context_pressure = context_pressure_for_prompt(job)
     usage_pressure = usage_pressure_for_prompt(job, token_usage)
+    usage_pressure_recovery = _usage_pressure_recovery_for_prompt(job, recent_steps)
     lessons = _lessons_for_prompt(job)
     memory_graph = _memory_graph_for_prompt(job)
     roadmap = _roadmap_for_prompt(job)
@@ -252,6 +254,7 @@ def build_messages(
             ("Durable progress yield", durable_yield),
             ("Context pressure", context_pressure),
             ("Usage pressure", usage_pressure),
+            ("Usage pressure recovery", usage_pressure_recovery),
             ("Program", program),
             ("Lessons learned", lessons),
             ("Memory graph", memory_graph),
@@ -392,7 +395,7 @@ def _candidate_file_discovery_for_prompt(job: dict[str, Any], recent_steps: list
         "Validate likely candidates with shell_exec before recording a no-file/no-progress claim or searching for alternatives. "
         "Do not reject a non-empty candidate binary from `file` output alone; corroborate with header/signature bytes, "
         "checksum/size, or a parser/loader for the expected format, or record uncertainty. "
-        "Treat durable-record candidates as leads until revalidated. This supersedes stale no-candidate/no-file memory "
+        "Treat durable-record candidates as candidates until revalidated. This supersedes stale no-candidate/no-file memory "
         "until validation proves those candidates are irrelevant."
     )
     lines.append(f"Relevant open work: {_clip_text(context['task_text'], 500)}")
@@ -1071,10 +1074,29 @@ def _task_planning_guard_for_prompt(job: dict[str, Any]) -> str:
     )
 
 
-def _task_queue_saturation_for_prompt(recent_steps: list[dict[str, Any]]) -> str:
+def _task_queue_saturation_for_prompt(job: dict[str, Any], recent_steps: list[dict[str, Any]]) -> str:
     context = _recent_task_queue_saturation_context(recent_steps)
+    persistent_pressure = False
     if not context:
-        return "None."
+        metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
+        pressure = metadata.get("task_backlog_pressure") if isinstance(metadata.get("task_backlog_pressure"), dict) else {}
+        current_pressure = _current_task_backlog_pressure_context(job)
+        if not pressure and not current_pressure:
+            return "None."
+        if current_pressure:
+            guard_recovery = pressure.get("guard_recovery") if isinstance(pressure.get("guard_recovery"), dict) else {}
+            task_queue = guard_recovery.get("task_queue") if isinstance(guard_recovery.get("task_queue"), dict) else {}
+            context = {
+                "step_no": pressure.get("latest_step_no") or guard_recovery.get("latest_step_no") or "current",
+                "source": pressure.get("source") or ("guard_recovery" if guard_recovery else "current_queue"),
+                "reason": pressure.get("reason") or task_queue.get("reason") or current_pressure.get("reason"),
+                "open_count": current_pressure.get("open_count"),
+                "total_count": current_pressure.get("total_count"),
+                "open_titles": current_pressure.get("open_titles") or [],
+            }
+        else:
+            return "None."
+        persistent_pressure = True
     counts = []
     if context.get("open_count") is not None:
         counts.append(f"open_tasks={context.get('open_count')}")
@@ -1083,15 +1105,49 @@ def _task_queue_saturation_for_prompt(recent_steps: list[dict[str, Any]]) -> str
     count_text = " ".join(counts) or "queue is saturated"
     open_titles = [str(title).strip() for title in context.get("open_titles") or [] if str(title).strip()]
     title_text = f" Existing runnable task titles: {json.dumps(open_titles[:8], ensure_ascii=False)}." if open_titles else ""
+    if context.get("source") == "blocked_record_tasks":
+        source_label = "record_tasks block"
+    elif context.get("source") == "current_queue":
+        source_label = "current queue"
+    else:
+        source_label = "guard recovery"
+    opening = (
+        f"Task backlog pressure remains active from {source_label} #{context.get('step_no')}: "
+        if persistent_pressure
+        else f"Task queue saturation was just hit at step #{context.get('step_no')}: "
+    )
     return (
-        f"Task queue saturation was just hit at step #{context.get('step_no')}: "
-        f"{context.get('reason') or 'task queue saturated'} ({count_text}). "
+        opening
+        + f"{context.get('reason') or 'task queue saturated'} ({count_text}). "
         f"{title_text} "
         "Do not create new task branches. Either execute an existing high-priority branch, "
         "or use record_tasks only to update existing task titles to active, done, blocked, or skipped "
         "with concise result/evidence. Consolidate branch sprawl into roadmap/milestones when useful. "
         "If this repeats, record_tasks is temporarily withheld so the worker must use a non-planning action."
     )
+
+
+def _current_task_backlog_pressure_context(job: dict[str, Any]) -> dict[str, Any] | None:
+    tasks = _metadata_list(job, "task_queue")
+    objective_tasks = [task for task in tasks if not _is_guard_recovery_task(task)]
+    open_tasks = [
+        task
+        for task in objective_tasks
+        if str(task.get("status") or "open").strip().lower().replace(" ", "_") in {"open", "active"}
+    ]
+    if len(objective_tasks) <= TASK_QUEUE_TOTAL_SOFT_LIMIT and len(open_tasks) < TASK_QUEUE_SATURATION_OPEN_TASKS:
+        return None
+    reason = "total task queue is too large" if len(objective_tasks) > TASK_QUEUE_TOTAL_SOFT_LIMIT else "too many open tasks"
+    return {
+        "reason": reason,
+        "open_count": len(open_tasks),
+        "total_count": len(objective_tasks),
+        "open_titles": [
+            str(task.get("title") or "").strip()
+            for task in open_tasks[:8]
+            if str(task.get("title") or "").strip()
+        ],
+    }
 
 
 def _memory_consolidation_guard_for_prompt(job: dict[str, Any], recent_steps: list[dict[str, Any]]) -> str:
@@ -1800,6 +1856,58 @@ def _recent_task_queue_saturation_context(recent_steps: list[dict[str, Any]], *,
             "open_titles": task_queue.get("open_titles") if isinstance(task_queue.get("open_titles"), list) else [],
         }
     return None
+
+
+def _record_task_backlog_pressure(
+    *,
+    db: AgentDB,
+    job_id: str,
+    step_no: int | str | None,
+    task_queue: dict[str, Any],
+    source: str,
+) -> None:
+    if not isinstance(task_queue, dict) or not task_queue:
+        return
+    pressure = {
+        "detected_at": datetime.now(timezone.utc).isoformat(),
+        "source": source,
+        "latest_step_no": step_no,
+        "reason": task_queue.get("reason") or "task queue saturated",
+        "open_count": task_queue.get("open_count"),
+        "total_count": task_queue.get("total_count"),
+        "projected_open_count": task_queue.get("projected_open_count"),
+        "projected_total_count": task_queue.get("projected_total_count"),
+        "open_titles": task_queue.get("open_titles") if isinstance(task_queue.get("open_titles"), list) else [],
+    }
+    db.update_job_metadata(job_id, {"task_backlog_pressure": pressure})
+    db.append_agent_update(
+        job_id,
+        (
+            "Task backlog pressure is active; next worker turns should execute, complete, block, skip, "
+            "or consolidate existing tasks instead of adding new branches."
+        ),
+        category="blocked",
+        metadata={"task_backlog_pressure": pressure},
+    )
+
+
+def _clear_stale_task_backlog_pressure(db: AgentDB, job_id: str, job: dict[str, Any]) -> bool:
+    metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
+    pressure = metadata.get("task_backlog_pressure")
+    if not isinstance(pressure, dict) or not pressure:
+        return False
+    if _current_task_backlog_pressure_context(job):
+        return False
+    cleared = dict(pressure)
+    cleared["resolved_at"] = datetime.now(timezone.utc).isoformat()
+    db.update_job_metadata(job_id, {"task_backlog_pressure": {}})
+    db.append_agent_update(
+        job_id,
+        "Task backlog pressure cleared; the active task queue is back under saturation limits.",
+        category="progress",
+        metadata={"cleared_task_backlog_pressure": cleared},
+    )
+    return True
 
 
 def _repeated_task_queue_saturation_context(recent_steps: list[dict[str, Any]], *, window: int = 8, threshold: int = 2) -> dict[str, Any] | None:
@@ -4251,13 +4359,22 @@ def _repeated_guard_block_context(
     )
     if last_recovery_error == error and not progress_after_recovery:
         return None
-    return {
+    context = {
         "error": error,
         "count": count,
         "first_step_no": first_step_no,
         "latest_step_no": latest_blocked.get("step_no"),
         "blocked_tools": blocked_tools[-8:],
     }
+    if error == "task queue saturated":
+        task_queue = output.get("task_queue") if isinstance(output.get("task_queue"), dict) else {}
+        context["task_queue"] = {
+            "reason": task_queue.get("reason") or "task queue saturated",
+            "open_count": task_queue.get("open_count"),
+            "total_count": task_queue.get("total_count"),
+            "open_titles": task_queue.get("open_titles") if isinstance(task_queue.get("open_titles"), list) else [],
+        }
+    return context
 
 
 def _already_read_checkpoint_accounting_block(step: dict[str, Any]) -> bool:
@@ -4700,6 +4817,23 @@ def _blocked_tool_call_result(
             ),
         }
         return result, f"blocked {name}; memory graph consolidation required"
+
+    usage_pressure_recovery = _usage_pressure_recovery_context(job, recent_steps)
+    if usage_pressure_recovery and name in USAGE_PRESSURE_RECOVERY_BLOCKED_TOOLS:
+        result = {
+            "success": False,
+            "error": "usage pressure recovery required",
+            "blocked_tool": name,
+            "blocked_arguments": args,
+            "usage_pressure_recovery": usage_pressure_recovery,
+            "guidance": (
+                "The job recently hit critical usage pressure after low-yield turns and has not yet produced "
+                "high-value durable progress. Do not spend the next step on search, artifact review, memory review, "
+                "or report chatter. Record a measured/factual result, write an evidence-backed output, validate or "
+                "reject the active branch, update existing tasks/roadmap, or defer only for a real external wait."
+            ),
+        }
+        return result, f"blocked {name}; usage pressure recovery required"
 
     if deliverable_progress_guard and (name in DELIVERABLE_PROGRESS_BLOCKED_TOOLS or shell_read_only):
         result = {
@@ -5227,6 +5361,7 @@ def _run_guard_recovery_step(
 ) -> StepExecution:
     error = str(context.get("error") or "recoverable guard")
     checkpoint_accounting = error == "evidence checkpoint accounting required"
+    task_queue_saturated = error == "task queue saturated"
     task_goal = "Convert the repeated guard block into durable progress before retrying the blocked action."
     acceptance = (
         "Use record_tasks, record_findings, record_source, record_experiment, or record_lesson to state what "
@@ -5248,6 +5383,61 @@ def _run_guard_recovery_step(
             "and choose a different branch."
         )
     step_id = db.add_step(job_id=job_id, run_id=run_id, kind="recovery", tool_name="guard_recovery")
+    if task_queue_saturated:
+        task_queue = context.get("task_queue") if isinstance(context.get("task_queue"), dict) else {}
+        lesson = db.append_lesson(
+            job_id,
+            (
+                f"Repeated task queue saturation occurred {context.get('count')} times. "
+                "Do not open guard-recovery tasks for saturation; consolidate, complete, block, or skip existing branches "
+                "before adding new work."
+            ),
+            category="strategy",
+            confidence=0.85,
+            metadata={"guard_recovery": context},
+        )
+        db.update_job_metadata(
+            job_id,
+            {
+                "task_backlog_pressure": {
+                    "detected_at": datetime.now(timezone.utc).isoformat(),
+                    "guard_recovery": context,
+                    "reason": task_queue.get("reason") or "task queue saturated",
+                    "open_count": task_queue.get("open_count"),
+                    "total_count": task_queue.get("total_count"),
+                }
+            },
+        )
+        message = (
+            f"Guard recovery recorded task queue saturation from step #{context.get('first_step_no')} "
+            f"to #{context.get('latest_step_no')}; no new task was opened."
+        )
+        update = db.append_agent_update(
+            job_id,
+            message,
+            category="blocked",
+            metadata={"guard_recovery": context, "lesson_key": lesson.get("key"), "task_queue_saturation": True},
+        )
+        result = {
+            "success": True,
+            "guard_recovery": context,
+            "lesson": lesson,
+            "update": update,
+            "task_opened": False,
+        }
+        db.finish_step(step_id, status="completed", summary=message, output_data=result)
+        finished_step = _step_by_id(db, job_id, step_id)
+        _resolve_evidence_checkpoint(
+            db=db,
+            job_id=job_id,
+            tool_name="guard_recovery",
+            step=finished_step,
+        )
+        db.finish_run(run_id, "completed")
+        _emit_loop_end(db, job_id, run_id, status="completed", step_id=step_id, tool_name="guard_recovery", detail=message)
+        refresh_memory_index(db, job_id)
+        return StepExecution(job_id=job_id, run_id=run_id, step_id=step_id, tool_name="guard_recovery", status="completed", result=result)
+
     lesson = db.append_lesson(
         job_id,
         (
@@ -5416,6 +5606,59 @@ def _usage_pressure_circuit_breaker_context(
             for step in blocked_or_failed[-5:]
         ],
     }
+
+
+def _usage_pressure_recovery_context(job: dict[str, Any], recent_steps: list[dict[str, Any]]) -> dict[str, Any] | None:
+    metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
+    previous = (
+        metadata.get("usage_pressure_circuit_breaker")
+        if isinstance(metadata.get("usage_pressure_circuit_breaker"), dict)
+        else {}
+    )
+    latest_step_no = _as_int(previous.get("latest_step_no"))
+    if latest_step_no <= 0:
+        return None
+    later_steps = [step for step in recent_steps if _as_int(step.get("step_no")) > latest_step_no]
+    if any(_step_has_high_value_progress(step) for step in later_steps):
+        return None
+    blocked_or_failed = [
+        step for step in later_steps[-USAGE_PRESSURE_LOW_YIELD_WINDOW:]
+        if str(step.get("status") or "").lower() in {"blocked", "failed"}
+    ]
+    return {
+        "latest_step_no": latest_step_no,
+        "steps_since_cooldown": len(later_steps),
+        "cooldown_streak": _as_int(previous.get("streak")),
+        "blocked_or_failed_since_cooldown": len(blocked_or_failed),
+        "calls": _as_int(previous.get("calls")),
+        "total_tokens": _as_int(previous.get("total_tokens")),
+        "prompt_tokens": _as_int(previous.get("prompt_tokens")),
+        "completion_tokens": _as_int(previous.get("completion_tokens")),
+        "cost": _as_float(previous.get("cost")) if bool(previous.get("has_cost")) else None,
+        "has_cost": bool(previous.get("has_cost")),
+        "required_next_action": (
+            "record durable progress, validate/reject the active branch, write an evidence-backed output, "
+            "or defer only for a real external wait"
+        ),
+    }
+
+
+def _usage_pressure_recovery_for_prompt(job: dict[str, Any], recent_steps: list[dict[str, Any]]) -> str:
+    recovery = _usage_pressure_recovery_context(job, recent_steps)
+    if not recovery:
+        return "None."
+    cost = recovery.get("cost")
+    cost_text = f", cost=${float(cost):.4f}" if isinstance(cost, (int, float)) else ""
+    return (
+        "A critical usage-pressure cooldown is still unresolved because no high-value durable progress "
+        f"has happened after step #{recovery.get('latest_step_no')}. "
+        f"Since cooldown: {recovery.get('steps_since_cooldown')} steps, "
+        f"{recovery.get('blocked_or_failed_since_cooldown')} blocked/failed, "
+        f"{recovery.get('calls')} model calls, {_compact_usage_tokens(recovery.get('total_tokens'))} tokens{cost_text}. "
+        "Do not resume low-yield search, artifact review, memory review, or report chatter. "
+        "Choose one high-leverage action: record measured/factual progress, write an evidence-backed output, "
+        "validate or reject the active branch, or defer only for a real external wait."
+    )
 
 
 def _usage_budget_limit_context(config: AppConfig, usage: dict[str, Any]) -> dict[str, Any] | None:
@@ -6297,6 +6540,16 @@ def _execute_tool_call(
                 category="blocked",
                 metadata={"source": known_bad_source, "blocked_tool": call.name},
             )
+        if result.get("error") == "task queue saturated":
+            step = _step_by_id(db, job_id, step_id)
+            task_queue = result.get("task_queue") if isinstance(result.get("task_queue"), dict) else {}
+            _record_task_backlog_pressure(
+                db=db,
+                job_id=job_id,
+                step_no=(step or {}).get("step_no"),
+                task_queue=task_queue,
+                source="blocked_record_tasks",
+            )
         _auto_record_grounding_block_lesson(db=db, job_id=job_id, result=result)
         db.finish_step(
             step_id,
@@ -6625,6 +6878,8 @@ def run_one_step(
         if _acknowledge_non_prompt_operator_context(db, job_id):
             job = db.get_job(job_id)
         if _clear_invalid_measurement_obligation(db, job_id):
+            job = db.get_job(job_id)
+        if _clear_stale_task_backlog_pressure(db, job_id, job):
             job = db.get_job(job_id)
         run_id = db.start_run(job_id, model=config.model.model)
         _emit_loop_start(db, job_id, run_id)

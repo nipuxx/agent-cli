@@ -222,7 +222,7 @@ def _missing_executable_probe(command: str, combined_output: str) -> str:
 def _empty_observation_probe(command: str) -> str:
     text = str(command or "").strip()
     if re.match(r"^(?:which|command\s+-v)\s+([A-Za-z0-9_.+-]+)(?:\s|$)", text):
-        return "executable lookup returned no path"
+        return "probe found no executable: executable lookup returned no path"
     if re.match(r"^(?:find|ls|stat|file)\b", text):
         return "read-only filesystem probe returned no observation"
     return ""
