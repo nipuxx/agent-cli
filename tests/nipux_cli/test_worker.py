@@ -4571,6 +4571,38 @@ def test_run_one_step_allows_repeated_defer_for_monitor_intervals(tmp_path):
         db.close()
 
 
+def test_run_one_step_blocks_self_defer_for_next_worker_turn(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Keep making progress", title="self-defer")
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(
+                        name="defer_job",
+                        arguments={
+                            "seconds": 300,
+                            "reason": "waiting for tasks to be picked up by next worker turn",
+                            "next_action": "continue in the next worker step",
+                        },
+                    )
+                ])
+            ]),
+        )
+
+        assert result.status == "blocked"
+        assert result.tool_name == "defer_job"
+        assert result.result["error"] == "self-defer blocked"
+        assert result.result["self_defer"]["matched"] == "next worker turn"
+    finally:
+        db.close()
+
+
 def test_run_one_step_blocks_search_after_unpersisted_extract(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

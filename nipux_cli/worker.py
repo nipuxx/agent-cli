@@ -1138,6 +1138,16 @@ BROWSER_RUNTIME_UNAVAILABLE_TERMS = (
 )
 
 
+SELF_DEFER_TERMS = (
+    "next worker turn",
+    "next worker step",
+    "picked up by next worker",
+    "picked up by the next worker",
+    "picked up by next turn",
+    "picked up by the next turn",
+)
+
+
 def _is_browser_tool(name: str | None) -> bool:
     return bool(str(name or "").startswith("browser_"))
 
@@ -1184,6 +1194,20 @@ def _browser_runtime_unavailable_context(
                 "error": _clip_text(error, 500),
             }
     return None
+
+
+def _self_defer_context(args: dict[str, Any]) -> dict[str, Any] | None:
+    reason = str(args.get("reason") or "")
+    next_action = str(args.get("next_action") or "")
+    text = f"{reason} {next_action}".lower()
+    matched = next((term for term in SELF_DEFER_TERMS if term in text), "")
+    if not matched:
+        return None
+    return {
+        "matched": matched,
+        "reason": reason,
+        "next_action": next_action,
+    }
 
 
 EVIDENCE_GROUNDED_TOOLS = {
@@ -2613,6 +2637,24 @@ def _blocked_tool_call_result(
     recent_steps: list[dict[str, Any]],
     job: dict[str, Any],
 ) -> tuple[dict[str, Any], str] | None:
+    if name == "defer_job":
+        self_defer = _self_defer_context(args)
+        if self_defer:
+            result = {
+                "success": False,
+                "error": "self-defer blocked",
+                "blocked_tool": name,
+                "blocked_arguments": args,
+                "self_defer": self_defer,
+                "guidance": (
+                    "Do not defer merely for a future worker turn to pick up ordinary work. Use defer_job only when "
+                    "waiting for a real external process, scheduled monitor interval, provider cooldown, rate limit, "
+                    "or other time-based condition. Otherwise execute, measure, record a task/experiment/lesson, or "
+                    "mark the branch blocked now."
+                ),
+            }
+            return result, "blocked defer_job; self-defer is not progress"
+
     if name == "record_tasks":
         saturated = _task_queue_saturation_context(job, args)
         if saturated:
