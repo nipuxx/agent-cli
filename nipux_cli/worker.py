@@ -1764,7 +1764,7 @@ def _missing_candidate_paths_for_grounding(
     full_proposed_text: str,
     fresh_evidence_text: str,
 ) -> list[str]:
-    if tool_name not in {"record_findings", "record_experiment", "record_memory_graph", "write_artifact", "report_update"}:
+    if tool_name not in {"record_findings", "record_experiment", "write_artifact", "report_update"}:
         return []
     proposed_lower = f"{proposed_text}\n{full_proposed_text}".lower()
     if not any(term in proposed_lower for term in ("file", "files", "path", "paths", "candidate", "found", "discovered")):
