@@ -2493,6 +2493,17 @@ def _durable_records_for_grounding(job: dict[str, Any]) -> str:
 def _concrete_evidence_tokens(text: str) -> list[str]:
     text = text.replace("\\n", "\n").replace("\\t", "\t")
     tokens: list[str] = []
+    seen_numeric: set[str] = set()
+    for raw in re.findall(
+        r"(?i)\b\d+(?:\.\d+)?\s*(?:[KMGTPE]i?B|[KMGTPE]|bytes?|tok/s|t/s|tokens/sec|tokens/s|ms|sec|secs|seconds?|minutes?|hours?|%)\b",
+        text,
+    ):
+        token = re.sub(r"\s+", "", raw.strip())
+        key = token.lower()
+        if key in seen_numeric:
+            continue
+        seen_numeric.add(key)
+        tokens.append(token)
     for raw in re.findall(r"\b[A-Za-z][A-Za-z0-9_.+-]{1,}\b", text):
         token = raw.strip("._+-")
         if not token:

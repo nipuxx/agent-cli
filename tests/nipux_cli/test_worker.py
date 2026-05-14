@@ -4233,6 +4233,47 @@ def test_evidence_grounding_ignores_job_context_labels(tmp_path):
         db.close()
 
 
+def test_evidence_grounding_blocks_unsupported_numeric_measurements(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Validate candidate file size", title="size-grounding", kind="generic")
+        run_id = db.start_run(job_id, model="test")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec")
+        db.finish_step(
+            step_id,
+            status="completed",
+            output_data={
+                "success": True,
+                "stdout": "-rw-r--r-- 1 user user 12G May 14 /srv/models/AlphaModel-Q4.foo\n",
+            },
+        )
+        db.finish_run(run_id, "completed")
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[ToolCall(name="record_findings", arguments={
+                    "findings": [{
+                        "name": "Candidate file",
+                        "category": "environment",
+                        "location": "/srv/models/AlphaModel-Q4.foo",
+                        "metadata": {"file_size": "16G"},
+                        "status": "verified",
+                    }]
+                })])
+            ]),
+        )
+
+        assert result.status == "blocked"
+        assert result.result["error"] == "evidence grounding required"
+        assert "16G" in result.result["evidence_grounding"]["unsupported_tokens"]
+    finally:
+        db.close()
+
+
 def test_evidence_grounding_ignores_record_schema_keys(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")
