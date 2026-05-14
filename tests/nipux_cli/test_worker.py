@@ -4229,6 +4229,42 @@ def test_prompt_prioritizes_structured_candidate_file_paths(tmp_path):
         db.close()
 
 
+def test_prompt_filters_truncated_and_url_like_candidate_file_paths(tmp_path):
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Validate concrete local candidates", title="candidate-file", kind="generic")
+        db.update_job_metadata(
+            job_id,
+            {
+                "task_queue": [
+                    {
+                        "title": "Validate remembered file path",
+                        "status": "open",
+                        "contract": "action",
+                        "acceptance_criteria": "A candidate file path is validated before use.",
+                        "evidence_needed": "Shell output with file size or hash.",
+                    }
+                ],
+                "experiment_ledger": [
+                    {
+                        "title": "Prior candidate discovery",
+                        "result": "Avoid pseudo-paths like //example.com and truncated paths like /tmp/...",
+                        "next_action": "Validate /opt/models/ConcreteModel-Q4.foo before declaring no usable file.",
+                    }
+                ],
+            },
+        )
+
+        content = build_messages(db.get_job(job_id), db.list_steps(job_id=job_id))[-1]["content"]
+
+        assert "Candidate file discovery:" in content
+        assert "/opt/models/ConcreteModel-Q4.foo" in content
+        assert "//example.com" not in content
+        assert "/tmp/..." not in content
+    finally:
+        db.close()
+
+
 def test_prompt_resurfaces_durable_candidate_file_paths(tmp_path):
     db = AgentDB(tmp_path / "state.db")
     try:

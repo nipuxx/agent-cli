@@ -430,7 +430,7 @@ def _extract_candidate_file_paths(text: str) -> list[str]:
     paths: list[str] = []
     for match in re.finditer(r"(?<![A-Za-z0-9])(?:~|/)[^\s'\"<>|;&]{2,}", text or ""):
         raw = match.group(0).rstrip(".,:;)")
-        if not raw or "://" in raw:
+        if not raw or "://" in raw or raw.startswith("//") or "..." in raw or "…" in raw:
             continue
         name = Path(raw).name
         if "." not in name:
@@ -440,7 +440,7 @@ def _extract_candidate_file_paths(text: str) -> list[str]:
         paths.append(raw)
     for match in re.finditer(r'"path"\s*:\s*"([^"]+\.[A-Za-z0-9][A-Za-z0-9_-]{1,12})"', text or ""):
         raw = match.group(1).strip()
-        if not raw or "://" in raw:
+        if not raw or "://" in raw or raw.startswith("//") or "..." in raw or "…" in raw:
             continue
         if len(raw) > 500:
             continue
