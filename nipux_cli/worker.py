@@ -6663,6 +6663,16 @@ def _execute_tool_call(
         )
 
 
+def _is_recoverable_argument_block(execution: StepExecution) -> bool:
+    result = execution.result if isinstance(execution.result, dict) else {}
+    return (
+        execution.status == "blocked"
+        and result.get("recoverable") is True
+        and result.get("error") in {"missing required tool arguments", "placeholder tool arguments"}
+        and bool(result.get("missing_arguments") or result.get("placeholder_arguments"))
+    )
+
+
 def _ordered_tool_calls_for_execution(
     tool_calls: list[ToolCall],
     *,
@@ -6999,7 +7009,7 @@ def run_one_step(
                 job=db.get_job(job_id),
                 recent_steps=db.list_steps(job_id=job_id),
             )
-            for call in ordered_tool_calls:
+            for index, call in enumerate(ordered_tool_calls):
                 current_job = db.get_job(job_id)
                 current_recent_steps = db.list_steps(job_id=job_id)
                 execution, stop_batch, detail, error = _execute_tool_call(
@@ -7018,6 +7028,9 @@ def run_one_step(
                 if error:
                     run_error = error
                 if stop_batch:
+                    if index < len(ordered_tool_calls) - 1 and _is_recoverable_argument_block(execution):
+                        details.append(f"continued after malformed {call.name} arguments")
+                        continue
                     break
 
             final_execution = executions[-1]
