@@ -693,6 +693,25 @@ def test_record_source_and_findings_tools_update_ledgers(tmp_path):
         db.close()
 
 
+def test_record_source_requires_assessment(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Research topic")
+        run_id = db.start_run(job_id, model="fake")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="record_source")
+        ctx = ToolContext(config=config, db=db, artifacts=ArtifactStore(tmp_path, db), job_id=job_id, run_id=run_id, step_id=step_id)
+
+        raw = DEFAULT_REGISTRY.handle("record_source", {"source": "https://example.com"}, ctx)
+        result = json.loads(raw)
+
+        assert result["success"] is False
+        assert result["error"] == "source assessment is required"
+        assert db.get_job(job_id)["metadata"].get("source_ledger") is None
+    finally:
+        db.close()
+
+
 def test_record_findings_reports_unchanged_duplicates_without_agent_update_noise(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

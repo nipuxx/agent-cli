@@ -548,18 +548,58 @@ def _record_source(args: dict[str, Any], ctx: ToolContext) -> str:
     yield_count = int(args.get("yield_count") or 0)
     fail_count_delta = int(args.get("fail_count_delta") or 0)
     metadata = args.get("metadata") if isinstance(args.get("metadata"), dict) else {}
-    entry = ctx.db.append_source_record(
-        ctx.job_id,
-        source,
-        source_type=str(args.get("source_type") or ""),
+    source_type = str(args.get("source_type") or "")
+    outcome = str(args.get("outcome") or "")
+    if not _source_has_assessment(
+        source_type=source_type,
         usefulness_score=usefulness_score,
         yield_count=yield_count,
         fail_count_delta=fail_count_delta,
         warnings=warnings,
-        outcome=str(args.get("outcome") or ""),
+        outcome=outcome,
+        metadata=metadata,
+    ):
+        return _json({
+            "success": False,
+            "error": "source assessment is required",
+            "guidance": (
+                "record_source must say why the source matters: include source_type, usefulness_score, "
+                "yield_count, fail_count_delta, warnings, outcome, or evidence metadata."
+            ),
+        })
+    entry = ctx.db.append_source_record(
+        ctx.job_id,
+        source,
+        source_type=source_type,
+        usefulness_score=usefulness_score,
+        yield_count=yield_count,
+        fail_count_delta=fail_count_delta,
+        warnings=warnings,
+        outcome=outcome,
         metadata=metadata,
     )
     return _json({"success": True, "job_id": ctx.job_id, "source": entry})
+
+
+def _source_has_assessment(
+    *,
+    source_type: str,
+    usefulness_score: float | None,
+    yield_count: int,
+    fail_count_delta: int,
+    warnings: list[str],
+    outcome: str,
+    metadata: dict[str, Any],
+) -> bool:
+    return bool(
+        source_type.strip()
+        or usefulness_score is not None
+        or yield_count
+        or fail_count_delta
+        or warnings
+        or outcome.strip()
+        or any(str(value).strip() for value in metadata.values())
+    )
 
 
 def _record_findings(args: dict[str, Any], ctx: ToolContext) -> str:
