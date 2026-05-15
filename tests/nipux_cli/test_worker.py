@@ -6495,6 +6495,58 @@ def test_prompt_deprioritizes_recent_stub_candidate_file_paths(tmp_path):
         db.close()
 
 
+def test_prompt_isolates_current_execution_focus_for_candidate_validation(tmp_path):
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Benchmark AlphaModel throughput", title="alpha benchmark", kind="generic")
+        db.update_job_metadata(
+            job_id,
+            {
+                "task_queue": [
+                    {
+                        "title": f"Old branch {index}",
+                        "status": "open",
+                        "priority": index,
+                    }
+                    for index in range(82)
+                ] + [
+                    {
+                        "title": "Validate AlphaModel candidate file before benchmark",
+                        "status": "active",
+                        "priority": 100,
+                        "contract": "experiment",
+                        "acceptance_criteria": "Validated candidate file is used in a measurement.",
+                        "evidence_needed": "Shell output with candidate file size and benchmark result.",
+                    }
+                ]
+            },
+        )
+        run_id = db.start_run(job_id, model="test")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec")
+        db.finish_step(
+            step_id,
+            status="failed",
+            output_data={
+                "success": False,
+                "stdout": "-rw-r--r-- 1 user user 12G May 15 10:01 /srv/models/AlphaModel-IQ3.foo\n",
+                "stderr": "ls: cannot access '/tmp/models/AlphaModel-Q4.foo': No such file or directory\n",
+            },
+        )
+        db.finish_run(run_id, "failed")
+
+        content = build_messages(db.get_job(job_id), db.list_steps(job_id=job_id))[-1]["content"]
+
+        focus = content[content.index("Current execution focus:"): content.index("Pending measurement obligation:")]
+        assert "phase=execute_candidate_validation" in focus
+        assert "Validate the highest-confidence candidate path: /srv/models/AlphaModel-IQ3.foo" in focus
+        assert "backlog=83 tasks" in focus
+        assert "Treat it as advisory" in focus
+        next_constraint = content[content.index("Next-action constraint:"):]
+        assert next_constraint.index("/srv/models/AlphaModel-IQ3.foo") < next_constraint.index("/tmp/models/AlphaModel-Q4.foo")
+    finally:
+        db.close()
+
+
 def test_prompt_ranks_context_matching_candidate_paths_before_auxiliary_files(tmp_path):
     db = AgentDB(tmp_path / "state.db")
     try:
@@ -10230,6 +10282,36 @@ def test_repeated_task_saturation_temporarily_suppresses_record_tasks(tmp_path):
         run_one_step(job_id, config=config, db=db, llm=llm)
 
         tool_names = {tool["function"]["name"] for tool in llm.tools}
+        assert "record_tasks" not in tool_names
+        assert "record_lesson" in tool_names
+        assert "shell_exec" in tool_names
+    finally:
+        db.close()
+
+
+def test_chronic_backlog_suppresses_new_task_planning_tool(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job(
+            "Execute existing work",
+            title="chronic-backlog-tools",
+            kind="generic",
+            metadata={
+                "task_queue": [
+                    {"title": f"Open branch {index}", "status": "open", "priority": index}
+                    for index in range(82)
+                ]
+            },
+        )
+        llm = CapturingLLM(LLMResponse(tool_calls=[ToolCall(name="record_lesson", arguments={"lesson": "execute existing work"})]))
+
+        run_one_step(job_id, config=config, db=db, llm=llm)
+
+        tool_names = {tool["function"]["name"] for tool in llm.tools}
+        prompt = llm.messages[-1]["content"]
+        assert "Current execution focus" in prompt
+        assert "backlog=82 tasks" in prompt
         assert "record_tasks" not in tool_names
         assert "record_lesson" in tool_names
         assert "shell_exec" in tool_names

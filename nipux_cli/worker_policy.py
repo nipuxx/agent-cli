@@ -311,6 +311,7 @@ TIMELINE_PROMPT_TOOL_STATUSES = {"blocked", "failed"}
 PROMPT_SECTION_BUDGETS = {
     "Workspace": 520,
     "Operator context": 2_200,
+    "Current execution focus": 1_600,
     "Pending measurement obligation": 1_100,
     "Candidate file discovery": 2_000,
     "Measured progress guard": 1_000,

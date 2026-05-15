@@ -194,6 +194,7 @@ def build_messages(
         active_messages=active_operator_messages or [],
         include_unclaimed=include_unclaimed_operator_messages,
     )
+    current_execution_focus = _current_execution_focus_for_prompt(job, recent_steps)
     measurement_obligation = _measurement_obligation_for_prompt(job)
     file_validation_obligation = _file_validation_obligation_for_prompt(job)
     candidate_file_discovery = _candidate_file_discovery_for_prompt(job, recent_steps)
@@ -236,6 +237,7 @@ def build_messages(
                 ]),
             ),
             ("Operator context", operator_messages),
+            ("Current execution focus", current_execution_focus),
             ("Pending measurement obligation", measurement_obligation),
             ("Pending file validation obligation", file_validation_obligation),
             ("Candidate file discovery", candidate_file_discovery),
@@ -393,6 +395,153 @@ def _file_validation_obligation_for_prompt(job: dict[str, Any]) -> str:
         "or use record_tasks/record_lesson/record_experiment to explain the blocked or deferred validation."
     )
     return "\n".join(lines)
+
+
+def _current_execution_focus_for_prompt(job: dict[str, Any], recent_steps: list[dict[str, Any]]) -> str:
+    focus = _current_execution_focus_context(job, recent_steps)
+    if not focus:
+        return (
+            "No isolated focus yet. Follow the next-action constraint, choose one bounded branch, "
+            "and account for the result before expanding the backlog."
+        )
+    lines = [
+        f"phase={focus['phase']}",
+        "focus=" + _clip_text(str(focus.get("focus") or ""), 620),
+        "next=" + _clip_text(str(focus.get("next") or ""), 620),
+    ]
+    evidence = str(focus.get("evidence") or "").strip()
+    if evidence:
+        lines.append("evidence=" + _clip_text(evidence, 520))
+    task = str(focus.get("task") or "").strip()
+    if task:
+        lines.append("task=" + _clip_text(task, 520))
+    backlog = focus.get("backlog") if isinstance(focus.get("backlog"), dict) else {}
+    if backlog:
+        lines.append(
+            "backlog="
+            f"{backlog.get('total')} tasks, {backlog.get('open')} runnable/open. "
+            "Treat it as advisory until this focus is resolved; do not add new branches unless directly closing, "
+            "merging, or relabeling existing work."
+        )
+    lines.append(
+        "Boundary: do not switch to unrelated search, task creation, or stale branches unless this focus is blocked "
+        "by fresh tool evidence. If it is blocked, record the blocker and the next concrete recovery action."
+    )
+    return "\n".join(lines)
+
+
+def _current_execution_focus_context(job: dict[str, Any], recent_steps: list[dict[str, Any]]) -> dict[str, Any] | None:
+    backlog = _task_backlog_pressure_context(job)
+    measurement_obligation = _pending_measurement_obligation(job)
+    if measurement_obligation:
+        return {
+            "phase": "account_measurement",
+            "focus": f"Resolve pending measurement from step #{measurement_obligation.get('source_step_no') or '?'}",
+            "next": "Use record_experiment for a valid measured result, or record_lesson/record_tasks if the result is invalid or missing.",
+            "evidence": str(measurement_obligation.get("summary") or ""),
+            "backlog": backlog,
+        }
+    file_validation = _pending_file_validation_obligation(job)
+    if file_validation:
+        return {
+            "phase": "validate_file",
+            "focus": f"Validate recently written file {file_validation.get('path') or ''}",
+            "next": str(file_validation.get("suggested_validation") or "Run one bounded validation command, then account for the result."),
+            "evidence": str(file_validation.get("reason") or ""),
+            "backlog": backlog,
+        }
+    checkpoint = _auto_checkpoint_accounting_context(job, recent_steps)
+    if checkpoint:
+        if checkpoint.get("checkpoint_read"):
+            next_action = "Use a durable ledger tool to account for the already-read evidence checkpoint."
+        else:
+            next_action = "Read the specific checkpoint artifact or account for it from existing evidence."
+        return {
+            "phase": "account_checkpoint",
+            "focus": f"Resolve auto-saved evidence checkpoint {checkpoint.get('artifact_id') or checkpoint.get('title') or ''}",
+            "next": next_action,
+            "evidence": str(checkpoint.get("summary") or checkpoint.get("title") or ""),
+            "backlog": backlog,
+        }
+    grounding_block = _latest_evidence_grounding_block(recent_steps)
+    if grounding_block:
+        return {
+            "phase": "repair_record",
+            "focus": "Rewrite or replace the blocked durable record using only observed evidence.",
+            "next": "Use exact observed tokens/paths from recent evidence, or record why the attempted claim is invalid.",
+            "evidence": str(grounding_block.get("error") or grounding_block.get("summary") or ""),
+            "backlog": backlog,
+        }
+    candidate_files = _candidate_file_discovery_context(job, recent_steps)
+    if candidate_files:
+        paths = candidate_files.get("paths") if isinstance(candidate_files.get("paths"), list) else []
+        invalid_paths = set(str(path) for path in candidate_files.get("invalid_paths") or [])
+        primary_path = next((str(path) for path in paths if str(path) not in invalid_paths), str(paths[0]) if paths else "")
+        return {
+            "phase": "execute_candidate_validation",
+            "focus": f"Validate the highest-confidence candidate path: {primary_path}",
+            "next": "Run one bounded shell/file validation against the primary path, then record the measurement, finding, lesson, or blocker.",
+            "evidence": f"Ranked candidates: {'; '.join(str(path) for path in paths[:4])}",
+            "task": str(candidate_files.get("task_text") or ""),
+            "backlog": backlog,
+        }
+    experiment_next_action = _latest_experiment_next_action_context(job)
+    if experiment_next_action:
+        return {
+            "phase": "execute_measured_next_action",
+            "focus": "Continue from the latest measured experiment decision.",
+            "next": str(experiment_next_action.get("next_action") or ""),
+            "evidence": str(experiment_next_action.get("title") or experiment_next_action.get("summary") or ""),
+            "backlog": backlog,
+        }
+    milestone_validation = _milestone_validation_needed(job)
+    if milestone_validation:
+        return {
+            "phase": "validate_milestone",
+            "focus": f"Validate milestone: {milestone_validation.get('title') or 'current milestone'}",
+            "next": "Use record_milestone_validation with pass/fail/blocker status from observed evidence.",
+            "evidence": str(milestone_validation.get("evidence_needed") or milestone_validation.get("acceptance_criteria") or ""),
+            "backlog": backlog,
+        }
+    task = _primary_execution_task(job)
+    if task and backlog:
+        return {
+            "phase": "execute_task",
+            "focus": str(task.get("title") or "current task"),
+            "next": str(task.get("next_action") or task.get("goal") or task.get("acceptance_criteria") or "Take one bounded action for this task."),
+            "evidence": str(task.get("evidence_needed") or task.get("result") or ""),
+            "task": str(task),
+            "backlog": backlog,
+        }
+    return None
+
+
+def _task_backlog_pressure_context(job: dict[str, Any]) -> dict[str, int] | None:
+    tasks = [task for task in _metadata_list(job, "task_queue") if isinstance(task, dict)]
+    if not tasks:
+        return None
+    runnable_statuses = {"active", "open", "waiting", "blocked"}
+    open_count = sum(1 for task in tasks if str(task.get("status") or "open").lower() in runnable_statuses)
+    total_count = len(tasks)
+    if total_count < TASK_QUEUE_TOTAL_SOFT_LIMIT and open_count < TASK_QUEUE_SATURATION_OPEN_TASKS:
+        return None
+    return {"total": total_count, "open": open_count}
+
+
+def _primary_execution_task(job: dict[str, Any]) -> dict[str, Any] | None:
+    tasks = [task for task in _metadata_list(job, "task_queue") if isinstance(task, dict)]
+    status_rank = {"active": 0, "open": 1, "waiting": 2, "blocked": 3}
+    runnable = [task for task in tasks if str(task.get("status") or "open").lower() in status_rank]
+    if not runnable:
+        return None
+    return sorted(
+        runnable,
+        key=lambda task: (
+            status_rank.get(str(task.get("status") or "open").lower(), 9),
+            -_as_int(task.get("priority")),
+            str(task.get("title") or ""),
+        ),
+    )[0]
 
 
 def _candidate_file_discovery_for_prompt(job: dict[str, Any], recent_steps: list[dict[str, Any]]) -> str:
@@ -932,11 +1081,11 @@ def _candidate_file_observation_score(path: str, recent_steps: list[dict[str, An
         return 0.0
     path_key = path.lower()
     score = 0.0
-    for step in _completed_recent_steps(recent_steps)[-window:]:
+    for step in _completed_or_failed_recent_steps(recent_steps)[-window:]:
         if step.get("tool_name") != "shell_exec":
             continue
         output = step.get("output") if isinstance(step.get("output"), dict) else {}
-        text = "\n".join(str(output.get(key) or "") for key in ("stdout", "stderr"))
+        text = "\n".join(str(output.get(key) or "") for key in ("stdout", "stderr", "error"))
         for line in text.splitlines():
             lowered = line.lower()
             if path_key not in lowered:
@@ -989,11 +1138,11 @@ def _candidate_file_paths_from_recent_shell(
 ) -> list[str]:
     paths: list[str] = []
     seen: set[str] = set()
-    for step in _completed_recent_steps(recent_steps)[-window:]:
+    for step in _completed_or_failed_recent_steps(recent_steps)[-window:]:
         if step.get("tool_name") != "shell_exec":
             continue
         output = step.get("output") if isinstance(step.get("output"), dict) else {}
-        text = "\n".join(str(output.get(key) or "") for key in ("stdout", "stderr"))
+        text = "\n".join(str(output.get(key) or "") for key in ("stdout", "stderr", "error"))
         for path in _extract_candidate_file_paths(text):
             key = path.lower()
             if key in seen:
@@ -6890,6 +7039,15 @@ def _suppressed_tool_names(job: dict[str, Any] | None, recent_steps: list[dict[s
         return set()
     suppressed: set[str] = set()
     if _repeated_task_queue_saturation_context(recent_steps):
+        suppressed.add("record_tasks")
+    elif (
+        (backlog := _task_backlog_pressure_context(job))
+        and _as_int(backlog.get("total")) > TASK_QUEUE_TOTAL_SOFT_LIMIT
+        and not _pending_measurement_obligation(job)
+        and not _pending_file_validation_obligation(job)
+        and not _auto_checkpoint_accounting_context(job, recent_steps)
+        and not _task_queue_exhausted(job)
+    ):
         suppressed.add("record_tasks")
     if not _has_acknowledgeable_operator_context(job):
         suppressed.add("acknowledge_operator_context")
