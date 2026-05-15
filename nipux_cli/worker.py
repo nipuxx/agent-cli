@@ -469,6 +469,19 @@ def _current_execution_focus_context(job: dict[str, Any], recent_steps: list[dic
         paths = candidate_files.get("paths") if isinstance(candidate_files.get("paths"), list) else []
         invalid_paths = set(str(path) for path in candidate_files.get("invalid_paths") or [])
         primary_path = next((str(path) for path in paths if str(path) not in invalid_paths), str(paths[0]) if paths else "")
+        validated = _candidate_file_recently_validated(primary_path, recent_steps)
+        if validated:
+            return {
+                "phase": "execute_with_validated_candidate",
+                "focus": f"Use the recently validated candidate path: {primary_path}",
+                "next": (
+                    "Run the next bounded action or measurement that uses this validated path; do not repeat "
+                    "existence checks unless a new command requires a different property."
+                ),
+                "evidence": validated,
+                "task": str(candidate_files.get("task_text") or ""),
+                "backlog": backlog,
+            }
         return {
             "phase": "execute_candidate_validation",
             "focus": f"Validate the highest-confidence candidate path: {primary_path}",
@@ -557,6 +570,13 @@ def _candidate_file_discovery_for_prompt(job: dict[str, Any], recent_steps: list
     ]
     for path in paths[:8]:
         lines.append(f"- {path}")
+    primary_path = str(paths[0]) if paths else ""
+    validation = _candidate_file_recently_validated(primary_path, recent_steps)
+    if validation:
+        lines.append(
+            "Highest-ranked candidate has recent positive validation evidence. "
+            f"Use it for the next action instead of repeating existence checks: {_clip_text(validation, 420)}"
+        )
     invalid_paths = context.get("invalid_paths") if isinstance(context.get("invalid_paths"), list) else []
     if invalid_paths:
         lines.append(
@@ -1097,6 +1117,27 @@ def _candidate_file_observation_score(path: str, recent_steps: list[dict[str, An
                 score -= 45.0
             score += _candidate_file_size_score_from_line(line)
     return score
+
+
+def _candidate_file_recently_validated(path: str, recent_steps: list[dict[str, Any]], *, window: int = 12) -> str:
+    if not path or _candidate_file_observation_score(path, recent_steps, window=window) < 30:
+        return ""
+    path_key = path.lower()
+    evidence_lines: list[str] = []
+    for step in _completed_or_failed_recent_steps(recent_steps)[-window:]:
+        if step.get("tool_name") != "shell_exec":
+            continue
+        output = step.get("output") if isinstance(step.get("output"), dict) else {}
+        text = "\n".join(str(output.get(key) or "") for key in ("stdout", "stderr", "error"))
+        for line in text.splitlines():
+            if path_key not in line.lower():
+                continue
+            if _shell_line_reports_missing_candidate(line):
+                continue
+            evidence_lines.append(" ".join(line.split()))
+            if len(evidence_lines) >= 3:
+                return " | ".join(evidence_lines)
+    return "recent shell evidence showed a non-trivial candidate file size or positive file metadata"
 
 
 def _candidate_file_size_score_from_line(line: str) -> float:
@@ -1688,6 +1729,14 @@ def _next_action_constraint(job: dict[str, Any], recent_steps: list[dict[str, An
     if candidate_files:
         paths = candidate_files.get("paths") if isinstance(candidate_files.get("paths"), list) else []
         path_text = "; ".join(str(path) for path in paths[:4])
+        primary_path = str(paths[0]) if paths else ""
+        validation = _candidate_file_recently_validated(primary_path, recent_steps)
+        if validation:
+            return (
+                "A highest-confidence candidate file path has recent positive validation evidence. "
+                "Use it in the next bounded action or measurement instead of repeating existence checks. "
+                f"Candidate path: {_clip_text(primary_path, 420)}. Evidence: {_clip_text(validation, 420)}."
+            )
         return (
             "Concrete candidate file paths are available while file/path-dependent work is open. "
             f"Validate likely candidates next with shell_exec before retrying downloads, searching for alternatives, "

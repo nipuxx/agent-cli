@@ -6515,7 +6515,8 @@ def test_prompt_deprioritizes_recent_stub_candidate_file_paths(tmp_path):
 
         idx = content.index("Next-action constraint:")
         next_constraint = content[idx: idx + 1400]
-        assert next_constraint.index("/srv/models/AlphaModel-IQ3.foo") < next_constraint.index("/tmp/models/AlphaModel-Q4.foo")
+        assert "/srv/models/AlphaModel-IQ3.foo" in next_constraint
+        assert "/tmp/models/AlphaModel-Q4.foo" not in next_constraint
         assert "Recently invalid or stub-like candidates" in content
         assert "/tmp/models/AlphaModel-Q4.foo" in content
     finally:
@@ -6564,12 +6565,56 @@ def test_prompt_isolates_current_execution_focus_for_candidate_validation(tmp_pa
         content = build_messages(db.get_job(job_id), db.list_steps(job_id=job_id))[-1]["content"]
 
         focus = content[content.index("Current execution focus:"): content.index("Pending measurement obligation:")]
-        assert "phase=execute_candidate_validation" in focus
-        assert "Validate the highest-confidence candidate path: /srv/models/AlphaModel-IQ3.foo" in focus
+        assert "phase=execute_with_validated_candidate" in focus
+        assert "Use the recently validated candidate path: /srv/models/AlphaModel-IQ3.foo" in focus
         assert "backlog=83 tasks" in focus
         assert "Treat it as advisory" in focus
         next_constraint = content[content.index("Next-action constraint:"):]
-        assert next_constraint.index("/srv/models/AlphaModel-IQ3.foo") < next_constraint.index("/tmp/models/AlphaModel-Q4.foo")
+        assert "/srv/models/AlphaModel-IQ3.foo" in next_constraint
+        assert "/tmp/models/AlphaModel-Q4.foo" not in next_constraint
+    finally:
+        db.close()
+
+
+def test_prompt_moves_from_candidate_validation_to_candidate_use_after_positive_evidence(tmp_path):
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Benchmark AlphaModel throughput", title="alpha benchmark", kind="generic")
+        db.update_job_metadata(
+            job_id,
+            {
+                "task_queue": [
+                    {
+                        "title": "Run benchmark with validated AlphaModel file",
+                        "status": "active",
+                        "priority": 100,
+                        "contract": "experiment",
+                        "acceptance_criteria": "Benchmark command uses a validated file path.",
+                        "evidence_needed": "Shell output showing file size and benchmark result.",
+                    }
+                ]
+            },
+        )
+        run_id = db.start_run(job_id, model="test")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec")
+        db.finish_step(
+            step_id,
+            status="completed",
+            output_data={
+                "success": True,
+                "stdout": "-rw-r--r-- 1 user user 12G May 15 10:01 /srv/models/AlphaModel-IQ3.foo\n",
+            },
+        )
+        db.finish_run(run_id, "completed")
+
+        content = build_messages(db.get_job(job_id), db.list_steps(job_id=job_id))[-1]["content"]
+
+        focus = content[content.index("Current execution focus:"): content.index("Pending measurement obligation:")]
+        assert "phase=execute_with_validated_candidate" in focus
+        assert "Use the recently validated candidate path: /srv/models/AlphaModel-IQ3.foo" in focus
+        next_constraint = content[content.index("Next-action constraint:"):]
+        assert "Use it in the next bounded action or measurement" in next_constraint
+        assert "repeating existence checks" in next_constraint
     finally:
         db.close()
 
