@@ -564,7 +564,7 @@ def _record_source(args: dict[str, Any], ctx: ToolContext) -> str:
             "success": False,
             "error": "source assessment is required",
             "guidance": (
-                "record_source must say why the source matters: include source_type, usefulness_score, "
+                "record_source must say why the source matters: include usefulness_score, "
                 "yield_count, fail_count_delta, warnings, outcome, or evidence metadata."
             ),
         })
@@ -593,8 +593,7 @@ def _source_has_assessment(
     metadata: dict[str, Any],
 ) -> bool:
     return bool(
-        source_type.strip()
-        or usefulness_score is not None
+        usefulness_score is not None
         or yield_count
         or fail_count_delta
         or warnings
