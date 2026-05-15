@@ -6558,7 +6558,7 @@ def _execute_tool_call(
         raw_result = registry.handle(call.name, args, ctx)
         result = _parse_tool_result(raw_result)
         ok = bool(result.get("success", True)) and not result.get("error")
-        status = "completed" if ok else "failed"
+        status = "completed" if ok else "blocked" if result.get("recoverable") is True else "failed"
         if ok:
             _auto_record_tool_source_quality(db=db, job_id=job_id, tool_name=call.name, result=result)
         elif call.name == "shell_exec":
@@ -6663,14 +6663,14 @@ def _execute_tool_call(
         )
 
 
-def _is_recoverable_argument_block(execution: StepExecution) -> bool:
+def _is_continuable_recoverable_input_block(execution: StepExecution) -> bool:
     result = execution.result if isinstance(execution.result, dict) else {}
-    return (
-        execution.status == "blocked"
-        and result.get("recoverable") is True
-        and result.get("error") in {"missing required tool arguments", "placeholder tool arguments"}
-        and bool(result.get("missing_arguments") or result.get("placeholder_arguments"))
-    )
+    error = str(result.get("error") or "")
+    if execution.status != "blocked" or result.get("recoverable") is not True:
+        return False
+    if error in {"missing required tool arguments", "placeholder tool arguments"}:
+        return bool(result.get("missing_arguments") or result.get("placeholder_arguments"))
+    return error.startswith("artifact not found:")
 
 
 def _ordered_tool_calls_for_execution(
@@ -7028,8 +7028,8 @@ def run_one_step(
                 if error:
                     run_error = error
                 if stop_batch:
-                    if index < len(ordered_tool_calls) - 1 and _is_recoverable_argument_block(execution):
-                        details.append(f"continued after malformed {call.name} arguments")
+                    if index < len(ordered_tool_calls) - 1 and _is_continuable_recoverable_input_block(execution):
+                        details.append(f"continued after recoverable {call.name} input block")
                         continue
                     break
 

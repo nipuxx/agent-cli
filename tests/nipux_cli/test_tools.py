@@ -146,6 +146,7 @@ def test_read_artifact_missing_ref_returns_valid_recent_refs(tmp_path):
         result = json.loads(raw)
 
         assert result["success"] is False
+        assert result["recoverable"] is True
         assert result["error"] == "artifact not found: art_missing"
         assert "search_artifacts" in result["guidance"]
         assert result["recent_artifacts"][0]["id"] == stored.id

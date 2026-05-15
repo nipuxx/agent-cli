@@ -193,6 +193,7 @@ def _read_artifact(args: dict[str, Any], ctx: ToolContext) -> str:
         recent = _recent_artifact_refs(ctx)
         return _json({
             "success": False,
+            "recoverable": True,
             "error": f"artifact not found: {artifact_ref}",
             "guidance": (
                 "The requested artifact reference does not exist. Use one of the recent_artifacts refs, "
