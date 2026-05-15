@@ -7027,6 +7027,53 @@ def test_run_one_step_reads_checkpoint_before_batched_branch_work(tmp_path):
         db.close()
 
 
+def test_run_one_step_allows_checkpoint_read_when_deliverable_guard_is_active(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Write a report from long research", title="report checkpoint", kind="generic")
+        run_id = db.start_run(job_id, model="test")
+        for index in range(18):
+            step_id = db.add_step(
+                job_id=job_id,
+                run_id=run_id,
+                kind="tool",
+                tool_name="shell_exec",
+                input_data={"arguments": {"command": f"ls item-{index}"}},
+            )
+            db.finish_step(step_id, status="completed", output_data={"success": True, "stdout": "evidence"})
+        db.finish_run(run_id, "completed")
+        db.update_job_metadata(
+            job_id,
+            {
+                "pending_evidence_checkpoint": {
+                    "artifact_id": "art_checkpoint",
+                    "title": "Auto Evidence Checkpoint after step 18",
+                    "evidence_step_no": 18,
+                    "blocked_tool": "shell_exec",
+                }
+            },
+        )
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[ToolCall(name="read_artifact", arguments={"artifact_id": "art_checkpoint"})])
+            ]),
+            registry=SuccessRegistry(),
+        )
+
+        assert result.status == "completed"
+        assert result.tool_name == "read_artifact"
+        pending = db.get_job(job_id)["metadata"]["pending_evidence_checkpoint"]
+        assert pending["read_at"]
+        assert pending["read_step_no"] == 19
+    finally:
+        db.close()
+
+
 def test_run_one_step_accounts_checkpoint_before_batched_branch_work(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

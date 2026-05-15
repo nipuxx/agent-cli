@@ -4720,6 +4720,16 @@ def _blocked_tool_call_result(
         return result, "blocked record_milestone_validation; current milestone validation required"
 
     auto_checkpoint_accounting = _auto_checkpoint_accounting_context(job, recent_steps)
+    checkpoint_read_call = bool(
+        auto_checkpoint_accounting
+        and name == "read_artifact"
+        and not auto_checkpoint_accounting.get("checkpoint_read")
+        and _read_artifact_call_matches_checkpoint(
+            args,
+            artifact_id=str(auto_checkpoint_accounting.get("artifact_id") or ""),
+            artifact_title=str(auto_checkpoint_accounting.get("title") or ""),
+        )
+    )
     if _evidence_checkpoint_blocks_tool(name, args, auto_checkpoint_accounting):
         checkpoint_already_read = bool(auto_checkpoint_accounting and auto_checkpoint_accounting.get("checkpoint_read"))
         result = {
@@ -4823,6 +4833,9 @@ def _blocked_tool_call_result(
             "guidance": guidance,
         }
         return result, f"blocked duplicate {name}; previous step #{duplicate_step['step_no']}"
+
+    if checkpoint_read_call:
+        return None
 
     browser_runtime_unavailable = _browser_runtime_unavailable_context(recent_steps)
     if browser_runtime_unavailable and _is_browser_tool(name):
