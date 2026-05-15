@@ -1146,6 +1146,22 @@ class AgentDB:
             if existing is None:
                 lessons.append(entry)
                 current = entry
+                current["created"] = True
+                current["substantive_update"] = True
+                event = _insert_event(
+                    conn,
+                    job_id=job_id,
+                    event_type="lesson",
+                    title=current.get("category") or "memory",
+                    body=current.get("lesson") or text,
+                    metadata={
+                        "confidence": current.get("confidence"),
+                        "seen_count": current.get("seen_count"),
+                        **(current.get("metadata") if isinstance(current.get("metadata"), dict) else {}),
+                    },
+                    created_at=now,
+                )
+                current["event_id"] = event["id"]
             else:
                 existing["last_seen"] = now
                 existing["seen_count"] = int(existing.get("seen_count") or 1) + 1
@@ -1157,20 +1173,8 @@ class AgentDB:
                     existing["metadata"] = merged
                 existing["key"] = entry["key"]
                 current = existing
-            event = _insert_event(
-                conn,
-                job_id=job_id,
-                event_type="lesson",
-                title=current.get("category") or "memory",
-                body=current.get("lesson") or text,
-                metadata={
-                    "confidence": current.get("confidence"),
-                    "seen_count": current.get("seen_count"),
-                    **(current.get("metadata") if isinstance(current.get("metadata"), dict) else {}),
-                },
-                created_at=now,
-            )
-            current["event_id"] = event["id"]
+                current["created"] = False
+                current["substantive_update"] = False
             job_metadata["lessons"] = lessons[-200:]
             job_metadata["last_lesson"] = current
             conn.execute(

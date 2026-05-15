@@ -277,6 +277,10 @@ def test_append_lesson_dedupes_repeated_memory(tmp_path):
         assert len(job["metadata"]["lessons"]) == 1
         assert job["metadata"]["lessons"][0]["seen_count"] == 2
         assert job["metadata"]["lessons"][0]["metadata"]["step"] == 2
+        assert first["created"] is True
+        assert second["created"] is False
+        assert second["substantive_update"] is False
+        assert len(db.list_events(job_id=job_id, event_types=["lesson"])) == 1
     finally:
         db.close()
 
