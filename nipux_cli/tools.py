@@ -776,7 +776,14 @@ def _task_contract_completion_has_evidence(ctx: ToolContext, *, contract: str, m
     for step in reversed(ctx.db.list_steps(job_id=ctx.job_id, limit=12)):
         if step.get("id") == ctx.step_id or step.get("status") != "completed":
             continue
-        if str(step.get("tool_name") or "") in tools:
+        tool_name = str(step.get("tool_name") or "")
+        if contract == "action" and tool_name == "shell_exec":
+            input_data = step.get("input") if isinstance(step.get("input"), dict) else {}
+            args = input_data.get("arguments") if isinstance(input_data.get("arguments"), dict) else {}
+            if _shell_command_counts_as_action_evidence(str(args.get("command") or "")):
+                return True
+            continue
+        if tool_name in tools:
             return True
     return False
 
@@ -842,6 +849,29 @@ def _shell_command_looks_like_write(command: str) -> bool:
         r"\bsed\s+-i\b",
     ]
     return any(re.search(pattern, text, flags=re.IGNORECASE | re.DOTALL) for pattern in write_patterns)
+
+
+def _shell_command_counts_as_action_evidence(command: str) -> bool:
+    text = command.strip()
+    if not text:
+        return False
+    if _shell_command_looks_like_write(text):
+        return True
+    read_only = re.compile(
+        r"(?is)^\s*(?:"
+        r"awk\b|cat\b|df\b|du\b|echo\b|find\b|git\s+(?:diff|grep|log|ls-files|show|status)\b|"
+        r"grep\b|head\b|ls\b|pwd\b|rg\b|sed\s+-n\b|stat\b|tail\b|tree\b|wc\b"
+        r")"
+    )
+    if read_only.search(text):
+        return False
+    if re.match(r"(?is)^curl\b", text):
+        mutating_flags = (
+            r"\b-X\s*(?:POST|PUT|PATCH|DELETE)\b|--request\s+(?:POST|PUT|PATCH|DELETE)\b|"
+            r"(?:^|\s)(?:-d|--data|--form|-F|-T|--upload-file)\b"
+        )
+        return bool(re.search(mutating_flags, text))
+    return True
 
 
 def _record_roadmap(args: dict[str, Any], ctx: ToolContext) -> str:

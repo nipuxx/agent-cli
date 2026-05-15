@@ -1377,6 +1377,144 @@ def test_record_tasks_allows_done_experiment_after_measurement_evidence(tmp_path
         db.close()
 
 
+def test_record_tasks_downgrades_done_action_after_read_only_shell(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Change a local workspace")
+        run_id = db.start_run(job_id, model="fake")
+        shell_step = db.add_step(
+            job_id=job_id,
+            run_id=run_id,
+            kind="tool",
+            tool_name="shell_exec",
+            input_data={"arguments": {"command": "ls -la"}},
+        )
+        db.finish_step(shell_step, status="completed", summary="shell_exec rc=0")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="record_tasks")
+        ctx = ToolContext(config=config, db=db, artifacts=ArtifactStore(tmp_path, db), job_id=job_id, run_id=run_id, step_id=step_id)
+
+        raw = DEFAULT_REGISTRY.handle(
+            "record_tasks",
+            {
+                "tasks": [{
+                    "title": "Apply change",
+                    "status": "done",
+                    "output_contract": "action",
+                    "result": "Inspected the workspace.",
+                }]
+            },
+            ctx,
+        )
+        task = db.get_job(job_id)["metadata"]["task_queue"][0]
+
+        assert json.loads(raw)["success"] is True
+        assert task["status"] == "active"
+        assert task["metadata"]["completion_validation"] == "missing_action_evidence"
+    finally:
+        db.close()
+
+
+def test_record_tasks_allows_done_action_after_action_shell(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Change a local workspace")
+        run_id = db.start_run(job_id, model="fake")
+        shell_step = db.add_step(
+            job_id=job_id,
+            run_id=run_id,
+            kind="tool",
+            tool_name="shell_exec",
+            input_data={"arguments": {"command": "python run_branch.py"}},
+        )
+        db.finish_step(shell_step, status="completed", summary="shell_exec rc=0")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="record_tasks")
+        ctx = ToolContext(config=config, db=db, artifacts=ArtifactStore(tmp_path, db), job_id=job_id, run_id=run_id, step_id=step_id)
+
+        raw = DEFAULT_REGISTRY.handle(
+            "record_tasks",
+            {
+                "tasks": [{
+                    "title": "Apply change",
+                    "status": "done",
+                    "output_contract": "action",
+                    "result": "Ran the action branch.",
+                }]
+            },
+            ctx,
+        )
+        task = db.get_job(job_id)["metadata"]["task_queue"][0]
+
+        assert json.loads(raw)["success"] is True
+        assert task["status"] == "done"
+        assert "completion_validation" not in task.get("metadata", {})
+    finally:
+        db.close()
+
+
+def test_record_tasks_downgrades_done_monitor_without_defer_evidence(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Monitor long-running work")
+        run_id = db.start_run(job_id, model="fake")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="record_tasks")
+        ctx = ToolContext(config=config, db=db, artifacts=ArtifactStore(tmp_path, db), job_id=job_id, run_id=run_id, step_id=step_id)
+
+        raw = DEFAULT_REGISTRY.handle(
+            "record_tasks",
+            {
+                "tasks": [{
+                    "title": "Wait and check later",
+                    "status": "done",
+                    "output_contract": "monitor",
+                    "result": "Will check later.",
+                }]
+            },
+            ctx,
+        )
+        task = db.get_job(job_id)["metadata"]["task_queue"][0]
+
+        assert json.loads(raw)["success"] is True
+        assert task["status"] == "active"
+        assert task["metadata"]["completion_validation"] == "missing_monitor_evidence"
+    finally:
+        db.close()
+
+
+def test_record_tasks_allows_done_monitor_after_defer_evidence(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Monitor long-running work")
+        run_id = db.start_run(job_id, model="fake")
+        defer_step = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="defer_job")
+        db.finish_step(defer_step, status="completed", summary="deferred")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="record_tasks")
+        ctx = ToolContext(config=config, db=db, artifacts=ArtifactStore(tmp_path, db), job_id=job_id, run_id=run_id, step_id=step_id)
+
+        raw = DEFAULT_REGISTRY.handle(
+            "record_tasks",
+            {
+                "tasks": [{
+                    "title": "Wait and check later",
+                    "status": "done",
+                    "output_contract": "monitor",
+                    "result": "A monitor/defer branch is scheduled.",
+                }]
+            },
+            ctx,
+        )
+        task = db.get_job(job_id)["metadata"]["task_queue"][0]
+
+        assert json.loads(raw)["success"] is True
+        assert task["status"] == "done"
+        assert "completion_validation" not in task.get("metadata", {})
+    finally:
+        db.close()
+
+
 def test_record_tasks_allows_done_artifact_after_delivery_evidence(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")
