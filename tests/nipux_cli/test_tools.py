@@ -934,6 +934,93 @@ def test_record_milestone_validation_creates_follow_up_tasks(tmp_path):
         db.close()
 
 
+def test_record_milestone_validation_requires_evidence_for_passed_status(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Validate broad work")
+        run_id = db.start_run(job_id, model="fake")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="record_milestone_validation")
+        ctx = ToolContext(config=config, db=db, artifacts=ArtifactStore(tmp_path, db), job_id=job_id, run_id=run_id, step_id=step_id)
+
+        raw = DEFAULT_REGISTRY.handle(
+            "record_milestone_validation",
+            {
+                "milestone": "Foundation",
+                "validation_status": "passed",
+            },
+            ctx,
+        )
+        result = json.loads(raw)
+
+        assert result["success"] is False
+        assert result["error"] == "passed milestone validation requires evidence or result"
+        assert db.get_job(job_id)["metadata"].get("roadmap") is None
+    finally:
+        db.close()
+
+
+def test_record_milestone_validation_allows_passed_status_with_metadata_evidence(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Validate broad work")
+        run_id = db.start_run(job_id, model="fake")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="record_milestone_validation")
+        ctx = ToolContext(config=config, db=db, artifacts=ArtifactStore(tmp_path, db), job_id=job_id, run_id=run_id, step_id=step_id)
+
+        raw = DEFAULT_REGISTRY.handle(
+            "record_milestone_validation",
+            {
+                "milestone": "Foundation",
+                "validation_status": "passed",
+                "metadata": {"artifact_id": "art_123"},
+            },
+            ctx,
+        )
+        result = json.loads(raw)
+
+        assert result["success"] is True
+        assert result["validation"]["validation_status"] == "passed"
+    finally:
+        db.close()
+
+
+def test_record_milestone_validation_requires_gap_for_failed_or_blocked_status(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Validate broad work")
+        run_id = db.start_run(job_id, model="fake")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="record_milestone_validation")
+        ctx = ToolContext(config=config, db=db, artifacts=ArtifactStore(tmp_path, db), job_id=job_id, run_id=run_id, step_id=step_id)
+
+        failed = json.loads(DEFAULT_REGISTRY.handle(
+            "record_milestone_validation",
+            {
+                "milestone": "Foundation",
+                "validation_status": "failed",
+            },
+            ctx,
+        ))
+        blocked = json.loads(DEFAULT_REGISTRY.handle(
+            "record_milestone_validation",
+            {
+                "milestone": "Foundation",
+                "validation_status": "blocked",
+            },
+            ctx,
+        ))
+
+        assert failed["success"] is False
+        assert failed["error"] == "failed milestone validation requires a gap, issue, evidence, next_action, or follow-up task"
+        assert blocked["success"] is False
+        assert blocked["error"] == "blocked milestone validation requires a gap, issue, evidence, next_action, or follow-up task"
+        assert db.get_job(job_id)["metadata"].get("roadmap") is None
+    finally:
+        db.close()
+
+
 def test_record_experiment_tool_tracks_best_measured_result(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

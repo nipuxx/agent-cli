@@ -914,17 +914,44 @@ def _record_milestone_validation(args: dict[str, Any], ctx: ToolContext) -> str:
         return _json({"success": False, "error": "milestone is required"})
     raw_issues = args.get("issues")
     issues = [str(item) for item in raw_issues if str(item).strip()] if isinstance(raw_issues, list) else []
+    follow_up_items = args.get("follow_up_tasks") if isinstance(args.get("follow_up_tasks"), list) else []
+    validation_status = str(args.get("validation_status") or args.get("status") or "pending").strip().lower().replace(" ", "_")
+    if validation_status not in {"pending", "passed", "failed", "blocked"}:
+        validation_status = "pending"
+    result_text = str(args.get("result") or args.get("summary") or "").strip()
+    evidence_text = str(args.get("evidence") or args.get("evidence_artifact") or "").strip()
+    next_action = str(args.get("next_action") or "").strip()
+    metadata = args.get("metadata") if isinstance(args.get("metadata"), dict) else {}
+    if validation_status == "passed" and not _validation_has_positive_evidence(result_text, evidence_text, metadata):
+        return _json({
+            "success": False,
+            "error": "passed milestone validation requires evidence or result",
+            "guidance": (
+                "Use validation_status=passed only after concrete evidence or a validation result proves the milestone. "
+                "Use pending, failed, or blocked when validation is incomplete or missing evidence."
+            ),
+        })
+    if validation_status in {"failed", "blocked"} and not (
+        result_text or evidence_text or issues or follow_up_items or next_action
+    ):
+        return _json({
+            "success": False,
+            "error": f"{validation_status} milestone validation requires a gap, issue, evidence, next_action, or follow-up task",
+            "guidance": (
+                "Failed or blocked validation must say what is missing or what should happen next, "
+                "so the worker can continue from a concrete gap instead of logging a vague checkpoint."
+            ),
+        })
     validation = ctx.db.append_milestone_validation_record(
         ctx.job_id,
         milestone=milestone,
-        validation_status=str(args.get("validation_status") or args.get("status") or "pending"),
-        result=str(args.get("result") or args.get("summary") or ""),
-        evidence=str(args.get("evidence") or args.get("evidence_artifact") or ""),
+        validation_status=validation_status,
+        result=result_text,
+        evidence=evidence_text,
         issues=issues,
-        next_action=str(args.get("next_action") or ""),
-        metadata=args.get("metadata") if isinstance(args.get("metadata"), dict) else {},
+        next_action=next_action,
+        metadata=metadata,
     )
-    follow_up_items = args.get("follow_up_tasks") if isinstance(args.get("follow_up_tasks"), list) else []
     follow_up_tasks = []
     for task in follow_up_items[:25]:
         if not isinstance(task, dict):
@@ -974,6 +1001,22 @@ def _record_milestone_validation(args: dict[str, Any], ctx: ToolContext) -> str:
         "validation": validation,
         "follow_up_tasks": follow_up_tasks,
     })
+
+
+def _validation_has_positive_evidence(result: str, evidence: str, metadata: dict[str, Any]) -> bool:
+    if result.strip() or evidence.strip():
+        return True
+    evidence_keys = {
+        "artifact_id",
+        "evidence_artifact",
+        "experiment_key",
+        "file_path",
+        "output_path",
+        "source_url",
+        "finding_key",
+        "validation_event_id",
+    }
+    return any(str(metadata.get(key) or "").strip() for key in evidence_keys)
 
 
 def _record_experiment(args: dict[str, Any], ctx: ToolContext) -> str:
