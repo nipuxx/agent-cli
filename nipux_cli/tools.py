@@ -735,22 +735,53 @@ def _validated_task_status(
 ) -> tuple[str, dict[str, Any]]:
     normalized_status = status.strip().lower().replace(" ", "_") or "open"
     contract = output_contract.strip().lower().replace(" ", "_")
-    if normalized_status == "done" and not result.strip() and not _task_metadata_has_completion_evidence(metadata):
+    if normalized_status == "done" and not result.strip() and not _task_metadata_has_completion_evidence(metadata, contract=contract):
         updated = dict(metadata)
         updated["completion_validation"] = "missing_result_evidence"
         return "active", updated
-    if normalized_status != "done" or contract not in {"artifact", "report"}:
+    if normalized_status != "done":
         return status, metadata
-    if _recent_deliverable_evidence(ctx):
+    if contract in {"artifact", "report"}:
+        if _recent_deliverable_evidence(ctx):
+            return status, metadata
+        updated = dict(metadata)
+        updated["completion_validation"] = "missing_recent_deliverable_evidence"
+        if result:
+            updated["claimed_result"] = result
+        return "active", updated
+    if _task_contract_completion_has_evidence(ctx, contract=contract, metadata=metadata):
         return status, metadata
     updated = dict(metadata)
-    updated["completion_validation"] = "missing_recent_deliverable_evidence"
+    updated["completion_validation"] = f"missing_{contract}_evidence" if contract else "missing_contract_evidence"
     if result:
         updated["claimed_result"] = result
     return "active", updated
 
 
-def _task_metadata_has_completion_evidence(metadata: dict[str, Any]) -> bool:
+def _task_contract_completion_has_evidence(ctx: ToolContext, *, contract: str, metadata: dict[str, Any]) -> bool:
+    if not contract or contract == "decision":
+        return True
+    if _task_metadata_has_completion_evidence(metadata, contract=contract):
+        return True
+    recent_evidence_tools = {
+        "research": {"record_source", "record_findings"},
+        "experiment": {"record_experiment"},
+        "action": {"shell_exec", "write_file", "write_artifact"},
+        "monitor": {"defer_job"},
+        "validation": {"record_milestone_validation", "shell_exec"},
+    }
+    tools = recent_evidence_tools.get(contract)
+    if not tools:
+        return True
+    for step in reversed(ctx.db.list_steps(job_id=ctx.job_id, limit=12)):
+        if step.get("id") == ctx.step_id or step.get("status") != "completed":
+            continue
+        if str(step.get("tool_name") or "") in tools:
+            return True
+    return False
+
+
+def _task_metadata_has_completion_evidence(metadata: dict[str, Any], *, contract: str = "") -> bool:
     evidence_keys = {
         "artifact_id",
         "evidence_artifact",
@@ -759,6 +790,14 @@ def _task_metadata_has_completion_evidence(metadata: dict[str, Any]) -> bool:
         "output_path",
         "validation_event_id",
     }
+    if contract == "research":
+        evidence_keys.update({"finding_key", "source_key", "source_url", "finding_id", "source_id"})
+    elif contract == "experiment":
+        evidence_keys.update({"metric_name", "metric_value", "measurement_id"})
+    elif contract == "action":
+        evidence_keys.update({"step_id", "command", "action_id"})
+    elif contract == "monitor":
+        evidence_keys.update({"defer_until", "monitor_id", "check_at"})
     return any(str(metadata.get(key) or "").strip() for key in evidence_keys)
 
 

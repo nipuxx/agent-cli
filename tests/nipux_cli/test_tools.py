@@ -1220,6 +1220,163 @@ def test_record_tasks_downgrades_done_without_result_evidence(tmp_path):
         db.close()
 
 
+def test_record_tasks_downgrades_done_research_without_durable_evidence(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Research a topic")
+        run_id = db.start_run(job_id, model="fake")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="record_tasks")
+        ctx = ToolContext(config=config, db=db, artifacts=ArtifactStore(tmp_path, db), job_id=job_id, run_id=run_id, step_id=step_id)
+
+        raw = DEFAULT_REGISTRY.handle(
+            "record_tasks",
+            {
+                "tasks": [{
+                    "title": "Synthesize source evidence",
+                    "status": "done",
+                    "output_contract": "research",
+                    "result": "Found useful background.",
+                }]
+            },
+            ctx,
+        )
+        result = json.loads(raw)
+        task = db.get_job(job_id)["metadata"]["task_queue"][0]
+
+        assert result["success"] is True
+        assert task["status"] == "active"
+        assert task["metadata"]["completion_validation"] == "missing_research_evidence"
+        assert task["metadata"]["claimed_result"] == "Found useful background."
+    finally:
+        db.close()
+
+
+def test_record_tasks_allows_done_research_after_source_evidence(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Research a topic")
+        run_id = db.start_run(job_id, model="fake")
+        source_step = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="record_source")
+        db.finish_step(source_step, status="completed", summary="source recorded", output_data={"success": True})
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="record_tasks")
+        ctx = ToolContext(config=config, db=db, artifacts=ArtifactStore(tmp_path, db), job_id=job_id, run_id=run_id, step_id=step_id)
+
+        raw = DEFAULT_REGISTRY.handle(
+            "record_tasks",
+            {
+                "tasks": [{
+                    "title": "Synthesize source evidence",
+                    "status": "done",
+                    "output_contract": "research",
+                    "result": "Source ledger records the useful branch.",
+                }]
+            },
+            ctx,
+        )
+        result = json.loads(raw)
+        task = db.get_job(job_id)["metadata"]["task_queue"][0]
+
+        assert result["success"] is True
+        assert task["status"] == "done"
+        assert "completion_validation" not in task.get("metadata", {})
+    finally:
+        db.close()
+
+
+def test_record_tasks_allows_done_research_with_metadata_evidence(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Research a topic")
+        run_id = db.start_run(job_id, model="fake")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="record_tasks")
+        ctx = ToolContext(config=config, db=db, artifacts=ArtifactStore(tmp_path, db), job_id=job_id, run_id=run_id, step_id=step_id)
+
+        raw = DEFAULT_REGISTRY.handle(
+            "record_tasks",
+            {
+                "tasks": [{
+                    "title": "Synthesize source evidence",
+                    "status": "done",
+                    "output_contract": "research",
+                    "metadata": {"source_url": "https://example.com/source"},
+                }]
+            },
+            ctx,
+        )
+        task = db.get_job(job_id)["metadata"]["task_queue"][0]
+
+        assert json.loads(raw)["success"] is True
+        assert task["status"] == "done"
+        assert "completion_validation" not in task.get("metadata", {})
+    finally:
+        db.close()
+
+
+def test_record_tasks_downgrades_done_experiment_without_measurement_evidence(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Improve a measurable process")
+        run_id = db.start_run(job_id, model="fake")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="record_tasks")
+        ctx = ToolContext(config=config, db=db, artifacts=ArtifactStore(tmp_path, db), job_id=job_id, run_id=run_id, step_id=step_id)
+
+        raw = DEFAULT_REGISTRY.handle(
+            "record_tasks",
+            {
+                "tasks": [{
+                    "title": "Run comparison",
+                    "status": "done",
+                    "output_contract": "experiment",
+                    "result": "The comparison improved.",
+                }]
+            },
+            ctx,
+        )
+        task = db.get_job(job_id)["metadata"]["task_queue"][0]
+
+        assert json.loads(raw)["success"] is True
+        assert task["status"] == "active"
+        assert task["metadata"]["completion_validation"] == "missing_experiment_evidence"
+    finally:
+        db.close()
+
+
+def test_record_tasks_allows_done_experiment_after_measurement_evidence(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Improve a measurable process")
+        run_id = db.start_run(job_id, model="fake")
+        experiment_step = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="record_experiment")
+        db.finish_step(experiment_step, status="completed", summary="experiment measured", output_data={"success": True})
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="record_tasks")
+        ctx = ToolContext(config=config, db=db, artifacts=ArtifactStore(tmp_path, db), job_id=job_id, run_id=run_id, step_id=step_id)
+
+        raw = DEFAULT_REGISTRY.handle(
+            "record_tasks",
+            {
+                "tasks": [{
+                    "title": "Run comparison",
+                    "status": "done",
+                    "output_contract": "experiment",
+                    "result": "Experiment ledger records the measured comparison.",
+                }]
+            },
+            ctx,
+        )
+        task = db.get_job(job_id)["metadata"]["task_queue"][0]
+
+        assert json.loads(raw)["success"] is True
+        assert task["status"] == "done"
+        assert "completion_validation" not in task.get("metadata", {})
+    finally:
+        db.close()
+
+
 def test_record_tasks_allows_done_artifact_after_delivery_evidence(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")
