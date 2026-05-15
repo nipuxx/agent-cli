@@ -6416,6 +6416,51 @@ def test_prompt_prioritizes_validation_for_recent_candidate_file_paths(tmp_path)
         db.close()
 
 
+def test_prompt_deprioritizes_recent_stub_candidate_file_paths(tmp_path):
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Benchmark AlphaModel throughput", title="alpha benchmark", kind="generic")
+        db.update_job_metadata(
+            job_id,
+            {
+                "task_queue": [
+                    {
+                        "title": "Validate candidate model file before benchmark",
+                        "status": "open",
+                        "contract": "experiment",
+                        "acceptance_criteria": "Benchmark uses a validated model file.",
+                        "evidence_needed": "Shell output showing file size and parser/header status.",
+                    }
+                ]
+            },
+        )
+        run_id = db.start_run(job_id, model="test")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec")
+        db.finish_step(
+            step_id,
+            status="completed",
+            output_data={
+                "success": True,
+                "stdout": (
+                    "-rw-r--r-- 1 user user 29 May 15 10:00 /tmp/models/AlphaModel-Q4.foo\n"
+                    "/tmp/models/AlphaModel-Q4.foo: ASCII text, with no line terminators\n"
+                    "-rw-r--r-- 1 user user 12G May 15 10:01 /srv/models/AlphaModel-IQ3.foo\n"
+                ),
+            },
+        )
+        db.finish_run(run_id, "completed")
+
+        content = build_messages(db.get_job(job_id), db.list_steps(job_id=job_id))[-1]["content"]
+
+        idx = content.index("Next-action constraint:")
+        next_constraint = content[idx: idx + 1400]
+        assert next_constraint.index("/srv/models/AlphaModel-IQ3.foo") < next_constraint.index("/tmp/models/AlphaModel-Q4.foo")
+        assert "Recently invalid or stub-like candidates" in content
+        assert "/tmp/models/AlphaModel-Q4.foo" in content
+    finally:
+        db.close()
+
+
 def test_prompt_ranks_context_matching_candidate_paths_before_auxiliary_files(tmp_path):
     db = AgentDB(tmp_path / "state.db")
     try:

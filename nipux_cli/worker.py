@@ -407,6 +407,13 @@ def _candidate_file_discovery_for_prompt(job: dict[str, Any], recent_steps: list
     ]
     for path in paths[:8]:
         lines.append(f"- {path}")
+    invalid_paths = context.get("invalid_paths") if isinstance(context.get("invalid_paths"), list) else []
+    if invalid_paths:
+        lines.append(
+            "Recently invalid or stub-like candidates: "
+            + "; ".join(str(path) for path in invalid_paths[:5])
+            + ". Prefer higher-confidence candidates before retrying these."
+        )
     lines.append(
         "Validate likely candidates with shell_exec before recording a no-file/no-progress claim or searching for alternatives. "
         "Do not reject a non-empty candidate binary from `file` output alone; corroborate with header/signature bytes, "
@@ -811,7 +818,8 @@ def _candidate_file_discovery_context(job: dict[str, Any], recent_steps: list[di
     elif durable_paths and not recent_paths:
         source_text = "Durable records mention candidate file paths"
     return {
-        "paths": _rank_candidate_file_paths(job, task_text, paths),
+        "paths": _rank_candidate_file_paths(job, task_text, paths, recent_steps=recent_steps),
+        "invalid_paths": _invalid_candidate_file_paths(paths, recent_steps),
         "source_text": source_text,
         "task_text": task_text,
     }
@@ -828,10 +836,25 @@ def _shell_exec_targets_candidate_file(job: dict[str, Any], recent_steps: list[d
     return any(path and path in command_text for path in context.get("paths", [])[:12])
 
 
-def _rank_candidate_file_paths(job: dict[str, Any], task_text: str, paths: list[str]) -> list[str]:
+def _rank_candidate_file_paths(
+    job: dict[str, Any],
+    task_text: str,
+    paths: list[str],
+    *,
+    recent_steps: list[dict[str, Any]] | None = None,
+) -> list[str]:
     context_tokens = _candidate_context_tokens(job, task_text)
     indexed = list(enumerate(paths))
-    ranked = sorted(indexed, key=lambda item: _candidate_file_path_score(item[1], context_tokens, item[0]), reverse=True)
+    ranked = sorted(
+        indexed,
+        key=lambda item: _candidate_file_path_score(
+            item[1],
+            context_tokens,
+            item[0],
+            recent_steps=recent_steps,
+        ),
+        reverse=True,
+    )
     return [path for _, path in ranked]
 
 
@@ -849,7 +872,13 @@ def _candidate_context_tokens(job: dict[str, Any], task_text: str) -> set[str]:
     return tokens
 
 
-def _candidate_file_path_score(path: str, context_tokens: set[str], original_index: int) -> float:
+def _candidate_file_path_score(
+    path: str,
+    context_tokens: set[str],
+    original_index: int,
+    *,
+    recent_steps: list[dict[str, Any]] | None = None,
+) -> float:
     lowered_path = path.lower()
     name = Path(path).name.lower()
     stem = Path(name).stem.lower()
@@ -885,8 +914,53 @@ def _candidate_file_path_score(path: str, context_tokens: set[str], original_ind
     suffix = Path(name).suffix.lower()
     if suffix:
         score += 1.0
+    score += _candidate_file_observation_score(path, recent_steps or [])
     score -= original_index * 0.01
     return score
+
+
+def _invalid_candidate_file_paths(paths: list[str], recent_steps: list[dict[str, Any]]) -> list[str]:
+    invalid: list[str] = []
+    for path in paths:
+        if _candidate_file_observation_score(path, recent_steps) <= -30:
+            invalid.append(path)
+    return invalid
+
+
+def _candidate_file_observation_score(path: str, recent_steps: list[dict[str, Any]], *, window: int = 12) -> float:
+    if not path:
+        return 0.0
+    path_key = path.lower()
+    score = 0.0
+    for step in _completed_recent_steps(recent_steps)[-window:]:
+        if step.get("tool_name") != "shell_exec":
+            continue
+        output = step.get("output") if isinstance(step.get("output"), dict) else {}
+        text = "\n".join(str(output.get(key) or "") for key in ("stdout", "stderr"))
+        for line in text.splitlines():
+            lowered = line.lower()
+            if path_key not in lowered:
+                continue
+            if _shell_line_reports_missing_candidate(line):
+                score -= 70.0
+            if any(marker in lowered for marker in ("ascii text", "html document", "json data", "with no line terminators")):
+                score -= 45.0
+            score += _candidate_file_size_score_from_line(line)
+    return score
+
+
+def _candidate_file_size_score_from_line(line: str) -> float:
+    lowered = str(line or "").lower()
+    if re.search(r"\b\d+(?:\.\d+)?\s*(?:t|tb|tib|g|gb|gib)\b", lowered):
+        return 55.0
+    if re.search(r"\b\d+(?:\.\d+)?\s*(?:m|mb|mib)\b", lowered):
+        return 18.0
+    integers = [int(match) for match in re.findall(r"(?<![\w.])\d{1,15}(?![\w.])", lowered)]
+    if any(value >= 1_000_000_000 for value in integers):
+        return 55.0
+    if any(value >= 1_000_000 for value in integers):
+        return 18.0
+    return 0.0
 
 
 def _open_file_dependent_task_text(job: dict[str, Any]) -> str:
