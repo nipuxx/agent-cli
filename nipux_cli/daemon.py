@@ -21,7 +21,7 @@ from nipux_cli.config import AppConfig, load_config
 from nipux_cli.db import AgentDB
 from nipux_cli.digest import write_daily_digest
 from nipux_cli.doctor import run_doctor
-from nipux_cli.provider_errors import provider_action_required, provider_rate_limited
+from nipux_cli.provider_errors import provider_rate_limited
 from nipux_cli.scheduling import job_deferred_until, job_is_deferred, job_provider_blocked
 from nipux_cli.shell_tools import cleanup_registered_shell_processes
 
@@ -588,38 +588,12 @@ def _failure_backoff(poll_seconds: float, consecutive_failures: int) -> float:
 def _step_failure_backoff(result: Any, poll_seconds: float, consecutive_failures: int) -> float:
     """Return a retry delay for failed worker steps.
 
-    Worker LLM/provider failures are recorded as failed steps rather than
-    escaping as daemon exceptions, so they need the same throttling path here.
-    This keeps bad credentials, quota limits, and provider throttles from
-    flooding the timeline while preserving the forever loop.
+    Worker failures are recorded as failed steps rather than escaping as daemon
+    exceptions, so they use the same generic throttling path here.
     """
 
     fallback = _failure_backoff(poll_seconds, consecutive_failures)
-    tool_name = getattr(result, "tool_name", None)
-    model_failure = tool_name in (None, "", "llm")
-    if not model_failure:
-        return fallback
-    text = _step_failure_text(result)
-    if _is_provider_config_text(text):
-        return max(fallback, 300.0)
-    if _is_rate_limit_text(text):
-        return max(fallback, 60.0)
-    if _is_transient_provider_text(text):
-        return max(fallback, 60.0)
     return fallback
-
-
-def _step_failure_text(result: Any) -> str:
-    payload = getattr(result, "result", None)
-    if not isinstance(payload, dict):
-        return str(result)
-    parts = [
-        payload.get("error"),
-        payload.get("error_type"),
-        payload.get("detail"),
-        payload.get("message"),
-    ]
-    return " ".join(str(part) for part in parts if part)
 
 
 def _exception_backoff(exc: Exception, poll_seconds: float, consecutive_failures: int) -> float:
@@ -641,29 +615,6 @@ def _is_rate_limit_error(exc: Exception) -> bool:
 
 def _is_rate_limit_text(text: str) -> bool:
     return provider_rate_limited(text)
-
-
-def _is_provider_config_text(text: str) -> bool:
-    return provider_action_required(text)
-
-
-def _is_transient_provider_text(text: str) -> bool:
-    lowered = str(text or "").lower()
-    return any(
-        marker in lowered
-        for marker in (
-            "apitimeouterror",
-            "api timeout",
-            "request timed out",
-            "read timeout",
-            "connection timed out",
-            "timeout while",
-            "temporarily unavailable",
-            "service unavailable",
-            "upstream timeout",
-            "gateway timeout",
-        )
-    )
 
 
 def _retry_after_seconds(exc: Exception) -> float | None:

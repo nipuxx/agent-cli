@@ -308,10 +308,10 @@ per-job profiles under `~/.nipux/browser-profiles/`. Anti-bot, CAPTCHA, login,
 and paywall pages are recorded as visible source-quality warnings; Nipux does
 not bypass protections.
 
-Workers can use `defer_job` for scheduled follow-up, monitor intervals, long
-external processes, or cooldowns. Deferred jobs stay runnable but show as
-waiting until their next check time, so the daemon can keep other work moving
-without burning model calls on repeated polling.
+Workers can use `defer_job` for scheduled follow-up, monitor intervals, or long
+external processes that are actually waiting on time to pass. Deferred jobs stay
+runnable but show as waiting until their next check time, so the daemon can keep
+other work moving without burning model calls on repeated polling.
 
 ## Command Reference
 

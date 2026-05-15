@@ -2129,14 +2129,14 @@ def test_run_one_step_times_out_stalled_model_call(tmp_path):
         db.close()
 
 
-def test_run_one_step_defers_after_repeated_transient_model_timeouts(tmp_path):
+def test_repeated_model_failures_do_not_create_automatic_defer(tmp_path):
     config = AppConfig(
         runtime=RuntimeConfig(home=tmp_path),
         model=ModelConfig(request_timeout_seconds=120),
     )
     db = AgentDB(tmp_path / "state.db")
     try:
-        job_id = db.create_job("Keep running through provider instability", title="provider cooldown")
+        job_id = db.create_job("Keep running through provider instability", title="provider failures")
         for _index in range(2):
             run_id = db.start_run(job_id, model="test")
             step_id = db.add_step(job_id=job_id, run_id=run_id, kind="llm", status="failed")
@@ -2151,108 +2151,20 @@ def test_run_one_step_defers_after_repeated_transient_model_timeouts(tmp_path):
 
         result = run_one_step(job_id, config=config, db=db, llm=ExplodingLLM())
 
-        assert result.status == "completed"
-        assert result.tool_name == "defer_job"
-        assert result.result["transient_model_failure"]["count"] == 2
+        assert result.status == "failed"
+        assert result.tool_name is None
         job = db.get_job(job_id)
-        assert job["metadata"]["defer_until"]
-        assert "Transient model provider failures" in job["metadata"]["defer_reason"]
+        assert not job["metadata"].get("defer_until")
+        assert all(step.get("tool_name") != "defer_job" for step in db.list_steps(job_id=job_id))
     finally:
         db.close()
 
 
-def test_run_one_step_defers_after_repeated_model_rate_limits(tmp_path):
-    config = AppConfig(
-        runtime=RuntimeConfig(home=tmp_path),
-        model=ModelConfig(request_timeout_seconds=120),
-    )
-    db = AgentDB(tmp_path / "state.db")
-    try:
-        job_id = db.create_job("Keep running through provider rate limits", title="provider rate limit")
-        for _index in range(2):
-            run_id = db.start_run(job_id, model="test")
-            step_id = db.add_step(job_id=job_id, run_id=run_id, kind="llm", status="failed")
-            db.finish_step(
-                step_id,
-                status="failed",
-                summary="model call failed: RateLimitError",
-                output_data={"success": False, "error": "429 too many requests", "error_type": "RateLimitError"},
-                error="429 too many requests",
-            )
-            db.finish_run(run_id, "failed", error="429 too many requests")
-
-        result = run_one_step(job_id, config=config, db=db, llm=ExplodingLLM())
-
-        assert result.status == "completed"
-        assert result.tool_name == "defer_job"
-        assert result.result["transient_model_failure"]["count"] == 2
-        assert "429 too many requests" in result.result["transient_model_failure"]["error"]
-        job = db.get_job(job_id)
-        assert job["metadata"]["defer_until"]
-        assert "Transient model provider failures" in job["metadata"]["defer_reason"]
-    finally:
-        db.close()
-
-
-def test_repeated_transient_model_cooldowns_back_off_progressively(tmp_path):
-    config = AppConfig(
-        runtime=RuntimeConfig(home=tmp_path),
-        model=ModelConfig(request_timeout_seconds=120),
-    )
-    db = AgentDB(tmp_path / "state.db")
-    try:
-        job_id = db.create_job("Keep running through repeated provider instability", title="provider cooldown")
-        db.update_job_metadata(job_id, {"transient_model_cooldown_streak": 2})
-        for _index in range(2):
-            run_id = db.start_run(job_id, model="test")
-            step_id = db.add_step(job_id=job_id, run_id=run_id, kind="llm", status="failed")
-            db.finish_step(
-                step_id,
-                status="failed",
-                summary="model call failed: APITimeoutError",
-                output_data={"success": False, "error": "Request timed out.", "error_type": "APITimeoutError"},
-                error="Request timed out.",
-            )
-            db.finish_run(run_id, "failed", error="Request timed out.")
-
-        result = run_one_step(job_id, config=config, db=db, llm=ExplodingLLM())
-
-        assert result.status == "completed"
-        assert result.tool_name == "defer_job"
-        assert result.result["cooldown_streak"] == 3
-        assert result.result["cooldown_seconds"] >= 700
-        job = db.get_job(job_id)
-        assert job["metadata"]["transient_model_cooldown_streak"] == 3
-    finally:
-        db.close()
-
-
-def test_transient_model_cooldown_expands_next_request_timeout(tmp_path):
-    config = AppConfig(
-        runtime=RuntimeConfig(home=tmp_path),
-        model=ModelConfig(request_timeout_seconds=0.2),
-    )
-    db = AgentDB(tmp_path / "state.db")
-    try:
-        job_id = db.create_job("Let slow provider recover", title="provider timeout adaptive")
-        db.update_job_metadata(job_id, {"transient_model_cooldown_streak": 1})
-
-        result = run_one_step(job_id, config=config, db=db, llm=SlowLLM(0.3))
-
-        assert result.status == "completed"
-        assert result.tool_name == "report_update"
-        job = db.get_job(job_id)
-        assert job["metadata"]["transient_model_cooldown_streak"] == 0
-        assert job["metadata"]["transient_model_recovered_at"]
-    finally:
-        db.close()
-
-
-def test_successful_model_response_resets_transient_model_cooldown_streak(tmp_path):
+def test_legacy_model_cooldown_metadata_is_ignored(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")
     try:
-        job_id = db.create_job("Recover after provider instability", title="provider recovered")
+        job_id = db.create_job("Continue after provider instability", title="provider recovered")
         db.update_job_metadata(job_id, {"transient_model_cooldown_streak": 3})
         llm = ScriptedLLM([
             LLMResponse(tool_calls=[ToolCall(name="report_update", arguments={"message": "provider recovered"})])
@@ -2263,8 +2175,8 @@ def test_successful_model_response_resets_transient_model_cooldown_streak(tmp_pa
         assert result.status == "completed"
         assert result.tool_name == "report_update"
         job = db.get_job(job_id)
-        assert job["metadata"]["transient_model_cooldown_streak"] == 0
-        assert job["metadata"]["transient_model_recovered_at"]
+        assert job["metadata"]["transient_model_cooldown_streak"] == 3
+        assert "transient_model_recovered_at" not in job["metadata"]
         message_end = next(event for event in db.list_events(job_id=job_id, limit=10) if event["event_type"] == "loop" and event["title"] == "message_end")
         assert message_end["metadata"]["duration_seconds"] >= 0
     finally:
@@ -2650,42 +2562,33 @@ def test_run_one_step_records_usage_pressure_without_spam(tmp_path):
         db.close()
 
 
-def test_run_one_step_defers_when_critical_usage_is_low_yield(tmp_path):
+def test_critical_usage_does_not_create_automatic_defer(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path), model=ModelConfig(context_length=262_144))
     db = AgentDB(tmp_path / "state.db")
     try:
-        job_id = db.create_job("Keep a long-running task efficient", title="usage circuit", kind="generic")
+        job_id = db.create_job("Keep a long-running task efficient", title="usage pressure", kind="generic")
         db.append_event(
             job_id,
             event_type="loop",
             title="message_end",
             metadata={"usage": {"prompt_tokens": 21_000_000, "completion_tokens": 10_000, "total_tokens": 21_010_000, "cost": 11.0}},
         )
-        for index, error_type in enumerate(["APITimeoutError", "APITimeoutError", "ProviderTimeout"], start=1):
-            run_id = db.start_run(job_id, model="test")
-            step_id = db.add_step(job_id=job_id, run_id=run_id, kind="llm", status="failed")
-            db.finish_step(
-                step_id,
-                status="failed",
-                summary=f"model call failed: {error_type}",
-                output_data={"success": False, "error": f"timeout {index}", "error_type": error_type},
-                error=f"timeout {index}",
-            )
-            db.finish_run(run_id, "failed", error=f"timeout {index}")
+        llm = ScriptedLLM([
+            LLMResponse(tool_calls=[ToolCall(name="record_lesson", arguments={"lesson": "keep useful work moving", "category": "strategy"})])
+        ])
 
-        result = run_one_step(job_id, config=config, db=db, llm=ExplodingLLM())
+        result = run_one_step(job_id, config=config, db=db, llm=llm)
 
         assert result.status == "completed"
-        assert result.tool_name == "defer_job"
-        assert result.result["usage_pressure_circuit_breaker"]["cost"] == 11.0
+        assert result.tool_name == "record_lesson"
         job = db.get_job(job_id)
-        assert job["metadata"]["defer_until"]
-        assert "Critical usage pressure" in job["metadata"]["defer_reason"]
+        assert not job["metadata"].get("defer_until")
+        assert "usage_pressure_circuit_breaker" not in job["metadata"]
     finally:
         db.close()
 
 
-def test_prompt_keeps_usage_pressure_recovery_visible_until_progress():
+def test_prompt_ignores_legacy_usage_pressure_recovery_metadata():
     job = {
         "title": "usage recovery",
         "kind": "generic",
@@ -2696,8 +2599,6 @@ def test_prompt_keeps_usage_pressure_recovery_visible_until_progress():
                 "streak": 2,
                 "calls": 2200,
                 "total_tokens": 25_000_000,
-                "prompt_tokens": 24_000_000,
-                "completion_tokens": 1_000_000,
                 "cost": 12.5,
                 "has_cost": True,
             },
@@ -2705,291 +2606,15 @@ def test_prompt_keeps_usage_pressure_recovery_visible_until_progress():
         },
     }
     steps = [
-        {"step_no": 13, "kind": "recovery", "status": "completed", "tool_name": "defer_job", "summary": "cooldown"},
+        {"step_no": 13, "kind": "recovery", "status": "completed", "tool_name": "defer_job", "summary": "legacy cooldown"},
         {"step_no": 14, "kind": "tool", "status": "blocked", "tool_name": "web_search", "summary": "blocked search"},
     ]
 
     content = build_messages(job, steps)[-1]["content"]
 
-    assert "Usage pressure recovery" in content
-    assert "cooldown is still unresolved" in content
-    assert "25.0M tokens" in content
-    assert "Do not resume low-yield search" in content
-
-
-def test_prompt_clears_usage_pressure_recovery_after_high_value_progress():
-    job = {
-        "title": "usage recovery",
-        "kind": "generic",
-        "objective": "Keep long-running work efficient.",
-        "metadata": {
-            "usage_pressure_circuit_breaker": {
-                "latest_step_no": 12,
-                "streak": 1,
-                "calls": 2200,
-                "total_tokens": 25_000_000,
-                "has_cost": False,
-            },
-            "task_queue": [{"title": "Focused task", "status": "active", "priority": 9}],
-        },
-    }
-    steps = [
-        {"step_no": 13, "kind": "recovery", "status": "completed", "tool_name": "defer_job", "summary": "cooldown"},
-        {
-            "step_no": 14,
-            "kind": "tool",
-            "status": "completed",
-            "tool_name": "record_experiment",
-            "summary": "measured result",
-            "output": {"success": True, "experiment": {"status": "measured", "metric_name": "score", "metric_value": 1.0}},
-        },
-    ]
-
-    content = build_messages(job, steps)[-1]["content"]
-
-    assert "Usage pressure recovery:\nNone." in content
-
-
-def test_prompt_keeps_usage_pressure_recovery_after_unchanged_ledger_records():
-    job = {
-        "title": "usage recovery",
-        "kind": "generic",
-        "objective": "Keep long-running work efficient.",
-        "metadata": {
-            "usage_pressure_circuit_breaker": {
-                "latest_step_no": 12,
-                "streak": 1,
-                "calls": 2200,
-                "total_tokens": 25_000_000,
-                "has_cost": False,
-            },
-            "task_queue": [{"title": "Focused task", "status": "active", "priority": 9}],
-        },
-    }
-    steps = [
-        {
-            "step_no": 13,
-            "kind": "tool",
-            "status": "completed",
-            "tool_name": "record_findings",
-            "summary": "unchanged finding",
-            "output": {"success": True, "added": 0, "updated": 0, "unchanged": 3, "sources_updated": 0},
-        },
-        {
-            "step_no": 14,
-            "kind": "tool",
-            "status": "completed",
-            "tool_name": "record_tasks",
-            "summary": "unchanged tasks",
-            "output": {"success": True, "added": 0, "updated": 0, "unchanged": 4, "tasks": [{"title": "same task"}]},
-        },
-        {
-            "step_no": 15,
-            "kind": "tool",
-            "status": "completed",
-            "tool_name": "record_source",
-            "summary": "unchanged source",
-            "output": {
-                "success": True,
-                "source": {
-                    "created": False,
-                    "substantive_update": False,
-                    "source": "source:a",
-                    "last_outcome": "",
-                    "yield_count": 0,
-                    "fail_count": 0,
-                },
-            },
-        },
-    ]
-
-    content = build_messages(job, steps)[-1]["content"]
-
-    assert "Usage pressure recovery" in content
-    assert "cooldown is still unresolved" in content
-
-
-def test_prompt_clears_usage_pressure_recovery_after_finding_delta():
-    job = {
-        "title": "usage recovery",
-        "kind": "generic",
-        "objective": "Keep long-running work efficient.",
-        "metadata": {
-            "usage_pressure_circuit_breaker": {
-                "latest_step_no": 12,
-                "streak": 1,
-                "calls": 2200,
-                "total_tokens": 25_000_000,
-                "has_cost": False,
-            },
-            "task_queue": [{"title": "Focused task", "status": "active", "priority": 9}],
-        },
-    }
-    steps = [
-        {
-            "step_no": 13,
-            "kind": "tool",
-            "status": "completed",
-            "tool_name": "record_findings",
-            "summary": "finding delta",
-            "output": {"success": True, "added": 1, "updated": 0, "unchanged": 0, "sources_updated": 1},
-        },
-    ]
-
-    content = build_messages(job, steps)[-1]["content"]
-
-    assert "Usage pressure recovery:\nNone." in content
-
-
-def test_prompt_keeps_usage_pressure_recovery_after_tiny_artifact_note():
-    job = {
-        "title": "usage recovery",
-        "kind": "generic",
-        "objective": "Keep long-running work efficient.",
-        "metadata": {
-            "usage_pressure_circuit_breaker": {
-                "latest_step_no": 12,
-                "streak": 1,
-                "calls": 2200,
-                "total_tokens": 25_000_000,
-                "has_cost": False,
-            },
-            "task_queue": [{"title": "Focused task", "status": "active", "priority": 9}],
-        },
-    }
-    steps = [
-        {
-            "step_no": 13,
-            "kind": "tool",
-            "status": "completed",
-            "tool_name": "write_artifact",
-            "summary": "saved short note",
-            "input": {"arguments": {"title": "Note", "content": "small note"}},
-            "output": {"success": True, "artifact_id": "art_note"},
-        },
-    ]
-
-    content = build_messages(job, steps)[-1]["content"]
-
-    assert "Usage pressure recovery" in content
-    assert "cooldown is still unresolved" in content
-
-
-def test_prompt_clears_usage_pressure_recovery_after_substantive_artifact():
-    job = {
-        "title": "usage recovery",
-        "kind": "generic",
-        "objective": "Keep long-running work efficient.",
-        "metadata": {
-            "usage_pressure_circuit_breaker": {
-                "latest_step_no": 12,
-                "streak": 1,
-                "calls": 2200,
-                "total_tokens": 25_000_000,
-                "has_cost": False,
-            },
-            "task_queue": [{"title": "Focused task", "status": "active", "priority": 9}],
-        },
-    }
-    steps = [
-        {
-            "step_no": 13,
-            "kind": "tool",
-            "status": "completed",
-            "tool_name": "write_artifact",
-            "summary": "saved evidence output",
-            "input": {
-                "arguments": {
-                    "title": "Evidence summary",
-                    "content": (
-                        "This evidence-backed checkpoint records the current branch result, why it matters, "
-                        "what acceptance criteria it satisfies, and the next concrete validation action. "
-                        "It is long enough to preserve useful state instead of just logging a tiny note."
-                    ),
-                }
-            },
-            "output": {"success": True, "artifact_id": "art_evidence"},
-        },
-    ]
-
-    content = build_messages(job, steps)[-1]["content"]
-
-    assert "Usage pressure recovery:\nNone." in content
-
-
-def test_run_one_step_blocks_low_yield_tool_after_usage_pressure_cooldown(tmp_path):
-    config = AppConfig(runtime=RuntimeConfig(home=tmp_path), model=ModelConfig(context_length=262_144))
-    db = AgentDB(tmp_path / "state.db")
-    try:
-        job_id = db.create_job("Keep long-running work efficient", title="usage recovery block", kind="generic")
-        db.update_job_metadata(
-            job_id,
-            {
-                "usage_pressure_circuit_breaker": {
-                    "latest_step_no": 1,
-                    "streak": 1,
-                    "calls": 2500,
-                    "total_tokens": 25_000_000,
-                    "has_cost": False,
-                },
-                "task_queue": [{"title": "Focused task", "status": "active", "priority": 9}],
-            },
-        )
-        llm = ScriptedLLM([
-            LLMResponse(tool_calls=[ToolCall(name="web_search", arguments={"query": "more background research"})])
-        ])
-
-        result = run_one_step(job_id, config=config, db=db, llm=llm)
-
-        assert result.status == "blocked"
-        assert result.tool_name == "web_search"
-        assert result.result["error"] == "usage pressure recovery required"
-        assert result.result["usage_pressure_recovery"]["total_tokens"] == 25_000_000
-    finally:
-        db.close()
-
-
-def test_run_one_step_allows_low_yield_tool_after_usage_pressure_progress(tmp_path):
-    config = AppConfig(runtime=RuntimeConfig(home=tmp_path), model=ModelConfig(context_length=262_144))
-    db = AgentDB(tmp_path / "state.db")
-    try:
-        job_id = db.create_job("Keep long-running work efficient", title="usage recovery resolved", kind="generic")
-        db.update_job_metadata(
-            job_id,
-            {
-                "usage_pressure_circuit_breaker": {
-                    "latest_step_no": 1,
-                    "streak": 1,
-                    "calls": 2500,
-                    "total_tokens": 25_000_000,
-                    "has_cost": False,
-                },
-                "task_queue": [{"title": "Focused task", "status": "active", "priority": 9}],
-            },
-        )
-        blocked_run_id = db.start_run(job_id, model="test")
-        blocked_step_id = db.add_step(job_id=job_id, run_id=blocked_run_id, kind="tool", tool_name="web_search")
-        db.finish_step(blocked_step_id, status="blocked", summary="prior low-yield step", output_data={"success": True})
-        db.finish_run(blocked_run_id, "completed")
-        run_id = db.start_run(job_id, model="test")
-        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="record_experiment")
-        db.finish_step(
-            step_id,
-            status="completed",
-            summary="recorded measurement",
-            output_data={"success": True, "experiment": {"title": "measured", "status": "measured", "metric_name": "score", "metric_value": 1.0}},
-        )
-        db.finish_run(run_id, "completed")
-        llm = ScriptedLLM([
-            LLMResponse(tool_calls=[ToolCall(name="web_search", arguments={"query": "fresh branch research"})])
-        ])
-
-        result = run_one_step(job_id, config=config, db=db, llm=llm, registry=SuccessRegistry())
-
-        assert result.status == "completed"
-        assert result.tool_name == "web_search"
-    finally:
-        db.close()
+    assert "Usage pressure:" in content
+    assert "Usage pressure recovery" not in content
+    assert "cooldown is still unresolved" not in content
 
 
 def test_run_one_step_pauses_when_configured_cost_limit_is_reached(tmp_path):

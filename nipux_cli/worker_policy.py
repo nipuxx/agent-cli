@@ -66,7 +66,7 @@ experiment says the next action is to write, merge, update, compile, or insert
 content, prefer write_file or an execution command that actually changes the
 target over more read-only inspection.
 Use defer_job when the next useful step is to wait for an external process,
-scheduled check, cooldown, long-running command, or monitor interval. Do not
+scheduled check, long-running command, or monitor interval. Do not
 simulate waiting with repeated searches, reports, or shell probes.
 Use record_lesson when you learn something that should change future behavior:
 bad source patterns, task-specific success criteria, repeated mistakes, operator
@@ -224,9 +224,6 @@ CHURN_TOOLS = INFORMATION_GATHERING_TOOLS | ARTIFACT_REVIEW_TOOLS | MEMORY_REVIE
 MEMORY_CONSOLIDATION_BLOCKED_TOOLS = CHURN_TOOLS | {"write_artifact", "write_file", "report_update"}
 ACTIVITY_STAGNATION_BLOCKED_TOOLS = CHURN_TOOLS | {"write_artifact", "write_file", "report_update"}
 DELIVERABLE_PROGRESS_BLOCKED_TOOLS = INFORMATION_GATHERING_TOOLS | ARTIFACT_REVIEW_TOOLS | {"report_update"}
-USAGE_PRESSURE_RECOVERY_BLOCKED_TOOLS = INFORMATION_GATHERING_TOOLS | ARTIFACT_REVIEW_TOOLS | MEMORY_REVIEW_TOOLS | {
-    "report_update",
-}
 RESEARCH_BALANCE_BLOCKED_TOOLS = ARTIFACT_REVIEW_TOOLS | MEMORY_REVIEW_TOOLS | {
     "shell_exec",
     "write_file",

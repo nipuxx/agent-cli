@@ -170,7 +170,7 @@ def test_rate_limit_backoff_has_conservative_fallback():
     assert _exception_backoff(RateLimit("rate limit exceeded"), poll_seconds=0, consecutive_failures=1) == 10
 
 
-def test_failed_step_provider_config_error_gets_long_backoff():
+def test_failed_step_provider_config_error_uses_normal_backoff():
     result = StepExecution(
         job_id="job",
         run_id="run",
@@ -183,7 +183,7 @@ def test_failed_step_provider_config_error_gets_long_backoff():
         },
     )
 
-    assert _step_failure_backoff(result, poll_seconds=0, consecutive_failures=1) == 300
+    assert _step_failure_backoff(result, poll_seconds=0, consecutive_failures=1) == 1
 
 
 def test_failed_tool_auth_error_uses_normal_backoff():
@@ -201,7 +201,7 @@ def test_failed_tool_auth_error_uses_normal_backoff():
     assert _step_failure_backoff(result, poll_seconds=3, consecutive_failures=1) == 3
 
 
-def test_failed_step_rate_limit_gets_throttled_backoff():
+def test_failed_step_rate_limit_uses_normal_backoff():
     result = StepExecution(
         job_id="job",
         run_id="run",
@@ -214,10 +214,10 @@ def test_failed_step_rate_limit_gets_throttled_backoff():
         },
     )
 
-    assert _step_failure_backoff(result, poll_seconds=0, consecutive_failures=1) == 60
+    assert _step_failure_backoff(result, poll_seconds=0, consecutive_failures=1) == 1
 
 
-def test_failed_step_provider_timeout_gets_throttled_backoff():
+def test_failed_step_provider_timeout_uses_normal_backoff():
     result = StepExecution(
         job_id="job",
         run_id="run",
@@ -230,7 +230,7 @@ def test_failed_step_provider_timeout_gets_throttled_backoff():
         },
     )
 
-    assert _step_failure_backoff(result, poll_seconds=0, consecutive_failures=1) == 60
+    assert _step_failure_backoff(result, poll_seconds=0, consecutive_failures=1) == 1
 
 
 def test_retry_after_parses_epoch_milliseconds():

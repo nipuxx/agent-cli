@@ -1782,7 +1782,7 @@ SUPPORT_SCHEMAS: list[ToolSpec] = [
         },
         "required": ["status"],
     }, _update_job_state),
-    ToolSpec("defer_job", "Wait before the next worker turn for this job. Use for long external processes, monitor/check-later tasks, cooldowns, or scheduled follow-up without completing or pausing the job.", {
+    ToolSpec("defer_job", "Wait before the next worker turn for this job. Use for long external processes, monitor/check-later tasks, or scheduled follow-up without completing or pausing the job.", {
         "type": "object",
         "properties": {
             "seconds": {"type": "number", "description": "Delay in seconds before this job is runnable again.", "default": 300},
