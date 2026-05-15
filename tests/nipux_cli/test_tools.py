@@ -987,6 +987,84 @@ def test_record_tasks_reports_unchanged_duplicates_without_agent_update_noise(tm
         db.close()
 
 
+def test_record_tasks_cannot_defer_measurement_with_unrelated_task(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job(
+            "Improve measurable process",
+            metadata={
+                "pending_measurement_obligation": {
+                    "source_step_no": 8,
+                    "tool": "shell_exec",
+                    "metric_candidates": ["42 units/s"],
+                }
+            },
+        )
+        run_id = db.start_run(job_id, model="fake")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="record_tasks")
+        ctx = ToolContext(config=config, db=db, artifacts=ArtifactStore(tmp_path, db), job_id=job_id, run_id=run_id, step_id=step_id)
+
+        raw = DEFAULT_REGISTRY.handle(
+            "record_tasks",
+            {"tasks": [{"title": "Read more background sources", "status": "open", "output_contract": "research"}]},
+            ctx,
+        )
+        result = json.loads(raw)
+        job = db.get_job(job_id)
+
+        assert result["success"] is False
+        assert result["error"] == "measurement task required"
+        assert job["metadata"]["pending_measurement_obligation"]["source_step_no"] == 8
+        assert "task_queue" not in job["metadata"]
+    finally:
+        db.close()
+
+
+def test_record_tasks_can_defer_measurement_with_explicit_measurement_task(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job(
+            "Improve measurable process",
+            metadata={
+                "pending_measurement_obligation": {
+                    "source_step_no": 8,
+                    "tool": "shell_exec",
+                    "metric_candidates": ["42 units/s"],
+                }
+            },
+        )
+        run_id = db.start_run(job_id, model="fake")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="record_tasks")
+        ctx = ToolContext(config=config, db=db, artifacts=ArtifactStore(tmp_path, db), job_id=job_id, run_id=run_id, step_id=step_id)
+
+        raw = DEFAULT_REGISTRY.handle(
+            "record_tasks",
+            {
+                "tasks": [{
+                    "title": "Rerun the branch and record the missing measurement",
+                    "status": "open",
+                    "output_contract": "experiment",
+                    "acceptance_criteria": "valid metric recorded",
+                    "evidence_needed": "measured command output",
+                    "stall_behavior": "record blocker if measurement cannot be obtained",
+                }]
+            },
+            ctx,
+        )
+        result = json.loads(raw)
+        job = db.get_job(job_id)
+
+        assert result["success"] is True
+        assert result["added"] == 1
+        assert job["metadata"].get("pending_measurement_obligation") == {}
+        assert job["metadata"]["last_measurement_obligation"]["resolution_status"] == "deferred"
+        assert job["metadata"]["last_measurement_obligation"]["resolution_tool"] == "record_tasks"
+    finally:
+        db.close()
+
+
 def test_record_roadmap_tool_updates_roadmap(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

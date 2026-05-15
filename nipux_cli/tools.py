@@ -805,15 +805,12 @@ def _record_tasks(args: dict[str, Any], ctx: ToolContext) -> str:
     if not tasks:
         return _json({"success": False, "error": "tasks are required"})
 
-    stored = []
-    added = 0
-    updated = 0
-    unchanged = 0
+    pending_measurement = _pending_measurement(ctx)
+    prepared_tasks: list[dict[str, Any]] = []
     for task in tasks[:50]:
         title = str(task.get("title") or task.get("name") or "").strip()
         if not title:
             continue
-        status = str(task.get("status") or "open")
         metadata = task.get("metadata") if isinstance(task.get("metadata"), dict) else {}
         output_contract = str(
             task.get("output_contract")
@@ -833,7 +830,78 @@ def _record_tasks(args: dict[str, Any], ctx: ToolContext) -> str:
             stall_behavior=stall_behavior,
             metadata=metadata,
         )
+        goal = str(task.get("goal") or task.get("description") or "")
+        source_hint = str(task.get("source_hint") or task.get("source") or "")
         result_text = str(task.get("result") or task.get("outcome") or "")
+        parent = str(task.get("parent") or "")
+        priority_arg = task.get("priority")
+        priority = int(priority_arg) if isinstance(priority_arg, (int, float)) else 0
+        status = str(task.get("status") or "open")
+        if pending_measurement and not _task_targets_measurement_obligation(
+            title=title,
+            goal=goal,
+            source_hint=source_hint,
+            result=result_text,
+            output_contract=output_contract,
+            acceptance_criteria=acceptance_criteria,
+            evidence_needed=evidence_needed,
+            stall_behavior=stall_behavior,
+            metadata=metadata,
+        ) and not _task_would_be_unchanged(
+            ctx,
+            title=title,
+            status=status,
+            priority=priority,
+            goal=goal,
+            source_hint=source_hint,
+            result=result_text,
+            parent=parent,
+            output_contract=output_contract,
+            acceptance_criteria=acceptance_criteria,
+            evidence_needed=evidence_needed,
+            stall_behavior=stall_behavior,
+            metadata=metadata,
+        ):
+            return _json({
+                "success": False,
+                "error": "measurement task required",
+                "message": (
+                    "A pending measurement can only be deferred by a task that explicitly obtains, "
+                    "repairs, validates, or accounts for that measurement."
+                ),
+                "rejected_task": title,
+                "pending_measurement_obligation": pending_measurement,
+            })
+        prepared_tasks.append({
+            "task": task,
+            "title": title,
+            "goal": goal,
+            "source_hint": source_hint,
+            "result_text": result_text,
+            "parent": parent,
+            "priority": priority,
+            "status": status,
+            "metadata": metadata,
+            "output_contract": output_contract,
+            "acceptance_criteria": acceptance_criteria,
+            "evidence_needed": evidence_needed,
+            "stall_behavior": stall_behavior,
+        })
+
+    stored = []
+    added = 0
+    updated = 0
+    unchanged = 0
+    for prepared in prepared_tasks:
+        task = prepared["task"]
+        title = prepared["title"]
+        status = prepared["status"]
+        metadata = prepared["metadata"]
+        output_contract = prepared["output_contract"]
+        acceptance_criteria = prepared["acceptance_criteria"]
+        evidence_needed = prepared["evidence_needed"]
+        stall_behavior = prepared["stall_behavior"]
+        result_text = prepared["result_text"]
         status, metadata = _validated_task_status(
             ctx,
             status=status,
@@ -841,17 +909,15 @@ def _record_tasks(args: dict[str, Any], ctx: ToolContext) -> str:
             result=result_text,
             metadata=metadata,
         )
-        priority_arg = task.get("priority")
-        priority = int(priority_arg) if isinstance(priority_arg, (int, float)) else 0
         entry = ctx.db.append_task_record(
             ctx.job_id,
             title=title,
             status=status,
-            priority=priority,
-            goal=str(task.get("goal") or task.get("description") or ""),
-            source_hint=str(task.get("source_hint") or task.get("source") or ""),
+            priority=prepared["priority"],
+            goal=prepared["goal"],
+            source_hint=prepared["source_hint"],
             result=result_text,
-            parent=str(task.get("parent") or ""),
+            parent=prepared["parent"],
             output_contract=output_contract,
             acceptance_criteria=acceptance_criteria,
             evidence_needed=evidence_needed,
@@ -878,7 +944,7 @@ def _record_tasks(args: dict[str, Any], ctx: ToolContext) -> str:
             category="plan",
             metadata={"added": added, "updated": updated, "unchanged": unchanged},
         )
-    if (added or updated) and _pending_measurement(ctx):
+    if (added or updated) and pending_measurement:
         _resolve_measurement_obligation(
             ctx,
             status="deferred",
@@ -886,6 +952,176 @@ def _record_tasks(args: dict[str, Any], ctx: ToolContext) -> str:
             via_tool="record_tasks",
         )
     return _json({"success": True, "job_id": ctx.job_id, "added": added, "updated": updated, "unchanged": unchanged, "tasks": stored})
+
+
+def _task_targets_measurement_obligation(
+    *,
+    title: str,
+    goal: str,
+    source_hint: str,
+    result: str,
+    output_contract: str,
+    acceptance_criteria: str,
+    evidence_needed: str,
+    stall_behavior: str,
+    metadata: dict[str, Any],
+) -> bool:
+    text = " ".join([
+        title,
+        goal,
+        source_hint,
+        result,
+        output_contract,
+        acceptance_criteria,
+        evidence_needed,
+        stall_behavior,
+        _metadata_scalar_text(metadata),
+    ]).lower()
+    contract = output_contract.strip().lower()
+    if contract in {"experiment", "monitor"} and _text_mentions_measurement(text):
+        return True
+    return _text_mentions_measurement(text) and _text_mentions_measurement_accounting(text)
+
+
+def _task_would_be_unchanged(
+    ctx: ToolContext,
+    *,
+    title: str,
+    status: str,
+    priority: int,
+    goal: str,
+    source_hint: str,
+    result: str,
+    parent: str,
+    output_contract: str,
+    acceptance_criteria: str,
+    evidence_needed: str,
+    stall_behavior: str,
+    metadata: dict[str, Any],
+) -> bool:
+    try:
+        job = ctx.db.get_job(ctx.job_id)
+    except KeyError:
+        return False
+    job_metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
+    tasks = job_metadata.get("task_queue") if isinstance(job_metadata.get("task_queue"), list) else []
+    key = _task_key(parent, title)
+    current = next(
+        (
+            entry
+            for entry in tasks
+            if isinstance(entry, dict)
+            and (entry.get("key") == key or (not entry.get("key") and _task_key(str(entry.get("parent") or ""), str(entry.get("title") or "")) == key))
+        ),
+        None,
+    )
+    if not current:
+        return False
+    fields = (
+        "status",
+        "priority",
+        "goal",
+        "source_hint",
+        "result",
+        "parent",
+        "output_contract",
+        "acceptance_criteria",
+        "evidence_needed",
+        "stall_behavior",
+        "metadata",
+    )
+    before = _task_change_fingerprint(current, fields)
+    after = dict(current)
+    cleaned_status = (status.strip().lower() or "open").replace(" ", "_")
+    after["status"] = cleaned_status if cleaned_status in {"open", "active", "done", "blocked", "skipped"} else "open"
+    after["priority"] = int(priority)
+    for field, value in {
+        "goal": goal.strip(),
+        "source_hint": source_hint.strip(),
+        "result": result.strip(),
+        "parent": parent.strip(),
+        "output_contract": output_contract.strip().lower().replace(" ", "_"),
+        "acceptance_criteria": acceptance_criteria.strip(),
+        "evidence_needed": evidence_needed.strip(),
+        "stall_behavior": stall_behavior.strip(),
+    }.items():
+        if value:
+            after[field] = value
+    if metadata:
+        merged_metadata = after.get("metadata") if isinstance(after.get("metadata"), dict) else {}
+        merged_metadata = dict(merged_metadata)
+        merged_metadata.update(metadata)
+        after["metadata"] = merged_metadata
+    return before == _task_change_fingerprint(after, fields)
+
+
+def _task_change_fingerprint(entry: dict[str, Any], fields: tuple[str, ...]) -> str:
+    return json.dumps({field: entry.get(field) for field in fields}, sort_keys=True, separators=(",", ":"))
+
+
+def _task_key(parent: str, title: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", f"{parent}|{title}".lower()).strip("-")[:120]
+
+
+def _text_mentions_measurement(text: str) -> bool:
+    terms = (
+        "measure",
+        "measured",
+        "measurement",
+        "metric",
+        "experiment",
+        "trial",
+        "benchmark",
+        "result",
+        "obligation",
+    )
+    return any(term in text for term in terms)
+
+
+def _text_mentions_measurement_accounting(text: str) -> bool:
+    terms = (
+        "account",
+        "accounting",
+        "obtain",
+        "repair",
+        "validate",
+        "valid",
+        "invalid",
+        "diagnostic",
+        "missing",
+        "no metric",
+        "without metric",
+        "blocked",
+        "failed",
+        "failure",
+        "timeout",
+        "permission",
+        "auth",
+        "quota",
+        "rate limit",
+        "unavailable",
+        "unable",
+        "cannot",
+        "can't",
+        "could not",
+        "stale",
+        "incomplete",
+        "not comparable",
+        "not enough",
+        "rerun",
+        "re-run",
+        "retry",
+        "next measured",
+    )
+    return any(term in text for term in terms)
+
+
+def _metadata_scalar_text(metadata: dict[str, Any]) -> str:
+    parts = []
+    for value in metadata.values():
+        if isinstance(value, (str, int, float, bool)):
+            parts.append(str(value))
+    return " ".join(parts)
 
 
 def _complete_task_contract(
