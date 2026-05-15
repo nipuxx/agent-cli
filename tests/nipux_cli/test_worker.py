@@ -2841,6 +2841,82 @@ def test_prompt_clears_usage_pressure_recovery_after_finding_delta():
     assert "Usage pressure recovery:\nNone." in content
 
 
+def test_prompt_keeps_usage_pressure_recovery_after_tiny_artifact_note():
+    job = {
+        "title": "usage recovery",
+        "kind": "generic",
+        "objective": "Keep long-running work efficient.",
+        "metadata": {
+            "usage_pressure_circuit_breaker": {
+                "latest_step_no": 12,
+                "streak": 1,
+                "calls": 2200,
+                "total_tokens": 25_000_000,
+                "has_cost": False,
+            },
+            "task_queue": [{"title": "Focused task", "status": "active", "priority": 9}],
+        },
+    }
+    steps = [
+        {
+            "step_no": 13,
+            "kind": "tool",
+            "status": "completed",
+            "tool_name": "write_artifact",
+            "summary": "saved short note",
+            "input": {"arguments": {"title": "Note", "content": "small note"}},
+            "output": {"success": True, "artifact_id": "art_note"},
+        },
+    ]
+
+    content = build_messages(job, steps)[-1]["content"]
+
+    assert "Usage pressure recovery" in content
+    assert "cooldown is still unresolved" in content
+
+
+def test_prompt_clears_usage_pressure_recovery_after_substantive_artifact():
+    job = {
+        "title": "usage recovery",
+        "kind": "generic",
+        "objective": "Keep long-running work efficient.",
+        "metadata": {
+            "usage_pressure_circuit_breaker": {
+                "latest_step_no": 12,
+                "streak": 1,
+                "calls": 2200,
+                "total_tokens": 25_000_000,
+                "has_cost": False,
+            },
+            "task_queue": [{"title": "Focused task", "status": "active", "priority": 9}],
+        },
+    }
+    steps = [
+        {
+            "step_no": 13,
+            "kind": "tool",
+            "status": "completed",
+            "tool_name": "write_artifact",
+            "summary": "saved evidence output",
+            "input": {
+                "arguments": {
+                    "title": "Evidence summary",
+                    "content": (
+                        "This evidence-backed checkpoint records the current branch result, why it matters, "
+                        "what acceptance criteria it satisfies, and the next concrete validation action. "
+                        "It is long enough to preserve useful state instead of just logging a tiny note."
+                    ),
+                }
+            },
+            "output": {"success": True, "artifact_id": "art_evidence"},
+        },
+    ]
+
+    content = build_messages(job, steps)[-1]["content"]
+
+    assert "Usage pressure recovery:\nNone." in content
+
+
 def test_run_one_step_blocks_low_yield_tool_after_usage_pressure_cooldown(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path), model=ModelConfig(context_length=262_144))
     db = AgentDB(tmp_path / "state.db")

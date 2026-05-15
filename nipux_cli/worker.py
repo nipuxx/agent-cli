@@ -6135,10 +6135,58 @@ def _step_has_high_value_progress(step: dict[str, Any]) -> bool:
             or _as_int(roadmap.get("updated_features"))
         )
     if tool in {"write_artifact", "write_file"}:
-        return True
+        return _write_step_has_high_value_progress(step)
     if tool == "record_tasks":
         return bool(_as_int(output.get("added")) or _as_int(output.get("updated")))
     return False
+
+
+def _write_step_has_high_value_progress(step: dict[str, Any]) -> bool:
+    input_data = step.get("input") if isinstance(step.get("input"), dict) else {}
+    args = input_data.get("arguments") if isinstance(input_data.get("arguments"), dict) else {}
+    output = step.get("output") if isinstance(step.get("output"), dict) else {}
+    if output and output.get("success") is False:
+        return False
+    tool = str(step.get("tool_name") or "")
+    content = str(args.get("content") or "").strip()
+    if tool == "write_file":
+        path = str(args.get("path") or output.get("path") or "").strip()
+        return bool(path) and (len(content) >= 80 or _write_args_have_progress_signal(args, extra_text=path))
+    if tool == "write_artifact":
+        if not output.get("artifact_id") and not output.get("path"):
+            return False
+        if len(content) >= 400:
+            return True
+        return len(content) >= 120 and _write_args_have_progress_signal(args)
+    return False
+
+
+def _write_args_have_progress_signal(args: dict[str, Any], *, extra_text: str = "") -> bool:
+    metadata = args.get("metadata") if isinstance(args.get("metadata"), dict) else {}
+    text = " ".join(
+        [
+            str(args.get("title") or ""),
+            str(args.get("summary") or ""),
+            str(args.get("type") or ""),
+            extra_text,
+            " ".join(str(key) for key in metadata),
+            " ".join(str(value) for value in metadata.values()),
+        ]
+    ).lower()
+    if any(term in text for term in EVIDENCE_ARTIFACT_TERMS | DELIVERABLE_ARTIFACT_TERMS):
+        return True
+    evidence_keys = {
+        "artifact_id",
+        "evidence_artifact",
+        "experiment_key",
+        "finding_key",
+        "metric_name",
+        "output_contract",
+        "source_url",
+        "task_key",
+        "validation_event_id",
+    }
+    return any(str(metadata.get(key) or "").strip() for key in evidence_keys)
 
 
 def _run_usage_pressure_circuit_breaker_step(
