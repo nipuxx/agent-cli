@@ -451,6 +451,62 @@ def test_repeated_task_and_experiment_records_mark_non_substantive_touches(tmp_p
         db.close()
 
 
+def test_non_substantive_ledger_touches_do_not_emit_visible_events(tmp_path):
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Research topic")
+
+        db.append_source_record(job_id, "https://example.com", outcome="useful")
+        db.append_source_record(job_id, "https://example.com", outcome="useful")
+        db.append_finding_record(job_id, name="Reusable finding", reason="evidence")
+        db.append_finding_record(job_id, name="Reusable finding", reason="evidence")
+        db.append_task_record(job_id, title="Explore primary sources", status="open", priority=3)
+        db.append_task_record(job_id, title="Explore primary sources", status="open", priority=3)
+        db.append_roadmap_record(
+            job_id,
+            title="Roadmap",
+            milestones=[{"title": "Foundation", "status": "active", "priority": 5}],
+        )
+        db.append_roadmap_record(
+            job_id,
+            title="Roadmap",
+            milestones=[{"title": "Foundation", "status": "active", "priority": 5}],
+        )
+        db.append_experiment_record(
+            job_id,
+            title="Trial",
+            status="measured",
+            metric_name="score",
+            metric_value=0.8,
+        )
+        db.append_experiment_record(
+            job_id,
+            title="Trial",
+            status="measured",
+            metric_name="score",
+            metric_value=0.8,
+        )
+
+        events = db.list_timeline_events(job_id, limit=50)
+        counts = {event_type: sum(1 for event in events if event["event_type"] == event_type) for event_type in {
+            "source",
+            "finding",
+            "task",
+            "roadmap",
+            "experiment",
+        }}
+
+        assert counts == {
+            "source": 1,
+            "finding": 1,
+            "task": 1,
+            "roadmap": 1,
+            "experiment": 1,
+        }
+    finally:
+        db.close()
+
+
 def test_roadmap_last_records_include_progress_accounting_metadata(tmp_path):
     db = AgentDB(tmp_path / "state.db")
     try:

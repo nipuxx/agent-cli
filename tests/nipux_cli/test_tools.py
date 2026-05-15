@@ -693,6 +693,41 @@ def test_record_source_and_findings_tools_update_ledgers(tmp_path):
         db.close()
 
 
+def test_record_findings_reports_unchanged_duplicates_without_agent_update_noise(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Research topic")
+        run_id = db.start_run(job_id, model="fake")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="record_findings")
+        ctx = ToolContext(config=config, db=db, artifacts=ArtifactStore(tmp_path, db), job_id=job_id, run_id=run_id, step_id=step_id)
+        args = {
+            "findings": [
+                {
+                    "name": "Reusable finding",
+                    "source_url": "https://example-source.com/finding",
+                    "reason": "Evidence-backed result",
+                    "score": 0.75,
+                }
+            ]
+        }
+
+        first = json.loads(DEFAULT_REGISTRY.handle("record_findings", args, ctx))
+        agent_events_after_first = len(db.list_events(job_id=job_id, event_types=["agent_message"]))
+        repeated = json.loads(DEFAULT_REGISTRY.handle("record_findings", args, ctx))
+        agent_events_after_repeat = len(db.list_events(job_id=job_id, event_types=["agent_message"]))
+
+        assert first["added"] == 1
+        assert first["updated"] == 0
+        assert first["unchanged"] == 0
+        assert repeated["added"] == 0
+        assert repeated["updated"] == 0
+        assert repeated["unchanged"] == 1
+        assert agent_events_after_repeat == agent_events_after_first
+    finally:
+        db.close()
+
+
 def test_record_tasks_tool_updates_task_queue(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")
@@ -725,6 +760,46 @@ def test_record_tasks_tool_updates_task_queue(tmp_path):
         assert job["metadata"]["task_queue"][0]["title"] == "Explore primary sources"
         assert job["metadata"]["task_queue"][0]["priority"] == 5
         assert job["metadata"]["last_agent_update"]["category"] == "plan"
+    finally:
+        db.close()
+
+
+def test_record_tasks_reports_unchanged_duplicates_without_agent_update_noise(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Research topic")
+        run_id = db.start_run(job_id, model="fake")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="record_tasks")
+        ctx = ToolContext(config=config, db=db, artifacts=ArtifactStore(tmp_path, db), job_id=job_id, run_id=run_id, step_id=step_id)
+        args = {
+            "tasks": [
+                {
+                    "title": "Explore primary sources",
+                    "status": "open",
+                    "priority": 5,
+                    "goal": "Find artifact-backed evidence",
+                }
+            ]
+        }
+
+        first = json.loads(DEFAULT_REGISTRY.handle("record_tasks", args, ctx))
+        agent_events_after_first = len(db.list_events(job_id=job_id, event_types=["agent_message"]))
+        db.update_job_metadata(
+            job_id,
+            {"pending_measurement_obligation": {"source_step_no": 1, "metric_candidates": ["score"]}},
+        )
+        repeated = json.loads(DEFAULT_REGISTRY.handle("record_tasks", args, ctx))
+        agent_events_after_repeat = len(db.list_events(job_id=job_id, event_types=["agent_message"]))
+
+        assert first["added"] == 1
+        assert first["updated"] == 0
+        assert first["unchanged"] == 0
+        assert repeated["added"] == 0
+        assert repeated["updated"] == 0
+        assert repeated["unchanged"] == 1
+        assert agent_events_after_repeat == agent_events_after_first
+        assert db.get_job(job_id)["metadata"]["pending_measurement_obligation"]["source_step_no"] == 1
     finally:
         db.close()
 

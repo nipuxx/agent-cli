@@ -1417,25 +1417,26 @@ class AgentDB:
             if substantive_update:
                 current["updated_at"] = now
             current["last_seen"] = now
-            event = _insert_event(
-                conn,
-                job_id=job_id,
-                event_type="source",
-                title=current.get("source") or text,
-                body=current.get("last_outcome") or outcome,
-                metadata={
-                    "created": created,
-                    "substantive_update": substantive_update,
-                    "source_type": current.get("source_type"),
-                    "usefulness_score": current.get("usefulness_score"),
-                    "yield_count": current.get("yield_count"),
-                    "fail_count": current.get("fail_count"),
-                    "warnings": current.get("warnings") or [],
-                    **(current.get("metadata") if isinstance(current.get("metadata"), dict) else {}),
-                },
-                created_at=now,
-            )
-            current["event_id"] = event["id"]
+            if substantive_update:
+                event = _insert_event(
+                    conn,
+                    job_id=job_id,
+                    event_type="source",
+                    title=current.get("source") or text,
+                    body=current.get("last_outcome") or outcome,
+                    metadata={
+                        "created": created,
+                        "substantive_update": substantive_update,
+                        "source_type": current.get("source_type"),
+                        "usefulness_score": current.get("usefulness_score"),
+                        "yield_count": current.get("yield_count"),
+                        "fail_count": current.get("fail_count"),
+                        "warnings": current.get("warnings") or [],
+                        **(current.get("metadata") if isinstance(current.get("metadata"), dict) else {}),
+                    },
+                    created_at=now,
+                )
+                current["event_id"] = event["id"]
             job_metadata["source_ledger"] = sources[-250:]
             job_metadata["last_source_record"] = current
             conn.execute(
@@ -1532,24 +1533,25 @@ class AgentDB:
             current["substantive_update"] = substantive_update
             if substantive_update:
                 current["updated_at"] = now
-            event = _insert_event(
-                conn,
-                job_id=job_id,
-                event_type="finding",
-                title=current.get("name") or name,
-                body=current.get("reason") or current.get("category") or "",
-                metadata={
-                    "created": created,
-                    "substantive_update": substantive_update,
-                    "score": current.get("score"),
-                    "status": current.get("status"),
-                    "source_url": current.get("source_url"),
-                    "evidence_artifact": current.get("evidence_artifact"),
-                    **(current.get("metadata") if isinstance(current.get("metadata"), dict) else {}),
-                },
-                created_at=now,
-            )
-            current["event_id"] = event["id"]
+            if substantive_update:
+                event = _insert_event(
+                    conn,
+                    job_id=job_id,
+                    event_type="finding",
+                    title=current.get("name") or name,
+                    body=current.get("reason") or current.get("category") or "",
+                    metadata={
+                        "created": created,
+                        "substantive_update": substantive_update,
+                        "score": current.get("score"),
+                        "status": current.get("status"),
+                        "source_url": current.get("source_url"),
+                        "evidence_artifact": current.get("evidence_artifact"),
+                        **(current.get("metadata") if isinstance(current.get("metadata"), dict) else {}),
+                    },
+                    created_at=now,
+                )
+                current["event_id"] = event["id"]
             job_metadata["finding_ledger"] = findings[-1000:]
             job_metadata["last_finding_record"] = current
             conn.execute(
@@ -1798,32 +1800,40 @@ class AgentDB:
             roadmap["updated_milestones"] = updated_milestones
             roadmap["added_features"] = added_features
             roadmap["updated_features"] = updated_features
-            event = _insert_event(
-                conn,
-                job_id=job_id,
-                event_type="roadmap",
-                title=roadmap.get("title") or title,
-                body=f"{roadmap.get('status')} | milestones +{added_milestones}/~{updated_milestones} | features +{added_features}/~{updated_features}",
-                metadata={
-                    "created": created,
-                    "substantive_update": roadmap_substantive_update,
-                    "status": roadmap.get("status"),
-                    "current_milestone": roadmap.get("current_milestone"),
-                    "milestone_count": len(roadmap.get("milestones") or []),
-                    "added_milestones": added_milestones,
-                    "updated_milestones": updated_milestones,
-                    "added_features": added_features,
-                    "updated_features": updated_features,
-                    "roadmap_updated": roadmap_substantive_update and not created,
-                },
-                created_at=now,
+            roadmap_has_change = bool(
+                roadmap_substantive_update
+                or added_milestones
+                or updated_milestones
+                or added_features
+                or updated_features
             )
-            roadmap["event_id"] = event["id"]
+            if roadmap_has_change:
+                event = _insert_event(
+                    conn,
+                    job_id=job_id,
+                    event_type="roadmap",
+                    title=roadmap.get("title") or title,
+                    body=f"{roadmap.get('status')} | milestones +{added_milestones}/~{updated_milestones} | features +{added_features}/~{updated_features}",
+                    metadata={
+                        "created": created,
+                        "substantive_update": roadmap_substantive_update,
+                        "status": roadmap.get("status"),
+                        "current_milestone": roadmap.get("current_milestone"),
+                        "milestone_count": len(roadmap.get("milestones") or []),
+                        "added_milestones": added_milestones,
+                        "updated_milestones": updated_milestones,
+                        "added_features": added_features,
+                        "updated_features": updated_features,
+                        "roadmap_updated": roadmap_substantive_update and not created,
+                    },
+                    created_at=now,
+                )
+                roadmap["event_id"] = event["id"]
             job_metadata["roadmap"] = roadmap
             job_metadata["last_roadmap_record"] = {
                 "at": now,
-                "updated_at": now,
-                "event_id": event["id"],
+                "updated_at": roadmap.get("updated_at") or now,
+                "event_id": roadmap.get("event_id"),
                 "created": created,
                 "substantive_update": roadmap_substantive_update,
                 "title": roadmap.get("title"),
@@ -2067,28 +2077,29 @@ class AgentDB:
             current["substantive_update"] = substantive_update
             if substantive_update:
                 current["updated_at"] = now
-            event = _insert_event(
-                conn,
-                job_id=job_id,
-                event_type="task",
-                title=current.get("title") or title,
-                body=current.get("result") or current.get("goal") or "",
-                metadata={
-                    "created": created,
-                    "substantive_update": substantive_update,
-                    "status": current.get("status"),
-                    "priority": current.get("priority"),
-                    "parent": current.get("parent"),
-                    "source_hint": current.get("source_hint"),
-                    "output_contract": current.get("output_contract"),
-                    "acceptance_criteria": current.get("acceptance_criteria"),
-                    "evidence_needed": current.get("evidence_needed"),
-                    "stall_behavior": current.get("stall_behavior"),
-                    **(current.get("metadata") if isinstance(current.get("metadata"), dict) else {}),
-                },
-                created_at=now,
-            )
-            current["event_id"] = event["id"]
+            if substantive_update:
+                event = _insert_event(
+                    conn,
+                    job_id=job_id,
+                    event_type="task",
+                    title=current.get("title") or title,
+                    body=current.get("result") or current.get("goal") or "",
+                    metadata={
+                        "created": created,
+                        "substantive_update": substantive_update,
+                        "status": current.get("status"),
+                        "priority": current.get("priority"),
+                        "parent": current.get("parent"),
+                        "source_hint": current.get("source_hint"),
+                        "output_contract": current.get("output_contract"),
+                        "acceptance_criteria": current.get("acceptance_criteria"),
+                        "evidence_needed": current.get("evidence_needed"),
+                        "stall_behavior": current.get("stall_behavior"),
+                        **(current.get("metadata") if isinstance(current.get("metadata"), dict) else {}),
+                    },
+                    created_at=now,
+                )
+                current["event_id"] = event["id"]
             job_metadata["task_queue"] = tasks[-500:]
             job_metadata["last_task_record"] = current
             conn.execute(
@@ -2223,28 +2234,29 @@ class AgentDB:
                     event_body += f" delta={current.get('delta_from_previous_best')}"
                 if current.get("result"):
                     event_body += f" | {current.get('result')}"
-            event = _insert_event(
-                conn,
-                job_id=job_id,
-                event_type="experiment",
-                title=current.get("title") or title,
-                body=event_body,
-                metadata={
-                    "created": created,
-                    "substantive_update": substantive_update,
-                    "status": current.get("status"),
-                    "metric_name": current.get("metric_name"),
-                    "metric_value": current.get("metric_value"),
-                    "metric_unit": current.get("metric_unit"),
-                    "higher_is_better": current.get("higher_is_better"),
-                    "best_observed": current.get("best_observed"),
-                    "delta_from_previous_best": current.get("delta_from_previous_best"),
-                    "evidence_artifact": current.get("evidence_artifact"),
-                    **(current.get("metadata") if isinstance(current.get("metadata"), dict) else {}),
-                },
-                created_at=now,
-            )
-            current["event_id"] = event["id"]
+            if substantive_update:
+                event = _insert_event(
+                    conn,
+                    job_id=job_id,
+                    event_type="experiment",
+                    title=current.get("title") or title,
+                    body=event_body,
+                    metadata={
+                        "created": created,
+                        "substantive_update": substantive_update,
+                        "status": current.get("status"),
+                        "metric_name": current.get("metric_name"),
+                        "metric_value": current.get("metric_value"),
+                        "metric_unit": current.get("metric_unit"),
+                        "higher_is_better": current.get("higher_is_better"),
+                        "best_observed": current.get("best_observed"),
+                        "delta_from_previous_best": current.get("delta_from_previous_best"),
+                        "evidence_artifact": current.get("evidence_artifact"),
+                        **(current.get("metadata") if isinstance(current.get("metadata"), dict) else {}),
+                    },
+                    created_at=now,
+                )
+                current["event_id"] = event["id"]
             job_metadata["experiment_ledger"] = experiments[-1000:]
             job_metadata["last_experiment_record"] = current
             if best:

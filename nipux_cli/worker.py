@@ -24,7 +24,7 @@ from nipux_cli.context_pressure import (
     usage_pressure_for_prompt,
 )
 from nipux_cli.db import AgentDB
-from nipux_cli.llm import LLMResponse, LLMResponseError, OpenAIChatLLM, StepLLM
+from nipux_cli.llm import LLMResponse, LLMResponseError, OpenAIChatLLM, StepLLM, ToolCall
 from nipux_cli.measurement import measurement_candidates, measurement_candidates_are_diagnostic_only
 from nipux_cli.memory_graph import memory_graph_from_job
 from nipux_cli.metric_format import format_metric_value

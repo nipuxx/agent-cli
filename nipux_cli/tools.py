@@ -574,6 +574,7 @@ def _record_findings(args: dict[str, Any], ctx: ToolContext) -> str:
     stored = []
     added = 0
     updated = 0
+    unchanged = 0
     source_yields: dict[str, int] = {}
     for finding in findings[:50]:
         name = str(finding.get("name") or finding.get("title") or "").strip()
@@ -600,8 +601,10 @@ def _record_findings(args: dict[str, Any], ctx: ToolContext) -> str:
             added += 1
             if source_url:
                 source_yields[source_url] = source_yields.get(source_url, 0) + 1
-        else:
+        elif entry.get("substantive_update"):
             updated += 1
+        else:
+            unchanged += 1
         stored.append(entry)
     if not stored:
         return _json({"success": False, "error": "no valid finding with name/title was provided"})
@@ -619,17 +622,22 @@ def _record_findings(args: dict[str, Any], ctx: ToolContext) -> str:
                 metadata={"auto_from_record_findings": True, "evidence_artifact": evidence_artifact},
             )
         )
-    ctx.db.append_agent_update(
-        ctx.job_id,
-        f"Finding ledger updated: {added} new, {updated} updated. Source ledger updated: {len(source_records)}.",
-        category="finding",
-        metadata={"added": added, "updated": updated, "sources_updated": len(source_records)},
-    )
+    if added or updated or source_records:
+        message = f"Finding ledger updated: {added} new, {updated} changed. Source ledger updated: {len(source_records)}."
+        if unchanged:
+            message += f" {unchanged} unchanged."
+        ctx.db.append_agent_update(
+            ctx.job_id,
+            message,
+            category="finding",
+            metadata={"added": added, "updated": updated, "unchanged": unchanged, "sources_updated": len(source_records)},
+        )
     return _json({
         "success": True,
         "job_id": ctx.job_id,
         "added": added,
         "updated": updated,
+        "unchanged": unchanged,
         "sources_updated": len(source_records),
         "sources": source_records,
         "findings": stored,
@@ -648,6 +656,7 @@ def _record_tasks(args: dict[str, Any], ctx: ToolContext) -> str:
     stored = []
     added = 0
     updated = 0
+    unchanged = 0
     for task in tasks[:50]:
         title = str(task.get("title") or task.get("name") or "").strip()
         if not title:
@@ -688,26 +697,32 @@ def _record_tasks(args: dict[str, Any], ctx: ToolContext) -> str:
         )
         if entry.get("created"):
             added += 1
-        else:
+        elif entry.get("substantive_update"):
             updated += 1
+        else:
+            unchanged += 1
         stored.append(entry)
     if not stored:
         return _json({"success": False, "error": "no valid task with title/name was provided"})
 
-    ctx.db.append_agent_update(
-        ctx.job_id,
-        f"Task queue updated: {added} new, {updated} updated.",
-        category="plan",
-        metadata={"added": added, "updated": updated},
-    )
-    if _pending_measurement(ctx):
+    if added or updated:
+        message = f"Task queue updated: {added} new, {updated} changed."
+        if unchanged:
+            message += f" {unchanged} unchanged."
+        ctx.db.append_agent_update(
+            ctx.job_id,
+            message,
+            category="plan",
+            metadata={"added": added, "updated": updated, "unchanged": unchanged},
+        )
+    if (added or updated) and _pending_measurement(ctx):
         _resolve_measurement_obligation(
             ctx,
             status="deferred",
             reason="Created or updated task branch to obtain or handle the pending measurement.",
             via_tool="record_tasks",
         )
-    return _json({"success": True, "job_id": ctx.job_id, "added": added, "updated": updated, "tasks": stored})
+    return _json({"success": True, "job_id": ctx.job_id, "added": added, "updated": updated, "unchanged": unchanged, "tasks": stored})
 
 
 def _validated_task_status(
