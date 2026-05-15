@@ -10035,6 +10035,60 @@ def test_run_one_step_allows_existing_task_update_when_queue_is_saturated(tmp_pa
         db.close()
 
 
+def test_run_one_step_allows_semantic_task_update_when_queue_is_saturated(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job(
+            "Finish existing work",
+            title="semantic-saturated",
+            kind="generic",
+            metadata={
+                "task_queue": [
+                    {
+                        "title": "Validate model files and run baseline benchmark",
+                        "status": "open",
+                        "priority": 5,
+                    },
+                    *[
+                        {"title": f"Completed branch {index}", "status": "done", "priority": index}
+                        for index in range(81)
+                    ],
+                ]
+            },
+        )
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(
+                        name="record_tasks",
+                        arguments={
+                            "tasks": [{
+                                "title": "Validate candidate model files and run baseline benchmark",
+                                "status": "active",
+                                "priority": 10,
+                            }]
+                        },
+                    )
+                ])
+            ]),
+        )
+
+        assert result.status == "completed"
+        assert result.tool_name == "record_tasks"
+        job = db.get_job(job_id)
+        task = job["metadata"]["task_queue"][0]
+        assert task["title"] == "Validate model files and run baseline benchmark"
+        assert task["status"] == "active"
+        assert task["metadata"]["original_title"] == "Validate candidate model files and run baseline benchmark"
+    finally:
+        db.close()
+
+
 def test_run_one_step_auto_records_anti_bot_browser_source(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

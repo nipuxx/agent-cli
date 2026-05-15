@@ -18,6 +18,7 @@ from nipux_cli.memory_graph import memory_graph_from_job, search_memory_graph
 from nipux_cli.planning import initial_task_contract
 from nipux_cli.shell_tools import shell_exec as _shell_exec
 from nipux_cli.shell_tools import write_file as _write_file
+from nipux_cli.task_match import find_semantic_task_match, task_key
 
 
 @dataclass(frozen=True)
@@ -806,12 +807,30 @@ def _record_tasks(args: dict[str, Any], ctx: ToolContext) -> str:
         return _json({"success": False, "error": "tasks are required"})
 
     pending_measurement = _pending_measurement(ctx)
+    task_queue_pressure = _task_queue_pressure_active(ctx)
     prepared_tasks: list[dict[str, Any]] = []
     for task in tasks[:50]:
         title = str(task.get("title") or task.get("name") or "").strip()
         if not title:
             continue
+        parent = str(task.get("parent") or "")
         metadata = task.get("metadata") if isinstance(task.get("metadata"), dict) else {}
+        if task_queue_pressure:
+            match = _semantic_task_match_under_pressure(ctx, title=title, parent=parent)
+            if match:
+                metadata = dict(metadata)
+                metadata.setdefault("original_title", title)
+                metadata.setdefault(
+                    "matched_existing_task",
+                    {
+                        "key": match.get("key"),
+                        "title": match.get("title"),
+                        "score": match.get("score"),
+                        "overlap": match.get("overlap"),
+                    },
+                )
+                title = str(match.get("title") or title)
+                parent = str(match.get("parent") or parent)
         output_contract = str(
             task.get("output_contract")
             or task.get("contract")
@@ -833,7 +852,6 @@ def _record_tasks(args: dict[str, Any], ctx: ToolContext) -> str:
         goal = str(task.get("goal") or task.get("description") or "")
         source_hint = str(task.get("source_hint") or task.get("source") or "")
         result_text = str(task.get("result") or task.get("outcome") or "")
-        parent = str(task.get("parent") or "")
         priority_arg = task.get("priority")
         priority = int(priority_arg) if isinstance(priority_arg, (int, float)) else 0
         status = str(task.get("status") or "open")
@@ -1005,13 +1023,16 @@ def _task_would_be_unchanged(
         return False
     job_metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
     tasks = job_metadata.get("task_queue") if isinstance(job_metadata.get("task_queue"), list) else []
-    key = _task_key(parent, title)
+    key = task_key(parent, title)
     current = next(
         (
             entry
             for entry in tasks
             if isinstance(entry, dict)
-            and (entry.get("key") == key or (not entry.get("key") and _task_key(str(entry.get("parent") or ""), str(entry.get("title") or "")) == key))
+            and (
+                entry.get("key") == key
+                or (not entry.get("key") and task_key(str(entry.get("parent") or ""), str(entry.get("title") or "")) == key)
+            )
         ),
         None,
     )
@@ -1059,8 +1080,39 @@ def _task_change_fingerprint(entry: dict[str, Any], fields: tuple[str, ...]) -> 
     return json.dumps({field: entry.get(field) for field in fields}, sort_keys=True, separators=(",", ":"))
 
 
-def _task_key(parent: str, title: str) -> str:
-    return re.sub(r"[^a-z0-9]+", "-", f"{parent}|{title}".lower()).strip("-")[:120]
+def _task_queue_pressure_active(ctx: ToolContext) -> bool:
+    try:
+        job = ctx.db.get_job(ctx.job_id)
+    except KeyError:
+        return False
+    metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
+    tasks = metadata.get("task_queue") if isinstance(metadata.get("task_queue"), list) else []
+    objective_tasks = [task for task in tasks if not _task_is_guard_recovery(task)]
+    open_tasks = [
+        task
+        for task in objective_tasks
+        if str(task.get("status") or "open").strip().lower().replace(" ", "_") in {"open", "active"}
+    ]
+    return len(objective_tasks) > 80 or len(open_tasks) >= 40
+
+
+def _semantic_task_match_under_pressure(ctx: ToolContext, *, title: str, parent: str) -> dict[str, Any] | None:
+    try:
+        job = ctx.db.get_job(ctx.job_id)
+    except KeyError:
+        return None
+    metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
+    tasks = metadata.get("task_queue") if isinstance(metadata.get("task_queue"), list) else []
+    return find_semantic_task_match(
+        title=title,
+        parent=parent,
+        tasks=[task for task in tasks if not _task_is_guard_recovery(task)],
+    )
+
+
+def _task_is_guard_recovery(task: dict[str, Any]) -> bool:
+    metadata = task.get("metadata") if isinstance(task.get("metadata"), dict) else {}
+    return bool(metadata.get("guard_recovery")) or str(task.get("title") or "").strip().lower().startswith("resolve guard:")
 
 
 def _text_mentions_measurement(text: str) -> bool:
@@ -1945,7 +1997,7 @@ SUPPORT_SCHEMAS: list[ToolSpec] = [
         },
         "required": ["findings"],
     }, _record_findings),
-    ToolSpec("record_tasks", "Create or update a durable queue of objective-neutral work branches. Use this to split long jobs into next actions, mark blocked branches, and keep the agent from cycling on one path. Missing task contract fields are filled with generic defaults from the task title.", {
+    ToolSpec("record_tasks", "Create or update a durable queue of objective-neutral work branches. Use this to split long jobs into next actions, mark blocked branches, and keep the agent from cycling on one path. Missing task contract fields are filled with generic defaults from the task title. When the queue is saturated, near-duplicate task titles are folded into the matching existing task instead of creating another branch.", {
         "type": "object",
         "properties": {
             "tasks": {

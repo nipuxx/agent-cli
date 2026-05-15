@@ -947,6 +947,62 @@ def test_record_tasks_tool_updates_task_queue(tmp_path):
         db.close()
 
 
+def test_record_tasks_dedupes_semantic_task_under_backlog_pressure(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job(
+            "Keep a long-running job focused",
+            metadata={
+                "task_queue": [
+                    {
+                        "title": "Validate model files and run baseline benchmark",
+                        "status": "open",
+                        "priority": 5,
+                        "goal": "Get a measured baseline.",
+                    },
+                    *[
+                        {"title": f"Done branch {index}", "status": "done", "priority": 0}
+                        for index in range(81)
+                    ],
+                ]
+            },
+        )
+        run_id = db.start_run(job_id, model="fake")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="record_tasks")
+        ctx = ToolContext(config=config, db=db, artifacts=ArtifactStore(tmp_path, db), job_id=job_id, run_id=run_id, step_id=step_id)
+
+        raw = DEFAULT_REGISTRY.handle(
+            "record_tasks",
+            {
+                "tasks": [
+                    {
+                        "title": "Validate candidate model files and run baseline benchmark",
+                        "status": "active",
+                        "priority": 10,
+                        "goal": "Use the existing validation branch for the first measured run.",
+                    }
+                ]
+            },
+            ctx,
+        )
+        result = json.loads(raw)
+        job = db.get_job(job_id)
+        task_queue = job["metadata"]["task_queue"]
+
+        assert result["success"] is True
+        assert result["added"] == 0
+        assert result["updated"] == 1
+        assert len(task_queue) == 82
+        task = task_queue[0]
+        assert task["title"] == "Validate model files and run baseline benchmark"
+        assert task["status"] == "active"
+        assert task["metadata"]["original_title"] == "Validate candidate model files and run baseline benchmark"
+        assert task["metadata"]["matched_existing_task"]["title"] == "Validate model files and run baseline benchmark"
+    finally:
+        db.close()
+
+
 def test_record_tasks_reports_unchanged_duplicates_without_agent_update_noise(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

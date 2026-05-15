@@ -33,6 +33,7 @@ from nipux_cli.operator_context import (
 from nipux_cli.progress import build_progress_checkpoint
 from nipux_cli.provider_errors import provider_action_required_note
 from nipux_cli.source_quality import anti_bot_reason
+from nipux_cli.task_match import find_semantic_task_match, task_key
 from nipux_cli.tools import DEFAULT_REGISTRY, ToolContext, ToolRegistry
 from nipux_cli.worker_policy import (
     ACTIVITY_STAGNATION_BLOCKED_TOOLS,
@@ -1152,7 +1153,8 @@ def _task_queue_saturation_for_prompt(job: dict[str, Any], recent_steps: list[di
         f"{title_text} "
         "Do not create new task branches. Either execute an existing high-priority branch, "
         "or use record_tasks only to update existing task titles to active, done, blocked, or skipped "
-        "with concise result/evidence. Consolidate branch sprawl into roadmap/milestones when useful. "
+        "with concise result/evidence. If you have a near-duplicate task, update the closest existing "
+        "task instead of inventing a fresh title. Consolidate branch sprawl into roadmap/milestones when useful. "
         "If this repeats, record_tasks is temporarily withheld so the worker must use a non-planning action."
     )
 
@@ -1859,16 +1861,34 @@ def _task_queue_saturation_context(job: dict[str, Any], args: dict[str, Any]) ->
         _norm_task_key(str(task.get("parent") or ""), str(task.get("title") or ""))
         for task in tasks
     }
+    semantic_matches = []
     new_open_titles = []
     new_titles = []
     for task in incoming:
         if not isinstance(task, dict):
             continue
         status = str(task.get("status") or "open").strip().lower().replace(" ", "_")
-        key = _norm_task_key(str(task.get("parent") or ""), str(task.get("title") or ""))
-        if key not in existing_keys:
+        title = str(task.get("title") or task.get("name") or "").strip()
+        parent = str(task.get("parent") or "")
+        key = _norm_task_key(parent, title)
+        matched_existing = key in existing_keys
+        semantic_match = None
+        if not matched_existing and (len(objective_tasks) > TASK_QUEUE_TOTAL_SOFT_LIMIT or len(open_tasks) >= TASK_QUEUE_SATURATION_OPEN_TASKS):
+            semantic_match = find_semantic_task_match(
+                title=title,
+                parent=parent,
+                tasks=[existing for existing in tasks if not _is_guard_recovery_task(existing)],
+            )
+            matched_existing = bool(semantic_match)
+        if semantic_match:
+            semantic_matches.append({
+                "title": title,
+                "matched_title": semantic_match.get("title"),
+                "score": semantic_match.get("score"),
+            })
+        if not matched_existing:
             new_titles.append(str(task.get("title") or "").strip())
-        if status in {"open", "active"} and key not in existing_keys:
+        if status in {"open", "active"} and not matched_existing:
             new_open_titles.append(str(task.get("title") or "").strip())
     projected_total = len(objective_tasks) + len(new_titles)
     projected_open = len(open_tasks) + len(new_open_titles)
@@ -1886,6 +1906,7 @@ def _task_queue_saturation_context(job: dict[str, Any], args: dict[str, Any]) ->
             ],
             "new_count": len(new_titles),
             "new_titles": new_titles[:8],
+            "semantic_matches": semantic_matches[:8],
             "recovery_task_count": len(tasks) - len(objective_tasks),
         }
     if projected_open < TASK_QUEUE_SATURATION_OPEN_TASKS:
@@ -1905,6 +1926,7 @@ def _task_queue_saturation_context(job: dict[str, Any], args: dict[str, Any]) ->
         ],
         "new_open_count": len(new_open_titles),
         "new_open_titles": new_open_titles[:8],
+        "semantic_matches": semantic_matches[:8],
         "recovery_task_count": len(tasks) - len(objective_tasks),
     }
 
@@ -2046,7 +2068,7 @@ def _record_tasks_adds_new_open_work(args: dict[str, Any], job: dict[str, Any]) 
 
 
 def _norm_task_key(parent: str, title: str) -> str:
-    return re.sub(r"[^a-z0-9]+", "-", f"{parent}|{title}".lower()).strip("-")
+    return task_key(parent, title)
 
 
 def _parse_tool_result(raw: str) -> dict[str, Any]:
