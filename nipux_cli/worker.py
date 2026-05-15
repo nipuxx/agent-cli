@@ -6088,19 +6088,56 @@ def _step_has_high_value_progress(step: dict[str, Any]) -> bool:
     if str(step.get("status") or "").lower() != "completed":
         return False
     tool = str(step.get("tool_name") or "")
-    if tool in {
-        "record_experiment",
-        "record_findings",
-        "record_milestone_validation",
-        "record_roadmap",
-        "record_source",
-        "write_artifact",
-        "write_file",
-    }:
+    output = step.get("output") if isinstance(step.get("output"), dict) else {}
+    if tool == "record_experiment":
+        experiment = output.get("experiment") if isinstance(output.get("experiment"), dict) else {}
+        status = str(experiment.get("status") or "").lower()
+        return bool(
+            experiment.get("metric_value") is not None
+            or status in {"measured", "failed", "blocked", "skipped"}
+        )
+    if tool == "record_findings":
+        return bool(
+            _as_int(output.get("added"))
+            or _as_int(output.get("updated"))
+            or _as_int(output.get("sources_updated"))
+        )
+    if tool == "record_source":
+        source = output.get("source") if isinstance(output.get("source"), dict) else {}
+        return bool(
+            source.get("created")
+            or source.get("substantive_update")
+        ) and bool(
+            str(source.get("last_outcome") or "").strip()
+            or _as_int(source.get("yield_count"))
+            or _as_int(source.get("fail_count"))
+            or source.get("warnings")
+            or source.get("usefulness_score") not in {None, 0, 0.0}
+        )
+    if tool == "record_milestone_validation":
+        validation = output.get("validation") if isinstance(output.get("validation"), dict) else {}
+        status = str(validation.get("validation_status") or "").lower()
+        return bool(
+            status in {"passed", "failed", "blocked"}
+            or str(validation.get("validation_result") or "").strip()
+            or str(validation.get("validation_evidence") or "").strip()
+            or validation.get("validation_issues")
+            or _as_int(output.get("follow_up_tasks"))
+        )
+    if tool == "record_roadmap":
+        roadmap = output.get("roadmap") if isinstance(output.get("roadmap"), dict) else {}
+        return bool(
+            roadmap.get("created")
+            or roadmap.get("substantive_update")
+            or _as_int(roadmap.get("added_milestones"))
+            or _as_int(roadmap.get("updated_milestones"))
+            or _as_int(roadmap.get("added_features"))
+            or _as_int(roadmap.get("updated_features"))
+        )
+    if tool in {"write_artifact", "write_file"}:
         return True
     if tool == "record_tasks":
-        output = step.get("output") if isinstance(step.get("output"), dict) else {}
-        return bool(output.get("tasks"))
+        return bool(_as_int(output.get("added")) or _as_int(output.get("updated")))
     return False
 
 

@@ -2734,7 +2734,105 @@ def test_prompt_clears_usage_pressure_recovery_after_high_value_progress():
     }
     steps = [
         {"step_no": 13, "kind": "recovery", "status": "completed", "tool_name": "defer_job", "summary": "cooldown"},
-        {"step_no": 14, "kind": "tool", "status": "completed", "tool_name": "record_experiment", "summary": "measured result"},
+        {
+            "step_no": 14,
+            "kind": "tool",
+            "status": "completed",
+            "tool_name": "record_experiment",
+            "summary": "measured result",
+            "output": {"success": True, "experiment": {"status": "measured", "metric_name": "score", "metric_value": 1.0}},
+        },
+    ]
+
+    content = build_messages(job, steps)[-1]["content"]
+
+    assert "Usage pressure recovery:\nNone." in content
+
+
+def test_prompt_keeps_usage_pressure_recovery_after_unchanged_ledger_records():
+    job = {
+        "title": "usage recovery",
+        "kind": "generic",
+        "objective": "Keep long-running work efficient.",
+        "metadata": {
+            "usage_pressure_circuit_breaker": {
+                "latest_step_no": 12,
+                "streak": 1,
+                "calls": 2200,
+                "total_tokens": 25_000_000,
+                "has_cost": False,
+            },
+            "task_queue": [{"title": "Focused task", "status": "active", "priority": 9}],
+        },
+    }
+    steps = [
+        {
+            "step_no": 13,
+            "kind": "tool",
+            "status": "completed",
+            "tool_name": "record_findings",
+            "summary": "unchanged finding",
+            "output": {"success": True, "added": 0, "updated": 0, "unchanged": 3, "sources_updated": 0},
+        },
+        {
+            "step_no": 14,
+            "kind": "tool",
+            "status": "completed",
+            "tool_name": "record_tasks",
+            "summary": "unchanged tasks",
+            "output": {"success": True, "added": 0, "updated": 0, "unchanged": 4, "tasks": [{"title": "same task"}]},
+        },
+        {
+            "step_no": 15,
+            "kind": "tool",
+            "status": "completed",
+            "tool_name": "record_source",
+            "summary": "unchanged source",
+            "output": {
+                "success": True,
+                "source": {
+                    "created": False,
+                    "substantive_update": False,
+                    "source": "source:a",
+                    "last_outcome": "",
+                    "yield_count": 0,
+                    "fail_count": 0,
+                },
+            },
+        },
+    ]
+
+    content = build_messages(job, steps)[-1]["content"]
+
+    assert "Usage pressure recovery" in content
+    assert "cooldown is still unresolved" in content
+
+
+def test_prompt_clears_usage_pressure_recovery_after_finding_delta():
+    job = {
+        "title": "usage recovery",
+        "kind": "generic",
+        "objective": "Keep long-running work efficient.",
+        "metadata": {
+            "usage_pressure_circuit_breaker": {
+                "latest_step_no": 12,
+                "streak": 1,
+                "calls": 2200,
+                "total_tokens": 25_000_000,
+                "has_cost": False,
+            },
+            "task_queue": [{"title": "Focused task", "status": "active", "priority": 9}],
+        },
+    }
+    steps = [
+        {
+            "step_no": 13,
+            "kind": "tool",
+            "status": "completed",
+            "tool_name": "record_findings",
+            "summary": "finding delta",
+            "output": {"success": True, "added": 1, "updated": 0, "unchanged": 0, "sources_updated": 1},
+        },
     ]
 
     content = build_messages(job, steps)[-1]["content"]
@@ -2802,7 +2900,7 @@ def test_run_one_step_allows_low_yield_tool_after_usage_pressure_progress(tmp_pa
             step_id,
             status="completed",
             summary="recorded measurement",
-            output_data={"success": True, "experiment": {"title": "measured"}},
+            output_data={"success": True, "experiment": {"title": "measured", "status": "measured", "metric_name": "score", "metric_value": 1.0}},
         )
         db.finish_run(run_id, "completed")
         llm = ScriptedLLM([
@@ -2901,7 +2999,15 @@ def test_run_one_step_does_not_defer_critical_usage_after_progress(tmp_path):
             step_id,
             status="completed",
             summary="recorded measured result",
-            output_data={"success": True, "experiment": {"title": "measured result"}},
+            output_data={
+                "success": True,
+                "experiment": {
+                    "title": "measured result",
+                    "status": "measured",
+                    "metric_name": "score",
+                    "metric_value": 1.0,
+                },
+            },
         )
         db.finish_run(run_id, "completed")
         llm = ScriptedLLM([
