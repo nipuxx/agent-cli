@@ -5155,7 +5155,7 @@ def _blocked_tool_call_result(
             "guidance": (
                 "Recent work is execution-heavy but has no durable sources or findings. "
                 "Use web/browser/documentation/local-inspection tools and record_source or record_findings "
-                "before continuing execution, artifact review, report updates, or file churn."
+                "before continuing execution, artifact review, raw lesson accumulation, report updates, or file churn."
             ),
         }
         return result, f"blocked {name}; research balance required"

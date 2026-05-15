@@ -4334,6 +4334,53 @@ def test_run_one_step_blocks_execution_when_research_balance_is_missing(tmp_path
         db.close()
 
 
+def test_run_one_step_blocks_lesson_churn_when_research_balance_is_missing(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job(
+            "Build a durable workflow and keep improving it",
+            title="research-balance-lessons",
+            kind="generic",
+            metadata={"experiment_ledger": [{"title": "Validation check", "status": "measured"}]},
+        )
+        run_id = db.start_run(job_id, model="test")
+        for index in range(6):
+            step_id = db.add_step(
+                job_id=job_id,
+                run_id=run_id,
+                kind="tool",
+                tool_name="shell_exec",
+                input_data={"arguments": {"command": f"python branch_{index}.py"}},
+            )
+            db.finish_step(step_id, status="completed", output_data={"success": True, "stdout": "ok"})
+        db.finish_run(run_id, "completed")
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(
+                        name="record_lesson",
+                        arguments={
+                            "lesson": "The latest execution branch worked; continue similar attempts.",
+                            "category": "strategy",
+                        },
+                    )
+                ])
+            ]),
+        )
+
+        assert result.status == "blocked"
+        assert result.result["error"] == "research balance required"
+        assert result.result["blocked_tool"] == "record_lesson"
+        assert "raw lesson accumulation" in result.result["guidance"]
+    finally:
+        db.close()
+
+
 def test_run_one_step_blocks_durable_records_with_unsupported_concrete_claims(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

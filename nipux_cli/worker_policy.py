@@ -231,6 +231,7 @@ RESEARCH_BALANCE_BLOCKED_TOOLS = ARTIFACT_REVIEW_TOOLS | MEMORY_REVIEW_TOOLS | {
     "shell_exec",
     "write_file",
     "write_artifact",
+    "record_lesson",
     "report_update",
 }
 SOURCE_YIELD_BLOCKED_TOOLS = INFORMATION_GATHERING_TOOLS | ARTIFACT_REVIEW_TOOLS | MEMORY_REVIEW_TOOLS | {
