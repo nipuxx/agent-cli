@@ -52,6 +52,20 @@ def provider_retry_metadata() -> dict[str, str]:
     }
 
 
+def operator_resume_metadata() -> dict[str, str]:
+    """Metadata patch used when the operator explicitly makes a job runnable."""
+
+    patch = provider_retry_metadata()
+    patch.update(
+        {
+            "defer_until": "",
+            "defer_reason": "",
+            "defer_next_action": "",
+        }
+    )
+    return patch
+
+
 def _metadata_time(value: str) -> datetime | None:
     try:
         parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))

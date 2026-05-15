@@ -3974,7 +3974,12 @@ def test_resume_clears_provider_block_before_retry(monkeypatch, tmp_path, capsys
         db.update_job_status(
             job_id,
             "paused",
-            metadata_patch={"provider_blocked_at": "2026-05-01T00:00:00+00:00"},
+            metadata_patch={
+                "provider_blocked_at": "2026-05-01T00:00:00+00:00",
+                "defer_until": "2999-01-01T00:00:00+00:00",
+                "defer_reason": "waiting for a monitor interval",
+                "defer_next_action": "check later",
+            },
         )
     finally:
         db.close()
@@ -3989,6 +3994,9 @@ def test_resume_clears_provider_block_before_retry(monkeypatch, tmp_path, capsys
         assert job["status"] == "queued"
         assert job["metadata"]["provider_blocked_at"] == ""
         assert job["metadata"]["provider_unblocked_at"]
+        assert job["metadata"]["defer_until"] == ""
+        assert job["metadata"]["defer_reason"] == ""
+        assert job["metadata"]["defer_next_action"] == ""
     finally:
         db.close()
 
