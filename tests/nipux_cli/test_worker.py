@@ -2187,6 +2187,33 @@ def test_run_one_step_blocks_tool_markup_shell_command_before_execution(tmp_path
         db.close()
 
 
+def test_run_one_step_blocks_unbalanced_shell_quotes_before_execution(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Reject partial shell before execution", title="bad shell syntax")
+        llm = ScriptedLLM([
+            LLMResponse(tool_calls=[
+                ToolCall(
+                    name="shell_exec",
+                    arguments={"command": "echo 'start && ls /tmp"},
+                )
+            ])
+        ])
+
+        result = run_one_step(job_id, config=config, db=db, llm=llm)
+
+        assert result.status == "blocked"
+        assert result.result["error"] == "malformed shell command"
+        assert result.result["recoverable"] is True
+        assert result.result["syntax"]["kind"] == "shell_syntax"
+        step = db.list_steps(job_id=job_id)[0]
+        assert step["status"] == "blocked"
+        assert "malformed command syntax" in step["summary"]
+    finally:
+        db.close()
+
+
 def test_run_one_step_blocks_markdown_fenced_shell_command_before_execution(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")
@@ -6336,8 +6363,8 @@ def test_prompt_adds_ranked_current_candidates_to_stale_grounding_block(tmp_path
         idx = content.index("Next-action constraint:")
         next_constraint = content[idx: idx + 1200]
 
-        assert "Current ranked candidate paths" in next_constraint
-        ranked_text = next_constraint[next_constraint.index("Current ranked candidate paths"):]
+        assert "current ranked candidate paths are available" in next_constraint
+        ranked_text = next_constraint[next_constraint.index("Candidate paths:"):]
         assert ranked_text.index("/srv/models/OmegaModel-primary.foo") < ranked_text.index("/tmp/aux/ggml-vocab-alpha.foo")
     finally:
         db.close()

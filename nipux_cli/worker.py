@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+import shlex
 import signal
 import threading
 import time
@@ -463,15 +464,6 @@ def _current_execution_focus_context(job: dict[str, Any], recent_steps: list[dic
             "evidence": str(checkpoint.get("summary") or checkpoint.get("title") or ""),
             "backlog": backlog,
         }
-    grounding_block = _latest_evidence_grounding_block(recent_steps)
-    if grounding_block:
-        return {
-            "phase": "repair_record",
-            "focus": "Rewrite or replace the blocked durable record using only observed evidence.",
-            "next": "Use exact observed tokens/paths from recent evidence, or record why the attempted claim is invalid.",
-            "evidence": str(grounding_block.get("error") or grounding_block.get("summary") or ""),
-            "backlog": backlog,
-        }
     candidate_files = _candidate_file_discovery_context(job, recent_steps)
     if candidate_files:
         paths = candidate_files.get("paths") if isinstance(candidate_files.get("paths"), list) else []
@@ -483,6 +475,15 @@ def _current_execution_focus_context(job: dict[str, Any], recent_steps: list[dic
             "next": "Run one bounded shell/file validation against the primary path, then record the measurement, finding, lesson, or blocker.",
             "evidence": f"Ranked candidates: {'; '.join(str(path) for path in paths[:4])}",
             "task": str(candidate_files.get("task_text") or ""),
+            "backlog": backlog,
+        }
+    grounding_block = _latest_evidence_grounding_block(recent_steps)
+    if grounding_block:
+        return {
+            "phase": "repair_record",
+            "focus": "Rewrite or replace the blocked durable record using only observed evidence.",
+            "next": "Use exact observed tokens/paths from recent evidence, or record why the attempted claim is invalid.",
+            "evidence": str(grounding_block.get("error") or grounding_block.get("summary") or ""),
             "backlog": backlog,
         }
     experiment_next_action = _latest_experiment_next_action_context(job)
@@ -1613,9 +1614,11 @@ def _next_action_constraint(job: dict[str, Any], recent_steps: list[dict[str, An
             paths = candidate_files.get("paths") if isinstance(candidate_files.get("paths"), list) else []
             current_path_text = "; ".join(str(path) for path in paths[:4])
             if current_path_text:
-                detail += (
-                    " Current ranked candidate paths from recent/durable evidence: "
-                    f"{_clip_text(current_path_text, 520)}."
+                return (
+                    "Recent durable-record grounding failed, but current ranked candidate paths are available. "
+                    "Treat the failed record as rejected for now and validate the highest-confidence candidate next "
+                    "instead of repairing stale wording. "
+                    f"Candidate paths: {_clip_text(current_path_text, 520)}."
                 )
         return (
             "Recent evidence grounding blocked a durable record. Next, rewrite the record using only observed evidence, "
@@ -2486,6 +2489,21 @@ def _shell_placeholder_context(command: str) -> dict[str, Any] | None:
                 "value": match.group(0),
                 "reason": "command contains an unresolved placeholder token",
             }
+    return None
+
+
+def _shell_syntax_preflight_context(command: str) -> dict[str, Any] | None:
+    command = str(command or "").strip()
+    if not command:
+        return None
+    try:
+        shlex.split(command, posix=True)
+    except ValueError as exc:
+        return {
+            "kind": "shell_syntax",
+            "value": str(exc),
+            "reason": "command is not parseable shell syntax; usually an unmatched quote, escape, or partial pasted command",
+        }
     return None
 
 
@@ -4997,6 +5015,21 @@ def _blocked_tool_call_result(
                 ),
             }
             return result, "blocked shell_exec; unresolved placeholder in command"
+        syntax_error = _shell_syntax_preflight_context(str(args.get("command") or ""))
+        if syntax_error:
+            result = {
+                "success": False,
+                "recoverable": True,
+                "error": "malformed shell command",
+                "blocked_tool": name,
+                "blocked_arguments": args,
+                "syntax": syntax_error,
+                "guidance": (
+                    "Do not execute partial or malformed shell. Rebuild the command from exact observed paths, "
+                    "or use a simpler bounded probe before retrying."
+                ),
+            }
+            return result, "blocked shell_exec; malformed command syntax"
         candidate_recovery = _observed_candidate_recovery_required_context(recent_steps, args)
         if candidate_recovery:
             result = {
@@ -5061,6 +5094,7 @@ def _blocked_tool_call_result(
             )
         result = {
             "success": False,
+            "recoverable": name == "read_artifact",
             "error": "duplicate tool call blocked",
             "blocked_tool": name,
             "blocked_arguments": args,
@@ -6918,6 +6952,10 @@ def _is_continuable_recoverable_input_block(execution: StepExecution) -> bool:
         return False
     if error in {"missing required tool arguments", "placeholder tool arguments"}:
         return bool(result.get("missing_arguments") or result.get("placeholder_arguments"))
+    if error == "malformed shell command" and execution.tool_name == "shell_exec":
+        return True
+    if error == "duplicate tool call blocked" and execution.tool_name == "read_artifact":
+        return True
     return error.startswith("artifact not found:") or error == "no active operator context to acknowledge"
 
 
