@@ -435,8 +435,20 @@ def _record_lesson(args: dict[str, Any], ctx: ToolContext) -> str:
     confidence_arg = args.get("confidence")
     confidence = float(confidence_arg) if isinstance(confidence_arg, (int, float)) else None
     metadata = args.get("metadata") if isinstance(args.get("metadata"), dict) else {}
+    pending_measurement = _pending_measurement(ctx)
+    measurement_resolution_category = category in {"constraint", "mistake", "strategy", "memory"}
+    if pending_measurement and measurement_resolution_category and not _lesson_explains_measurement_obligation(lesson, metadata):
+        return _json({
+            "success": False,
+            "error": "measurement explanation required",
+            "message": (
+                "A pending measurement must be resolved with record_experiment, a follow-up task, "
+                "or a lesson that explicitly explains why the output is not a valid measurement."
+            ),
+            "pending_measurement_obligation": pending_measurement,
+        })
     entry = ctx.db.append_lesson(ctx.job_id, lesson, category=category, confidence=confidence, metadata=metadata)
-    if _pending_measurement(ctx) and category in {"constraint", "mistake", "strategy", "memory"}:
+    if pending_measurement and measurement_resolution_category:
         _resolve_measurement_obligation(
             ctx,
             status="explained",
@@ -444,6 +456,55 @@ def _record_lesson(args: dict[str, Any], ctx: ToolContext) -> str:
             via_tool="record_lesson",
         )
     return _json({"success": True, "job_id": ctx.job_id, "lesson": entry})
+
+
+def _lesson_explains_measurement_obligation(lesson: str, metadata: dict[str, Any]) -> bool:
+    parts = [lesson]
+    for value in metadata.values():
+        if isinstance(value, (str, int, float, bool)):
+            parts.append(str(value))
+    text = " ".join(parts).lower()
+    measurement_terms = (
+        "measure",
+        "measured",
+        "measurement",
+        "metric",
+        "experiment",
+        "trial",
+        "benchmark",
+        "result",
+        "obligation",
+    )
+    accounting_terms = (
+        "invalid",
+        "valid",
+        "not valid",
+        "diagnostic",
+        "missing",
+        "no metric",
+        "without metric",
+        "blocked",
+        "failed",
+        "failure",
+        "timeout",
+        "permission",
+        "auth",
+        "quota",
+        "rate limit",
+        "unavailable",
+        "unable",
+        "cannot",
+        "can't",
+        "could not",
+        "stale",
+        "incomplete",
+        "not comparable",
+        "not enough",
+        "rerun",
+        "re-run",
+        "retry",
+    )
+    return any(term in text for term in measurement_terms) and any(term in text for term in accounting_terms)
 
 
 def _record_memory_graph(args: dict[str, Any], ctx: ToolContext) -> str:

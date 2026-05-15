@@ -3676,7 +3676,17 @@ def test_stale_diagnostic_measurement_obligation_is_cleared(tmp_path):
             job_id,
             config=config,
             db=db,
-            llm=ScriptedLLM([LLMResponse(tool_calls=[ToolCall(name="record_lesson", arguments={"lesson": "continue", "category": "memory"})])]),
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(
+                        name="record_lesson",
+                        arguments={
+                            "lesson": "The stale output is diagnostic context, not a valid measurement; rerun with a metric.",
+                            "category": "memory",
+                        },
+                    )
+                ])
+            ]),
         )
 
         job = db.get_job(job_id)

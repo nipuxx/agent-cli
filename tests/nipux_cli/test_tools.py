@@ -588,6 +588,82 @@ def test_record_lesson_tool_records_durable_learning(tmp_path):
         db.close()
 
 
+def test_record_lesson_cannot_clear_measurement_obligation_with_vague_lesson(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job(
+            "Improve a measurable process",
+            metadata={
+                "pending_measurement_obligation": {
+                    "source_step_no": 4,
+                    "tool": "shell_exec",
+                    "metric_candidates": ["42 units/s"],
+                    "command": "run trial",
+                }
+            },
+        )
+        run_id = db.start_run(job_id, model="fake")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="record_lesson")
+        ctx = ToolContext(config=config, db=db, artifacts=ArtifactStore(tmp_path, db), job_id=job_id, run_id=run_id, step_id=step_id)
+
+        raw = DEFAULT_REGISTRY.handle(
+            "record_lesson",
+            {"lesson": "continue focused work", "category": "strategy"},
+            ctx,
+        )
+        result = json.loads(raw)
+        job = db.get_job(job_id)
+
+        assert result["success"] is False
+        assert result["error"] == "measurement explanation required"
+        assert job["metadata"]["pending_measurement_obligation"]["source_step_no"] == 4
+        assert "lessons" not in job["metadata"]
+    finally:
+        db.close()
+
+
+def test_record_lesson_can_explain_invalid_measurement_obligation(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job(
+            "Improve a measurable process",
+            metadata={
+                "pending_measurement_obligation": {
+                    "source_step_no": 4,
+                    "tool": "shell_exec",
+                    "metric_candidates": ["42 units/s"],
+                    "command": "run trial",
+                }
+            },
+        )
+        run_id = db.start_run(job_id, model="fake")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="record_lesson")
+        ctx = ToolContext(config=config, db=db, artifacts=ArtifactStore(tmp_path, db), job_id=job_id, run_id=run_id, step_id=step_id)
+
+        raw = DEFAULT_REGISTRY.handle(
+            "record_lesson",
+            {
+                "lesson": (
+                    "The output was diagnostic only and did not contain a valid metric; "
+                    "rerun the branch with a measured trial."
+                ),
+                "category": "mistake",
+            },
+            ctx,
+        )
+        result = json.loads(raw)
+        job = db.get_job(job_id)
+
+        assert result["success"] is True
+        assert job["metadata"].get("pending_measurement_obligation") == {}
+        assert job["metadata"]["last_measurement_obligation"]["resolution_status"] == "explained"
+        assert job["metadata"]["last_measurement_obligation"]["resolution_tool"] == "record_lesson"
+    finally:
+        db.close()
+
+
 def test_memory_graph_tools_roundtrip(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")
