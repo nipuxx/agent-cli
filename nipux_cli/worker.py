@@ -2697,6 +2697,10 @@ EVIDENCE_GROUNDED_TOOLS = {
     "write_artifact",
 }
 NARRATIVE_EVIDENCE_GROUNDED_TOOLS = {
+    "record_findings",
+    "record_lesson",
+    "record_memory_graph",
+    "record_roadmap",
     "report_update",
     "write_artifact",
 }
@@ -3536,6 +3540,26 @@ def _evidence_line_is_negative(line_lower: str) -> bool:
 
 
 def _evidence_grounding_proposed_text(tool_name: str, args: dict[str, Any]) -> str:
+    if tool_name == "record_experiment":
+        return "\n".join(
+            _json_value_text(args.get(key))
+            for key in (
+                "action",
+                "baseline",
+                "command",
+                "config",
+                "decision",
+                "environment",
+                "evidence",
+                "evidence_artifact",
+                "metric_name",
+                "metric_unit",
+                "metric_value",
+                "result",
+                "status",
+            )
+            if args.get(key) is not None
+        )
     if tool_name != "record_memory_graph":
         return _json_value_text(args)
     parts: list[str] = []
@@ -3604,9 +3628,16 @@ def _evidence_steps_for_grounding(
         steps = [step for step in completed if int(step.get("step_no") or 0) in step_numbers]
     else:
         steps = completed[-window:]
-    return [
+    evidence_steps = [
         step
         for step in steps
+        if step.get("tool_name") in {"browser_snapshot", "shell_exec", "web_extract", "web_search", "read_artifact"}
+    ]
+    if evidence_steps or not step_numbers:
+        return evidence_steps
+    return [
+        step
+        for step in completed[-window:]
         if step.get("tool_name") in {"browser_snapshot", "shell_exec", "web_extract", "web_search", "read_artifact"}
     ]
 
