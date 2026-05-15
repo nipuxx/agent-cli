@@ -190,7 +190,7 @@ def initial_task_contract(task_title: str) -> dict[str, str]:
             "evidence_needed": "Operator context, durable notes, or an updated roadmap/task queue.",
             "stall_behavior": "Ask for the missing constraint or record a decision with the best current assumption.",
         }
-    if "map" in lowered or "research" in lowered or "branch" in lowered:
+    if "map" in lowered or "research" in lowered or "branch" in lowered or "explore" in lowered or "source" in lowered:
         return {
             "output_contract": "research",
             "acceptance_criteria": "At least one viable branch is selected and low-value branches are avoided.",

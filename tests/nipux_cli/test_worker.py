@@ -1019,6 +1019,7 @@ def test_task_resolution_checkpoint_resets_planning_streak(tmp_path):
                                     "title": "Existing branch",
                                     "status": "done",
                                     "result": "Resolved using the latest evidence.",
+                                    "metadata": {"source_url": "file:///tmp/latest-evidence"},
                                 }
                             ]
                         },

@@ -15,6 +15,7 @@ from nipux_cli.db import AgentDB
 from nipux_cli.metric_format import format_metric_value
 from nipux_cli.digest import send_digest_email
 from nipux_cli.memory_graph import memory_graph_from_job, search_memory_graph
+from nipux_cli.planning import initial_task_contract
 from nipux_cli.shell_tools import shell_exec as _shell_exec
 from nipux_cli.shell_tools import write_file as _write_file
 
@@ -761,6 +762,17 @@ def _record_tasks(args: dict[str, Any], ctx: ToolContext) -> str:
             or metadata.get("contract")
             or ""
         )
+        acceptance_criteria = str(task.get("acceptance_criteria") or "")
+        evidence_needed = str(task.get("evidence_needed") or "")
+        stall_behavior = str(task.get("stall_behavior") or "")
+        output_contract, acceptance_criteria, evidence_needed, stall_behavior, metadata = _complete_task_contract(
+            title=title,
+            output_contract=output_contract,
+            acceptance_criteria=acceptance_criteria,
+            evidence_needed=evidence_needed,
+            stall_behavior=stall_behavior,
+            metadata=metadata,
+        )
         result_text = str(task.get("result") or task.get("outcome") or "")
         status, metadata = _validated_task_status(
             ctx,
@@ -781,9 +793,9 @@ def _record_tasks(args: dict[str, Any], ctx: ToolContext) -> str:
             result=result_text,
             parent=str(task.get("parent") or ""),
             output_contract=output_contract,
-            acceptance_criteria=str(task.get("acceptance_criteria") or ""),
-            evidence_needed=str(task.get("evidence_needed") or ""),
-            stall_behavior=str(task.get("stall_behavior") or ""),
+            acceptance_criteria=acceptance_criteria,
+            evidence_needed=evidence_needed,
+            stall_behavior=stall_behavior,
             metadata=metadata,
         )
         if entry.get("created"):
@@ -814,6 +826,37 @@ def _record_tasks(args: dict[str, Any], ctx: ToolContext) -> str:
             via_tool="record_tasks",
         )
     return _json({"success": True, "job_id": ctx.job_id, "added": added, "updated": updated, "unchanged": unchanged, "tasks": stored})
+
+
+def _complete_task_contract(
+    *,
+    title: str,
+    output_contract: str,
+    acceptance_criteria: str,
+    evidence_needed: str,
+    stall_behavior: str,
+    metadata: dict[str, Any],
+) -> tuple[str, str, str, str, dict[str, Any]]:
+    defaults = initial_task_contract(title)
+    inferred = []
+    if not output_contract.strip():
+        output_contract = defaults["output_contract"]
+        inferred.append("output_contract")
+    if not acceptance_criteria.strip():
+        acceptance_criteria = defaults["acceptance_criteria"]
+        inferred.append("acceptance_criteria")
+    if not evidence_needed.strip():
+        evidence_needed = defaults["evidence_needed"]
+        inferred.append("evidence_needed")
+    if not stall_behavior.strip():
+        stall_behavior = defaults["stall_behavior"]
+        inferred.append("stall_behavior")
+    if inferred:
+        metadata = dict(metadata)
+        existing = metadata.get("contract_inferred_fields")
+        existing_fields = [str(item) for item in existing] if isinstance(existing, list) else []
+        metadata["contract_inferred_fields"] = sorted(set(existing_fields + inferred))
+    return output_contract, acceptance_criteria, evidence_needed, stall_behavior, metadata
 
 
 def _validated_task_status(
@@ -1583,7 +1626,7 @@ SUPPORT_SCHEMAS: list[ToolSpec] = [
         },
         "required": ["findings"],
     }, _record_findings),
-    ToolSpec("record_tasks", "Create or update a durable queue of objective-neutral work branches. Use this to split long jobs into next actions, mark blocked branches, and keep the agent from cycling on one path.", {
+    ToolSpec("record_tasks", "Create or update a durable queue of objective-neutral work branches. Use this to split long jobs into next actions, mark blocked branches, and keep the agent from cycling on one path. Missing task contract fields are filled with generic defaults from the task title.", {
         "type": "object",
         "properties": {
             "tasks": {

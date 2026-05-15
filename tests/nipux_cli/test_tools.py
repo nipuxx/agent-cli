@@ -831,8 +831,19 @@ def test_record_tasks_tool_updates_task_queue(tmp_path):
 
         assert result["success"] is True
         assert result["added"] == 1
-        assert job["metadata"]["task_queue"][0]["title"] == "Explore primary sources"
-        assert job["metadata"]["task_queue"][0]["priority"] == 5
+        task = job["metadata"]["task_queue"][0]
+        assert task["title"] == "Explore primary sources"
+        assert task["priority"] == 5
+        assert task["output_contract"] == "research"
+        assert task["acceptance_criteria"]
+        assert task["evidence_needed"]
+        assert task["stall_behavior"]
+        assert task["metadata"]["contract_inferred_fields"] == [
+            "acceptance_criteria",
+            "evidence_needed",
+            "output_contract",
+            "stall_behavior",
+        ]
         assert job["metadata"]["last_agent_update"]["category"] == "plan"
     finally:
         db.close()
