@@ -551,6 +551,7 @@ def _acknowledge_operator_context(args: dict[str, Any], ctx: ToolContext) -> str
     if not pending:
         return _json({
             "success": False,
+            "recoverable": True,
             "error": "no active operator context to acknowledge",
             "message_ids": message_ids,
             "guidance": "Use acknowledge_operator_context only after incorporating claimed operator steering. Use report_update, record_lesson, record_tasks, or record_experiment for ordinary progress.",

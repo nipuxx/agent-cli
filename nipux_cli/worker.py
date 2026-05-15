@@ -6670,7 +6670,7 @@ def _is_continuable_recoverable_input_block(execution: StepExecution) -> bool:
         return False
     if error in {"missing required tool arguments", "placeholder tool arguments"}:
         return bool(result.get("missing_arguments") or result.get("placeholder_arguments"))
-    return error.startswith("artifact not found:")
+    return error.startswith("artifact not found:") or error == "no active operator context to acknowledge"
 
 
 def _ordered_tool_calls_for_execution(

@@ -2062,6 +2062,33 @@ def test_run_one_step_continues_after_missing_artifact_when_batch_has_more_work(
         db.close()
 
 
+def test_run_one_step_continues_after_empty_operator_ack_when_batch_has_more_work(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Recover from harmless no-op acknowledgements", title="ack batch")
+        llm = ScriptedLLM([
+            LLMResponse(tool_calls=[
+                ToolCall(name="acknowledge_operator_context", arguments={"summary": "already handled"}),
+                ToolCall(name="record_lesson", arguments={"lesson": "continue with ordinary progress when no operator ack is needed"}),
+            ])
+        ])
+
+        result = run_one_step(job_id, config=config, db=db, llm=llm)
+
+        assert result.tool_name == "record_lesson"
+        assert result.status == "completed"
+        tool_steps = [step for step in db.list_steps(job_id=job_id) if step["kind"] == "tool"]
+        assert [step["tool_name"] for step in tool_steps] == ["acknowledge_operator_context", "record_lesson"]
+        assert tool_steps[0]["status"] == "blocked"
+        assert tool_steps[0]["output"]["recoverable"] is True
+        assert tool_steps[0]["output"]["error"] == "no active operator context to acknowledge"
+        assert tool_steps[1]["status"] == "completed"
+        assert db.list_runs(job_id)[0]["status"] == "completed"
+    finally:
+        db.close()
+
+
 def test_run_one_step_blocks_placeholder_tool_arguments_as_recoverable(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

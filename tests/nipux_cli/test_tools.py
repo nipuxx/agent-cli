@@ -1618,6 +1618,7 @@ def test_acknowledge_operator_context_requires_active_context(tmp_path):
         result = json.loads(raw)
 
         assert result["success"] is False
+        assert result["recoverable"] is True
         assert result["error"] == "no active operator context to acknowledge"
         assert "report_update" in result["guidance"]
         assert "last_operator_context_ack" not in db.get_job(job_id)["metadata"]
