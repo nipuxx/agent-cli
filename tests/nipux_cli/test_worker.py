@@ -3251,6 +3251,37 @@ def test_pending_evidence_checkpoint_narrows_available_tools(tmp_path):
         db.close()
 
 
+def test_acknowledge_operator_context_hidden_without_active_operator_context(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Run ordinary autonomous work", title="no-operator", kind="generic")
+        llm = CapturingLLM(LLMResponse(tool_calls=[ToolCall(name="report_update", arguments={"message": "working"})]))
+
+        run_one_step(job_id, config=config, db=db, llm=llm)
+
+        tool_names = {tool["function"]["name"] for tool in llm.tools}
+        assert "acknowledge_operator_context" not in tool_names
+    finally:
+        db.close()
+
+
+def test_acknowledge_operator_context_visible_with_active_operator_context(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Run with operator steering", title="operator", kind="generic")
+        db.append_operator_message(job_id, "use the corrected target", source="chat")
+        llm = CapturingLLM(LLMResponse(tool_calls=[ToolCall(name="report_update", arguments={"message": "working"})]))
+
+        run_one_step(job_id, config=config, db=db, llm=llm)
+
+        tool_names = {tool["function"]["name"] for tool in llm.tools}
+        assert "acknowledge_operator_context" in tool_names
+    finally:
+        db.close()
+
+
 def test_diagnostic_shell_output_does_not_create_measurement_obligation(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

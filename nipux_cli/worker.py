@@ -6805,7 +6805,26 @@ def _suppressed_tool_names(job: dict[str, Any] | None, recent_steps: list[dict[s
     suppressed: set[str] = set()
     if _repeated_task_queue_saturation_context(recent_steps):
         suppressed.add("record_tasks")
+    if not _has_acknowledgeable_operator_context(job):
+        suppressed.add("acknowledge_operator_context")
     return suppressed
+
+
+def _has_acknowledgeable_operator_context(job: dict[str, Any]) -> bool:
+    metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
+    messages = metadata.get("operator_messages") if isinstance(metadata.get("operator_messages"), list) else []
+    for entry in messages:
+        if not isinstance(entry, dict):
+            continue
+        mode = str(entry.get("mode") or "steer").strip().lower().replace("-", "_")
+        if mode not in {"steer", "follow_up"}:
+            continue
+        if not entry.get("claimed_at"):
+            continue
+        if entry.get("acknowledged_at") or entry.get("superseded_at"):
+            continue
+        return True
+    return False
 
 
 def _openai_tool_name(tool: dict[str, Any]) -> str:
