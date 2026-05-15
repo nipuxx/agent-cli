@@ -728,6 +728,61 @@ def test_record_findings_reports_unchanged_duplicates_without_agent_update_noise
         db.close()
 
 
+def test_record_findings_requires_evidence_anchor(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Research topic")
+        run_id = db.start_run(job_id, model="fake")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="record_findings")
+        ctx = ToolContext(config=config, db=db, artifacts=ArtifactStore(tmp_path, db), job_id=job_id, run_id=run_id, step_id=step_id)
+
+        raw = DEFAULT_REGISTRY.handle(
+            "record_findings",
+            {"findings": [{"name": "Unsupported label", "category": "candidate"}]},
+            ctx,
+        )
+        result = json.loads(raw)
+
+        assert result["success"] is False
+        assert result["error"] == "no valid finding with name/title and evidence was provided"
+        assert result["rejected"] == [{"name": "Unsupported label", "reason": "missing_evidence"}]
+        assert db.get_job(job_id)["metadata"].get("finding_ledger") is None
+    finally:
+        db.close()
+
+
+def test_record_findings_reports_rejected_unevidenced_items_in_mixed_batch(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Research topic")
+        run_id = db.start_run(job_id, model="fake")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="record_findings")
+        ctx = ToolContext(config=config, db=db, artifacts=ArtifactStore(tmp_path, db), job_id=job_id, run_id=run_id, step_id=step_id)
+
+        raw = DEFAULT_REGISTRY.handle(
+            "record_findings",
+            {
+                "findings": [
+                    {"name": "Unsupported label"},
+                    {"name": "Evidence-backed result", "metadata": {"source_url": "file:///tmp/evidence.txt"}},
+                ]
+            },
+            ctx,
+        )
+        result = json.loads(raw)
+        job = db.get_job(job_id)
+
+        assert result["success"] is True
+        assert result["added"] == 1
+        assert result["rejected"] == [{"name": "Unsupported label", "reason": "missing_evidence"}]
+        assert job["metadata"]["finding_ledger"][0]["name"] == "Evidence-backed result"
+        assert job["metadata"]["last_agent_update"]["metadata"]["rejected"] == 1
+    finally:
+        db.close()
+
+
 def test_record_tasks_tool_updates_task_queue(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

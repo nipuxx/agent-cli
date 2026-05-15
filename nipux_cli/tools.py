@@ -575,12 +575,25 @@ def _record_findings(args: dict[str, Any], ctx: ToolContext) -> str:
     added = 0
     updated = 0
     unchanged = 0
+    rejected = []
     source_yields: dict[str, int] = {}
     for finding in findings[:50]:
         name = str(finding.get("name") or finding.get("title") or "").strip()
         if not name:
             continue
         source_url = str(finding.get("source_url") or finding.get("source") or args.get("source_url") or args.get("source") or "")
+        reason = str(finding.get("reason") or finding.get("rationale") or "")
+        finding_evidence_artifact = str(finding.get("evidence_artifact") or evidence_artifact)
+        metadata = finding.get("metadata") if isinstance(finding.get("metadata"), dict) else {}
+        if not _finding_has_evidence(
+            url=str(finding.get("url") or ""),
+            source_url=source_url,
+            reason=reason,
+            evidence_artifact=finding_evidence_artifact,
+            metadata=metadata,
+        ):
+            rejected.append({"name": name, "reason": "missing_evidence"})
+            continue
         score_arg = finding.get("score")
         score = float(score_arg) if isinstance(score_arg, (int, float)) else None
         entry = ctx.db.append_finding_record(
@@ -591,11 +604,11 @@ def _record_findings(args: dict[str, Any], ctx: ToolContext) -> str:
             category=str(finding.get("category") or finding.get("type") or ""),
             location=str(finding.get("location") or ""),
             contact=str(finding.get("contact") or ""),
-            reason=str(finding.get("reason") or finding.get("rationale") or ""),
+            reason=reason,
             status=str(finding.get("status") or "new"),
             score=score,
-            evidence_artifact=str(finding.get("evidence_artifact") or evidence_artifact),
-            metadata=finding.get("metadata") if isinstance(finding.get("metadata"), dict) else {},
+            evidence_artifact=finding_evidence_artifact,
+            metadata=metadata,
         )
         if entry.get("created"):
             added += 1
@@ -607,7 +620,15 @@ def _record_findings(args: dict[str, Any], ctx: ToolContext) -> str:
             unchanged += 1
         stored.append(entry)
     if not stored:
-        return _json({"success": False, "error": "no valid finding with name/title was provided"})
+        return _json({
+            "success": False,
+            "error": "no valid finding with name/title and evidence was provided",
+            "rejected": rejected,
+            "guidance": (
+                "Each finding must include an evidence anchor such as source_url/url, reason/rationale, "
+                "evidence_artifact, or evidence metadata. Use record_tasks or record_source for unevidenced candidates."
+            ),
+        })
     source_records = []
     for source_url, count in source_yields.items():
         score = round(min(1.0, 0.55 + min(count, 10) * 0.04), 2)
@@ -630,7 +651,13 @@ def _record_findings(args: dict[str, Any], ctx: ToolContext) -> str:
             ctx.job_id,
             message,
             category="finding",
-            metadata={"added": added, "updated": updated, "unchanged": unchanged, "sources_updated": len(source_records)},
+            metadata={
+                "added": added,
+                "updated": updated,
+                "unchanged": unchanged,
+                "rejected": len(rejected),
+                "sources_updated": len(source_records),
+            },
         )
     return _json({
         "success": True,
@@ -638,10 +665,34 @@ def _record_findings(args: dict[str, Any], ctx: ToolContext) -> str:
         "added": added,
         "updated": updated,
         "unchanged": unchanged,
+        "rejected": rejected,
         "sources_updated": len(source_records),
         "sources": source_records,
         "findings": stored,
     })
+
+
+def _finding_has_evidence(
+    *,
+    url: str,
+    source_url: str,
+    reason: str,
+    evidence_artifact: str,
+    metadata: dict[str, Any],
+) -> bool:
+    if url.strip() or source_url.strip() or reason.strip() or evidence_artifact.strip():
+        return True
+    evidence_keys = {
+        "artifact_id",
+        "evidence_artifact",
+        "experiment_key",
+        "file_path",
+        "output_path",
+        "source_id",
+        "source_url",
+        "step_id",
+    }
+    return any(str(metadata.get(key) or "").strip() for key in evidence_keys)
 
 
 def _record_tasks(args: dict[str, Any], ctx: ToolContext) -> str:
@@ -1464,7 +1515,7 @@ SUPPORT_SCHEMAS: list[ToolSpec] = [
         },
         "required": ["source"],
     }, _record_source),
-    ToolSpec("record_findings", "Update the finding ledger with one or more useful results. Use after saving an evidence artifact or identifying durable candidates, facts, opportunities, experiments, or other reusable outputs.", {
+    ToolSpec("record_findings", "Update the finding ledger with evidence-backed useful results. Each finding needs an evidence anchor such as source_url/url, reason, evidence_artifact, or evidence metadata.", {
         "type": "object",
         "properties": {
             "evidence_artifact": {"type": "string"},
