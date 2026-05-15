@@ -2187,6 +2187,40 @@ def test_run_one_step_blocks_tool_markup_shell_command_before_execution(tmp_path
         db.close()
 
 
+def test_run_one_step_blocks_markdown_fenced_shell_command_before_execution(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Reject markdown prose before shell execution", title="markdown shell")
+        llm = ScriptedLLM([
+            LLMResponse(tool_calls=[
+                ToolCall(
+                    name="shell_exec",
+                    arguments={
+                        "command": (
+                            "ls -la /srv/models/model.bin\n\n"
+                            "--- Chapter 2\n\n"
+                            "1. ```shell\n"
+                            "   chmod +x /tmp/example\n"
+                            "```"
+                        )
+                    },
+                )
+            ])
+        ])
+
+        result = run_one_step(job_id, config=config, db=db, llm=llm)
+
+        assert result.status == "blocked"
+        assert result.result["error"] == "unresolved placeholder in shell command"
+        assert result.result["placeholder"]["kind"] == "markdown_code_fence"
+        step = db.list_steps(job_id=job_id)[0]
+        assert step["status"] == "blocked"
+        assert "unresolved placeholder" in step["summary"]
+    finally:
+        db.close()
+
+
 def test_run_one_step_times_out_stalled_model_call(tmp_path):
     config = AppConfig(
         runtime=RuntimeConfig(home=tmp_path),

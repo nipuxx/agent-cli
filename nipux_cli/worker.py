@@ -2300,6 +2300,18 @@ def _shell_placeholder_context(command: str) -> dict[str, Any] | None:
     command = str(command or "").strip()
     if not command:
         return None
+    if "```" in command:
+        return {
+            "kind": "markdown_code_fence",
+            "value": "```",
+            "reason": "command contains markdown code fences instead of executable shell only",
+        }
+    if re.search(r"(?m)^\s*-{3,}\s+\S", command) or re.search(r"(?m)^\s*\d+\.\s+```", command):
+        return {
+            "kind": "markdown_prose",
+            "value": "markdown prose",
+            "reason": "command contains copied markdown prose instead of executable shell only",
+        }
     for url in _urls_from_text(command):
         parsed = urlparse(url)
         host = (parsed.hostname or "").lower()
