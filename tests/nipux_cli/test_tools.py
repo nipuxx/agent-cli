@@ -1041,6 +1041,77 @@ def test_record_experiment_requires_next_action_for_closed_trials(tmp_path):
         db.close()
 
 
+def test_record_experiment_requires_metric_for_measured_trials(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Improve a measurable process")
+        run_id = db.start_run(job_id, model="fake")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="record_experiment")
+        ctx = ToolContext(config=config, db=db, artifacts=ArtifactStore(tmp_path, db), job_id=job_id, run_id=run_id, step_id=step_id)
+
+        missing_value = json.loads(DEFAULT_REGISTRY.handle(
+            "record_experiment",
+            {
+                "title": "invalid measurement",
+                "status": "measured",
+                "metric_name": "score",
+                "result": "looked better but no numeric metric",
+                "next_action": "run a real measurement",
+            },
+            ctx,
+        ))
+        missing_name = json.loads(DEFAULT_REGISTRY.handle(
+            "record_experiment",
+            {
+                "title": "invalid measurement",
+                "status": "measured",
+                "metric_value": 2.7,
+                "result": "numeric result with no metric name",
+                "next_action": "label the metric and retry",
+            },
+            ctx,
+        ))
+
+        assert missing_value["success"] is False
+        assert missing_value["error"] == "measured experiments require metric_name and numeric metric_value"
+        assert missing_name["success"] is False
+        assert missing_name["error"] == "measured experiments require metric_name and numeric metric_value"
+        assert db.get_job(job_id)["metadata"].get("experiment_ledger") is None
+    finally:
+        db.close()
+
+
+def test_record_experiment_accepts_numeric_metric_strings(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Improve a measurable process")
+        run_id = db.start_run(job_id, model="fake")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="record_experiment")
+        ctx = ToolContext(config=config, db=db, artifacts=ArtifactStore(tmp_path, db), job_id=job_id, run_id=run_id, step_id=step_id)
+
+        raw = DEFAULT_REGISTRY.handle(
+            "record_experiment",
+            {
+                "title": "string metric",
+                "status": "measured",
+                "metric_name": "score",
+                "metric_value": "2.7",
+                "metric_unit": "units",
+                "result": "measured from output",
+                "next_action": "try the next branch",
+            },
+            ctx,
+        )
+        result = json.loads(raw)
+
+        assert result["success"] is True
+        assert result["experiment"]["metric_value"] == 2.7
+    finally:
+        db.close()
+
+
 def test_acknowledge_operator_context_tool_marks_context(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

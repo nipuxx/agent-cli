@@ -986,12 +986,20 @@ def _record_experiment(args: dict[str, Any], ctx: ToolContext) -> str:
         or args.get("outcome")
         or "Experiment checkpoint"
     ).strip()
-    metric_value_arg = args.get("metric_value")
-    metric_value = float(metric_value_arg) if isinstance(metric_value_arg, (int, float)) else None
-    baseline_value_arg = args.get("baseline_value")
-    baseline_value = float(baseline_value_arg) if isinstance(baseline_value_arg, (int, float)) else None
+    metric_name = str(args.get("metric_name") or "").strip()
+    metric_value = _optional_float(args.get("metric_value"))
+    baseline_value = _optional_float(args.get("baseline_value"))
     status = str(args.get("status") or "planned").strip().lower() or "planned"
     next_action = str(args.get("next_action") or "").strip()
+    if status == "measured" and (not metric_name or metric_value is None):
+        return _json({
+            "success": False,
+            "error": "measured experiments require metric_name and numeric metric_value",
+            "guidance": (
+                "Use status=measured only for a real measurement with a metric name and numeric value. "
+                "Use status=failed, blocked, skipped, running, or planned when the trial did not produce a valid metric."
+            ),
+        })
     if status in {"measured", "failed", "blocked", "skipped"} and not next_action:
         return _json({
             "success": False,
@@ -1006,7 +1014,7 @@ def _record_experiment(args: dict[str, Any], ctx: ToolContext) -> str:
         title=title,
         hypothesis=str(args.get("hypothesis") or ""),
         status=status,
-        metric_name=str(args.get("metric_name") or ""),
+        metric_name=metric_name,
         metric_value=metric_value,
         metric_unit=str(args.get("metric_unit") or ""),
         higher_is_better=bool(args.get("higher_is_better", True)),
@@ -1046,6 +1054,22 @@ def _record_experiment(args: dict[str, Any], ctx: ToolContext) -> str:
             experiment_key=str(record.get("key") or ""),
         )
     return _json({"success": True, "job_id": ctx.job_id, "experiment": record})
+
+
+def _optional_float(value: Any) -> float | None:
+    if isinstance(value, bool) or value is None:
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, str):
+        text = value.strip().replace(",", "")
+        if not text:
+            return None
+        try:
+            return float(text)
+        except ValueError:
+            return None
+    return None
 
 
 def _pending_measurement(ctx: ToolContext) -> dict[str, Any] | None:
