@@ -8084,6 +8084,7 @@ def test_run_one_step_allows_blocked_experiment_after_experiment_stagnation(tmp_
                             "status": "blocked",
                             "metric_name": "score",
                             "metric_unit": "units",
+                            "result": "recent trials did not improve the objective",
                             "next_action": "pivot to a materially different branch",
                         },
                     )

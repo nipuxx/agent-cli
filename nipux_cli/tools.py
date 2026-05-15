@@ -1185,6 +1185,15 @@ def _record_experiment(args: dict[str, Any], ctx: ToolContext) -> str:
                 "such as the next experiment, action branch, monitor branch, pivot, or blocked condition."
             ),
         })
+    if status in {"failed", "blocked", "skipped"} and not _experiment_has_closed_trial_context(args):
+        return _json({
+            "success": False,
+            "error": f"{status} experiments require result, evidence, config, or metadata",
+            "guidance": (
+                "Closed non-measured trials must record what happened or what was attempted. "
+                "Include result/outcome, evidence_artifact, config, or metadata with the blocker/context."
+            ),
+        })
     record = ctx.db.append_experiment_record(
         ctx.job_id,
         title=title,
@@ -1230,6 +1239,20 @@ def _record_experiment(args: dict[str, Any], ctx: ToolContext) -> str:
             experiment_key=str(record.get("key") or ""),
         )
     return _json({"success": True, "job_id": ctx.job_id, "experiment": record})
+
+
+def _experiment_has_closed_trial_context(args: dict[str, Any]) -> bool:
+    if str(args.get("result") or args.get("outcome") or "").strip():
+        return True
+    if str(args.get("evidence_artifact") or args.get("artifact_id") or "").strip():
+        return True
+    config = args.get("config")
+    if isinstance(config, dict) and any(str(value).strip() for value in config.values()):
+        return True
+    metadata = args.get("metadata")
+    if isinstance(metadata, dict) and any(str(value).strip() for value in metadata.values()):
+        return True
+    return False
 
 
 def _optional_float(value: Any) -> float | None:
