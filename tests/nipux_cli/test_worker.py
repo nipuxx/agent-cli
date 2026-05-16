@@ -5,6 +5,7 @@ from nipux_cli.artifacts import ArtifactStore
 from nipux_cli.config import AppConfig, ModelConfig, RuntimeConfig
 from nipux_cli.db import AgentDB
 from nipux_cli.llm import LLMResponse, LLMResponseError, ScriptedLLM, ToolCall
+from nipux_cli.tools import DEFAULT_REGISTRY
 from nipux_cli.worker import (
     MAX_WORKER_PROMPT_CHARS,
     SYSTEM_PROMPT,
@@ -14,6 +15,7 @@ from nipux_cli.worker import (
     _file_pattern_tokens_for_grounding,
     _rank_candidate_file_paths,
     _render_worker_prompt,
+    _registry_tools_for_step,
     build_messages,
     run_one_step,
 )
@@ -7717,6 +7719,49 @@ def test_direct_action_task_can_continue_shell_despite_bookkeeping_pressure(tmp_
         assert result.status == "completed"
         assert result.tool_name == "shell_exec"
         assert result.result["stdout"] == "score 2.7 units/s"
+    finally:
+        db.close()
+
+
+def test_direct_action_mode_uses_compact_executor_prompt_and_tools(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Measure the next branch", title="direct-action-prompt", kind="generic")
+        db.append_task_record(
+            job_id,
+            title="Run the smallest validation command",
+            status="active",
+            output_contract="experiment",
+            acceptance_criteria="Observed output or exact blocker.",
+            evidence_needed="shell_exec output",
+        )
+        run_id = db.start_run(job_id, model="test")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec")
+        db.finish_step(
+            step_id,
+            status="completed",
+            output_data={"success": True, "stdout": "candidate exists", "returncode": 0},
+        )
+        db.finish_run(run_id, "completed")
+        job = db.get_job(job_id)
+        steps = db.list_steps(job_id=job_id)
+
+        messages = build_messages(job, steps, db.list_memory(job_id), timeline_events=db.list_timeline_events(job_id))
+        tool_names = {
+            tool["function"]["name"]
+            for tool in _registry_tools_for_step(DEFAULT_REGISTRY, config, steps, job=job)
+        }
+
+        assert "executor mode" in messages[0]["content"]
+        assert "Ledgers:" not in messages[-1]["content"]
+        assert "Task queue:" not in messages[-1]["content"]
+        assert "Direct action pressure:" in messages[-1]["content"]
+        assert len(messages[0]["content"]) < len(SYSTEM_PROMPT) // 3
+        assert {"shell_exec", "record_experiment", "write_file"} <= tool_names
+        assert "record_tasks" not in tool_names
+        assert "record_lesson" not in tool_names
+        assert "record_memory_graph" not in tool_names
     finally:
         db.close()
 

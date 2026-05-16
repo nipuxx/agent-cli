@@ -47,6 +47,7 @@ from nipux_cli.worker_policy import (
     DELIVERABLE_ARTIFACT_TERMS,
     DELIVERABLE_PROGRESS_BLOCKED_TOOLS,
     DELIVERABLE_RESEARCH_BUDGET_STEPS,
+    DIRECT_ACTION_SYSTEM_PROMPT,
     EVIDENCE_ARTIFACT_TERMS,
     EXPERIMENT_DELIVERY_ACTION_TERMS,
     EXPERIMENT_INFORMATION_ACTION_TERMS,
@@ -195,6 +196,38 @@ def build_messages(
         active_messages=active_operator_messages or [],
         include_unclaimed=include_unclaimed_operator_messages,
     )
+    if _active_direct_action_context(job, recent_steps):
+        content = _render_worker_prompt(
+            job,
+            sections=[
+                (
+                    "Workspace",
+                    "\n".join([
+                        "- shell_exec runs on the machine hosting this Nipux worker, in the current worker directory unless the command changes it",
+                        "- saved artifacts are separate Nipux outputs; read_artifact is only for those saved outputs",
+                        "- use shell_exec for workspace/project files unless the file is a saved artifact",
+                    ]),
+                ),
+                ("Operator context", operator_messages),
+                ("Current execution focus", _current_execution_focus_for_prompt(job, recent_steps)),
+                ("Direct action pressure", _direct_action_pressure_for_prompt(job, recent_steps)),
+                ("Pending measurement obligation", _measurement_obligation_for_prompt(job)),
+                ("Recent measurement evidence", _recent_measurement_evidence_for_prompt(job, recent_steps)),
+                ("Pending file validation obligation", _file_validation_obligation_for_prompt(job)),
+                ("Candidate file discovery", _candidate_file_discovery_for_prompt(job, recent_steps)),
+                ("Measured progress guard", _measured_progress_guard_for_prompt(job, recent_steps)),
+                ("Deliverable progress guard", _deliverable_progress_guard_for_prompt(job, recent_steps)),
+                ("Shell path recovery", _shell_path_recovery_for_prompt(recent_steps)),
+                ("Shell permission recovery", _shell_permission_recovery_for_prompt(recent_steps)),
+                ("Compact memory", memory_text),
+                ("Recent state", state),
+                ("Next-action constraint", _next_action_constraint(job, recent_steps)),
+            ],
+        )
+        return [
+            {"role": "system", "content": DIRECT_ACTION_SYSTEM_PROMPT},
+            {"role": "user", "content": content},
+        ]
     current_execution_focus = _current_execution_focus_for_prompt(job, recent_steps)
     measurement_obligation = _measurement_obligation_for_prompt(job)
     recent_measurement_evidence = _recent_measurement_evidence_for_prompt(job, recent_steps)
@@ -7355,6 +7388,18 @@ def _registry_tools_for_step(
 def _active_obligation_tool_names(job: dict[str, Any] | None, recent_steps: list[dict[str, Any]]) -> set[str] | None:
     if not job:
         return None
+    if _active_direct_action_context(job, recent_steps):
+        return {
+            "shell_exec",
+            "write_file",
+            "write_artifact",
+            "web_search",
+            "web_extract",
+            "record_experiment",
+            "record_findings",
+            "record_source",
+            "report_update",
+        }
     allowed: set[str] = set()
     checkpoint = _auto_checkpoint_accounting_context(job, recent_steps)
     if checkpoint:
@@ -7372,18 +7417,6 @@ def _active_obligation_tool_names(job: dict[str, Any] | None, recent_steps: list
             allowed.add("shell_exec")
     if _pending_file_validation_obligation(job):
         allowed.update(FILE_VALIDATION_RESOLUTION_TOOLS)
-    if _active_direct_action_context(job, recent_steps):
-        allowed.update({
-            "shell_exec",
-            "write_file",
-            "write_artifact",
-            "web_search",
-            "web_extract",
-            "record_experiment",
-            "record_findings",
-            "record_source",
-            "report_update",
-        })
     return allowed or None
 
 
