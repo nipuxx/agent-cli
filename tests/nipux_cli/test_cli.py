@@ -2131,6 +2131,10 @@ def test_update_checkout_fast_forwards_git_checkout(tmp_path):
     repo = tmp_path / "repo"
     repo.mkdir()
     (repo / ".git").mkdir()
+    (repo / "build").mkdir()
+    (repo / "dist").mkdir()
+    (repo / "nipux.egg-info").mkdir()
+    (repo / "nipux.egg-info" / "SOURCES.txt").write_text("stale\n", encoding="utf-8")
     calls: list[tuple[str, ...]] = []
     rev_calls = 0
 
@@ -2158,6 +2162,10 @@ def test_update_checkout_fast_forwards_git_checkout(tmp_path):
     rendered = "\n".join(lines)
     assert "Fast-forward" in rendered
     assert "aaa111 -> bbb222" in rendered
+    assert "Removed stale build metadata" in rendered
+    assert not (repo / "build").exists()
+    assert not (repo / "dist").exists()
+    assert not (repo / "nipux.egg-info").exists()
 
 
 def test_update_checkout_verifies_installed_command(monkeypatch):

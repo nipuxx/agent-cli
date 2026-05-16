@@ -14,6 +14,7 @@ CommandRunner = Callable[[Sequence[str]], subprocess.CompletedProcess[str]]
 
 DEFAULT_UPDATE_REPO = "https://github.com/nipuxx/agent-cli.git"
 DEFAULT_UPDATE_REF = "main"
+BUILD_METADATA_DIRS = ("build", "dist")
 
 
 def find_checkout_root(start: str | Path | None = None) -> Path | None:
@@ -76,8 +77,27 @@ def update_checkout(
         lines.append("Nipux is already up to date.")
     else:
         lines.append(f"Updated Nipux: {before} -> {after}.")
+    lines.extend(clean_build_metadata(checkout))
     lines.append("Update complete.")
     return 0, lines
+
+
+def clean_build_metadata(root: Path) -> list[str]:
+    """Remove ignored Python build metadata that can stale local checkout installs."""
+
+    removed: list[str] = []
+    for path in [*(root / name for name in BUILD_METADATA_DIRS), *root.glob("*.egg-info")]:
+        if not path.exists():
+            continue
+        if path.is_dir():
+            shutil.rmtree(path)
+        else:
+            path.unlink()
+        removed.append(_short_path(path))
+    if not removed:
+        return []
+    joined = ", ".join(removed)
+    return [f"Removed stale build metadata: {joined}"]
 
 
 def _update_uv_tool_install(*, runner: CommandRunner | None = None) -> tuple[int, list[str]]:
