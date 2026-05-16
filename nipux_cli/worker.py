@@ -6936,6 +6936,15 @@ def _execute_tool_call(
                 result=result,
                 ok=ok,
             )
+            finished_step = _step_by_id(db, job_id, step_id)
+            _maybe_create_measurement_obligation(
+                db=db,
+                job_id=job_id,
+                step=finished_step,
+                tool_name=call.name,
+                args=args,
+                result=result,
+            )
         if ok:
             finished_step = _step_by_id(db, job_id, step_id)
             _mark_evidence_checkpoint_read(
@@ -6950,14 +6959,6 @@ def _execute_tool_call(
                 job_id=job_id,
                 tool_name=call.name,
                 step=finished_step,
-            )
-            _maybe_create_measurement_obligation(
-                db=db,
-                job_id=job_id,
-                step=finished_step,
-                tool_name=call.name,
-                args=args,
-                result=result,
             )
             if call.name == "write_file":
                 _maybe_create_file_validation_obligation(

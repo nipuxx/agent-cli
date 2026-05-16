@@ -87,6 +87,28 @@ class TableBenchmarkShellRegistry:
         return json.dumps({"success": True})
 
 
+class FailedTableBenchmarkShellRegistry:
+    def openai_tools(self):
+        return []
+
+    def handle(self, name, args, ctx):
+        del args, ctx
+        if name == "shell_exec":
+            return json.dumps({
+                "success": False,
+                "error": "command timed out",
+                "command": "run benchmark",
+                "returncode": 124,
+                "stdout": (
+                    "| model | test | t/s |\n"
+                    "| --- | ---: | ---: |\n"
+                    "| example | pp32 | 5.48 ± 0.11 |\n"
+                ),
+                "stderr": "",
+            })
+        return json.dumps({"success": True})
+
+
 class FailedUrlShellRegistry:
     def openai_tools(self):
         return []
@@ -3188,6 +3210,28 @@ def test_measurement_obligation_preserves_table_metric_candidates(tmp_path):
         assert step.tool_name == "shell_exec"
         assert "pp32 5.48 ± 0.11 t/s" in candidates
         assert "tg128 3.44 ± 0.05 t/s" in candidates
+    finally:
+        db.close()
+
+
+def test_failed_shell_measurement_output_still_requires_accounting(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Improve a measurable process", title="measure-failed-table", kind="generic")
+
+        step = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([LLMResponse(tool_calls=[ToolCall(name="shell_exec", arguments={"command": "run benchmark"})])]),
+            registry=FailedTableBenchmarkShellRegistry(),
+        )
+
+        job = db.get_job(job_id)
+        candidates = job["metadata"]["pending_measurement_obligation"]["metric_candidates"]
+        assert step.status == "failed"
+        assert "pp32 5.48 ± 0.11 t/s" in candidates
     finally:
         db.close()
 
