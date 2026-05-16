@@ -8493,6 +8493,36 @@ def test_delivery_experiment_next_action_blocks_unrelated_research(tmp_path):
         db.close()
 
 
+def test_planned_experiment_next_action_does_not_block_research(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Improve a generic process", title="process", kind="generic")
+        db.update_job_metadata(job_id, {
+            "experiment_ledger": [{
+                "title": "planned branch",
+                "status": "planned",
+                "metric_name": "throughput",
+                "metric_value": 0,
+                "metric_unit": "items/sec",
+                "next_action": "run the planned benchmark branch",
+            }],
+        })
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([LLMResponse(tool_calls=[ToolCall(name="web_search", arguments={"query": "background"})])]),
+            registry=SuccessRegistry(),
+        )
+
+        assert result.status == "completed"
+        assert result.tool_name == "web_search"
+    finally:
+        db.close()
+
+
 def test_research_experiment_next_action_allows_research(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

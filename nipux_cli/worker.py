@@ -2107,7 +2107,7 @@ def _latest_experiment_next_action_context(job: dict[str, Any]) -> dict[str, Any
         next_action = str(experiment.get("next_action") or "").strip()
         if not next_action:
             continue
-        if status in {"measured", "failed", "blocked"} or experiment.get("metric_value") is not None:
+        if status in {"measured", "failed", "blocked", "skipped"}:
             return {
                 "title": experiment.get("title"),
                 "status": status,
