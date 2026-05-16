@@ -3260,6 +3260,42 @@ def test_measurement_obligation_preserves_table_metric_candidates(tmp_path):
         db.close()
 
 
+def test_direct_action_shell_auto_records_measurement_candidates(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Improve a measurable process", title="measure-direct", kind="generic")
+        db.append_task_record(
+            job_id,
+            title="Run benchmark and compare the result",
+            status="active",
+            output_contract="experiment",
+            acceptance_criteria="Benchmark output contains a measured rate.",
+            evidence_needed="shell_exec output",
+        )
+
+        step = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([LLMResponse(tool_calls=[ToolCall(name="shell_exec", arguments={"command": "run benchmark"})])]),
+            registry=TableBenchmarkShellRegistry(),
+        )
+
+        job = db.get_job(job_id)
+        experiments = job["metadata"]["experiment_ledger"]
+        assert step.tool_name == "shell_exec"
+        assert job["metadata"].get("pending_measurement_obligation") == {}
+        assert len(experiments) == 2
+        assert experiments[0]["metric_name"] == "pp32"
+        assert experiments[0]["metric_value"] == 5.48
+        assert experiments[1]["metric_name"] == "tg128"
+        assert experiments[1]["metric_value"] == 3.44
+        assert job["metadata"]["last_measurement_obligation"]["resolution_tool"] == "auto_record_measurement"
+    finally:
+        db.close()
+
+
 def test_failed_shell_measurement_output_still_requires_accounting(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

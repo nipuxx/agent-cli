@@ -4883,7 +4883,22 @@ def _maybe_create_measurement_obligation(
     candidates = measurement_candidates(result, command=command)
     if not candidates:
         return
-    metadata = db.get_job(job_id).get("metadata")
+    job = db.get_job(job_id)
+    if (
+        bool(result.get("success", True))
+        and not measurement_candidates_are_diagnostic_only(candidates, command=command)
+        and _active_direct_action_context(job, db.list_steps(job_id=job_id))
+    ):
+        if _auto_record_measurement_candidates(
+            db=db,
+            job_id=job_id,
+            step=step,
+            command=command,
+            candidates=candidates,
+            result=result,
+        ):
+            return
+    metadata = job.get("metadata")
     if isinstance(metadata, dict):
         existing = metadata.get("pending_measurement_obligation")
         if isinstance(existing, dict) and existing and not existing.get("resolved_at"):
@@ -4904,6 +4919,83 @@ def _maybe_create_measurement_obligation(
         category="blocked",
         metadata={"pending_measurement_obligation": obligation},
     )
+
+
+def _auto_record_measurement_candidates(
+    *,
+    db: AgentDB,
+    job_id: str,
+    step: dict[str, Any] | None,
+    command: str,
+    candidates: list[str],
+    result: dict[str, Any],
+) -> list[dict[str, Any]]:
+    records: list[dict[str, Any]] = []
+    step_no = step.get("step_no") if step else None
+    for candidate in candidates[:4]:
+        parsed = _parse_measurement_candidate(candidate)
+        if not parsed:
+            continue
+        metric_name, metric_value, metric_unit = parsed
+        record = db.append_experiment_record(
+            job_id,
+            title=f"Auto measurement from shell_exec step #{step_no or '?'}: {metric_name}",
+            status="measured",
+            metric_name=metric_name,
+            metric_value=metric_value,
+            metric_unit=metric_unit,
+            higher_is_better=not re.search(r"(?i)\b(latency|loss|error|duration|runtime|time)\b", metric_name),
+            config={
+                "tool": "shell_exec",
+                "command": command[:1000],
+            },
+            result=f"Observed measurement candidate from shell_exec: {candidate}",
+            next_action="Compare this measurement against the active branch and choose the next experiment, action, or blocked pivot.",
+            metadata={
+                "auto_recorded": True,
+                "source_step_id": step.get("id") if step else "",
+                "source_step_no": step_no,
+                "candidate": candidate,
+                "returncode": result.get("returncode"),
+            },
+        )
+        records.append(record)
+    if not records:
+        return []
+    resolved = {
+        "resolved_at": datetime.now(timezone.utc).isoformat(),
+        "resolution_status": "recorded",
+        "resolution_reason": f"Auto-recorded {len(records)} measurement candidate(s) from shell_exec step #{step_no or '?'}.",
+        "resolution_tool": "auto_record_measurement",
+        "source_step_id": step.get("id") if step else "",
+        "source_step_no": step_no,
+        "experiment_keys": [str(record.get("key") or "") for record in records],
+        "metric_candidates": candidates[:8],
+        "command": command[:1000],
+    }
+    db.update_job_metadata(job_id, {"pending_measurement_obligation": {}, "last_measurement_obligation": resolved})
+    db.append_agent_update(
+        job_id,
+        f"Auto-recorded {len(records)} measurement candidate(s) from shell_exec step #{step_no or '?'}.",
+        category="progress",
+        metadata={"measurement_obligation": resolved},
+    )
+    return records
+
+
+def _parse_measurement_candidate(candidate: str) -> tuple[str, float, str] | None:
+    text = " ".join(str(candidate or "").split())
+    match = re.search(
+        r"(?P<value>[-+]?\d+(?:\.\d+)?)(?:\s*(?:±|\+/-)\s*[-+]?\d+(?:\.\d+)?)?\s*"
+        r"(?P<unit>%|ms|msec|sec|secs|seconds|it/s|ops/s|req/s|qps|rps|samples/s|items/s|units/s|tokens/s|tok/s|t/s|kb/s|mb/s|gb/s|tb/s)\b",
+        text,
+        flags=re.IGNORECASE,
+    )
+    if not match:
+        return None
+    label = text[: match.start()].strip(" :-|") or "measurement"
+    metric_name = re.sub(r"[^A-Za-z0-9]+", "_", label.lower()).strip("_")[:80] or "measurement"
+    return metric_name, float(match.group("value")), match.group("unit")
 
 
 def _maybe_create_file_validation_obligation(
