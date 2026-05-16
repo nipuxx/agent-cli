@@ -4894,11 +4894,15 @@ def _active_direct_action_context(job: dict[str, Any], recent_steps: list[dict[s
         step.get("status") == "blocked"
         and str((step.get("output") if isinstance(step.get("output"), dict) else {}).get("error") or step.get("error") or "")
         in {
+            "action result accounting required",
             "action decision required",
             "artifact required before more research",
             "durable progress required",
+            "evidence grounding required",
             "evidence checkpoint accounting required",
+            "experiment next action pending",
             "experiment stagnation decision required",
+            "invalid shell option retry blocked",
             "memory graph consolidation required",
             "measured progress required",
             "measurement obligation pending",

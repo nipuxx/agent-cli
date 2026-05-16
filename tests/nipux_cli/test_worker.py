@@ -7851,6 +7851,37 @@ def test_direct_action_mode_uses_compact_executor_prompt_and_tools(tmp_path):
         db.close()
 
 
+def test_direct_action_mode_activates_after_guard_block(tmp_path):
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Measure the next branch", title="direct-action-after-block", kind="generic")
+        db.append_task_record(
+            job_id,
+            title="Run the validation command",
+            status="active",
+            output_contract="experiment",
+            acceptance_criteria="Observed output or exact blocker.",
+            evidence_needed="shell_exec output",
+        )
+        run_id = db.start_run(job_id, model="test")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="record_experiment")
+        db.finish_step(
+            step_id,
+            status="blocked",
+            output_data={"success": False, "error": "evidence grounding required"},
+            error="evidence grounding required",
+        )
+        db.finish_run(run_id, "blocked")
+
+        messages = build_messages(db.get_job(job_id), db.list_steps(job_id=job_id))
+
+        assert "executor mode" in messages[0]["content"]
+        assert "Direct action pressure:" in messages[-1]["content"]
+        assert "Ledgers:" not in messages[-1]["content"]
+    finally:
+        db.close()
+
+
 def test_record_experiment_accepts_observed_metric_with_unit_formatting(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")
