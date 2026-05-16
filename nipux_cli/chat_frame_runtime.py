@@ -29,6 +29,9 @@ from nipux_cli.tui_style import _frame_enter_sequence, _frame_exit_sequence, _on
 IDLE_REFRESH_SECONDS = 0.75
 ACTIVE_INPUT_REFRESH_SECONDS = 2.0
 THINKING_REFRESH_SECONDS = 0.18
+WAITING_REFRESH_SECONDS = 1.25
+IDLE_INPUT_POLL_SECONDS = 0.25
+ACTIVE_INPUT_POLL_SECONDS = 0.05
 WORKSPACE_CHAT_ID = "__workspace__"
 THINKING_NOTICE = "__nipux_thinking__"
 THINKING_FRAMES = ("◐ thinking", "◓ thinking", "◑ thinking", "◒ thinking")
@@ -80,9 +83,11 @@ def next_chat_right_view(current: str, direction: int) -> str:
     return keys[(index + direction) % len(keys)]
 
 
-def frame_refresh_interval(input_buffer: str, *, thinking: bool = False) -> float:
+def frame_refresh_interval(input_buffer: str, *, thinking: bool = False, waiting: bool = False) -> float:
     if thinking:
         return THINKING_REFRESH_SECONDS
+    if waiting:
+        return WAITING_REFRESH_SECONDS
     return ACTIVE_INPUT_REFRESH_SECONDS if input_buffer else IDLE_REFRESH_SECONDS
 
 
@@ -111,7 +116,12 @@ def run_chat_frame(job_id: str, *, history_limit: int, deps: ChatFrameDeps) -> N
             if _drain_async_notices(async_messages, notices):
                 last_snapshot = 0.0
                 needs_render = True
-            if now - last_snapshot >= frame_refresh_interval(buffer, thinking=_has_active_state_notice(notices)):
+            refresh_interval = frame_refresh_interval(
+                buffer,
+                thinking=_has_thinking_notice(notices),
+                waiting=_has_waiting_notice(notices),
+            )
+            if now - last_snapshot >= refresh_interval:
                 try:
                     snapshot = deps.load_snapshot(job_id, history_limit)
                     job_id = str(snapshot["job_id"])
@@ -134,7 +144,10 @@ def run_chat_frame(job_id: str, *, history_limit: int, deps: ChatFrameDeps) -> N
                 )
                 needs_render = False
             try:
-                readable, _, _ = select.select([stdin_fd], [], [], 0.05)
+                elapsed = time.monotonic() - last_snapshot
+                until_refresh = max(0.01, refresh_interval - elapsed)
+                poll_timeout = ACTIVE_INPUT_POLL_SECONDS if buffer else IDLE_INPUT_POLL_SECONDS
+                readable, _, _ = select.select([stdin_fd], [], [], min(poll_timeout, until_refresh))
             except OSError as exc:
                 _append_notice(notices, f"terminal read failed: {type(exc).__name__}: {_one_line(exc, 90)}")
                 needs_render = True
@@ -354,6 +367,14 @@ def _clear_thinking_notices(notices: list[str]) -> None:
     ]
 
 
+def _clear_waiting_notices(notices: list[str]) -> None:
+    notices[:] = [
+        notice
+        for notice in notices
+        if notice != WAITING_NOTICE and not notice.startswith(f"{WAITING_NOTICE}:")
+    ]
+
+
 def _display_notices(notices: list[str]) -> list[str]:
     if not notices:
         return []
@@ -432,6 +453,7 @@ def _handle_chat_submit(
     keep_running = True
     try:
         if deps.is_plain_chat_line(line):
+            _clear_waiting_notices(notices)
             _append_thinking_notice(notices)
             _start_chat_message_worker(
                 job_id,
@@ -486,9 +508,9 @@ def _start_chat_message_worker(
 ) -> None:
     def run() -> None:
         try:
-            deps.handle_chat_message(job_id, line)
+            _keep_running, output = deps.handle_chat_message(job_id, line)
             if async_messages is not None:
-                async_messages.put("__refresh__")
+                async_messages.put(str(output or "") or "__refresh__")
         except Exception as exc:
             if async_messages is not None:
                 async_messages.put(f"message failed: {type(exc).__name__}: {_one_line(exc, 120)}")
@@ -507,12 +529,14 @@ def _drain_async_notices(async_messages: queue.Queue[str], notices: list[str]) -
         if message:
             if message == "__refresh__":
                 _clear_thinking_notices(notices)
+                _clear_waiting_notices(notices)
                 changed = True
                 continue
             _clear_thinking_notices(notices)
             if _looks_like_waiting_output(message):
                 _append_waiting_notice(notices)
             else:
+                _clear_waiting_notices(notices)
                 _append_notice(notices, message)
             changed = True
 

@@ -822,7 +822,7 @@ def test_chat_submit_plain_message_returns_without_waiting_for_model():
 
     def slow_chat(_job_id, _line):
         time.sleep(0.3)
-        return True, "done later"
+        return True, ""
 
     deps = _ChatFrameDeps(
         load_snapshot=lambda _job_id, _history_limit: snapshot,
@@ -921,6 +921,28 @@ def test_chat_submit_waiting_command_output_becomes_animation():
     assert "waiting for demo" not in rendered
     assert "Waiting for the next worker step" not in rendered
     assert "NIPUX" not in rendered
+
+
+def test_chat_async_success_clears_waiting_animation():
+    notices = [_WAITING_NOTICE, _THINKING_NOTICE]
+    async_messages: queue.Queue[str] = queue.Queue()
+    async_messages.put("__refresh__")
+
+    assert _drain_chat_async_notices(async_messages, notices) is True
+    assert _WAITING_NOTICE not in notices
+    assert _THINKING_NOTICE not in notices
+
+
+def test_chat_async_real_error_replaces_waiting_animation():
+    notices = [_WAITING_NOTICE, _THINKING_NOTICE]
+    async_messages: queue.Queue[str] = queue.Queue()
+    async_messages.put("AuthenticationError: provider rejected the request")
+
+    assert _drain_chat_async_notices(async_messages, notices) is True
+    rendered = "\n".join(_display_chat_notices(notices))
+    assert "AuthenticationError" in rendered
+    assert "waiting" not in rendered
+    assert _THINKING_NOTICE not in notices
 
 
 def test_chat_submit_new_refreshes_focused_job_from_shell_state():
