@@ -7663,6 +7663,64 @@ def test_run_one_step_persists_checkpoint_obligation_until_accounted(tmp_path):
         db.close()
 
 
+def test_direct_action_task_can_continue_shell_despite_bookkeeping_pressure(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Optimize a measurable process", title="direct-action", kind="generic")
+        db.append_task_record(
+            job_id,
+            title="Run the next benchmark probe",
+            status="active",
+            output_contract="experiment",
+            acceptance_criteria="Shell output contains the benchmark result or exact blocker.",
+            evidence_needed="shell_exec output",
+        )
+        db.update_job_metadata(
+            job_id,
+            {
+                "pending_evidence_checkpoint": {
+                    "artifact_id": "art_checkpoint",
+                    "title": "Auto Evidence Checkpoint after step 1",
+                    "path": str(tmp_path / "checkpoint.md"),
+                    "created_at": "2026-01-01T00:00:00+00:00",
+                    "evidence_step": "step_evidence",
+                    "evidence_step_no": 1,
+                    "blocked_tool": "shell_exec",
+                },
+                "pending_measurement_obligation": {
+                    "source_step_no": 1,
+                    "tool": "shell_exec",
+                    "metric_candidates": ["2.7 units/s"],
+                    "command": "previous benchmark",
+                },
+            },
+        )
+        for index in range(3):
+            run_id = db.start_run(job_id, model="test")
+            step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec")
+            db.finish_step(
+                step_id,
+                status="blocked",
+                output_data={"success": False, "recoverable": True, "error": "progress ledger update required"},
+            )
+            db.finish_run(run_id, "completed")
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([LLMResponse(tool_calls=[ToolCall(name="shell_exec", arguments={"command": "run benchmark"})])]),
+            registry=MeasuredShellRegistry(),
+        )
+
+        assert result.status == "completed"
+        assert result.tool_name == "shell_exec"
+        assert result.result["stdout"] == "score 2.7 units/s"
+    finally:
+        db.close()
+
+
 def test_run_one_step_blocks_branch_work_when_memory_graph_needs_consolidation(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

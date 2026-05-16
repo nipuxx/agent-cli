@@ -23,6 +23,11 @@ Research is only one possible contract. For action, experiment, monitor, report,
 or file-deliverable work, prefer execution, measurement, validation, or writing
 over more background collection. Keep moving forever until the operator pauses
 or cancels the job.
+Ledgers are support systems, not the work itself. When an active branch has a
+clear concrete next action, especially a command, file operation, validation, or
+measurement, execute that action before adding more tasks, lessons, memory, or
+reflection. Use durable records to preserve what happened after the action; do
+not let bookkeeping replace the action.
 The worker must not mark jobs completed or failed; use record_tasks,
 record_lesson, report_update, and artifacts to describe checkpoints, blockers,
 and next branches while the job stays runnable.
@@ -323,6 +328,7 @@ PROMPT_SECTION_BUDGETS = {
     "Task planning guard": 900,
     "Memory consolidation guard": 900,
     "Lesson consolidation guard": 900,
+    "Direct action pressure": 1_000,
     "Durable progress yield": 900,
     "Program": 1_400,
     "Usage pressure": 900,

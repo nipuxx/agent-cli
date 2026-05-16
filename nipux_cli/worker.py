@@ -214,6 +214,7 @@ def build_messages(
     task_queue_saturation = _task_queue_saturation_for_prompt(job, recent_steps)
     memory_consolidation_guard = _memory_consolidation_guard_for_prompt(job, recent_steps)
     lesson_consolidation_guard = _lesson_consolidation_guard_for_prompt(job, recent_steps)
+    direct_action_pressure = _direct_action_pressure_for_prompt(job, recent_steps)
     durable_yield = _durable_yield_for_prompt(job, recent_steps)
     context_pressure = context_pressure_for_prompt(job)
     usage_pressure = usage_pressure_for_prompt(job, token_usage)
@@ -258,6 +259,7 @@ def build_messages(
             ("Task queue saturation", task_queue_saturation),
             ("Memory consolidation guard", memory_consolidation_guard),
             ("Lesson consolidation guard", lesson_consolidation_guard),
+            ("Direct action pressure", direct_action_pressure),
             ("Durable progress yield", durable_yield),
             ("Context pressure", context_pressure),
             ("Usage pressure", usage_pressure),
@@ -4671,6 +4673,8 @@ def _step_accounts_for_measured_progress_guard(step: dict[str, Any]) -> bool:
     for task in tasks:
         if not isinstance(task, dict):
             continue
+        if _is_guard_recovery_task(task):
+            continue
         status = str(task.get("status") or "open").strip().lower().replace(" ", "_")
         if status in {"done", "skipped"}:
             continue
@@ -4680,6 +4684,134 @@ def _step_accounts_for_measured_progress_guard(step: dict[str, Any]) -> bool:
         if contract == "action" and _task_text_requires_measurement(task):
             return True
     return False
+
+
+DIRECT_ACTION_TASK_TERMS = re.compile(
+    r"(?i)\b("
+    r"apply|benchmark|build|check|compile|convert|download|execute|fix|install|measure|probe|"
+    r"run|test|validate|verify|write"
+    r")\b"
+)
+
+
+def _active_direct_action_context(job: dict[str, Any], recent_steps: list[dict[str, Any]]) -> dict[str, Any] | None:
+    metadata = job.get("metadata") if isinstance(job.get("metadata"), dict) else {}
+    tasks = metadata.get("task_queue") if isinstance(metadata.get("task_queue"), list) else []
+    open_or_active: list[dict[str, Any]] = []
+    for task in tasks:
+        if not isinstance(task, dict):
+            continue
+        if _is_guard_recovery_task(task):
+            continue
+        status = str(task.get("status") or "open").strip().lower().replace(" ", "_")
+        if status in {"done", "skipped", "cancelled"}:
+            continue
+        open_or_active.append(task)
+
+    task: dict[str, Any] | None = None
+    for candidate in open_or_active:
+        contract = str(candidate.get("output_contract") or "").strip().lower().replace(" ", "_")
+        task_text = " ".join(
+            str(candidate.get(key) or "")
+            for key in ("title", "goal", "acceptance_criteria", "evidence_needed", "stall_behavior")
+        )
+        if contract in {"action", "experiment", "monitor"} or DIRECT_ACTION_TASK_TERMS.search(task_text):
+            task = candidate
+            break
+    if not task:
+        return None
+
+    objective_tasks = [candidate for candidate in tasks if isinstance(candidate, dict) and not _is_guard_recovery_task(candidate)]
+    recent_direct = next(
+        (
+            step
+            for step in reversed(recent_steps[-10:])
+            if step.get("status") in {"completed", "failed"}
+            and step.get("tool_name") in {"shell_exec", "write_file", "write_artifact"}
+        ),
+        None,
+    )
+    backlog_pressure = (
+        len(objective_tasks) > TASK_QUEUE_TOTAL_SOFT_LIMIT
+        or len(open_or_active) > TASK_QUEUE_SATURATION_OPEN_TASKS
+        or bool(_task_backlog_pressure_context(job))
+    )
+    blocked_bookkeeping = any(
+        step.get("status") == "blocked"
+        and str((step.get("output") if isinstance(step.get("output"), dict) else {}).get("error") or step.get("error") or "")
+        in {
+            "action decision required",
+            "artifact required before more research",
+            "durable progress required",
+            "evidence checkpoint accounting required",
+            "experiment stagnation decision required",
+            "memory graph consolidation required",
+            "measured progress required",
+            "measurement obligation pending",
+            "progress accounting required",
+            "progress ledger update required",
+            "research balance required",
+            "roadmap update required",
+            "source yield accounting required",
+            "task queue saturated",
+        }
+        for step in recent_steps[-12:]
+    )
+    pending_context = bool(
+        _pending_measurement_obligation(job)
+        or _auto_checkpoint_accounting_context(job, recent_steps)
+        or _pending_file_validation_obligation(job)
+    )
+    if not (recent_direct or backlog_pressure or blocked_bookkeeping or pending_context):
+        return None
+    return {
+        "task_title": str(task.get("title") or "")[:220],
+        "task_status": str(task.get("status") or "open"),
+        "output_contract": str(task.get("output_contract") or ""),
+        "recent_direct_step": recent_direct.get("step_no") if recent_direct else None,
+        "backlog_pressure": backlog_pressure,
+        "blocked_bookkeeping": blocked_bookkeeping,
+        "pending_context": pending_context,
+    }
+
+
+def _direct_action_continuation_context(
+    job: dict[str, Any],
+    recent_steps: list[dict[str, Any]],
+    *,
+    tool_name: str,
+    args: dict[str, Any],
+) -> dict[str, Any] | None:
+    if tool_name != "shell_exec":
+        return None
+    command = str(args.get("command") or "").strip()
+    if not command:
+        return None
+    if _shell_placeholder_context(command) or _shell_syntax_preflight_context(command):
+        return None
+    return _active_direct_action_context(job, recent_steps)
+
+
+def _direct_action_pressure_for_prompt(job: dict[str, Any], recent_steps: list[dict[str, Any]]) -> str:
+    context = _active_direct_action_context(job, recent_steps)
+    if not context:
+        return ""
+    reasons = []
+    if context.get("backlog_pressure"):
+        reasons.append("bookkeeping backlog is high")
+    if context.get("blocked_bookkeeping"):
+        reasons.append("recent blocks were bookkeeping gates")
+    if context.get("pending_context"):
+        reasons.append("pending accounting exists")
+    if context.get("recent_direct_step"):
+        reasons.append(f"recent direct step #{context['recent_direct_step']} exists")
+    reason_text = "; ".join(reasons) or "direct action branch is active"
+    return (
+        "Direct action branch is active. "
+        f"Task={context.get('task_title') or 'current task'}; contract={context.get('output_contract') or 'unspecified'}; "
+        f"reason={reason_text}. Prefer the next concrete shell/file/validation/measurement action now. "
+        "Use ledgers after the action to summarize evidence; do not spend the next turn only expanding tasks, lessons, or memory."
+    )
 
 
 def _maybe_create_measurement_obligation(
@@ -4990,6 +5122,44 @@ def _repeated_guard_block_context(
     return context
 
 
+DIRECT_ACTION_ADVISORY_GUARD_ERRORS = {
+    "action decision required",
+    "artifact required before more research",
+    "deliverable checkpoint required",
+    "durable progress required",
+    "evidence checkpoint accounting required",
+    "experiment stagnation decision required",
+    "memory graph consolidation required",
+    "measured progress required",
+    "measurement obligation pending",
+    "progress accounting required",
+    "progress ledger update required",
+    "research balance required",
+    "roadmap update required",
+    "source yield accounting required",
+    "task queue saturated",
+}
+
+
+def _should_skip_guard_recovery_for_direct_action(
+    job: dict[str, Any],
+    recent_steps: list[dict[str, Any]],
+    guard_recovery: dict[str, Any],
+) -> bool:
+    error = str(guard_recovery.get("error") or "")
+    if error not in DIRECT_ACTION_ADVISORY_GUARD_ERRORS:
+        return False
+    context = _active_direct_action_context(job, recent_steps)
+    if not context:
+        return False
+    return bool(
+        context.get("backlog_pressure")
+        or context.get("recent_direct_step")
+        or context.get("pending_context")
+        or context.get("blocked_bookkeeping")
+    )
+
+
 def _already_read_checkpoint_accounting_block(step: dict[str, Any]) -> bool:
     output = step.get("output") if isinstance(step.get("output"), dict) else {}
     checkpoint = output.get("pending_evidence_checkpoint") if isinstance(output.get("pending_evidence_checkpoint"), dict) else {}
@@ -5018,6 +5188,12 @@ def _blocked_tool_call_result(
     recent_steps: list[dict[str, Any]],
     job: dict[str, Any],
 ) -> tuple[dict[str, Any], str] | None:
+    direct_action_continuation = _direct_action_continuation_context(
+        job,
+        recent_steps,
+        tool_name=name,
+        args=args,
+    )
     if name == "defer_job":
         self_defer = _self_defer_context(args)
         if self_defer:
@@ -5104,7 +5280,7 @@ def _blocked_tool_call_result(
             artifact_title=str(auto_checkpoint_accounting.get("title") or ""),
         )
     )
-    if _evidence_checkpoint_blocks_tool(name, args, auto_checkpoint_accounting):
+    if _evidence_checkpoint_blocks_tool(name, args, auto_checkpoint_accounting) and not direct_action_continuation:
         checkpoint_already_read = bool(auto_checkpoint_accounting and auto_checkpoint_accounting.get("checkpoint_read"))
         result = {
             "success": False,
@@ -5184,7 +5360,7 @@ def _blocked_tool_call_result(
             return result, "blocked shell_exec; privileged command recovery required"
 
     unpersisted_evidence = _unpersisted_evidence_step(recent_steps)
-    if unpersisted_evidence and name in BRANCH_WORK_TOOLS:
+    if unpersisted_evidence and name in BRANCH_WORK_TOOLS and not direct_action_continuation:
         result = {
             "success": False,
             "error": "artifact required before more research",
@@ -5247,6 +5423,7 @@ def _blocked_tool_call_result(
     if (
         measurement_obligation
         and not checkpoint_resolution_call
+        and not direct_action_continuation
         and name in MEASUREMENT_BLOCKED_TOOLS
         and name not in MEASUREMENT_RESOLUTION_TOOLS
     ):
@@ -5320,6 +5497,7 @@ def _blocked_tool_call_result(
     shell_read_only = name == "shell_exec" and _shell_command_looks_read_only(str(args.get("command") or ""))
     if (
         artifact_accounting
+        and not direct_action_continuation
         and name in ARTIFACT_ACCOUNTING_BLOCKED_TOOLS
         and name not in ARTIFACT_ACCOUNTING_RESOLUTION_TOOLS
     ):
@@ -5339,7 +5517,7 @@ def _blocked_tool_call_result(
         }
         return result, f"blocked {name}; progress accounting required after saved outputs"
 
-    if progress_churn and not measured_progress_guard and name in CHURN_TOOLS:
+    if progress_churn and not measured_progress_guard and not direct_action_continuation and name in CHURN_TOOLS:
         result = {
             "success": False,
             "error": "progress ledger update required",
@@ -5354,7 +5532,7 @@ def _blocked_tool_call_result(
         return result, f"blocked {name}; progress ledger update required"
 
     read_only_shell_churn = _read_only_shell_churn_context(recent_steps)
-    if read_only_shell_churn and shell_read_only:
+    if read_only_shell_churn and shell_read_only and not direct_action_continuation:
         result = {
             "success": False,
             "error": "action decision required",
@@ -5369,7 +5547,7 @@ def _blocked_tool_call_result(
         }
         return result, f"blocked {name}; action decision required"
 
-    if activity_stagnation and name in ACTIVITY_STAGNATION_BLOCKED_TOOLS:
+    if activity_stagnation and not direct_action_continuation and name in ACTIVITY_STAGNATION_BLOCKED_TOOLS:
         result = {
             "success": False,
             "error": "durable progress required",
@@ -5385,7 +5563,7 @@ def _blocked_tool_call_result(
         }
         return result, f"blocked {name}; durable progress required after activity-only checkpoints"
 
-    if source_yield and name in SOURCE_YIELD_BLOCKED_TOOLS:
+    if source_yield and not direct_action_continuation and name in SOURCE_YIELD_BLOCKED_TOOLS:
         result = {
             "success": False,
             "error": "source yield accounting required",
@@ -5401,7 +5579,7 @@ def _blocked_tool_call_result(
         }
         return result, f"blocked {name}; source yield accounting required"
 
-    if memory_consolidation and name in MEMORY_CONSOLIDATION_BLOCKED_TOOLS:
+    if memory_consolidation and not direct_action_continuation and name in MEMORY_CONSOLIDATION_BLOCKED_TOOLS:
         result = {
             "success": False,
             "error": "memory graph consolidation required",
@@ -5422,6 +5600,7 @@ def _blocked_tool_call_result(
     )
     if (
         experiment_stagnation
+        and not direct_action_continuation
         and not record_experiment_closes_branch
         and (
             name in BRANCH_WORK_TOOLS
@@ -5460,7 +5639,7 @@ def _blocked_tool_call_result(
         }
         return result, "blocked record_lesson; lesson consolidation required"
 
-    if deliverable_progress_guard and (name in DELIVERABLE_PROGRESS_BLOCKED_TOOLS or shell_read_only):
+    if deliverable_progress_guard and not direct_action_continuation and (name in DELIVERABLE_PROGRESS_BLOCKED_TOOLS or shell_read_only):
         result = {
             "success": False,
             "error": "deliverable checkpoint required",
@@ -5476,7 +5655,7 @@ def _blocked_tool_call_result(
         return result, f"blocked {name}; deliverable checkpoint required"
 
     research_balance = _research_balance_context(job, recent_steps)
-    if research_balance and name in RESEARCH_BALANCE_BLOCKED_TOOLS:
+    if research_balance and not direct_action_continuation and name in RESEARCH_BALANCE_BLOCKED_TOOLS:
         result = {
             "success": False,
             "error": "research balance required",
@@ -5492,7 +5671,7 @@ def _blocked_tool_call_result(
         return result, f"blocked {name}; research balance required"
 
     roadmap_staleness = _roadmap_staleness_context(job, recent_steps)
-    if roadmap_staleness and not checkpoint_resolution_call and name in ROADMAP_STALENESS_BLOCKED_TOOLS:
+    if roadmap_staleness and not direct_action_continuation and not checkpoint_resolution_call and name in ROADMAP_STALENESS_BLOCKED_TOOLS:
         result = {
             "success": False,
             "error": "roadmap update required",
@@ -5515,6 +5694,7 @@ def _blocked_tool_call_result(
     )
     if (
         milestone_validation
+        and not direct_action_continuation
         and not milestone_validation_action
         and not checkpoint_resolution_call
         and name in MILESTONE_VALIDATION_BLOCKED_TOOLS
@@ -5638,6 +5818,7 @@ def _blocked_tool_call_result(
     )
     if (
         measured_progress_guard
+        and not direct_action_continuation
         and not checkpoint_resolution_call
         and (name in MEASURABLE_RESEARCH_BLOCKED_TOOLS or (shell_budget_exhausted and not candidate_validation_shell))
     ):
@@ -7191,6 +7372,18 @@ def _active_obligation_tool_names(job: dict[str, Any] | None, recent_steps: list
             allowed.add("shell_exec")
     if _pending_file_validation_obligation(job):
         allowed.update(FILE_VALIDATION_RESOLUTION_TOOLS)
+    if _active_direct_action_context(job, recent_steps):
+        allowed.update({
+            "shell_exec",
+            "write_file",
+            "write_artifact",
+            "web_search",
+            "web_extract",
+            "record_experiment",
+            "record_findings",
+            "record_source",
+            "report_update",
+        })
     return allowed or None
 
 
@@ -7198,6 +7391,15 @@ def _suppressed_tool_names(job: dict[str, Any] | None, recent_steps: list[dict[s
     if not job:
         return set()
     suppressed: set[str] = set()
+    if _active_direct_action_context(job, recent_steps):
+        suppressed.update({
+            "guard_recovery",
+            "record_memory_graph",
+            "record_roadmap",
+            "record_tasks",
+            "record_lesson",
+            "search_memory_graph",
+        })
     if _repeated_task_queue_saturation_context(recent_steps):
         suppressed.add("record_tasks")
     elif (
@@ -7316,7 +7518,7 @@ def run_one_step(
         if _should_reflect(job, recent_steps):
             return _run_reflection_step(job, recent_steps, db=db, job_id=job_id, run_id=run_id)
         guard_recovery = _repeated_guard_block_context(recent_steps)
-        if guard_recovery:
+        if guard_recovery and not _should_skip_guard_recovery_for_direct_action(job, recent_steps, guard_recovery):
             return _run_guard_recovery_step(guard_recovery, db=db, job_id=job_id, run_id=run_id)
         active_operator_messages = _claim_operator_queue(db, job_id)
         if active_operator_messages:
