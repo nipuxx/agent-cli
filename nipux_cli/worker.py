@@ -3244,9 +3244,10 @@ def _evidence_grounding_context(
             ),
         }
     stale_tokens = _active_stale_claim_token_set(job)
+    stale_grounding_text = proposed_text if tool_name == "record_experiment" else full_proposed_text
     proposed_stale_tokens = [
         token
-        for token in _concrete_evidence_tokens_for_grounding(tool_name, full_proposed_text)
+        for token in _concrete_evidence_tokens_for_grounding(tool_name, stale_grounding_text)
         if not _grounding_token_in_reference_text(token, job_reference_text)
         if token.lower() in stale_tokens
     ]
@@ -3262,6 +3263,8 @@ def _evidence_grounding_context(
     unsupported = []
     for token in candidate_tokens:
         lowered = token.lower()
+        if _numeric_grounding_token_supported(token, fresh_evidence_text) or _numeric_grounding_token_supported(token, evidence_text):
+            continue
         if lowered in fresh_evidence_lower:
             continue
         if lowered in evidence_lower and lowered not in stale_tokens:
@@ -3304,6 +3307,19 @@ def _grounding_token_in_reference_text(token: str, reference_text: str) -> bool:
     if not normalized_token:
         return False
     return normalized_token in _normalize_claim_text(reference_text)
+
+
+def _numeric_grounding_token_supported(token: str, evidence_text: str) -> bool:
+    """Allow metric/unit formatting differences when the numeric value is observed."""
+
+    token_text = str(token or "").strip()
+    if not token_text or not token_text[0].isdigit():
+        return False
+    match = re.search(r"\d+(?:\.\d+)?", token_text)
+    if not match:
+        return False
+    value = match.group(0)
+    return any(value == observed for observed in re.findall(r"\d+(?:\.\d+)?", str(evidence_text or "")))
 
 
 def _missing_candidate_paths_for_grounding(

@@ -7766,6 +7766,56 @@ def test_direct_action_mode_uses_compact_executor_prompt_and_tools(tmp_path):
         db.close()
 
 
+def test_record_experiment_accepts_observed_metric_with_unit_formatting(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Measure a process", title="metric-format", kind="generic")
+        db.update_job_metadata(job_id, {"unsupported_claim_tokens": ["FUTURE_BACKEND"]})
+        run_id = db.start_run(job_id, model="test")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec")
+        db.finish_step(
+            step_id,
+            status="completed",
+            output_data={
+                "success": True,
+                "stdout": "metric table: pp32 3.88 +/- 0.02 t/s; tg128 2.86 +/- 0.02 t/s",
+            },
+        )
+        db.finish_run(run_id, "completed")
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(
+                    tool_calls=[
+                        ToolCall(
+                            name="record_experiment",
+                            arguments={
+                                "title": "Measured generation throughput",
+                                "status": "measured",
+                                "metric_name": "generation_rate",
+                                "metric_value": 2.86,
+                                "metric_unit": "tokens/sec",
+                                "higher_is_better": True,
+                                "result": "Observed generation rate was 2.86 tokens/sec.",
+                                "next_action": "Try FUTURE_BACKEND only if later evidence supports it.",
+                            },
+                        )
+                    ]
+                )
+            ]),
+        )
+
+        assert result.status == "completed"
+        assert result.tool_name == "record_experiment"
+        assert db.get_job(job_id)["metadata"]["experiment_ledger"][-1]["metric_value"] == 2.86
+    finally:
+        db.close()
+
+
 def test_run_one_step_blocks_branch_work_when_memory_graph_needs_consolidation(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")
