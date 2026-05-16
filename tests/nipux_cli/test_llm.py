@@ -43,6 +43,24 @@ def test_chat_llm_requires_tool_choice_for_worker_actions(monkeypatch):
     assert fake_completions.kwargs["tool_choice"] == "required"
 
 
+def test_chat_llm_sets_low_reasoning_for_openrouter(monkeypatch):
+    fake_completions = _FakeCompletions()
+    monkeypatch.setenv("TEST_API_KEY", "test")
+
+    class FakeOpenAI:
+        def __init__(self, **kwargs):
+            pass
+
+        chat = SimpleNamespace(completions=fake_completions)
+
+    monkeypatch.setattr("nipux_cli.llm.OpenAI", FakeOpenAI)
+
+    llm = OpenAIChatLLM(ModelConfig(model="test/model", base_url="https://openrouter.ai/api/v1", api_key_env="TEST_API_KEY"))
+    llm.next_action(messages=[{"role": "user", "content": "hi"}], tools=[{"type": "function", "function": {"name": "noop"}}])
+
+    assert fake_completions.kwargs["extra_body"] == {"reasoning": {"effort": "low", "exclude": True}}
+
+
 def test_chat_llm_retries_without_tool_choice_when_provider_rejects_it(monkeypatch):
     monkeypatch.setenv("TEST_API_KEY", "test")
 

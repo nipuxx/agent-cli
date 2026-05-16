@@ -70,6 +70,9 @@ class OpenAIChatLLM:
             "messages": messages,
             "tools": tools,
         }
+        extra_body = _provider_extra_body(self.config.base_url)
+        if extra_body:
+            request["extra_body"] = extra_body
         if tools:
             request["tool_choice"] = "required"
         try:
@@ -116,10 +119,14 @@ class OpenAIChatLLM:
         return self.complete_response(messages=messages).content
 
     def complete_response(self, *, messages: list[dict[str, Any]]) -> LLMResponse:
-        response = self._openai.chat.completions.create(
-            model=self.config.model,
-            messages=messages,
-        )
+        request: dict[str, Any] = {
+            "model": self.config.model,
+            "messages": messages,
+        }
+        extra_body = _provider_extra_body(self.config.base_url)
+        if extra_body:
+            request["extra_body"] = extra_body
+        response = self._openai.chat.completions.create(**request)
         choices = response.choices or []
         if not choices:
             payload = _response_payload(response)
@@ -164,6 +171,17 @@ def _response_payload(response: Any) -> dict[str, Any]:
         dumped = response.to_dict()
         return dumped if isinstance(dumped, dict) else {"response": dumped}
     return {"response": repr(response)}
+
+
+def _provider_extra_body(base_url: str) -> dict[str, Any]:
+    if "openrouter.ai" not in str(base_url or "").lower():
+        return {}
+    return {
+        "reasoning": {
+            "effort": "low",
+            "exclude": True,
+        }
+    }
 
 
 def _response_usage(
