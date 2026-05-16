@@ -197,6 +197,7 @@ def build_messages(
     )
     current_execution_focus = _current_execution_focus_for_prompt(job, recent_steps)
     measurement_obligation = _measurement_obligation_for_prompt(job)
+    recent_measurement_evidence = _recent_measurement_evidence_for_prompt(job, recent_steps)
     file_validation_obligation = _file_validation_obligation_for_prompt(job)
     candidate_file_discovery = _candidate_file_discovery_for_prompt(job, recent_steps)
     shell_path_recovery = _shell_path_recovery_for_prompt(recent_steps)
@@ -240,6 +241,7 @@ def build_messages(
             ("Operator context", operator_messages),
             ("Current execution focus", current_execution_focus),
             ("Pending measurement obligation", measurement_obligation),
+            ("Recent measurement evidence", recent_measurement_evidence),
             ("Pending file validation obligation", file_validation_obligation),
             ("Candidate file discovery", candidate_file_discovery),
             ("Shell path recovery", shell_path_recovery),
@@ -375,6 +377,45 @@ def _measurement_obligation_for_prompt(job: dict[str, Any]) -> str:
         "record_lesson explaining why it is not a valid measurement, or record_tasks to create the missing measurement branch."
     )
     return "\n".join(lines)
+
+
+def _recent_measurement_evidence_for_prompt(job: dict[str, Any], recent_steps: list[dict[str, Any]], *, window: int = 140) -> str:
+    if _pending_measurement_obligation(job):
+        return "Covered by the pending measurement obligation."
+    latest_experiment_step_no = max(
+        (
+            _as_int(step.get("step_no"))
+            for step in recent_steps
+            if step.get("tool_name") == "record_experiment" and step.get("status") == "completed"
+        ),
+        default=0,
+    )
+    lines: list[str] = []
+    for step in reversed(_completed_or_failed_recent_steps(recent_steps)[-window:]):
+        if step.get("tool_name") != "shell_exec":
+            continue
+        output = step.get("output") if isinstance(step.get("output"), dict) else {}
+        if not output:
+            continue
+        command = _step_command(step) or str(output.get("command") or "")
+        candidates = measurement_candidates(output, command=command, limit=4)
+        if not candidates or measurement_candidates_are_diagnostic_only(candidates, command=command):
+            continue
+        step_no = _as_int(step.get("step_no"))
+        relation = "after last experiment" if step_no > latest_experiment_step_no else "before last experiment"
+        prefix = f"- step #{step_no or '?'} {step.get('status') or ''} ({relation})"
+        detail = "; ".join(str(candidate) for candidate in candidates[:3])
+        command_detail = f" command={_clip_text(command, 180)}" if command else ""
+        lines.append(_clip_text(f"{prefix}: {detail}.{command_detail}", 520))
+        if len(lines) >= 6:
+            break
+    if not lines:
+        return "None."
+    return "\n".join([
+        "Recent shell output contains measurable-looking values. Reconcile valid values with record_experiment; "
+        "if a value is invalid, record why before treating the branch as complete.",
+        *reversed(lines),
+    ])
 
 
 def _file_validation_obligation_for_prompt(job: dict[str, Any]) -> str:

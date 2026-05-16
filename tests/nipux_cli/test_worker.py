@@ -3136,6 +3136,47 @@ def test_build_messages_keeps_rolling_memory_when_not_first():
     assert "less important side note" not in content
 
 
+def test_build_messages_surfaces_recent_measurement_evidence_outside_state_window():
+    job = {"title": "measure", "kind": "generic", "objective": "improve a measurable process", "metadata": {}}
+    recent_steps = [
+        {
+            "step_no": 1,
+            "kind": "tool",
+            "status": "completed",
+            "tool_name": "shell_exec",
+            "input": {"arguments": {"command": "run benchmark"}},
+            "output": {
+                "success": True,
+                "stdout": (
+                    "| model | test | t/s |\n"
+                    "| --- | ---: | ---: |\n"
+                    "| example | pp32 | 5.48 ± 0.11 |\n"
+                    "| example | tg128 | 3.44 ± 0.05 |\n"
+                ),
+            },
+        },
+        *[
+            {
+                "step_no": index,
+                "kind": "tool",
+                "status": "completed",
+                "tool_name": "record_lesson",
+                "summary": f"later step {index}",
+                "input": {},
+                "output": {},
+            }
+            for index in range(2, 12)
+        ],
+    ]
+
+    content = build_messages(job, recent_steps)[-1]["content"]
+
+    assert "Recent measurement evidence:" in content
+    assert "step #1 completed" in content
+    assert "pp32 5.48 ± 0.11 t/s" in content
+    assert "tg128 3.44 ± 0.05 t/s" in content
+
+
 def test_measurement_obligation_blocks_research_until_recorded(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")
