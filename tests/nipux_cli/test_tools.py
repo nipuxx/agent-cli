@@ -7,7 +7,7 @@ import time
 from nipux_cli.artifacts import ArtifactStore
 from nipux_cli.config import AppConfig, RuntimeConfig, ToolAccessConfig
 from nipux_cli.db import AgentDB
-from nipux_cli.shell_tools import cleanup_registered_shell_processes
+from nipux_cli.shell_tools import _effective_timeout_seconds, cleanup_registered_shell_processes
 from nipux_cli.tools import APPROVED_TOOL_NAMES, DEFAULT_REGISTRY, ToolContext
 
 
@@ -274,6 +274,12 @@ def test_shell_exec_timeout_kills_process_group(tmp_path):
         assert result["duration_seconds"] < 4
     finally:
         db.close()
+
+
+def test_shell_exec_honors_inner_timeout_command():
+    assert _effective_timeout_seconds("timeout 300 run-long-benchmark", 60) == 330.0
+    assert _effective_timeout_seconds("/usr/bin/timeout -k 5s 2m command", 10) == 132.0
+    assert _effective_timeout_seconds("printf hello", 60) == 60.0
 
 
 def test_cleanup_registered_shell_processes_kills_orphaned_group(tmp_path):

@@ -6,6 +6,7 @@ import contextlib
 import json
 import os
 import re
+import shlex
 import signal
 import subprocess
 import time
@@ -54,7 +55,7 @@ def shell_exec(args: dict[str, Any], ctx: Any) -> str:
         return _json({"success": False, "error": f"cwd does not exist: {cwd}"})
     timeout_raw = args.get("timeout_seconds")
     timeout = float(timeout_raw) if isinstance(timeout_raw, (int, float)) else 60.0
-    timeout = max(1.0, min(timeout, 900.0))
+    timeout = _effective_timeout_seconds(command, timeout)
     max_chars_raw = args.get("max_output_chars")
     max_chars = int(max_chars_raw) if isinstance(max_chars_raw, (int, float)) else 12000
     max_chars = max(1000, min(max_chars, 50000))
@@ -121,6 +122,62 @@ def shell_exec(args: dict[str, Any], ctx: Any) -> str:
         "stdout": _truncate_output(stdout, max_chars),
         "stderr": _truncate_output(stderr, max_chars),
     })
+
+
+def _effective_timeout_seconds(command: str, requested_timeout: float) -> float:
+    timeout = max(1.0, min(float(requested_timeout), 900.0))
+    command_timeout = _shell_timeout_command_seconds(command)
+    if command_timeout is None:
+        return timeout
+    buffer = max(5.0, min(30.0, command_timeout * 0.1))
+    return max(timeout, min(command_timeout + buffer, 900.0))
+
+
+def _shell_timeout_command_seconds(command: str) -> float | None:
+    try:
+        tokens = shlex.split(command, comments=False, posix=True)
+    except ValueError:
+        return None
+    for index, token in enumerate(tokens):
+        if Path(token).name != "timeout":
+            continue
+        duration = _timeout_duration_after_options(tokens[index + 1 :])
+        if duration is not None:
+            return duration
+    return None
+
+
+def _timeout_duration_after_options(tokens: list[str]) -> float | None:
+    index = 0
+    options_with_values = {"-k", "--kill-after", "-s", "--signal"}
+    while index < len(tokens):
+        token = tokens[index]
+        if token == "--":
+            index += 1
+            break
+        if token in options_with_values:
+            index += 2
+            continue
+        if token.startswith("--kill-after=") or token.startswith("--signal="):
+            index += 1
+            continue
+        if token.startswith("-") and token not in {"-", "-0"}:
+            index += 1
+            continue
+        break
+    if index >= len(tokens):
+        return None
+    return _parse_timeout_duration(tokens[index])
+
+
+def _parse_timeout_duration(raw: str) -> float | None:
+    match = re.fullmatch(r"(?P<value>\d+(?:\.\d+)?)(?P<unit>[smhd]?)", str(raw or "").strip(), flags=re.IGNORECASE)
+    if not match:
+        return None
+    value = float(match.group("value"))
+    unit = match.group("unit").lower()
+    multiplier = {"": 1.0, "s": 1.0, "m": 60.0, "h": 3600.0, "d": 86400.0}[unit]
+    return value * multiplier
 
 
 def cleanup_registered_shell_processes(home: str | Path) -> list[dict[str, Any]]:
