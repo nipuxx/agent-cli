@@ -1642,7 +1642,8 @@ def test_already_read_checkpoint_branch_block_recovers_immediately(tmp_path):
 def test_evidence_grounding_ignores_format_protocol_tokens():
     tokens = _concrete_evidence_tokens(
         "Parsed JSON from HTTPS REST API URL and saved HTML/YAML/XML CDN SHA256 GGUF excerpts for Model-7B step_123_shell_output. "
-        "Download investigation parsed direct API results. Discovery step-2678 located a candidate file after shell_exec_step_1037."
+        "Download investigation parsed direct API results. Discovery step-2678 located a candidate file after shell_exec_step_1037. "
+        "Previous measurement is re-running with fresh evidence."
     )
 
     assert "JSON" not in tokens
@@ -1660,6 +1661,8 @@ def test_evidence_grounding_ignores_format_protocol_tokens():
     assert "step_123_shell_output" not in tokens
     assert "step-2678" not in tokens
     assert "shell_exec_step_1037" not in tokens
+    assert "Previous" not in tokens
+    assert "re-running" not in tokens
     assert "Model-7B" in tokens
 
 

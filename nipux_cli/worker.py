@@ -2931,11 +2931,14 @@ EVIDENCE_TOKEN_IGNORE = {
     "pending",
     "priority",
     "progress",
+    "previous",
     "parse",
     "parsed",
     "parsing",
     "record",
     "report",
+    "rerun",
+    "retry",
     "rest",
     "research",
     "result",
@@ -3903,6 +3906,8 @@ def _concrete_evidence_tokens(text: str) -> list[str]:
             continue
         lowered = token.lower()
         if lowered in EVIDENCE_TOKEN_IGNORE:
+            continue
+        if "-" in token and not any(ch.isdigit() for ch in token) and not token.isupper():
             continue
         if re.match(r"^[a-z]\d+$", token):
             continue
