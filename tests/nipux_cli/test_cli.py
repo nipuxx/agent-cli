@@ -2149,7 +2149,7 @@ def test_update_checkout_fast_forwards_git_checkout(tmp_path):
             return subprocess.CompletedProcess(command, 0, stdout=("aaa111\n" if rev_calls == 1 else "bbb222\n"))
         if command == ["git", "branch", "--show-current"]:
             return subprocess.CompletedProcess(command, 0, stdout="main\n")
-        if command == ["git", "status", "--porcelain"]:
+        if command == ["git", "status", "--porcelain", "--untracked-files=no"]:
             return subprocess.CompletedProcess(command, 0, stdout="")
         if command == ["git", "pull", "--ff-only"]:
             return subprocess.CompletedProcess(command, 0, stdout="Fast-forward\n")

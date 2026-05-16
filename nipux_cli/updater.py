@@ -56,7 +56,7 @@ def update_checkout(
     checkout = Path(top_level.stdout.strip() or root).expanduser().resolve()
     before = _git_text(run(["git", "rev-parse", "--short", "HEAD"], checkout), fallback="unknown")
     branch = _git_text(run(["git", "branch", "--show-current"], checkout), fallback="detached")
-    dirty = run(["git", "status", "--porcelain"], checkout)
+    dirty = run(["git", "status", "--porcelain", "--untracked-files=no"], checkout)
     if dirty.returncode != 0:
         return dirty.returncode, ["Cannot update: git status failed.", *_process_lines(dirty)]
     if dirty.stdout.strip() and not allow_dirty:
