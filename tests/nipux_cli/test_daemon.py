@@ -528,7 +528,8 @@ def test_daemon_treats_blocked_steps_as_recoverable(tmp_path):
 
         status = daemon_lock_status(tmp_path / "agentd.lock")
         events = read_daemon_events(config, limit=10)
-        assert status["metadata"]["consecutive_failures"] == 0
+        assert status["metadata"]["consecutive_failures"] == 3
+        assert status["metadata"]["last_error"] == "search loop blocked"
         assert sum(1 for event in events if event.get("event") == "step") == 3
         assert not any(event.get("event") == "daemon_error" for event in events)
     finally:

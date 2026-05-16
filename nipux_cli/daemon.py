@@ -488,9 +488,10 @@ class Daemon:
                                 f"daemon_error type={payload['error_type']} error={payload['error'][:240]}",
                                 flush=True,
                             )
-                        _sleep_or_stop(_exception_backoff(exc, poll_seconds, consecutive_failures), max_iterations, iterations)
                         if max_iterations is not None and iterations >= max_iterations:
                             return
+                        if max_iterations is None:
+                            _sleep_or_stop(_exception_backoff(exc, poll_seconds, consecutive_failures), max_iterations, iterations)
                         continue
 
                     if result is None:
@@ -502,9 +503,13 @@ class Daemon:
                         idle_sleep = self.idle_sleep_seconds(poll_seconds=poll_seconds)
                         if not quiet:
                             print(f"idle; sleeping {idle_sleep:g}s", flush=True)
-                        _sleep_or_stop(idle_sleep, max_iterations, iterations)
+                        if max_iterations is not None and iterations >= max_iterations:
+                            return
+                        if max_iterations is None:
+                            _sleep_or_stop(idle_sleep, max_iterations, iterations)
                     else:
-                        consecutive_failures = consecutive_failures + 1 if result.status == "failed" else 0
+                        unsuccessful_step = result.status in {"failed", "blocked"}
+                        consecutive_failures = consecutive_failures + 1 if unsuccessful_step else 0
                         locked_update_metadata(
                             last_heartbeat=datetime.now(timezone.utc).isoformat(),
                             last_state="step",
@@ -513,8 +518,8 @@ class Daemon:
                             last_step_id=result.step_id,
                             last_status=result.status,
                             last_tool=result.tool_name,
-                            last_error="" if result.status != "failed" else str(result.result.get("error") or ""),
-                            last_error_type="" if result.status != "failed" else str(result.result.get("error_type") or ""),
+                            last_error="" if not unsuccessful_step else str(result.result.get("error") or ""),
+                            last_error_type="" if not unsuccessful_step else str(result.result.get("error_type") or ""),
                             consecutive_failures=consecutive_failures,
                             runtime=current_runtime_fingerprint(),
                         )
@@ -540,12 +545,13 @@ class Daemon:
                                 print(json.dumps(result.result, ensure_ascii=False, indent=2)[:8000], flush=True)
                         sleep_seconds = (
                             _step_failure_backoff(result, poll_seconds, consecutive_failures)
-                            if result.status == "failed"
+                            if unsuccessful_step
                             else max(0.0, poll_seconds)
                         )
-                        _sleep_or_stop(sleep_seconds, max_iterations, iterations)
-                    if max_iterations is not None and iterations >= max_iterations:
-                        return
+                        if max_iterations is not None and iterations >= max_iterations:
+                            return
+                        if max_iterations is None:
+                            _sleep_or_stop(sleep_seconds, max_iterations, iterations)
             except KeyboardInterrupt:
                 interrupted = self.db.mark_interrupted_running(reason="daemon stopped during active work")
                 locked_update_metadata(
