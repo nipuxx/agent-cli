@@ -1834,7 +1834,7 @@ SUPPORT_SCHEMAS: list[ToolSpec] = [
         "properties": {
             "command": {"type": "string"},
             "cwd": {"type": "string"},
-            "timeout_seconds": {"type": "number", "default": 60},
+            "timeout_seconds": {"type": "number", "default": 300},
             "max_output_chars": {"type": "integer", "default": 12000},
         },
         "required": ["command"],

@@ -15,6 +15,10 @@ from pathlib import Path
 from typing import Any
 
 
+DEFAULT_SHELL_TIMEOUT_SECONDS = 300.0
+MAX_SHELL_TIMEOUT_SECONDS = 900.0
+
+
 def write_file(args: dict[str, Any], ctx: Any) -> str:
     del ctx
     raw_path = str(args.get("path") or "").strip()
@@ -49,12 +53,14 @@ def shell_exec(args: dict[str, Any], ctx: Any) -> str:
     command = str(args.get("command") or "").strip()
     if not command:
         return _json({"success": False, "error": "command is required"})
+    if not _command_has_executable_text(command):
+        return _json({"success": False, "error": "command must include an executable or shell keyword"})
     cwd_raw = str(args.get("cwd") or "").strip()
     cwd = cwd_raw or None
     if cwd and not Path(cwd).expanduser().exists():
         return _json({"success": False, "error": f"cwd does not exist: {cwd}"})
     timeout_raw = args.get("timeout_seconds")
-    timeout = float(timeout_raw) if isinstance(timeout_raw, (int, float)) else 60.0
+    timeout = float(timeout_raw) if isinstance(timeout_raw, (int, float)) else DEFAULT_SHELL_TIMEOUT_SECONDS
     timeout = _effective_timeout_seconds(command, timeout)
     max_chars_raw = args.get("max_output_chars")
     max_chars = int(max_chars_raw) if isinstance(max_chars_raw, (int, float)) else 12000
@@ -125,12 +131,19 @@ def shell_exec(args: dict[str, Any], ctx: Any) -> str:
 
 
 def _effective_timeout_seconds(command: str, requested_timeout: float) -> float:
-    timeout = max(1.0, min(float(requested_timeout), 900.0))
+    timeout = max(1.0, min(float(requested_timeout), MAX_SHELL_TIMEOUT_SECONDS))
     command_timeout = _shell_timeout_command_seconds(command)
     if command_timeout is None:
         return timeout
     buffer = max(5.0, min(30.0, command_timeout * 0.1))
-    return max(timeout, min(command_timeout + buffer, 900.0))
+    return max(timeout, min(command_timeout + buffer, MAX_SHELL_TIMEOUT_SECONDS))
+
+
+def _command_has_executable_text(command: str) -> bool:
+    for char in str(command or ""):
+        if char.isalnum() or char in {".", "/", "~", "_", "-"}:
+            return True
+    return False
 
 
 def _shell_timeout_command_seconds(command: str) -> float | None:

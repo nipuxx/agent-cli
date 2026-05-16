@@ -279,7 +279,25 @@ def test_shell_exec_timeout_kills_process_group(tmp_path):
 def test_shell_exec_honors_inner_timeout_command():
     assert _effective_timeout_seconds("timeout 300 run-long-benchmark", 60) == 330.0
     assert _effective_timeout_seconds("/usr/bin/timeout -k 5s 2m command", 10) == 132.0
-    assert _effective_timeout_seconds("printf hello", 60) == 60.0
+    assert _effective_timeout_seconds("printf hello", 300) == 300.0
+
+
+def test_shell_exec_rejects_punctuation_only_command(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Run command")
+        run_id = db.start_run(job_id, model="fake")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec")
+        ctx = ToolContext(config=config, db=db, artifacts=ArtifactStore(tmp_path, db), job_id=job_id, run_id=run_id, step_id=step_id)
+
+        raw = DEFAULT_REGISTRY.handle("shell_exec", {"command": ", "}, ctx)
+        result = json.loads(raw)
+
+        assert result["success"] is False
+        assert result["error"] == "command must include an executable or shell keyword"
+    finally:
+        db.close()
 
 
 def test_cleanup_registered_shell_processes_kills_orphaned_group(tmp_path):
