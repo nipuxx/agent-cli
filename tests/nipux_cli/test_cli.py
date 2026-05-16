@@ -48,6 +48,7 @@ from nipux_cli.cli import (
 from nipux_cli.config import load_config
 from nipux_cli.cli_state import mark_model_setup_verified as _mark_model_setup_verified
 from nipux_cli.cli_state import model_setup_verified as _model_setup_verified
+from nipux_cli.daemon_timing import DAEMON_DEFAULT_POLL_SECONDS
 from nipux_cli.cli_state import read_shell_state as _read_shell_state
 from nipux_cli.cli_state import write_shell_state as _write_shell_state
 from nipux_cli.daemon import append_daemon_event
@@ -690,6 +691,14 @@ def test_frame_next_job_cycles_jobs():
 
 def test_frame_refresh_slows_background_updates_while_typing():
     assert _frame_refresh_interval("") < _frame_refresh_interval("drafting a message")
+
+
+def test_daemon_poll_defaults_are_nonzero():
+    parser = build_parser()
+
+    assert parser.parse_args(["start"]).poll_seconds == DAEMON_DEFAULT_POLL_SECONDS
+    assert parser.parse_args(["run"]).poll_seconds == DAEMON_DEFAULT_POLL_SECONDS
+    assert parser.parse_args(["daemon"]).poll_seconds == DAEMON_DEFAULT_POLL_SECONDS
 
 
 def test_first_run_empty_submit_without_actions_does_not_crash():
@@ -3789,7 +3798,7 @@ def test_run_reopens_completed_focused_job(monkeypatch, tmp_path, capsys):
         assert "focus set: perpetual" in out
         assert job["status"] == "queued"
         assert job["metadata"]["last_note"] == "reopened from completed by operator run command"
-        assert started["poll_seconds"] == 0.0
+        assert started["poll_seconds"] == DAEMON_DEFAULT_POLL_SECONDS
     finally:
         db.close()
 
@@ -3817,7 +3826,7 @@ def test_run_delegates_unverified_provider_state_to_daemon_start(monkeypatch, tm
     out = capsys.readouterr().out
     assert "Model setup is not verified." not in out
     assert "recovery monitor mode" in out
-    assert started["poll_seconds"] == 0.0
+    assert started["poll_seconds"] == DAEMON_DEFAULT_POLL_SECONDS
 
 
 def test_run_marks_job_waiting_when_provider_recovery_is_needed(monkeypatch, tmp_path, capsys):
@@ -4983,10 +4992,10 @@ def test_launch_agent_plist_contains_daemon_command(monkeypatch, tmp_path):
 def test_systemd_service_text_contains_daemon_command(monkeypatch, tmp_path):
     monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
 
-    service = _systemd_service_text(poll_seconds=0, quiet=True)
+    service = _systemd_service_text(poll_seconds=DAEMON_DEFAULT_POLL_SECONDS, quiet=True)
 
     assert "[Service]" in service
     assert "ExecStart=" in service
-    assert "daemon --poll-seconds 0" in service
+    assert f"daemon --poll-seconds {DAEMON_DEFAULT_POLL_SECONDS}" in service
     assert f"Environment=NIPUX_HOME={tmp_path}" in service
     assert "Restart=always" in service

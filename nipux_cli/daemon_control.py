@@ -14,6 +14,7 @@ from typing import Any, Callable
 from nipux_cli.config import AppConfig, load_config
 from nipux_cli.cli_state import clear_model_setup_verified, mark_model_setup_verified
 from nipux_cli.daemon import daemon_lock_status
+from nipux_cli.daemon_timing import normalize_daemon_poll_seconds
 from nipux_cli.doctor import run_doctor
 from nipux_cli.provider_errors import provider_action_required, provider_rate_limited
 
@@ -102,6 +103,7 @@ def cmd_start_impl(
             return
     if not ready_fn(config, bool(args.fake)):
         return
+    poll_seconds = normalize_daemon_poll_seconds(args.poll_seconds)
     log_path = Path(args.log_file).expanduser() if args.log_file else config.runtime.logs_dir / "daemon.log"
     log_path.parent.mkdir(parents=True, exist_ok=True)
     command = [
@@ -110,7 +112,7 @@ def cmd_start_impl(
         "nipux_cli.cli",
         "daemon",
         "--poll-seconds",
-        str(args.poll_seconds),
+        str(poll_seconds),
     ]
     if args.fake:
         command.append("--fake")
@@ -146,6 +148,7 @@ def start_daemon_if_needed_impl(
     start_fn: StartFn,
     stop_fn: Callable[[AppConfig, float, bool], bool],
 ) -> None:
+    poll_seconds = normalize_daemon_poll_seconds(poll_seconds)
     config = load_config()
     config.ensure_dirs()
     status = daemon_lock_status(config.runtime.home / "agentd.lock")
@@ -170,10 +173,11 @@ def cmd_restart_impl(
 ) -> None:
     config = load_config()
     config.ensure_dirs()
+    poll_seconds = normalize_daemon_poll_seconds(args.poll_seconds)
     stopped = stop_fn(config, float(args.wait), False)
     if stopped:
         time.sleep(0.5)
-    start_fn(argparse.Namespace(poll_seconds=args.poll_seconds, fake=args.fake, quiet=args.quiet, log_file=args.log_file))
+    start_fn(argparse.Namespace(poll_seconds=poll_seconds, fake=args.fake, quiet=args.quiet, log_file=args.log_file))
 
 
 def stop_daemon_process_impl(

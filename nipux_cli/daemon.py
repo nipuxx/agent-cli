@@ -19,6 +19,7 @@ from typing import Any, Callable
 
 from nipux_cli.config import AppConfig, load_config
 from nipux_cli.db import AgentDB
+from nipux_cli.daemon_timing import normalize_daemon_poll_seconds
 from nipux_cli.digest import write_daily_digest
 from nipux_cli.doctor import run_doctor
 from nipux_cli.provider_errors import provider_rate_limited
@@ -413,6 +414,7 @@ class Daemon:
         verbose: bool = False,
         max_iterations: int | None = None,
     ) -> None:
+        poll_seconds = normalize_daemon_poll_seconds(poll_seconds)
         consecutive_failures = 0
         iterations = 0
         with single_instance_lock(self.lock_path) as lock_handle:

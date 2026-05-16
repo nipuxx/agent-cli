@@ -96,6 +96,7 @@ from nipux_cli.daemon_control import remote_model_preflight_failures as _daemon_
 from nipux_cli.daemon_control import start_daemon_if_needed_impl as _start_daemon_if_needed_impl
 from nipux_cli.daemon_control import stop_daemon_process_impl as _stop_daemon_process_impl
 from nipux_cli.daemon import Daemon, DaemonAlreadyRunning, daemon_lock_status, read_daemon_events
+from nipux_cli.daemon_timing import normalize_daemon_poll_seconds
 from nipux_cli.dashboard import collect_dashboard_state, render_dashboard, render_overview
 from nipux_cli.db import AgentDB, utc_now
 from nipux_cli.digest import render_job_digest, write_daily_digest
@@ -2454,13 +2455,14 @@ def cmd_daemon(args: argparse.Namespace) -> None:
     config = load_config()
     if not _ensure_remote_model_ready_for_worker(config, fake=args.fake):
         raise SystemExit(2)
+    poll_seconds = normalize_daemon_poll_seconds(args.poll_seconds)
     daemon = Daemon.open(config=config)
     try:
         if args.once:
             result = daemon.run_once(fake=args.fake, verbose=args.verbose)
             print(json.dumps(result.__dict__ if result else None, ensure_ascii=False, indent=2))
             return
-        daemon.run_forever(fake=args.fake, poll_seconds=args.poll_seconds, quiet=args.quiet, verbose=args.verbose)
+        daemon.run_forever(fake=args.fake, poll_seconds=poll_seconds, quiet=args.quiet, verbose=args.verbose)
     except DaemonAlreadyRunning as exc:
         raise SystemExit(str(exc)) from exc
     finally:

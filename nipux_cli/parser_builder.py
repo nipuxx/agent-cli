@@ -5,6 +5,8 @@ from __future__ import annotations
 import argparse
 from collections.abc import Callable, Mapping
 
+from nipux_cli.daemon_timing import DAEMON_DEFAULT_POLL_SECONDS
+
 
 CommandHandler = Callable[[argparse.Namespace], None]
 CommandHandlers = Mapping[str, CommandHandler]
@@ -147,7 +149,7 @@ def build_arg_parser(
     dashboard.set_defaults(func=_handler(handlers, "dashboard"), follow=True, clear=True)
 
     start = sub.add_parser("start")
-    start.add_argument("--poll-seconds", type=float, default=0.0)
+    start.add_argument("--poll-seconds", type=float, default=DAEMON_DEFAULT_POLL_SECONDS)
     start.add_argument("--fake", action="store_true", help="Use deterministic fake model responses")
     start.add_argument("--quiet", action="store_true", help="Write fewer daemon log lines")
     start.add_argument("--log-file")
@@ -159,7 +161,7 @@ def build_arg_parser(
     stop.set_defaults(func=_handler(handlers, "stop"))
 
     restart = sub.add_parser("restart")
-    restart.add_argument("--poll-seconds", type=float, default=0.0)
+    restart.add_argument("--poll-seconds", type=float, default=DAEMON_DEFAULT_POLL_SECONDS)
     restart.add_argument("--wait", type=float, default=5.0)
     restart.add_argument("--fake", action="store_true", help="Use deterministic fake model responses")
     restart.add_argument("--quiet", action="store_true", help="Write fewer daemon log lines")
@@ -181,7 +183,7 @@ def build_arg_parser(
 
     service = sub.add_parser("service")
     service.add_argument("action", choices=["install", "status", "uninstall"])
-    service.add_argument("--poll-seconds", type=float, default=0.0)
+    service.add_argument("--poll-seconds", type=float, default=DAEMON_DEFAULT_POLL_SECONDS)
     service.add_argument("--quiet", action="store_true")
     service.set_defaults(func=_handler(handlers, "service"))
 
@@ -321,7 +323,7 @@ def build_arg_parser(
 
     run = sub.add_parser("run")
     run.add_argument("job_id", nargs="*")
-    run.add_argument("--poll-seconds", type=float, default=0.0)
+    run.add_argument("--poll-seconds", type=float, default=DAEMON_DEFAULT_POLL_SECONDS)
     run.add_argument("--interval", type=float, default=2.0)
     run.add_argument("--limit", type=int, default=20)
     run.add_argument("--chars", type=int, default=180)
@@ -344,7 +346,7 @@ def build_arg_parser(
     daemon = sub.add_parser("daemon")
     daemon.add_argument("--once", action="store_true", help="Run at most one job step and exit")
     daemon.add_argument("--fake", action="store_true", help="Use deterministic fake model responses")
-    daemon.add_argument("--poll-seconds", type=float, default=0.0)
+    daemon.add_argument("--poll-seconds", type=float, default=DAEMON_DEFAULT_POLL_SECONDS)
     daemon.add_argument("--quiet", action="store_true", help="Do not print foreground progress lines")
     daemon.add_argument("--verbose", action="store_true", help="Print model-visible job state and step results")
     daemon.set_defaults(func=_handler(handlers, "daemon"))
