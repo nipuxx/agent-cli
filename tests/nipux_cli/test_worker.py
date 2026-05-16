@@ -2263,6 +2263,52 @@ def test_run_one_step_blocks_unbalanced_shell_quotes_before_execution(tmp_path):
         db.close()
 
 
+def test_run_one_step_blocks_repeated_invalid_shell_option(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Adapt failed shell flags before retry", title="invalid option retry")
+        run_id = db.start_run(job_id, model="fake")
+        failed_step = db.add_step(
+            job_id=job_id,
+            run_id=run_id,
+            kind="tool",
+            tool_name="shell_exec",
+            input_data={"arguments": {"command": "bench-tool -m model.bin -c 512 -n 64"}},
+        )
+        db.finish_step(
+            failed_step,
+            status="failed",
+            output_data={
+                "success": False,
+                "error": "command exited with status 1: error: invalid parameter for argument: -c",
+                "stdout": "error: invalid parameter for argument: -c\nusage: bench-tool [options]\n",
+            },
+            error="invalid parameter for argument: -c",
+        )
+        db.finish_run(run_id, "failed", error="invalid parameter for argument: -c")
+
+        llm = ScriptedLLM([
+            LLMResponse(tool_calls=[
+                ToolCall(
+                    name="shell_exec",
+                    arguments={"command": "bench-tool -m model.bin -c 256 -n 32"},
+                )
+            ])
+        ])
+
+        result = run_one_step(job_id, config=config, db=db, llm=llm)
+
+        assert result.status == "blocked"
+        assert result.result["error"] == "invalid shell option retry blocked"
+        assert result.result["invalid_option_retry"]["repeated_options"] == ["-c"]
+        step = db.list_steps(job_id=job_id)[-1]
+        assert step["status"] == "blocked"
+        assert "invalid option retry" in step["summary"]
+    finally:
+        db.close()
+
+
 def test_run_one_step_blocks_markdown_fenced_shell_command_before_execution(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

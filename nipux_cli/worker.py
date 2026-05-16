@@ -987,6 +987,106 @@ def _recent_privileged_shell_failure_context(recent_steps: list[dict[str, Any]],
     return None
 
 
+def _recent_invalid_shell_option_context(recent_steps: list[dict[str, Any]], args: dict[str, Any], *, window: int = 12) -> dict[str, Any] | None:
+    command = str(args.get("command") or "")
+    executable = _shell_command_executable_key(command)
+    current_options = _shell_command_option_tokens(command)
+    if not executable or not current_options:
+        return None
+    for step in reversed(_completed_or_failed_recent_steps(recent_steps)[-window:]):
+        if step.get("status") != "failed" or step.get("tool_name") != "shell_exec":
+            continue
+        failure_text = _shell_step_failure_text(step)
+        if not _shell_output_has_invalid_option_failure(failure_text):
+            continue
+        failed_command = _step_command(step)
+        if _shell_command_executable_key(failed_command) != executable:
+            continue
+        failed_options = _invalid_shell_options_from_failure_text(failure_text) or _shell_command_option_tokens(failed_command)
+        repeated_options = sorted(current_options & failed_options)
+        if not repeated_options:
+            continue
+        return {
+            "step_no": step.get("step_no"),
+            "command": failed_command,
+            "blocked_command": command,
+            "repeated_options": repeated_options,
+            "excerpt": failure_text.strip(),
+        }
+    return None
+
+
+def _shell_output_has_invalid_option_failure(text: str) -> bool:
+    lowered = str(text or "").lower()
+    return any(
+        marker in lowered
+        for marker in (
+            "invalid parameter for argument",
+            "invalid option",
+            "illegal option",
+            "unknown option",
+            "unrecognized option",
+            "unrecognized arguments",
+            "unknown flag",
+            "bad option",
+        )
+    )
+
+
+def _invalid_shell_options_from_failure_text(text: str) -> set[str]:
+    options: set[str] = set()
+    for match in re.finditer(
+        r"(?:invalid parameter for argument|invalid option|illegal option|unknown option|unrecognized option|unknown flag|bad option)[:=]?\s*['\"]?(?P<option>--?[A-Za-z0-9][A-Za-z0-9_-]*)",
+        str(text or ""),
+        flags=re.IGNORECASE,
+    ):
+        options.add(match.group("option"))
+    return options
+
+
+def _shell_command_executable_key(command: str) -> str:
+    try:
+        tokens = shlex.split(str(command or ""), posix=True)
+    except ValueError:
+        return ""
+    skip_next = False
+    for token in tokens:
+        if skip_next:
+            skip_next = False
+            continue
+        if token in {"|", "||", "&&", ";"}:
+            continue
+        if token == "env":
+            continue
+        if token == "timeout":
+            continue
+        if token in {"-k", "--kill-after", "-s", "--signal"}:
+            skip_next = True
+            continue
+        if token.startswith("--kill-after=") or token.startswith("--signal="):
+            continue
+        if re.fullmatch(r"\d+(?:\.\d+)?[smhd]?", token):
+            continue
+        if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*=.*", token):
+            continue
+        if token.startswith("-"):
+            continue
+        return Path(token).name or token
+    return ""
+
+
+def _shell_command_option_tokens(command: str) -> set[str]:
+    try:
+        tokens = shlex.split(str(command or ""), posix=True)
+    except ValueError:
+        return set()
+    return {
+        token.split("=", 1)[0]
+        for token in tokens
+        if re.fullmatch(r"--?[A-Za-z][A-Za-z0-9_-]*(?:=.*)?", token)
+    }
+
+
 def _observed_candidate_recovery_required_context(recent_steps: list[dict[str, Any]], args: dict[str, Any]) -> dict[str, Any] | None:
     command = str(args.get("command") or "")
     if not command.strip():
@@ -5473,6 +5573,22 @@ def _blocked_tool_call_result(
                 ),
             }
             return result, "blocked shell_exec; malformed command syntax"
+        invalid_option_retry = _recent_invalid_shell_option_context(recent_steps, args)
+        if invalid_option_retry:
+            result = {
+                "success": False,
+                "recoverable": True,
+                "error": "invalid shell option retry blocked",
+                "blocked_tool": name,
+                "blocked_arguments": args,
+                "invalid_option_retry": invalid_option_retry,
+                "guidance": (
+                    "A recent shell command failed because one or more options were invalid, and this command "
+                    "reuses the same option(s). Read the observed help/output and change the flags, run a simpler "
+                    "probe without those options, or record the branch as blocked before retrying."
+                ),
+            }
+            return result, "blocked shell_exec; invalid option retry"
         candidate_recovery = _observed_candidate_recovery_required_context(recent_steps, args)
         if candidate_recovery:
             result = {
