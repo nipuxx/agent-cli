@@ -1518,6 +1518,21 @@ def _record_experiment(args: dict[str, Any], ctx: ToolContext) -> str:
     baseline_value = _optional_float(args.get("baseline_value"))
     status = str(args.get("status") or "planned").strip().lower() or "planned"
     next_action = str(args.get("next_action") or "").strip()
+    metadata = args.get("metadata") if isinstance(args.get("metadata"), dict) else {}
+    if status == "measured" and (not metric_name or metric_value is None):
+        inferred = _metric_from_pending_measurement(ctx)
+        if inferred:
+            metric_name = metric_name or inferred["metric_name"]
+            metric_value = metric_value if metric_value is not None else inferred["metric_value"]
+            if not args.get("metric_unit"):
+                args = dict(args)
+                args["metric_unit"] = inferred["metric_unit"]
+            metadata = {
+                **metadata,
+                "auto_metric_from_pending_measurement": True,
+                "measurement_candidate": inferred["candidate"],
+                "source_step_no": inferred.get("source_step_no"),
+            }
     if status == "measured" and (not metric_name or metric_value is None):
         return _json({
             "success": False,
@@ -1559,7 +1574,7 @@ def _record_experiment(args: dict[str, Any], ctx: ToolContext) -> str:
         result=str(args.get("result") or args.get("outcome") or ""),
         evidence_artifact=str(args.get("evidence_artifact") or args.get("artifact_id") or ""),
         next_action=next_action,
-        metadata=args.get("metadata") if isinstance(args.get("metadata"), dict) else {},
+        metadata=metadata,
     )
     metric = ""
     if record.get("metric_value") is not None:
@@ -1590,6 +1605,38 @@ def _record_experiment(args: dict[str, Any], ctx: ToolContext) -> str:
             experiment_key=str(record.get("key") or ""),
         )
     return _json({"success": True, "job_id": ctx.job_id, "experiment": record})
+
+
+def _metric_from_pending_measurement(ctx: ToolContext) -> dict[str, Any] | None:
+    pending = _pending_measurement(ctx)
+    candidates = pending.get("metric_candidates") if isinstance(pending, dict) and isinstance(pending.get("metric_candidates"), list) else []
+    for candidate in reversed([str(candidate) for candidate in candidates if str(candidate).strip()]):
+        parsed = _parse_measurement_candidate(candidate)
+        if parsed:
+            metric_name, metric_value, metric_unit = parsed
+            return {
+                "metric_name": metric_name,
+                "metric_value": metric_value,
+                "metric_unit": metric_unit,
+                "candidate": candidate,
+                "source_step_no": pending.get("source_step_no") if isinstance(pending, dict) else None,
+            }
+    return None
+
+
+def _parse_measurement_candidate(candidate: str) -> tuple[str, float, str] | None:
+    text = " ".join(str(candidate or "").split())
+    match = re.search(
+        r"(?P<value>[-+]?\d+(?:\.\d+)?)(?:\s*(?:±|\+/-)\s*[-+]?\d+(?:\.\d+)?)?\s*"
+        r"(?P<unit>%|ms|msec|sec|secs|seconds|it/s|ops/s|req/s|qps|rps|samples/s|items/s|units/s|tokens/s|tok/s|t/s|kb/s|mb/s|gb/s|tb/s)\b",
+        text,
+        flags=re.IGNORECASE,
+    )
+    if not match:
+        return None
+    label = text[: match.start()].strip(" :-|") or "measurement"
+    metric_name = re.sub(r"[^A-Za-z0-9]+", "_", label.lower()).strip("_")[:80] or "measurement"
+    return metric_name, float(match.group("value")), match.group("unit")
 
 
 def _experiment_has_closed_trial_context(args: dict[str, Any]) -> bool:

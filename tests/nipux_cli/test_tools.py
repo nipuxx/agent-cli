@@ -1544,6 +1544,55 @@ def test_record_experiment_requires_metric_for_measured_trials(tmp_path):
         db.close()
 
 
+def test_record_experiment_repairs_metric_from_pending_measurement(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job(
+            "Improve a measurable process",
+            metadata={
+                "pending_measurement_obligation": {
+                    "source_step_no": 12,
+                    "tool": "shell_exec",
+                    "summary": "benchmark completed",
+                    "metric_candidates": [
+                        "pp32 4.00 ± 0.06 t/s",
+                        "tg128 2.86 ± 0.04 t/s",
+                    ],
+                    "command": "run benchmark",
+                },
+            },
+        )
+        run_id = db.start_run(job_id, model="fake")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="record_experiment")
+        ctx = ToolContext(config=config, db=db, artifacts=ArtifactStore(tmp_path, db), job_id=job_id, run_id=run_id, step_id=step_id)
+
+        raw = DEFAULT_REGISTRY.handle(
+            "record_experiment",
+            {
+                "title": "benchmark result",
+                "status": "measured",
+                "result": "benchmark produced throughput numbers",
+                "next_action": "try the next measured branch",
+            },
+            ctx,
+        )
+        result = json.loads(raw)
+        job = db.get_job(job_id)
+        experiment = result["experiment"]
+
+        assert result["success"] is True
+        assert experiment["metric_name"] == "tg128"
+        assert experiment["metric_value"] == 2.86
+        assert experiment["metric_unit"] == "t/s"
+        assert experiment["metadata"]["auto_metric_from_pending_measurement"] is True
+        assert experiment["metadata"]["source_step_no"] == 12
+        assert job["metadata"]["pending_measurement_obligation"] == {}
+        assert job["metadata"]["last_measurement_obligation"]["resolution_status"] == "recorded"
+    finally:
+        db.close()
+
+
 def test_record_experiment_accepts_numeric_metric_strings(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")
