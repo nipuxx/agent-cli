@@ -264,7 +264,7 @@ def _shell_success_anomaly(stdout: str, stderr: str, *, command: str = "") -> st
     missing_probe = _missing_executable_probe(command, combined)
     if missing_probe:
         return f"command probe found no executable despite exit status 0: {missing_probe}"
-    command_missing_match = _shell_missing_command_anomaly(combined)
+    command_missing_match = _shell_missing_command_anomaly(combined, command=command)
     if command_missing_match:
         excerpt = " ".join(combined.split())[:500]
         return f"command output indicates missing command despite exit status 0: {excerpt}"
@@ -298,13 +298,34 @@ def _empty_observation_probe(command: str) -> str:
     return ""
 
 
-def _shell_missing_command_anomaly(text: str) -> bool:
-    return bool(
-        re.search(
-            r"(?im)(?:^|\n)(?:/bin/sh:\s*\d+:\s*)?(?:(?:/|~)[^\s:'\"]+|[A-Za-z0-9_.+-]+):\s*(?:command not found|not found)\s*$",
-            text,
-        )
-    )
+def _shell_missing_command_anomaly(text: str, *, command: str = "") -> bool:
+    for match in re.finditer(
+        r"(?im)(?:^|\n)(?:/bin/sh:\s*\d+:\s*)?(?P<cmd>(?:/|~)[^\s:'\"]+|[A-Za-z0-9_.+-]+):\s*(?:command not found|not found)\s*$",
+        text,
+    ):
+        missing = str(match.group("cmd") or "").strip()
+        if _missing_command_is_explicitly_handled(command, missing):
+            continue
+        return True
+    return False
+
+
+def _missing_command_is_explicitly_handled(command: str, missing: str) -> bool:
+    command_text = str(command or "")
+    missing_text = str(missing or "").strip()
+    if not command_text or not missing_text:
+        return False
+    needles = {missing_text, Path(missing_text).name}
+    for needle in needles:
+        if not needle:
+            continue
+        pattern = re.compile(rf"(?<![A-Za-z0-9_.+/-]){re.escape(needle)}(?![A-Za-z0-9_.+/-])")
+        for match in pattern.finditer(command_text):
+            tail = command_text[match.end() :]
+            segment = re.split(r"[;\n]", tail, maxsplit=1)[0]
+            if "||" in segment:
+                return True
+    return False
 
 
 def _shell_sudo_password_anomaly(text: str) -> bool:
