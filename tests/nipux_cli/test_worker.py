@@ -1726,6 +1726,13 @@ def test_evidence_grounding_ignores_lowercase_command_shorthand_tokens():
     assert "H100" in tokens
 
 
+def test_evidence_grounding_numeric_units_do_not_cross_line_breaks():
+    tokens = _concrete_evidence_tokens("shell step #5759\ntokens/sec\nobserved 3.48 tokens/sec")
+
+    assert "5759tokens/sec" not in tokens
+    assert "3.48tokens/sec" in tokens
+
+
 def test_record_experiment_allows_not_stub_validation_for_observed_token(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

@@ -4002,7 +4002,7 @@ def _concrete_evidence_tokens(text: str) -> list[str]:
     tokens: list[str] = []
     seen_numeric: set[str] = set()
     for raw in re.findall(
-        r"(?i)\b\d+(?:\.\d+)?\s*(?:[KMGTPE]i?B|[KMGTPE]|bytes?|tok/s|t/s|tokens/sec|tokens/s|ms|sec|secs|seconds?|minutes?|hours?|%)\b",
+        r"(?i)\b\d+(?:\.\d+)?[ \t]*(?:[KMGTPE]i?B|[KMGTPE]|bytes?|tok/s|t/s|tokens/sec|tokens/s|ms|sec|secs|seconds?|minutes?|hours?|%)\b",
         text,
     ):
         token = re.sub(r"\s+", "", raw.strip())
