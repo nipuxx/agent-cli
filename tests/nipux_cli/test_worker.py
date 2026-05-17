@@ -4837,6 +4837,52 @@ def test_record_experiment_ignores_transition_words_with_cited_evidence(tmp_path
         db.close()
 
 
+def test_record_experiment_does_not_ground_next_action_step_references(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Validate candidate files", title="grounding", kind="generic")
+        run_id = db.start_run(job_id, model="test")
+        old_step = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec")
+        db.finish_step(
+            old_step,
+            status="completed",
+            output_data={"success": True, "stdout": "/srv/previous/model.foo\n"},
+        )
+        current_step = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec")
+        db.finish_step(
+            current_step,
+            status="completed",
+            output_data={"success": True, "stdout": "/srv/current/bad.foo: data\n"},
+        )
+        db.finish_run(run_id, "completed")
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(
+                        name="record_experiment",
+                        arguments={
+                            "title": "Candidate file validation",
+                            "status": "failed",
+                            "result": "File /srv/current/bad.foo is not a valid candidate artifact.",
+                            "metadata": {"file_path": "/srv/current/bad.foo"},
+                            "next_action": "Check the older candidate from step #1 on a separate branch.",
+                        },
+                    )
+                ])
+            ]),
+        )
+
+        assert result.status == "completed"
+        assert result.tool_name == "record_experiment"
+    finally:
+        db.close()
+
+
 def test_record_lesson_blocks_negative_claim_that_conflicts_with_positive_evidence(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

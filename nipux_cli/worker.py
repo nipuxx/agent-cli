@@ -3266,7 +3266,8 @@ def _evidence_grounding_context(
     proposed_text = _evidence_grounding_proposed_text(tool_name, args)
     if len(full_proposed_text.strip()) < 80:
         return None
-    cited_steps = _cited_step_numbers(full_proposed_text)
+    citation_text = proposed_text if tool_name == "record_experiment" else full_proposed_text
+    cited_steps = _cited_step_numbers(citation_text)
     evidence_text = _recent_evidence_text(job, recent_steps, window=window, step_numbers=cited_steps or None)
     fresh_evidence_text = _recent_evidence_text(
         job,
@@ -3442,7 +3443,8 @@ def _missing_candidate_paths_for_grounding(
 ) -> list[str]:
     if tool_name not in {"record_findings", "record_experiment", "write_artifact", "report_update"}:
         return []
-    proposed_lower = f"{proposed_text}\n{full_proposed_text}".lower()
+    claim_text = proposed_text if tool_name == "record_experiment" else f"{proposed_text}\n{full_proposed_text}"
+    proposed_lower = claim_text.lower()
     if not any(term in proposed_lower for term in ("file", "files", "path", "paths", "candidate", "found", "discovered")):
         return []
     positive_evidence_text = "\n".join(
@@ -3460,7 +3462,7 @@ def _missing_candidate_paths_for_grounding(
         return []
     distinctive_paths: list[str] = []
     seen: set[str] = set()
-    for path in _rank_candidate_file_paths(job, full_proposed_text, evidence_paths):
+    for path in _rank_candidate_file_paths(job, claim_text, evidence_paths):
         key = path.lower()
         if key in seen:
             continue
