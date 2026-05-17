@@ -2998,6 +2998,8 @@ EVIDENCE_TOKEN_IGNORE = {
     "file",
     "files",
     "format",
+    "further",
+    "furthermore",
     "finding",
     "findings",
     "file-level",
@@ -3023,6 +3025,7 @@ EVIDENCE_TOKEN_IGNORE = {
     "observation",
     "observations",
     "open",
+    "otherwise",
     "oid",
     "output",
     "outputs",
@@ -3079,9 +3082,11 @@ EVIDENCE_TOKEN_IGNORE = {
     "confirmed",
     "consider",
     "checking",
+    "however",
     "ongoing",
     "proceed",
     "proceeding",
+    "therefore",
 }
 EVIDENCE_TOKEN_IGNORE.update({f"p{index}" for index in range(10)})
 STALE_CLAIM_TOKEN_IGNORE = {

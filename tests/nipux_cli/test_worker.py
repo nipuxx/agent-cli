@@ -4741,6 +4741,49 @@ def test_record_experiment_allows_supported_proper_noun_hardware_claims(tmp_path
         db.close()
 
 
+def test_record_experiment_ignores_transition_words_with_cited_evidence(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Record exact observed measurement", title="grounding", kind="generic")
+        run_id = db.start_run(job_id, model="test")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec")
+        db.finish_step(
+            step_id,
+            status="completed",
+            output_data={"success": True, "stdout": "score 3.53 units\n"},
+        )
+        db.finish_run(run_id, "completed")
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(
+                        name="record_experiment",
+                        arguments={
+                            "title": "Measured reference",
+                            "status": "measured",
+                            "metric_name": "score",
+                            "metric_value": 3.53,
+                            "metric_unit": "units",
+                            "evidence_artifact": "Step #1 output: score 3.53 units",
+                            "result": "score=3.53 units. Further work should compare materially different branches.",
+                            "next_action": "compare the next branch against this measured reference",
+                        },
+                    )
+                ])
+            ]),
+        )
+
+        assert result.status == "completed"
+        assert result.tool_name == "record_experiment"
+    finally:
+        db.close()
+
+
 def test_record_lesson_blocks_negative_claim_that_conflicts_with_positive_evidence(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")
