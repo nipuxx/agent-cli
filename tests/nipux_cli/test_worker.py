@@ -8450,6 +8450,57 @@ def test_run_one_step_allows_branch_decision_after_experiment_stagnation(tmp_pat
         db.close()
 
 
+def test_run_one_step_allows_measured_experiment_after_experiment_stagnation(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job(
+            "Optimize a measurable process and keep improving",
+            title="experiment-stagnation",
+            kind="generic",
+            metadata=_stagnant_experiment_metadata(),
+        )
+        run_id = db.start_run(job_id, model="test")
+        for index in range(6):
+            step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="record_experiment")
+            db.finish_step(step_id, status="completed", output_data={"success": True, "experiment": {"title": f"trial {index}"}})
+        shell_step = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec")
+        db.finish_step(
+            shell_step,
+            status="completed",
+            output_data={"success": True, "stdout": "candidate measurement: tg64 2.7 tokens/sec"},
+        )
+        db.finish_run(run_id, "completed")
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(
+                        name="record_experiment",
+                        arguments={
+                            "title": "New measured branch",
+                            "status": "measured",
+                            "metric_name": "tokens_per_second_tg64",
+                            "metric_unit": "tokens/sec",
+                            "metric_value": 2.7,
+                            "result": "Measured candidate branch reached 2.7 tokens/sec.",
+                            "next_action": "compare against the best branch and choose the next materially different trial",
+                        },
+                    )
+                ])
+            ]),
+        )
+
+        assert result.status == "completed"
+        assert result.tool_name == "record_experiment"
+        assert result.result["experiment"]["metric_name"] == "tokens_per_second_tg64"
+    finally:
+        db.close()
+
+
 def test_run_one_step_allows_blocked_experiment_after_experiment_stagnation(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

@@ -3785,25 +3785,29 @@ def _evidence_line_is_negative(line_lower: str) -> bool:
 
 def _evidence_grounding_proposed_text(tool_name: str, args: dict[str, Any]) -> str:
     if tool_name == "record_experiment":
-        return "\n".join(
-            _json_value_text(args.get(key))
-            for key in (
-                "action",
-                "baseline",
-                "command",
-                "config",
-                "decision",
-                "environment",
-                "evidence",
-                "evidence_artifact",
-                "metric_name",
-                "metric_unit",
-                "metric_value",
-                "result",
-                "status",
-            )
-            if args.get(key) is not None
-        )
+        parts: list[str] = []
+        for key in (
+            "action",
+            "baseline",
+            "command",
+            "decision",
+            "environment",
+            "evidence",
+            "evidence_artifact",
+            "metric_unit",
+            "metric_value",
+            "status",
+        ):
+            if args.get(key) is not None:
+                parts.append(_json_value_text(args.get(key)))
+        config = args.get("config")
+        if isinstance(config, dict):
+            parts.append(_json_value_text(list(config.values())))
+        elif config is not None:
+            parts.append(_json_value_text(config))
+        if args.get("result") is not None:
+            parts.append(_json_value_text(args.get("result")))
+        return "\n".join(parts)
     if tool_name != "record_memory_graph":
         return _json_value_text(args)
     parts: list[str] = []
@@ -5860,14 +5864,14 @@ def _blocked_tool_call_result(
         }
         return result, f"blocked {name}; memory graph consolidation required"
 
-    record_experiment_closes_branch = (
+    record_experiment_accounts_for_branch = (
         name == "record_experiment"
-        and str(args.get("status") or "").strip().lower().replace(" ", "_") in {"failed", "blocked", "skipped"}
+        and str(args.get("status") or "").strip().lower().replace(" ", "_") in {"measured", "failed", "blocked", "skipped"}
     )
     if (
         experiment_stagnation
         and not direct_action_continuation
-        and not record_experiment_closes_branch
+        and not record_experiment_accounts_for_branch
         and (
             name in BRANCH_WORK_TOOLS
             or name in {"record_experiment", "write_artifact", "write_file", "report_update"}
