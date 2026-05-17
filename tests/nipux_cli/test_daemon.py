@@ -1,5 +1,7 @@
+import argparse
 from datetime import datetime, timedelta, timezone
 import json
+from pathlib import Path
 import threading
 import time
 
@@ -21,7 +23,7 @@ from nipux_cli.daemon import (
     _parse_retry_after,
     _step_failure_backoff,
 )
-from nipux_cli.daemon_control import stop_daemon_process_impl
+from nipux_cli.daemon_control import cmd_start_impl, stop_daemon_process_impl
 from nipux_cli.db import AgentDB
 from nipux_cli.worker import StepExecution
 from nipux_cli.doctor import Check
@@ -134,6 +136,41 @@ def test_stop_daemon_recovers_pidless_lock_from_process_list(tmp_path, monkeypat
 
     assert stopped is True
     assert killed and killed[0][0] == 99999
+
+
+def test_start_daemon_uses_python_safe_path(monkeypatch, tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    statuses = iter([
+        {"running": False},
+        {"running": True, "metadata": {"pid": 12345}},
+    ])
+    captured: dict[str, object] = {}
+
+    class Process:
+        pid = 12345
+
+        def poll(self):
+            return None
+
+    def fake_popen(command, **kwargs):
+        captured["command"] = command
+        captured.update(kwargs)
+        return Process()
+
+    monkeypatch.setattr("nipux_cli.daemon_control.load_config", lambda: config)
+    monkeypatch.setattr("nipux_cli.daemon_control.daemon_lock_status", lambda _path: next(statuses))
+    monkeypatch.setattr("nipux_cli.daemon_control.subprocess.Popen", fake_popen)
+
+    cmd_start_impl(
+        argparse.Namespace(poll_seconds=0.0, fake=False, quiet=True, log_file=None),
+        ready_fn=lambda _config, _fake: True,
+        stop_fn=lambda _config, _wait, _quiet: False,
+    )
+
+    env = captured["env"]
+    assert isinstance(env, dict)
+    assert env["PYTHONSAFEPATH"] == "1"
+    assert captured["cwd"] == str(Path.cwd())
 
 
 def test_daemon_lock_status_detects_stale_runtime(tmp_path):

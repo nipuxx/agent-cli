@@ -117,10 +117,13 @@ def cmd_start_impl(
     if args.fake:
         command.append("--fake")
     command.append("--quiet" if args.quiet else "--verbose")
+    env = dict(os.environ)
+    env["PYTHONSAFEPATH"] = "1"
     with log_path.open("a", encoding="utf-8") as log_file:
         process = subprocess.Popen(
             command,
             cwd=str(Path.cwd()),
+            env=env,
             stdout=log_file,
             stderr=subprocess.STDOUT,
             start_new_session=True,
