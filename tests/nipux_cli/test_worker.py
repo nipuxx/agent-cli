@@ -417,6 +417,59 @@ def test_run_one_step_repairs_content_only_worker_turn_with_tool_retry(tmp_path)
         db.close()
 
 
+def test_run_one_step_executes_json_tool_call_written_as_content(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Keep taking bounded tool actions", title="content tool")
+        content = json.dumps([
+            {
+                "name": "shell_exec",
+                "parameters": {"command": "printf content-tool-ok", "timeout_seconds": 5},
+            }
+        ])
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([LLMResponse(content=content)]),
+        )
+
+        assert result.status == "completed"
+        assert result.tool_name == "shell_exec"
+        assert "content-tool-ok" in result.result["stdout"]
+    finally:
+        db.close()
+
+
+def test_run_one_step_unwraps_nested_tool_parameters(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Keep taking bounded tool actions", title="nested params")
+
+        result = run_one_step(
+            job_id,
+            config=config,
+            db=db,
+            llm=ScriptedLLM([
+                LLMResponse(tool_calls=[
+                    ToolCall(
+                        name="shell_exec",
+                        arguments={"parameters": {"command": "printf nested-params-ok", "timeout_seconds": 5}},
+                    )
+                ])
+            ]),
+        )
+
+        assert result.status == "completed"
+        assert result.tool_name == "shell_exec"
+        assert "nested-params-ok" in result.result["stdout"]
+    finally:
+        db.close()
+
+
 def test_run_one_step_recovers_repeated_content_only_worker_turns(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

@@ -7545,6 +7545,7 @@ def _ordered_tool_calls_for_execution(
 ) -> list[ToolCall]:
     """Run guard-unblocking calls before branch work when a model batches both."""
 
+    tool_calls = [_normalize_tool_call(call) for call in tool_calls]
     if len(tool_calls) < 2:
         return tool_calls
     if _browser_runtime_unavailable_context(recent_steps) and any(not _is_browser_tool(call.name) for call in tool_calls):
@@ -7597,6 +7598,73 @@ def _ordered_tool_calls_for_execution(
 
     ordered = sorted(enumerate(tool_calls), key=lambda item: (priority(item[1]), item[0]))
     return [call for _, call in ordered]
+
+
+def _normalize_tool_call(call: ToolCall) -> ToolCall:
+    args = call.arguments if isinstance(call.arguments, dict) else {}
+    for key in ("parameters", "arguments"):
+        nested = args.get(key)
+        if isinstance(nested, dict) and set(args.keys()) <= {key}:
+            return ToolCall(name=call.name, arguments=nested, id=call.id)
+    return ToolCall(name=call.name, arguments=args, id=call.id)
+
+
+def _tool_calls_from_content(content: str) -> list[ToolCall]:
+    text = str(content or "").strip()
+    if not text:
+        return []
+    candidates = [text]
+    candidates.extend(
+        item.strip()
+        for item in re.findall(r"```(?:json)?\s*(.*?)```", text, flags=re.IGNORECASE | re.DOTALL)
+        if item.strip()
+    )
+    for candidate in candidates:
+        try:
+            payload = json.loads(candidate)
+        except json.JSONDecodeError:
+            continue
+        calls = _tool_calls_from_json_payload(payload)
+        if calls:
+            return calls
+    return []
+
+
+def _tool_calls_from_json_payload(payload: Any) -> list[ToolCall]:
+    if isinstance(payload, list):
+        calls: list[ToolCall] = []
+        for item in payload:
+            call = _tool_call_from_json_item(item)
+            if call:
+                calls.append(call)
+        return calls
+    if isinstance(payload, dict):
+        tool_calls = payload.get("tool_calls")
+        if isinstance(tool_calls, list):
+            return _tool_calls_from_json_payload(tool_calls)
+        call = _tool_call_from_json_item(payload)
+        return [call] if call else []
+    return []
+
+
+def _tool_call_from_json_item(item: Any) -> ToolCall | None:
+    if not isinstance(item, dict):
+        return None
+    raw_args: Any = item.get("arguments", item.get("parameters", {}))
+    name = str(item.get("name") or item.get("tool") or item.get("tool_name") or "").strip()
+    if not name:
+        function = item.get("function") if isinstance(item.get("function"), dict) else {}
+        name = str(function.get("name") or "").strip()
+        raw_args = function.get("arguments", {})
+    if not name:
+        return None
+    if isinstance(raw_args, str):
+        try:
+            raw_args = json.loads(raw_args)
+        except json.JSONDecodeError:
+            raw_args = {}
+    args = raw_args if isinstance(raw_args, dict) else {}
+    return _normalize_tool_call(ToolCall(name=name, arguments=args, id=str(item.get("id") or "")))
 
 
 def _registry_tools(registry: ToolRegistry, config: AppConfig) -> list[dict[str, Any]]:
@@ -7883,6 +7951,16 @@ def run_one_step(
         tool_repair_attempted = False
         tool_repair_error: dict[str, Any] | None = None
         original_content = response.content
+        if not response.tool_calls:
+            content_tool_calls = _tool_calls_from_content(response.content)
+            if content_tool_calls:
+                response = LLMResponse(
+                    content=response.content,
+                    tool_calls=content_tool_calls,
+                    usage=response.usage,
+                    model=response.model,
+                    response_id=response.response_id,
+                )
         if not response.tool_calls and getattr(llm, "tool_repair", False):
             tool_repair_attempted = True
             repair_messages = _tool_repair_messages(messages, response)
