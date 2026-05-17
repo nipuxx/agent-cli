@@ -2127,7 +2127,8 @@ def test_update_checkout_upgrades_uv_tool_when_installed_package(monkeypatch):
     assert "Update complete" in rendered
 
 
-def test_update_checkout_fast_forwards_git_checkout(tmp_path):
+def test_update_checkout_fast_forwards_git_checkout(monkeypatch, tmp_path):
+    monkeypatch.setattr("shutil.which", lambda name: "/usr/bin/uv" if name == "uv" else None)
     repo = tmp_path / "repo"
     repo.mkdir()
     (repo / ".git").mkdir()
@@ -2155,14 +2156,33 @@ def test_update_checkout_fast_forwards_git_checkout(tmp_path):
             return subprocess.CompletedProcess(command, 0, stdout="Fast-forward\n")
         raise AssertionError(f"unexpected command: {command}")
 
-    code, lines = _update_checkout(path=repo, runner=runner)
+    tool_calls: list[tuple[str, ...]] = []
+
+    def command_runner(command):
+        tool_calls.append(tuple(command))
+        return subprocess.CompletedProcess(command, 0, stdout="Installed nipux\n")
+
+    code, lines = _update_checkout(path=repo, runner=runner, command_runner=command_runner)
 
     assert code == 0
     assert ("git", "pull", "--ff-only") in calls
+    assert tool_calls == [
+        (
+            "/usr/bin/uv",
+            "tool",
+            "install",
+            "--force",
+            "--upgrade",
+            "--reinstall",
+            "--refresh",
+            str(repo),
+        )
+    ]
     rendered = "\n".join(lines)
     assert "Fast-forward" in rendered
     assert "aaa111 -> bbb222" in rendered
     assert "Removed stale build metadata" in rendered
+    assert "Installed command refreshed from checkout" in rendered
     assert not (repo / "build").exists()
     assert not (repo / "dist").exists()
     assert not (repo / "nipux.egg-info").exists()

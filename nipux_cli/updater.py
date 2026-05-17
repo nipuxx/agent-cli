@@ -78,6 +78,10 @@ def update_checkout(
     else:
         lines.append(f"Updated Nipux: {before} -> {after}.")
     lines.extend(clean_build_metadata(checkout))
+    refresh_code, refresh_lines = _refresh_uv_tool_from_checkout(checkout, runner=command_runner)
+    lines.extend(refresh_lines)
+    if refresh_code != 0:
+        return refresh_code, ["Update failed.", *lines]
     lines.append("Update complete.")
     return 0, lines
 
@@ -128,6 +132,20 @@ def _update_uv_tool_install(*, runner: CommandRunner | None = None) -> tuple[int
     if verified:
         lines.append(verified)
     lines.append("Update complete.")
+    return 0, lines
+
+
+def _refresh_uv_tool_from_checkout(checkout: Path, *, runner: CommandRunner | None = None) -> tuple[int, list[str]]:
+    uv = shutil.which("uv")
+    if not uv:
+        return 0, []
+    run = runner or _run_command
+    lines = ["Refreshing installed Nipux command from checkout."]
+    updated = run([uv, "tool", "install", "--force", "--upgrade", "--reinstall", "--refresh", str(checkout)])
+    lines.extend(_process_lines(updated))
+    if updated.returncode != 0:
+        return updated.returncode, lines
+    lines.append("Installed command refreshed from checkout.")
     return 0, lines
 
 
