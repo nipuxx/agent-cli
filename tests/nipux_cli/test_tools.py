@@ -564,6 +564,29 @@ def test_shell_exec_flags_make_failure_hidden_by_pipe_status(tmp_path):
         db.close()
 
 
+def test_shell_exec_flags_runtime_error_hidden_by_pipe_status(tmp_path):
+    config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        job_id = db.create_job("Run command")
+        run_id = db.start_run(job_id, model="fake")
+        step_id = db.add_step(job_id=job_id, run_id=run_id, kind="tool", tool_name="shell_exec")
+        ctx = ToolContext(config=config, db=db, artifacts=ArtifactStore(tmp_path, db), job_id=job_id, run_id=run_id, step_id=step_id)
+
+        raw = DEFAULT_REGISTRY.handle(
+            "shell_exec",
+            {"command": "printf 'main: error: failed to load input\\n' | head -100", "timeout_seconds": 5},
+            ctx,
+        )
+        result = json.loads(raw)
+
+        assert result["returncode"] == 0
+        assert result["success"] is False
+        assert "runtime failure" in result["error"]
+    finally:
+        db.close()
+
+
 def test_update_job_state_keeps_terminal_statuses_operator_only(tmp_path):
     config = AppConfig(runtime=RuntimeConfig(home=tmp_path))
     db = AgentDB(tmp_path / "state.db")

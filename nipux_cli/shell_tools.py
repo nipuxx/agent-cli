@@ -272,6 +272,10 @@ def _shell_success_anomaly(stdout: str, stderr: str, *, command: str = "") -> st
     if build_error_match:
         excerpt = " ".join(combined.split())[:500]
         return f"command output indicates build/tool failure despite exit status 0: {excerpt}"
+    runtime_error_match = _shell_runtime_error_anomaly(combined)
+    if runtime_error_match:
+        excerpt = " ".join(combined.split())[:500]
+        return f"command output indicates runtime failure despite exit status 0: {excerpt}"
     http_error_match = _shell_http_error_anomaly(lowered)
     if http_error_match:
         excerpt = " ".join(combined.split())[:500]
@@ -339,6 +343,15 @@ def _shell_build_error_anomaly(text: str) -> bool:
     if "***" in text and "stop." in lowered:
         return True
     return bool(re.search(r"(?im)^\s*(?:make(?:\[\d+\])?:\s*)?\*\*\* .*\bstop\.\s*$", text))
+
+
+def _shell_runtime_error_anomaly(text: str) -> bool:
+    return bool(
+        re.search(
+            r"(?im)^\s*(?:[A-Za-z0-9_.+-]+:\s*)?(?:error|fatal):\s+(?:failed|cannot|could not|unable)\b",
+            text,
+        )
+    )
 
 
 def _shell_http_error_anomaly(text: str) -> bool:
