@@ -14,7 +14,12 @@ from urllib.parse import urlparse
 
 from nipux_cli.config import load_config
 from nipux_cli.settings import inline_setting_notice
-from nipux_cli.tui_commands import FIRST_RUN_SLASH_COMMANDS, autocomplete_slash, cycle_slash, slash_completion_for_submit
+from nipux_cli.tui_commands import (
+    FIRST_RUN_SLASH_COMMANDS,
+    autocomplete_slash,
+    cycle_slash,
+    slash_completion_for_submit,
+)
 from nipux_cli.tui_input import (
     decode_terminal_escape,
     drain_pending_input,
@@ -34,12 +39,12 @@ class FirstRunRuntimeDeps:
 
 
 def run_first_run_frame(*, deps: FirstRunRuntimeDeps) -> str | None:
-    buffer = ""
     notices: list[str] = []
     next_job_id: str | None = None
     view = "endpoint"
     selected = 0
     editing_field: str | None = required_first_run_edit_field(view)
+    buffer = first_run_edit_initial_value(editing_field)
     old_attrs = termios.tcgetattr(sys.stdin)
     print(_frame_enter_sequence(), end="", flush=True)
     try:
@@ -101,6 +106,7 @@ def run_first_run_frame(*, deps: FirstRunRuntimeDeps) -> str | None:
                         view = next_view
                         selected = 0
                         editing_field = required_first_run_edit_field(view)
+                        buffer = first_run_edit_initial_value(editing_field)
                 needs_render = True
                 continue
             if char in {"\r", "\n"}:
@@ -120,6 +126,8 @@ def run_first_run_frame(*, deps: FirstRunRuntimeDeps) -> str | None:
                     state = (view, selected, None, None, False)
                 view, selected, editing_field, next_job_id, should_exit = state
                 editing_field = editing_field or required_first_run_edit_field(view)
+                if editing_field:
+                    buffer = first_run_edit_initial_value(editing_field)
                 if should_exit:
                     return None
                 needs_render = True
@@ -148,6 +156,7 @@ def run_first_run_frame(*, deps: FirstRunRuntimeDeps) -> str | None:
                 continue
             if char == "\x1b":
                 try:
+                    previous_field = editing_field
                     view, selected, editing_field, next_job_id, should_exit, buffer = _handle_first_run_escape(
                         stdin_fd,
                         view=view,
@@ -162,6 +171,8 @@ def run_first_run_frame(*, deps: FirstRunRuntimeDeps) -> str | None:
                 if should_exit:
                     return None
                 editing_field = editing_field or required_first_run_edit_field(view)
+                if editing_field and editing_field != previous_field:
+                    buffer = first_run_edit_initial_value(editing_field)
                 needs_render = True
                 continue
             if char.isprintable():
@@ -375,6 +386,21 @@ def required_first_run_edit_field(view: str) -> str | None:
         "api": "secret:model.api_key",
         "model": "model.name",
     }.get(view)
+
+
+def first_run_edit_initial_value(field: str | None) -> str:
+    if not field:
+        return ""
+    config = load_config()
+    if field == "model.base_url":
+        return config.model.base_url
+    if field == "model.name":
+        if config.model.model in {"local-model", "test"} and "openrouter.ai" in config.model.base_url:
+            return "qwen/qwen3.6-27b"
+        return config.model.model
+    if field == "secret:model.api_key":
+        return config.model.api_key or ""
+    return ""
 
 
 def next_first_run_view_after_edit(view: str) -> str | None:

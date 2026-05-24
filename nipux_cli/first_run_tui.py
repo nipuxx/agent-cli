@@ -375,7 +375,7 @@ def _field_panel(
     secret: bool = False,
 ) -> list[str]:
     active = editing_field == field
-    value = input_buffer if active and input_buffer else current
+    value = input_buffer if active else current
     rendered = _masked_inline_value(value, secret=secret, active=active)
     body = [f"{_muted(label + ': ')}{_bold(_accent(_one_line(rendered, max(12, width - len(label) - 8))))}"]
     return _panel(title, body, width=width, page_width=page_width)
@@ -384,12 +384,12 @@ def _field_panel(
 def _masked_inline_value(value: str, *, secret: bool, active: bool) -> str:
     if secret:
         if not value:
-            return "type here ▌" if active else "missing"
+            return "▌" if active else "missing"
         if value.lower() in {"skip", "none", "local"}:
             return value
         return "•" * min(max(len(value), 6), 24) + (" ▌" if active else "")
     if not value:
-        return "type here ▌" if active else "not set"
+        return "▌" if active else "not set"
     return f"{value} ▌" if active else value
 
 
@@ -431,14 +431,14 @@ def _join_many_cards(cards: list[list[str]], *, gap: int, width: int) -> list[st
 
 
 def _append_notice_block(lines: list[str], notices: list[str], *, width: int, rows: int) -> list[str]:
-    budget = max(3, min(6, rows // 4))
-    notice_lines = [_bold("Transcript")]
-    for notice in notices[-budget:]:
-        notice_lines.append(_fit_ansi(_accent("› ") + _one_line(notice, width - 4), width))
-    if len(lines) + len(notice_lines) + 1 <= rows:
-        return [*lines, "", *notice_lines]
-    keep = max(0, rows - len(notice_lines) - 1)
-    return [*lines[:keep], "", *notice_lines]
+    visible = [notice for notice in notices if "cancelled edit" not in notice.lower()]
+    if not visible:
+        return lines
+    notice = _center_ansi(_accent("› ") + _one_line(visible[-1], min(90, width - 4)), width)
+    if len(lines) + 2 <= rows:
+        return [*lines, "", notice]
+    keep = max(0, rows - 2)
+    return [*lines[:keep], "", notice]
 
 
 def _fit_page(lines: list[str], *, width: int, rows: int) -> list[str]:
@@ -449,13 +449,13 @@ def _fit_page(lines: list[str], *, width: int, rows: int) -> list[str]:
         body_rows = max(0, rows - len(header))
         if len(body) < body_rows:
             extra = body_rows - len(body)
-            top_pad = min(6, max(0, extra // 2))
+            top_pad = max(0, extra // 2)
             bottom_pad = extra - top_pad
             body = [" " * width for _ in range(top_pad)] + body + [" " * width for _ in range(bottom_pad)]
         return [*header, *body][:rows]
     if len(fitted) < rows:
         extra = rows - len(fitted)
-        top_pad = min(8, max(0, extra // 2))
+        top_pad = max(0, extra // 2)
         bottom_pad = extra - top_pad
         fitted = [" " * width for _ in range(top_pad)] + fitted + [" " * width for _ in range(bottom_pad)]
     return fitted[:rows]
