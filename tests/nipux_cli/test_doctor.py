@@ -48,20 +48,20 @@ def test_doctor_warns_when_remote_model_key_is_missing(tmp_path, monkeypatch):
     assert "sk-" not in model_check.detail
 
 
-def test_doctor_reports_openrouter_auth_failure(tmp_path, monkeypatch):
-    monkeypatch.setenv("TEST_OPENROUTER_KEY", "bad-key")
+def test_doctor_reports_remote_generation_auth_failure(tmp_path, monkeypatch):
+    monkeypatch.setenv("TEST_PROVIDER_KEY", "bad-key")
     config = AppConfig(
         runtime=RuntimeConfig(home=tmp_path),
         model=ModelConfig(
-            model="nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
-            base_url="https://openrouter.ai/api/v1",
-            api_key_env="TEST_OPENROUTER_KEY",
+            model="provider/model",
+            base_url="https://provider.example/v1",
+            api_key_env="TEST_PROVIDER_KEY",
         ),
     )
 
-    def fake_urlopen(_request, timeout):
+    def fake_urlopen(request, timeout):
         raise urllib.error.HTTPError(
-            "https://openrouter.ai/api/v1/key",
+            request.full_url,
             401,
             "Unauthorized",
             hdrs=None,
@@ -73,9 +73,9 @@ def test_doctor_reports_openrouter_auth_failure(tmp_path, monkeypatch):
     checks = run_doctor(config=config, check_model=True)
     model_check = checks[-1]
 
-    assert model_check.name == "model_auth"
+    assert model_check.name == "model_generation"
     assert model_check.ok is False
-    assert "OpenRouter rejected API key" in model_check.detail
+    assert "401" in model_check.detail
 
 
 def test_doctor_reports_generation_limit_after_model_listing(tmp_path, monkeypatch):

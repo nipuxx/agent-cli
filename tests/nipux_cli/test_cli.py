@@ -61,6 +61,7 @@ from nipux_cli.first_run_frame_runtime import first_run_adjacent_view as _first_
 from nipux_cli.first_run_frame_runtime import _handle_edit_input as _handle_first_run_edit_input
 from nipux_cli.first_run_frame_runtime import _safe_render_frame as _safe_first_run_render_frame
 from nipux_cli.first_run_frame_runtime import _submit_first_run_line as _submit_first_run_line
+from nipux_cli.first_run_frame_runtime import default_first_run_action as _default_first_run_action
 from nipux_cli.first_run_frame_runtime import directional_first_run_action as _directional_first_run_action
 from nipux_cli.frame_snapshot import WORKSPACE_CHAT_ID
 from nipux_cli.tui_commands import (
@@ -450,7 +451,7 @@ def test_first_run_doctor_failure_shows_inline_fix_commands(monkeypatch, tmp_pat
     assert "/base-url URL" not in rendered
     assert "/api-key KEY" not in rendered
     assert "/model MODEL" not in rendered
-    assert "local model server" in rendered
+    assert "valid chat response" in rendered
 
 
 def test_setting_change_clears_model_setup_verification(monkeypatch, tmp_path):
@@ -551,8 +552,9 @@ def test_first_run_frame_walks_setup_screens(monkeypatch, tmp_path):
     assert "Choose tool access" in access
     assert "Browser" in access
     assert "CLI" in access
+    assert "Press 1-4 to toggle" in access
     assert "Run checks" in doctor
-    assert "left and right" in doctor
+    assert "Enter runs Doctor" in doctor
     assert "/base-url" not in doctor
     assert "/api-key" not in doctor
     assert "/model" not in doctor
@@ -667,6 +669,28 @@ def test_first_run_arrow_navigation_changes_setup_screens():
     assert _first_run_adjacent_view("endpoint", direction=1) == "api"
     assert _first_run_adjacent_view("api", direction=1) == "model"
     assert _first_run_adjacent_view("doctor", direction=1) == "doctor"
+    assert (
+        _default_first_run_action(
+            "access",
+            [
+                ("toggle:tools.browser", "Browser", "automation"),
+                ("view:doctor", "Continue", "run checks"),
+            ],
+            selected=0,
+        )
+        == "view:doctor"
+    )
+    assert (
+        _default_first_run_action(
+            "doctor",
+            [
+                ("doctor", "Run doctor", "verify setup"),
+                ("open_workspace", "Open chat", "talk to Nipux"),
+            ],
+            selected=1,
+        )
+        == "doctor"
+    )
 
     assert _directional_first_run_action(
         [

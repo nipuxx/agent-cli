@@ -163,6 +163,25 @@ def run_first_run_frame(*, deps: FirstRunRuntimeDeps) -> str | None:
                 buffer = buffer[:-1]
                 needs_render = True
                 continue
+            if char in {"1", "2", "3", "4", "5"} and not buffer:
+                try:
+                    action, payload = _submit_first_run_shortcut(char, view=view, deps=deps)
+                except Exception as exc:
+                    action, payload = "notice", f"input failed: {type(exc).__name__}: {_one_line(exc, 100)}"
+                if action:
+                    try:
+                        state = _apply_first_run_action(action, payload, view=view, selected=selected, notices=notices)
+                    except Exception as exc:
+                        _append_notice(notices, f"action failed: {type(exc).__name__}: {_one_line(exc, 100)}")
+                        state = (view, selected, None, None, False)
+                    view, selected, editing_field, next_job_id, should_exit = state
+                    editing_field = editing_field or required_first_run_edit_field(view)
+                    if editing_field:
+                        buffer = first_run_edit_initial_value(editing_field)
+                    if should_exit:
+                        return None
+                    needs_render = True
+                    continue
             if char == "\t":
                 try:
                     buffer = autocomplete_slash(buffer, FIRST_RUN_SLASH_COMMANDS)
@@ -255,10 +274,43 @@ def _submit_first_run_line(
         actions = deps.actions(view)
         if not actions:
             return "notice", "This setup step requires an explicit value."
-        return deps.handle_action(actions[clamp_selection(selected, actions)][0])
+        default_action = default_first_run_action(view, actions, selected=selected)
+        return deps.handle_action(default_action)
     if not line.startswith("/"):
         return "notice", "Complete the active setup field before continuing."
     return deps.handle_line(line)
+
+
+def _submit_first_run_shortcut(
+    key: str,
+    *,
+    view: str,
+    deps: FirstRunRuntimeDeps,
+) -> tuple[str, str | list[str] | None]:
+    actions = deps.actions(view)
+    if not actions:
+        return "", None
+    index = int(key) - 1
+    if index < 0 or index >= len(actions):
+        return "notice", "No setup action is assigned to that number."
+    return deps.handle_action(actions[index][0])
+
+
+def default_first_run_action(
+    view: str,
+    actions: list[tuple[str, str, str]],
+    *,
+    selected: int,
+) -> str:
+    if view == "access":
+        for key, _label, _detail in actions:
+            if key == "view:doctor":
+                return key
+    if view == "doctor":
+        for key, _label, _detail in actions:
+            if key == "doctor":
+                return key
+    return actions[clamp_selection(selected, actions)][0]
 
 
 def _handle_first_run_escape(

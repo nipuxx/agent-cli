@@ -84,11 +84,11 @@ def _check_browser_runtime() -> Check:
 
 
 def _check_model_endpoint(config: AppConfig) -> Check:
-    if "openrouter.ai" in config.model.base_url and not config.model.api_key:
-        return Check("model_endpoint", False, "API key is not set")
-    auth = _check_openrouter_auth(config)
-    if auth is not None and not auth.ok:
-        return auth
+    if _remote_endpoint(config.model.base_url) and not config.model.api_key:
+        return Check("model_endpoint", False, "API key is not set for this endpoint")
+    generation = _check_model_generation(config)
+    if not generation.ok:
+        return generation
     url = config.model.base_url.rstrip("/") + "/models"
     request = urllib.request.Request(url, headers={"Authorization": f"Bearer {config.model.api_key or 'local-no-key'}"})
     try:
@@ -99,28 +99,46 @@ def _check_model_endpoint(config: AppConfig) -> Check:
             count = len(data.get("data", [])) if isinstance(data, dict) else "unknown"
             available = _model_available(data, config.model.model)
             if available is False:
-                return Check("model_endpoint", False, f"{config.model.model} not found at {url}; models={count}")
-            generation = _check_model_generation(config)
-            if not generation.ok:
-                return generation
-            return Check("model_endpoint", True, f"{url} returned models={count}; {config.model.model} available; generation accepted")
+                return Check(
+                    "model_endpoint",
+                    True,
+                    f"chat accepted; {url} returned models={count}; configured model not listed",
+                )
+            return Check("model_endpoint", True, f"chat accepted; {url} returned models={count}")
         except json.JSONDecodeError:
-            generation = _check_model_generation(config)
-            if not generation.ok:
-                return generation
-            return Check("model_endpoint", True, f"{url} responded; generation accepted")
+            return Check("model_endpoint", True, f"chat accepted; {url} responded")
     except (urllib.error.URLError, TimeoutError, OSError) as exc:
-        return Check("model_endpoint", False, f"{url}: {exc}")
+        return Check("model_endpoint", True, f"chat accepted; model list unavailable: {url}: {exc}")
 
 
 def _check_model_generation(config: AppConfig) -> Check:
+    tool_probe = _chat_completion_probe(config, include_tools=True)
+    if tool_probe.ok:
+        return tool_probe
+    plain_probe = _chat_completion_probe(config, include_tools=False)
+    if plain_probe.ok:
+        return Check(
+            "model_generation",
+            False,
+            f"plain chat accepted, but tool request failed: {tool_probe.detail}",
+        )
+    return Check(
+        "model_generation",
+        False,
+        f"tool request failed: {tool_probe.detail}; plain chat failed: {plain_probe.detail}",
+    )
+
+
+def _chat_completion_probe(config: AppConfig, *, include_tools: bool) -> Check:
     url = config.model.base_url.rstrip("/") + "/chat/completions"
     payload = {
         "model": config.model.model,
         "messages": [{"role": "user", "content": "Reply with exactly: ok"}],
         "max_tokens": 8,
         "temperature": 0,
-        "tools": [
+    }
+    if include_tools:
+        payload["tools"] = [
             {
                 "type": "function",
                 "function": {
@@ -133,8 +151,7 @@ def _check_model_generation(config: AppConfig) -> Check:
                     },
                 },
             }
-        ],
-    }
+        ]
     request = urllib.request.Request(
         url,
         data=json.dumps(payload).encode("utf-8"),
@@ -150,7 +167,8 @@ def _check_model_generation(config: AppConfig) -> Check:
         data = json.loads(body)
         choices = data.get("choices") if isinstance(data, dict) else None
         if isinstance(choices, list) and choices:
-            return Check("model_generation", True, f"{url} accepted chat/tool request")
+            kind = "chat/tool" if include_tools else "plain chat"
+            return Check("model_generation", True, f"{url} accepted {kind} request")
         return Check("model_generation", False, f"{url} returned no choices")
     except urllib.error.HTTPError as exc:
         body = exc.read(2048).decode("utf-8", errors="replace")
@@ -160,23 +178,9 @@ def _check_model_generation(config: AppConfig) -> Check:
         return Check("model_generation", False, f"{url}: {exc}")
 
 
-def _check_openrouter_auth(config: AppConfig) -> Check | None:
-    if "openrouter.ai" not in config.model.base_url:
-        return None
-    if not config.model.api_key:
-        return Check("model_auth", False, "OpenRouter API key is not set")
-    url = "https://openrouter.ai/api/v1/key"
-    request = urllib.request.Request(url, headers={"Authorization": f"Bearer {config.model.api_key}"})
-    try:
-        with urllib.request.urlopen(request, timeout=5) as response:
-            response.read(2048)
-        return Check("model_auth", True, "OpenRouter API key accepted")
-    except urllib.error.HTTPError as exc:
-        body = exc.read(512).decode("utf-8", errors="replace")
-        detail = _extract_error_message(body) or str(exc)
-        return Check("model_auth", False, f"OpenRouter rejected API key: {detail}")
-    except (urllib.error.URLError, TimeoutError, OSError) as exc:
-        return Check("model_auth", False, f"{url}: {exc}")
+def _remote_endpoint(base_url: str) -> bool:
+    host = (urlparse(base_url).hostname or "").lower()
+    return host not in {"", "localhost", "127.0.0.1", "::1", "0.0.0.0"} and not host.endswith(".local")
 
 
 def _extract_error_message(body: str) -> str:

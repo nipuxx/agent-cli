@@ -256,6 +256,8 @@ def _access_page_lines(*, config: AppConfig, selected: int, width: int) -> list[
         "",
         *_panel("TOOL ACCESS", rows, width=min(90, width - 8), page_width=width),
         "",
+        _center_ansi(_muted("Press 1-4 to toggle tools. Enter continues. Left/right changes setup step."), width),
+        "",
         *_action_cards(first_run_actions("access"), selected=selected, config=config, width=width),
     ]
 
@@ -281,7 +283,7 @@ def _doctor_page_lines(*, config: AppConfig, selected: int, width: int) -> list[
         *_panel("DOCTOR", rows, width=min(90, width - 8), page_width=width),
         "",
         _center_ansi(
-            _muted("If a check fails, use left and right to edit endpoint, key, or model, then run Doctor again."),
+            _muted("Enter runs Doctor. If a check fails, move back to edit endpoint, key, or model."),
             width,
         ),
         "",

@@ -15,7 +15,6 @@ from contextlib import redirect_stdout
 from io import StringIO
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlparse
 
 from nipux_cli import __version__
 from nipux_cli.artifacts import ArtifactStore
@@ -2488,7 +2487,6 @@ def cmd_doctor(args: argparse.Namespace) -> None:
 
 
 def _verify_model_setup_from_first_run() -> list[str]:
-    config = load_config()
     stream = StringIO()
     with redirect_stdout(stream):
         try:
@@ -2497,19 +2495,9 @@ def _verify_model_setup_from_first_run() -> list[str]:
             if exc.code not in (None, 0):
                 print("Model setup is not ready. Fix the failed check above before creating a job.")
                 print("Use the setup screens to edit endpoint, API key, or model, then run Doctor again.")
-                if _is_local_model_endpoint(config.model.base_url):
-                    print("For a local endpoint, start the local model server or change the endpoint.")
-                elif "openrouter.ai" in config.model.base_url:
-                    print("For OpenRouter, check the API key, account limits, and access to the selected model.")
-                else:
-                    print("For a hosted endpoint, check the API key, endpoint URL, and selected model access.")
+                print("Doctor must receive a valid chat response from the configured OpenAI-compatible endpoint.")
     lines = [" ".join(item.split()) for item in stream.getvalue().splitlines() if item.strip()]
     return lines[-12:] or ["done"]
-
-
-def _is_local_model_endpoint(base_url: str) -> bool:
-    host = (urlparse(base_url).hostname or "").lower()
-    return host in {"localhost", "127.0.0.1", "::1", "0.0.0.0"} or host.endswith(".local")
 
 
 def _chat_handle_line(job_id: str, line: str, *, reply_fn=None) -> bool:
