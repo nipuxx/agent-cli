@@ -497,11 +497,13 @@ def test_first_run_frame_uses_full_screen_ui_not_banner(monkeypatch, tmp_path):
     lines = frame.splitlines()
 
     assert "workspace" not in lines[0].lower()
-    assert "Endpoint" in lines[0]
+    assert "Endpoint" in frame
     assert "Enter the endpoint first" in frame
     assert "Begin setup" not in frame
     assert "Long-running work, installed in-session." not in frame
-    assert "Required: type an OpenAI-compatible endpoint URL" in frame
+    assert "OpenAI-compatible /v1 endpoint required" in frame
+    assert "setup input below" not in frame
+    assert "message" not in frame.lower()
     assert "controls on the right" not in frame
     assert "Control" not in frame
     assert "SETUP" not in frame

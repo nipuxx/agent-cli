@@ -9,9 +9,7 @@ from nipux_cli.settings import (
     config_field_value,
     edit_target_hint,
     edit_target_label,
-    edit_target_masks_input,
 )
-from nipux_cli.tui_layout import _compose_bar
 from nipux_cli.tui_style import (
     _accent,
     _bold,
@@ -72,26 +70,12 @@ def build_first_run_frame(
     height = max(22, height)
     view = _normalize_first_run_view(view)
     selected = _clamp_first_run_selection(selected, view)
+    editing_field = editing_field or _inline_edit_field_for_view(view)
     header: list[str] = []
-    if editing_field:
-        hint = _first_run_edit_hint(editing_field, config)
-        prompt_label = _first_run_prompt_label(editing_field)
-    else:
-        hint = _first_run_hint(view)
-        prompt_label = "Setup"
-    suggestions: list[str] = []
-    compose_lines = _compose_bar(
-        input_buffer,
-        width=width,
-        hint=hint,
-        suggestions=suggestions,
-        prompt_label=prompt_label,
-        title="setup",
-        mask_input=edit_target_masks_input(editing_field),
-    )
-    footer_rows = len(compose_lines)
-    body_rows = max(10, height - len(header) - 1 - footer_rows)
+    body_rows = max(10, height - len(header))
     body_lines = _wizard_body_lines(
+        input_buffer=input_buffer,
+        editing_field=editing_field,
         notices=notices,
         jobs=jobs,
         config=config,
@@ -102,7 +86,7 @@ def build_first_run_frame(
         width=width,
         rows=body_rows,
     )
-    lines = [*header, *body_lines, *compose_lines]
+    lines = [*header, *body_lines]
     return "\n".join(first_run_themed_lines(lines[:height], width=width))
 
 
@@ -125,6 +109,8 @@ def first_run_themed_lines(lines: list[str], *, width: int) -> list[str]:
 
 def _wizard_body_lines(
     *,
+    input_buffer: str,
+    editing_field: str | None,
     notices: list[str],
     jobs: list[dict[str, Any]],
     config: AppConfig,
@@ -136,23 +122,39 @@ def _wizard_body_lines(
     rows: int,
 ) -> list[str]:
     if view == "model":
-        lines = _model_page_lines(config=config, selected=selected, width=width)
+        lines = _model_page_lines(
+            config=config, input_buffer=input_buffer, editing_field=editing_field, selected=selected, width=width
+        )
     elif view == "endpoint":
-        lines = _endpoint_page_lines(config=config, selected=selected, width=width)
+        lines = _endpoint_page_lines(
+            config=config, input_buffer=input_buffer, editing_field=editing_field, selected=selected, width=width
+        )
     elif view == "api":
-        lines = _api_page_lines(config=config, selected=selected, width=width)
+        lines = _api_page_lines(
+            config=config, input_buffer=input_buffer, editing_field=editing_field, selected=selected, width=width
+        )
     elif view == "access":
         lines = _access_page_lines(config=config, selected=selected, width=width)
     elif view == "doctor":
         lines = _doctor_page_lines(config=config, selected=selected, width=width)
     else:
-        lines = _endpoint_page_lines(config=config, selected=selected, width=width)
+        lines = _endpoint_page_lines(
+            config=config, input_buffer=input_buffer, editing_field=editing_field, selected=selected, width=width
+        )
     if notices:
         lines = _append_notice_block(lines, notices, width=width, rows=rows)
     return _fit_page(lines, width=width, rows=rows)
 
 
-def _model_page_lines(*, config: AppConfig, selected: int, width: int) -> list[str]:
+def _model_page_lines(
+    *,
+    config: AppConfig,
+    input_buffer: str,
+    editing_field: str | None,
+    selected: int,
+    width: int,
+) -> list[str]:
+    del selected
     return [
         *_step_header("model", width=width),
         "",
@@ -160,22 +162,30 @@ def _model_page_lines(*, config: AppConfig, selected: int, width: int) -> list[s
         _center_ansi(_bold("Enter the model id"), width),
         _center_ansi(_muted("This exact model powers chat replies and background workers."), width),
         "",
-        *_panel(
+        *_field_panel(
             "MODEL ID",
-            [
-                _bold(_accent("waiting for input")),
-                _muted(f"current config: {_one_line(config.model.model, max(16, width - 30))}"),
-                _muted("Type the model id below. Blank input is not accepted."),
-            ],
+            field="model.name",
+            current=config.model.model,
+            input_buffer=input_buffer,
+            editing_field=editing_field,
+            required="model id required",
             width=min(84, width - 8),
             page_width=width,
         ),
         "",
-        _center_ansi(_muted("Press Enter after typing the model. Setup moves forward automatically."), width),
+        _center_ansi(_muted("Enter saves and advances. Blank input is not accepted."), width),
     ]
 
 
-def _endpoint_page_lines(*, config: AppConfig, selected: int, width: int) -> list[str]:
+def _endpoint_page_lines(
+    *,
+    config: AppConfig,
+    input_buffer: str,
+    editing_field: str | None,
+    selected: int,
+    width: int,
+) -> list[str]:
+    del selected
     return [
         *_step_header("endpoint", width=width),
         "",
@@ -183,10 +193,13 @@ def _endpoint_page_lines(*, config: AppConfig, selected: int, width: int) -> lis
         _center_ansi(_bold("Enter the endpoint first"), width),
         _center_ansi(_muted("Use an OpenAI-compatible /v1 endpoint. Local or hosted both work."), width),
         "",
-        *_form_panel(
+        *_field_panel(
             "BASE URL",
-            f"waiting for input · current config: {config.model.base_url}",
-            "required",
+            field="model.base_url",
+            current=config.model.base_url,
+            input_buffer=input_buffer,
+            editing_field=editing_field,
+            required="OpenAI-compatible /v1 endpoint required",
             width=min(90, width - 8),
             page_width=width,
         ),
@@ -195,7 +208,15 @@ def _endpoint_page_lines(*, config: AppConfig, selected: int, width: int) -> lis
     ]
 
 
-def _api_page_lines(*, config: AppConfig, selected: int, width: int) -> list[str]:
+def _api_page_lines(
+    *,
+    config: AppConfig,
+    input_buffer: str,
+    editing_field: str | None,
+    selected: int,
+    width: int,
+) -> list[str]:
+    del selected
     key_state = "set" if config.model.api_key else "missing"
     key_color = _style(key_state, "32" if key_state == "set" else "33")
     return [
@@ -205,18 +226,20 @@ def _api_page_lines(*, config: AppConfig, selected: int, width: int) -> list[str
         _center_ansi(_bold("Enter the API key"), width),
         _center_ansi(_muted("Hosted endpoints need a key. For a local endpoint, type skip."), width),
         "",
-        *_panel(
+        *_field_panel(
             "API KEY",
-            [
-                f"{_muted('state')} {key_color}",
-                f"{_muted('env')}   {_bold(config.model.api_key_env)}",
-                _muted("Stored in the local Nipux env file, never in repository config."),
-            ],
+            field="secret:model.api_key",
+            current=key_state,
+            input_buffer=input_buffer,
+            editing_field=editing_field,
+            required=f"stored in {config.model.api_key_env}",
+            secret=True,
+            prefix_line=f"{_muted('state')} {key_color}",
             width=min(84, width - 8),
             page_width=width,
         ),
         "",
-        _center_ansi(_muted("Blank input is not accepted; type skip only when the endpoint is local."), width),
+        _center_ansi(_muted("Enter saves. Type skip only when the endpoint is local."), width),
     ]
 
 
@@ -260,7 +283,9 @@ def _doctor_page_lines(*, config: AppConfig, selected: int, width: int) -> list[
         "",
         *_panel("DOCTOR", rows, width=min(90, width - 8), page_width=width),
         "",
-        _center_ansi(_muted("If a check fails, edit with /base-url, /api-key, or /model, then run Doctor again."), width),
+        _center_ansi(
+            _muted("If a check fails, edit with /base-url, /api-key, or /model, then run Doctor again."), width
+        ),
         "",
         *_action_cards(first_run_actions("doctor"), selected=selected, config=config, width=width),
     ]
@@ -298,7 +323,10 @@ def _action_cards(
         return []
     gap = 2
     card_width = max(18, min(34, (width - (len(actions) - 1) * gap - 4) // len(actions)))
-    cards = [_action_tile(index, action, selected=selected, config=config, width=card_width) for index, action in enumerate(actions)]
+    cards = [
+        _action_tile(index, action, selected=selected, config=config, width=card_width)
+        for index, action in enumerate(actions)
+    ]
     rows = _join_many_cards(cards, gap=gap, width=width)
     return [_center_ansi(row.rstrip(), width) for row in rows]
 
@@ -337,16 +365,43 @@ def _panel(title: str, body: list[str], *, width: int, page_width: int | None = 
     return [_center_ansi(line, page_width or width) for line in lines]
 
 
-def _form_panel(title: str, value: str, command: str, *, width: int, page_width: int | None = None) -> list[str]:
-    return _panel(
-        title,
-        [
-            _bold(_accent(_one_line(value, max(16, width - 10)))),
-            _muted(f"{command}; type the value in the setup input below"),
-        ],
-        width=width,
-        page_width=page_width,
-    )
+def _field_panel(
+    title: str,
+    *,
+    field: str,
+    current: str,
+    input_buffer: str,
+    editing_field: str | None,
+    required: str,
+    width: int,
+    page_width: int | None = None,
+    secret: bool = False,
+    prefix_line: str | None = None,
+) -> list[str]:
+    active = editing_field == field
+    label_width = 9
+    current_value = current
+    editing_value = _masked_inline_value(input_buffer, secret=secret, active=active)
+    edit_label = _accent("editing ") if active else _muted("editing ")
+    body = [
+        *([prefix_line] if prefix_line else []),
+        f"{_muted('current'.ljust(label_width))}{_bold(_one_line(current_value, max(12, width - label_width - 8)))}",
+        _fit_ansi(edit_label, label_width) + _bold(_accent(_one_line(editing_value, max(12, width - label_width - 8)))),
+        _muted(required),
+    ]
+    return _panel(title, body, width=width, page_width=page_width)
+
+
+def _masked_inline_value(value: str, *, secret: bool, active: bool) -> str:
+    if secret:
+        if not value:
+            return "type here ▌" if active else "missing"
+        if value.lower() in {"skip", "none", "local"}:
+            return value
+        return "•" * min(max(len(value), 6), 24) + (" ▌" if active else "")
+    if not value:
+        return "type here ▌" if active else "not set"
+    return f"{value} ▌" if active else value
 
 
 def _choice_card(title: str, copy: str, value: str, *, active: bool, width: int) -> list[str]:
@@ -400,7 +455,10 @@ def _append_notice_block(lines: list[str], notices: list[str], *, width: int, ro
 def _fit_page(lines: list[str], *, width: int, rows: int) -> list[str]:
     fitted = [_fit_ansi(line, width) for line in lines]
     if len(fitted) < rows:
-        fitted.extend([" " * width for _ in range(rows - len(fitted))])
+        extra = rows - len(fitted)
+        top_pad = min(8, max(0, extra // 2))
+        bottom_pad = extra - top_pad
+        fitted = [" " * width for _ in range(top_pad)] + fitted + [" " * width for _ in range(bottom_pad)]
     return fitted[:rows]
 
 
@@ -470,7 +528,9 @@ def _step_state(key: str, *, config: AppConfig) -> str:
     if key == "api":
         return "ready" if config.model.api_key or _is_local_endpoint(config.model.base_url) else "missing"
     if key == "access":
-        enabled = sum(bool(value) for value in (config.tools.browser, config.tools.web, config.tools.shell, config.tools.files))
+        enabled = sum(
+            bool(value) for value in (config.tools.browser, config.tools.web, config.tools.shell, config.tools.files)
+        )
         return f"{enabled}/4 enabled"
     if key == "doctor":
         return "pending"
@@ -543,6 +603,14 @@ def _install_summary(config: AppConfig, *, width: int) -> str:
 
 def _normalize_first_run_view(view: str) -> str:
     return view if view in FIRST_RUN_ACTIONS_BY_VIEW else "endpoint"
+
+
+def _inline_edit_field_for_view(view: str) -> str | None:
+    return {
+        "endpoint": "model.base_url",
+        "api": "secret:model.api_key",
+        "model": "model.name",
+    }.get(view)
 
 
 def _step_count_label(view: str) -> str:
