@@ -57,6 +57,7 @@ from nipux_cli.doctor import Check
 from nipux_cli.llm import LLMResponse
 from nipux_cli.settings import inline_setting_notice as _inline_setting_notice
 from nipux_cli.first_run_frame_runtime import FirstRunRuntimeDeps as _FirstRunRuntimeDeps
+from nipux_cli.first_run_frame_runtime import first_run_adjacent_view as _first_run_adjacent_view
 from nipux_cli.first_run_frame_runtime import _handle_edit_input as _handle_first_run_edit_input
 from nipux_cli.first_run_frame_runtime import _safe_render_frame as _safe_first_run_render_frame
 from nipux_cli.first_run_frame_runtime import _submit_first_run_line as _submit_first_run_line
@@ -445,10 +446,11 @@ def test_first_run_doctor_failure_shows_inline_fix_commands(monkeypatch, tmp_pat
     rendered = "\n".join(lines)
 
     assert "Model setup is not ready" in rendered
-    assert "/base-url URL" in rendered
-    assert "/api-key KEY" in rendered
-    assert "/model MODEL" in rendered
-    assert "local server" in rendered
+    assert "Use the setup screens to edit endpoint, API key, or model" in rendered
+    assert "/base-url URL" not in rendered
+    assert "/api-key KEY" not in rendered
+    assert "/model MODEL" not in rendered
+    assert "local model server" in rendered
 
 
 def test_setting_change_clears_model_setup_verification(monkeypatch, tmp_path):
@@ -550,9 +552,10 @@ def test_first_run_frame_walks_setup_screens(monkeypatch, tmp_path):
     assert "Browser" in access
     assert "CLI" in access
     assert "Run checks" in doctor
-    assert "/base-url" in doctor
-    assert "/api-key" in doctor
-    assert "/model" in doctor
+    assert "left and right" in doctor
+    assert "/base-url" not in doctor
+    assert "/api-key" not in doctor
+    assert "/model" not in doctor
     assert "Enter the model id" not in endpoint
     assert "Enter the endpoint first" not in api
     assert "Enter the endpoint first" in invalid
@@ -660,6 +663,11 @@ def test_first_run_click_maps_right_pane_actions(monkeypatch):
 
 
 def test_first_run_arrow_navigation_changes_setup_screens():
+    assert _first_run_adjacent_view("endpoint", direction=-1) == "endpoint"
+    assert _first_run_adjacent_view("endpoint", direction=1) == "api"
+    assert _first_run_adjacent_view("api", direction=1) == "model"
+    assert _first_run_adjacent_view("doctor", direction=1) == "doctor"
+
     assert _directional_first_run_action(
         [
             ("view:model", "Begin setup", "walk through setup"),

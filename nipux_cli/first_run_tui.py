@@ -281,7 +281,8 @@ def _doctor_page_lines(*, config: AppConfig, selected: int, width: int) -> list[
         *_panel("DOCTOR", rows, width=min(90, width - 8), page_width=width),
         "",
         _center_ansi(
-            _muted("If a check fails, edit with /base-url, /api-key, or /model, then run Doctor again."), width
+            _muted("If a check fails, use left and right to edit endpoint, key, or model, then run Doctor again."),
+            width,
         ),
         "",
         *_action_cards(first_run_actions("doctor"), selected=selected, config=config, width=width),

@@ -84,6 +84,22 @@ def run_first_run_frame(*, deps: FirstRunRuntimeDeps) -> str | None:
                 continue
             if editing_field is not None:
                 previous_edit = editing_field
+                if char == "\x1b":
+                    try:
+                        view, editing_field, buffer, should_exit = _handle_first_run_edit_escape(
+                            stdin_fd,
+                            view=view,
+                            editing_field=editing_field,
+                            buffer=buffer,
+                            notices=notices,
+                        )
+                    except Exception as exc:
+                        _append_notice(notices, f"navigation failed: {type(exc).__name__}: {_one_line(exc, 90)}")
+                        should_exit = False
+                    if should_exit:
+                        return None
+                    needs_render = True
+                    continue
                 try:
                     buffer, editing_field, should_exit = _handle_edit_input(
                         char,
@@ -258,6 +274,12 @@ def _handle_first_run_escape(
     if key in {"up", "down"} and buffer.startswith("/"):
         buffer = cycle_slash(buffer, FIRST_RUN_SLASH_COMMANDS, direction=-1 if key == "up" else 1)
         return view, selected, None, None, False, buffer
+    if key in {"left", "right"}:
+        next_view = first_run_adjacent_view(view, direction=1 if key == "right" else -1)
+        if next_view == view:
+            return view, selected, None, None, False, buffer
+        editing_field = required_first_run_edit_field(next_view)
+        return next_view, 0, editing_field, None, False, first_run_edit_initial_value(editing_field)
     if key == "up":
         actions = deps.actions(view)
         if not actions:
@@ -268,12 +290,6 @@ def _handle_first_run_escape(
         if not actions:
             return view, selected, None, None, False, buffer
         return view, (selected + 1) % len(actions), None, None, False, buffer
-    if key in {"left", "right"}:
-        actions = deps.actions(view)
-        if not actions:
-            return view, selected, None, None, False, buffer
-        delta = 1 if key == "right" else -1
-        return view, (selected + delta) % len(actions), None, None, False, buffer
     if key == "click" and isinstance(payload, tuple):
         clicked = deps.click_action(payload[0], payload[1], view)
         if clicked is not None:
@@ -301,6 +317,32 @@ def _handle_first_run_escape(
             return next_view, next_selected, editing_field, next_job_id, should_exit, buffer
     drain_pending_input(stdin_fd)
     return view, selected, None, None, False, buffer
+
+
+def _handle_first_run_edit_escape(
+    stdin_fd: int,
+    *,
+    view: str,
+    editing_field: str,
+    buffer: str,
+    notices: list[str],
+) -> tuple[str, str | None, str, bool]:
+    key, _payload = decode_terminal_escape(read_escape_sequence("\x1b", fd=stdin_fd))
+    if key == "unknown":
+        return view, editing_field, buffer, False
+    if key == "left":
+        next_view = first_run_adjacent_view(view, direction=-1)
+        next_field = required_first_run_edit_field(next_view)
+        return next_view, next_field, first_run_edit_initial_value(next_field), False
+    if key == "right":
+        saved, notice = _save_first_run_edit(editing_field, buffer)
+        _append_notice(notices, notice, limit=10)
+        if not saved:
+            return view, editing_field, buffer, False
+        next_view = first_run_adjacent_view(view, direction=1)
+        next_field = required_first_run_edit_field(next_view)
+        return next_view, next_field, first_run_edit_initial_value(next_field), False
+    return view, editing_field, buffer, False
 
 
 def directional_first_run_action(actions: list[tuple[str, str, str]], *, direction: int) -> str | None:
@@ -386,6 +428,16 @@ def required_first_run_edit_field(view: str) -> str | None:
         "api": "secret:model.api_key",
         "model": "model.name",
     }.get(view)
+
+
+def first_run_adjacent_view(view: str, *, direction: int) -> str:
+    views = ["endpoint", "api", "model", "access", "doctor"]
+    try:
+        index = views.index(view)
+    except ValueError:
+        index = 0
+    next_index = max(0, min(len(views) - 1, index + (1 if direction >= 0 else -1)))
+    return views[next_index]
 
 
 def first_run_edit_initial_value(field: str | None) -> str:

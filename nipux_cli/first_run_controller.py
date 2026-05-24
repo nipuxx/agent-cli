@@ -99,9 +99,9 @@ def handle_first_run_frame_line(line: str, *, deps: FirstRunFrameDeps) -> tuple[
     if lowered in {"2", "jobs", "ls"}:
         return "notice", "Finish setup first. Jobs are available after Doctor verifies the configured model."
     if lowered == "settings":
-        return "notice", "Config is changed with slash commands: /model, /api-key, /base-url, /context."
+        return "notice", "Use the setup screens to edit endpoint, API key, model, and tool access."
     if lowered in {"back"}:
-        return "notice", "Setup is linear during first run. Continue forward, then edit settings later if needed."
+        return "view", "endpoint"
     if lowered in {"3", "doctor"}:
         notices = deps.verify_model_setup()
         if deps.model_setup_verified():
