@@ -4302,6 +4302,43 @@ def test_workspace_chat_start_objective_creates_worker_without_model_reply(monke
         db.close()
 
 
+def test_workspace_chat_can_you_start_job_creates_worker(monkeypatch, tmp_path):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+    _mark_test_model_ready()
+    started = {}
+
+    def fake_start(**kwargs):
+        started.update(kwargs)
+
+    def fail_reply(_message):
+        raise AssertionError("workspace chat model should not be called for job creation intent")
+
+    monkeypatch.setattr("nipux_cli.cli._start_daemon_if_needed", fake_start)
+    monkeypatch.setattr("nipux_cli.cli._reply_to_workspace_chat", fail_reply)
+    monkeypatch.setattr(
+        "nipux_cli.cli._refine_job_objective_for_worker",
+        lambda *, message, objective: objective,
+    )
+
+    ok, message = _handle_workspace_chat_message(
+        "can you start a job optimizing any model on any setup for the fastest possible throughput",
+        quiet=True,
+    )
+
+    assert ok is True
+    assert "Created worker job" in message
+    assert "Started worker" in message
+    assert started["quiet"] is True
+    db = AgentDB(tmp_path / "state.db")
+    try:
+        jobs = db.list_jobs()
+        assert len(jobs) == 1
+        assert "optimizing any model" in jobs[0]["objective"]
+        assert _read_shell_state().get("focus_job_id") == jobs[0]["id"]
+    finally:
+        db.close()
+
+
 def test_workspace_chat_accepts_natural_worker_and_task_phrasing(monkeypatch, tmp_path):
     monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
     _mark_test_model_ready()

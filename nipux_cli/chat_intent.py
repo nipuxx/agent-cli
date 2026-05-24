@@ -294,6 +294,8 @@ def extract_job_objective_from_message(message: str) -> str:
         return ""
     lowered = text.lower()
     patterns = [
+        r"^(?:please\s+)?(?:can\s+you|could\s+you|i\s+need\s+you\s+to|i\s+want\s+you\s+to)\s+(?:please\s+)?(?:create|start|spin\s+off|spin\s+up|make|launch|run)\s+(?:a\s+|an\s+)?(?:new\s+)?job\s+(?:to|for|that|which|about|on)?\s*(.+)$",
+        r"^(?:please\s+)?(?:can\s+you|could\s+you|i\s+need\s+you\s+to|i\s+want\s+you\s+to)\s+(?:please\s+)?(?:create|start|spin\s+off|spin\s+up|make|launch|run)\s+(?:a\s+|an\s+)?(?:new\s+)?(?:worker|agent|task)\s+(?:to|for|that|which|about|on)?\s*(.+)$",
         r"^(?:please\s+)?(?:create|start|spin\s+off|make|launch)\s+(?:a\s+)?(?:new\s+)?job\s+(?:to|for|that|which)?\s*(.+)$",
         r"^(?:please\s+)?(?:create|start|spin\s+off|spin\s+up|make|launch|run)\s+(?:a\s+|an\s+)?(?:new\s+)?(?:worker|agent|task)\s+(?:to|for|that|which)?\s*(.+)$",
         r"^(?:please\s+)?(?:send|queue)\s+(?:off\s+)?(?:a\s+)?(?:new\s+)?job\s+(?:to|for|that|which)?\s*(.+)$",
@@ -319,31 +321,33 @@ def looks_like_job_objective(text: str) -> bool:
     lowered = text.lower()
     if len(text.split()) < 3:
         return False
-    action_words = {
-        "research",
-        "monitor",
-        "optimize",
-        "build",
-        "find",
-        "test",
-        "deploy",
-        "fix",
-        "write",
-        "analyze",
-        "audit",
-        "track",
-        "benchmark",
-        "create",
-        "document",
-        "draft",
-        "generate",
-        "scrape",
-        "produce",
-        "watch",
-        "automate",
-        "summarize",
-        "compare",
-        "investigate",
-        "improve",
-    }
-    return any(re.search(rf"\b{re.escape(word)}\b", lowered) for word in action_words)
+    action_patterns = (
+        r"research(?:ing)?",
+        r"monitor(?:ing)?",
+        r"optimi[sz](?:e|es|ed|ing|ation|ations)?",
+        r"build(?:ing)?",
+        r"find(?:ing)?",
+        r"test(?:ing)?",
+        r"deploy(?:ing|ment)?",
+        r"fix(?:ing)?",
+        r"writ(?:e|es|ing)",
+        r"analy[sz](?:e|es|ed|ing|sis)",
+        r"audit(?:ing)?",
+        r"track(?:ing)?",
+        r"benchmark(?:ing)?",
+        r"creat(?:e|es|ed|ing)",
+        r"document(?:ing)?",
+        r"draft(?:ing)?",
+        r"generat(?:e|es|ed|ing)",
+        r"scrap(?:e|es|ed|ing)",
+        r"produc(?:e|es|ed|ing)",
+        r"watch(?:ing)?",
+        r"automat(?:e|es|ed|ing|ion)",
+        r"summari[sz](?:e|es|ed|ing|ation)",
+        r"compar(?:e|es|ed|ing)",
+        r"investigat(?:e|es|ed|ing|ion)",
+        r"improv(?:e|es|ed|ing|ement)",
+        r"run(?:s|ning)?",
+        r"start(?:s|ed|ing)?",
+    )
+    return any(re.search(rf"\b{pattern}\b", lowered) for pattern in action_patterns)

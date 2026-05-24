@@ -2861,7 +2861,9 @@ def _reply_to_workspace_chat(message: str) -> Any:
                     "You know the CLI concepts: jobs are long-running workers; artifacts are saved outputs; outcomes summarize durable progress; "
                     "the updates page shows durable worker outcomes; the jobs page shows state, outputs, tasks, memory, findings, sources, experiments, and cost. "
                     "Answer job-status questions from the job dossier. Mention concrete outputs, tasks, measurements, sources, blockers, and next branches when present. "
-                    "When the operator asks you to do new work, explain that Nipux will spin up a worker job; the harness will create the job from plain language. "
+                    "Never claim a worker was created or started unless the job dossier already shows it. "
+                    "Actual creation and start messages come from Nipux after the database changes. "
+                    "If a new-work request reaches you without an existing job, ask for the exact worker goal in one line. "
                     "Keep replies concise, concrete, and operator-facing. Do not expose hidden chain-of-thought."
                 ),
             },
