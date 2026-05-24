@@ -17,7 +17,6 @@ from nipux_cli.tui_style import (
     _fit_ansi,
     _muted,
     _one_line,
-    _style,
     _strip_ansi,
     _themed_lines,
 )
@@ -164,11 +163,11 @@ def _model_page_lines(
         "",
         *_field_panel(
             "MODEL ID",
+            label="Model",
             field="model.name",
             current=config.model.model,
             input_buffer=input_buffer,
             editing_field=editing_field,
-            required="model id required",
             width=min(84, width - 8),
             page_width=width,
         ),
@@ -195,11 +194,11 @@ def _endpoint_page_lines(
         "",
         *_field_panel(
             "BASE URL",
+            label="Base URL",
             field="model.base_url",
             current=config.model.base_url,
             input_buffer=input_buffer,
             editing_field=editing_field,
-            required="OpenAI-compatible /v1 endpoint required",
             width=min(90, width - 8),
             page_width=width,
         ),
@@ -218,7 +217,6 @@ def _api_page_lines(
 ) -> list[str]:
     del selected
     key_state = "set" if config.model.api_key else "missing"
-    key_color = _style(key_state, "32" if key_state == "set" else "33")
     return [
         *_step_header("api", width=width),
         "",
@@ -228,13 +226,12 @@ def _api_page_lines(
         "",
         *_field_panel(
             "API KEY",
+            label="API key",
             field="secret:model.api_key",
             current=key_state,
             input_buffer=input_buffer,
             editing_field=editing_field,
-            required=f"stored in {config.model.api_key_env}",
             secret=True,
-            prefix_line=f"{_muted('state')} {key_color}",
             width=min(84, width - 8),
             page_width=width,
         ),
@@ -368,27 +365,19 @@ def _panel(title: str, body: list[str], *, width: int, page_width: int | None = 
 def _field_panel(
     title: str,
     *,
+    label: str,
     field: str,
     current: str,
     input_buffer: str,
     editing_field: str | None,
-    required: str,
     width: int,
     page_width: int | None = None,
     secret: bool = False,
-    prefix_line: str | None = None,
 ) -> list[str]:
     active = editing_field == field
-    label_width = 9
-    current_value = current
-    editing_value = _masked_inline_value(input_buffer, secret=secret, active=active)
-    edit_label = _accent("editing ") if active else _muted("editing ")
-    body = [
-        *([prefix_line] if prefix_line else []),
-        f"{_muted('current'.ljust(label_width))}{_bold(_one_line(current_value, max(12, width - label_width - 8)))}",
-        _fit_ansi(edit_label, label_width) + _bold(_accent(_one_line(editing_value, max(12, width - label_width - 8)))),
-        _muted(required),
-    ]
+    value = input_buffer if active and input_buffer else current
+    rendered = _masked_inline_value(value, secret=secret, active=active)
+    body = [f"{_muted(label + ': ')}{_bold(_accent(_one_line(rendered, max(12, width - len(label) - 8))))}"]
     return _panel(title, body, width=width, page_width=page_width)
 
 
@@ -454,12 +443,32 @@ def _append_notice_block(lines: list[str], notices: list[str], *, width: int, ro
 
 def _fit_page(lines: list[str], *, width: int, rows: int) -> list[str]:
     fitted = [_fit_ansi(line, width) for line in lines]
+    if len(fitted) >= 2 and "─" in _strip_ansi(fitted[1]):
+        header = fitted[:2]
+        body = _trim_blank_edges(fitted[2:])
+        body_rows = max(0, rows - len(header))
+        if len(body) < body_rows:
+            extra = body_rows - len(body)
+            top_pad = min(6, max(0, extra // 2))
+            bottom_pad = extra - top_pad
+            body = [" " * width for _ in range(top_pad)] + body + [" " * width for _ in range(bottom_pad)]
+        return [*header, *body][:rows]
     if len(fitted) < rows:
         extra = rows - len(fitted)
         top_pad = min(8, max(0, extra // 2))
         bottom_pad = extra - top_pad
         fitted = [" " * width for _ in range(top_pad)] + fitted + [" " * width for _ in range(bottom_pad)]
     return fitted[:rows]
+
+
+def _trim_blank_edges(lines: list[str]) -> list[str]:
+    start = 0
+    end = len(lines)
+    while start < end and not _strip_ansi(lines[start]).strip():
+        start += 1
+    while end > start and not _strip_ansi(lines[end - 1]).strip():
+        end -= 1
+    return lines[start:end]
 
 
 def _action_line(

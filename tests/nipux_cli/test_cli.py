@@ -501,7 +501,9 @@ def test_first_run_frame_uses_full_screen_ui_not_banner(monkeypatch, tmp_path):
     assert "Enter the endpoint first" in frame
     assert "Begin setup" not in frame
     assert "Long-running work, installed in-session." not in frame
-    assert "OpenAI-compatible /v1 endpoint required" in frame
+    assert "Base URL:" in frame
+    assert "current" not in frame
+    assert "editing" not in frame
     assert "setup input below" not in frame
     assert "message" not in frame.lower()
     assert "controls on the right" not in frame
