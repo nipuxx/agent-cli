@@ -173,6 +173,8 @@ def _model_page_lines(
         ),
         "",
         _center_ansi(_muted("Enter saves and advances. Blank input is not accepted."), width),
+        "",
+        _navigation_hint("model", width=width),
     ]
 
 
@@ -204,6 +206,8 @@ def _endpoint_page_lines(
         ),
         "",
         _center_ansi(_muted("Example formats: http://localhost:8000/v1 or https://provider.example/v1"), width),
+        "",
+        _navigation_hint("endpoint", width=width),
     ]
 
 
@@ -237,6 +241,8 @@ def _api_page_lines(
         ),
         "",
         _center_ansi(_muted("Enter saves. Type skip only when the endpoint is local."), width),
+        "",
+        _navigation_hint("api", width=width),
     ]
 
 
@@ -257,6 +263,7 @@ def _access_page_lines(*, config: AppConfig, selected: int, width: int) -> list[
         *_panel("TOOL ACCESS", rows, width=min(90, width - 8), page_width=width),
         "",
         _center_ansi(_muted("Press 1-4 to toggle tools. Enter continues. Left/right changes setup step."), width),
+        _navigation_hint("access", width=width),
         "",
         *_action_cards(first_run_actions("access"), selected=selected, config=config, width=width),
     ]
@@ -264,21 +271,21 @@ def _access_page_lines(*, config: AppConfig, selected: int, width: int) -> list[
 
 def _doctor_page_lines(*, config: AppConfig, selected: int, width: int) -> list[str]:
     checks = [
-        ("state directory", "writable under ~/.nipux or NIPUX_HOME"),
-        ("database", "SQLite state store can open"),
-        ("model config", f"{config.model.model} at {config.model.base_url}"),
+        ("state directory", "Doctor will verify write access"),
+        ("database", "Doctor will open the SQLite state store"),
+        ("model request", f"Doctor will call {config.model.model}"),
         (
             "tools",
-            f"browser={config.tools.browser} web={config.tools.web} CLI={config.tools.shell} files={config.tools.files}",
+            f"configured browser={config.tools.browser} web={config.tools.web} CLI={config.tools.shell} files={config.tools.files}",
         ),
     ]
-    rows = [f"{_accent('✓')} {_fit_ansi(name, 18)} {_muted(detail)}" for name, detail in checks]
+    rows = [f"{_muted('○')} {_fit_ansi(name, 18)} {_muted(detail)}" for name, detail in checks]
     return [
         *_step_header("doctor", width=width),
         "",
         _center_ansi(_muted(_step_count_label("doctor")), width),
         _center_ansi(_bold("Run checks"), width),
-        _center_ansi(_muted("Doctor calls the configured model before the workspace opens."), width),
+        _center_ansi(_muted("Doctor has not verified anything on this screen until you run it."), width),
         "",
         *_panel("DOCTOR", rows, width=min(90, width - 8), page_width=width),
         "",
@@ -286,6 +293,7 @@ def _doctor_page_lines(*, config: AppConfig, selected: int, width: int) -> list[
             _muted("Enter runs Doctor. If a check fails, move back to edit endpoint, key, or model."),
             width,
         ),
+        _navigation_hint("doctor", width=width),
         "",
         *_action_cards(first_run_actions("doctor"), selected=selected, config=config, width=width),
     ]
@@ -437,11 +445,76 @@ def _append_notice_block(lines: list[str], notices: list[str], *, width: int, ro
     visible = [notice for notice in notices if "cancelled edit" not in notice.lower()]
     if not visible:
         return lines
-    notice = _center_ansi(_accent("› ") + _one_line(visible[-1], min(90, width - 4)), width)
-    if len(lines) + 2 <= rows:
-        return [*lines, "", notice]
-    keep = max(0, rows - 2)
-    return [*lines[:keep], "", notice]
+    panel = _notice_panel(visible[-7:], width=width)
+    if len(lines) + 1 + len(panel) <= rows:
+        return [*lines, "", *panel]
+    keep = max(0, rows - len(panel) - 1)
+    return [*lines[:keep], "", *panel]
+
+
+def _notice_panel(notices: list[str], *, width: int) -> list[str]:
+    panel_width = min(110, width - 8)
+    inner = max(32, panel_width - 4)
+    rows: list[str] = []
+    for notice in notices:
+        rows.extend(_notice_rows(notice, width=inner))
+    if not rows:
+        rows = [_muted("No output yet.")]
+    return _panel("LAST DOCTOR OUTPUT", rows[-10:], width=panel_width, page_width=width)
+
+
+def _notice_rows(notice: str, *, width: int) -> list[str]:
+    text = " ".join(str(notice).split())
+    if not text:
+        return []
+    status, name, detail = _split_doctor_notice(text)
+    label = _doctor_status_label(status)
+    prefix = f"{label} {_fit_ansi(name, 18)} "
+    detail_width = max(16, width - len(_strip_ansi(prefix)))
+    wrapped = _wrap_plain(detail, detail_width)
+    if not wrapped:
+        return [_fit_ansi(prefix.rstrip(), width)]
+    rows = [prefix + _fit_ansi(wrapped[0], detail_width)]
+    blank_prefix = " " * len(_strip_ansi(prefix))
+    for item in wrapped[1:3]:
+        rows.append(_muted(blank_prefix) + _fit_ansi(item, detail_width))
+    return [_fit_ansi(row, width) for row in rows]
+
+
+def _split_doctor_notice(text: str) -> tuple[str, str, str]:
+    parts = text.split(maxsplit=2)
+    if parts and parts[0] in {"ok", "fail"}:
+        name = parts[1] if len(parts) > 1 else ""
+        detail = parts[2] if len(parts) > 2 else ""
+        return parts[0], name, detail
+    return "note", "setup", text
+
+
+def _doctor_status_label(status: str) -> str:
+    if status == "ok":
+        return _accent("ok  ")
+    if status == "fail":
+        return "\033[38;5;203mfail\033[0m"
+    return _muted("note")
+
+
+def _wrap_plain(text: str, width: int) -> list[str]:
+    words = text.split()
+    if not words:
+        return []
+    lines: list[str] = []
+    current = ""
+    for word in words:
+        if not current:
+            current = word
+        elif len(current) + 1 + len(word) <= width:
+            current = f"{current} {word}"
+        else:
+            lines.append(current)
+            current = word
+    if current:
+        lines.append(current)
+    return lines
 
 
 def _fit_page(lines: list[str], *, width: int, rows: int) -> list[str]:
@@ -561,6 +634,16 @@ def _first_run_hint(view: str) -> str:
     if view == "doctor":
         return "Run Doctor, then open the chat workspace."
     return "Complete setup before the workspace opens."
+
+
+def _navigation_hint(view: str, *, width: int) -> str:
+    if view == "access":
+        text = "←/→ steps   ↑/↓ select   1-4 toggle   Enter continue"
+    elif view == "doctor":
+        text = "←/→ steps   ↑/↓ select   Enter run checks   2 open chat after success"
+    else:
+        text = "←/→ steps   Enter save   Backspace edit"
+    return _center_ansi(_muted(text), width)
 
 
 def _first_run_edit_hint(field: str, config: AppConfig) -> str:

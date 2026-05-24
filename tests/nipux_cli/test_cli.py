@@ -555,6 +555,8 @@ def test_first_run_frame_walks_setup_screens(monkeypatch, tmp_path):
     assert "Press 1-4 to toggle" in access
     assert "Run checks" in doctor
     assert "Enter runs Doctor" in doctor
+    assert "Doctor has not verified anything" in doctor
+    assert "✓" not in doctor
     assert "/base-url" not in doctor
     assert "/api-key" not in doctor
     assert "/model" not in doctor
@@ -562,6 +564,28 @@ def test_first_run_frame_walks_setup_screens(monkeypatch, tmp_path):
     assert "Enter the endpoint first" not in api
     assert "Enter the endpoint first" in invalid
     assert "/shell" not in model
+
+
+def test_first_run_doctor_notice_panel_shows_actual_failure(monkeypatch, tmp_path):
+    monkeypatch.setenv("NIPUX_HOME", str(tmp_path))
+
+    frame = _build_first_run_frame(
+        "",
+        [
+            "ok state_dir_writable /tmp/nipux",
+            "fail model_generation chat/tool https://provider.example/v1/chat/completions: HTTP 400: tool schema rejected",
+            "Model setup is not ready. Fix the failed check above before creating a job.",
+        ],
+        width=112,
+        height=34,
+        view="doctor",
+        selected=0,
+    )
+
+    assert "LAST DOCTOR OUTPUT" in frame
+    assert "model_generation" in frame
+    assert "tool" in frame
+    assert "schema rejected" in frame
 
 
 def test_first_run_frame_does_not_use_command_palette_for_setup(monkeypatch, tmp_path):

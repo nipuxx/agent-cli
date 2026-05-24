@@ -131,6 +131,7 @@ def _check_model_generation(config: AppConfig) -> Check:
 
 def _chat_completion_probe(config: AppConfig, *, include_tools: bool) -> Check:
     url = config.model.base_url.rstrip("/") + "/chat/completions"
+    kind = "chat/tool" if include_tools else "plain chat"
     payload = {
         "model": config.model.model,
         "messages": [{"role": "user", "content": "Reply with exactly: ok"}],
@@ -164,18 +165,22 @@ def _chat_completion_probe(config: AppConfig, *, include_tools: bool) -> Check:
     try:
         with urllib.request.urlopen(request, timeout=15) as response:
             body = response.read(64_000).decode("utf-8", errors="replace")
-        data = json.loads(body)
+        try:
+            data = json.loads(body)
+        except json.JSONDecodeError as exc:
+            return Check("model_generation", False, f"{kind} {url}: invalid JSON response: {exc}; body={_body_excerpt(body)}")
         choices = data.get("choices") if isinstance(data, dict) else None
         if isinstance(choices, list) and choices:
-            kind = "chat/tool" if include_tools else "plain chat"
             return Check("model_generation", True, f"{url} accepted {kind} request")
-        return Check("model_generation", False, f"{url} returned no choices")
+        detail = _extract_error_message(body) or _body_excerpt(body)
+        suffix = f": {detail}" if detail else ""
+        return Check("model_generation", False, f"{kind} {url} returned no choices{suffix}")
     except urllib.error.HTTPError as exc:
         body = exc.read(2048).decode("utf-8", errors="replace")
         detail = _extract_error_message(body) or str(exc)
-        return Check("model_generation", False, f"{url}: {detail}")
+        return Check("model_generation", False, f"{kind} {url}: HTTP {exc.code}: {detail}")
     except (json.JSONDecodeError, urllib.error.URLError, TimeoutError, OSError) as exc:
-        return Check("model_generation", False, f"{url}: {exc}")
+        return Check("model_generation", False, f"{kind} {url}: {type(exc).__name__}: {exc}")
 
 
 def _remote_endpoint(base_url: str) -> bool:
@@ -241,6 +246,13 @@ def _extract_error_raw(metadata: Any) -> str:
         nested = _extract_error_message(json.dumps(raw_json))
         return nested or raw_text
     return raw_text
+
+
+def _body_excerpt(body: str, *, limit: int = 600) -> str:
+    text = " ".join(str(body or "").split())
+    if len(text) <= limit:
+        return text
+    return text[: max(0, limit - 3)] + "..."
 
 
 def _model_available(data: Any, model: str) -> bool | None:

@@ -110,6 +110,33 @@ def test_doctor_reports_generation_limit_after_model_listing(tmp_path, monkeypat
     assert "Key limit exceeded" in model_check.detail
 
 
+def test_doctor_reports_error_body_when_provider_returns_no_choices(tmp_path, monkeypatch):
+    monkeypatch.setenv("TEST_PROVIDER_KEY", "working-key")
+    config = AppConfig(
+        runtime=RuntimeConfig(home=tmp_path),
+        model=ModelConfig(
+            model="provider/test-model",
+            base_url="https://provider.example/v1",
+            api_key_env="TEST_PROVIDER_KEY",
+        ),
+    )
+
+    def fake_urlopen(request, timeout):
+        url = request.full_url
+        if url.endswith("/chat/completions"):
+            return FakeHTTPResponse({"error": {"message": "tool schema rejected by provider", "code": 400}})
+        raise AssertionError(url)
+
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+
+    checks = run_doctor(config=config, check_model=True)
+    model_check = checks[-1]
+
+    assert model_check.name == "model_generation"
+    assert model_check.ok is False
+    assert "tool schema rejected by provider" in model_check.detail
+
+
 def test_doctor_reports_nested_provider_generation_error(tmp_path, monkeypatch):
     monkeypatch.setenv("TEST_OPENROUTER_KEY", "limited-key")
     config = AppConfig(
