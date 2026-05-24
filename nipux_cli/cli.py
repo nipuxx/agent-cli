@@ -100,7 +100,7 @@ from nipux_cli.daemon_timing import normalize_daemon_poll_seconds
 from nipux_cli.dashboard import collect_dashboard_state, render_dashboard, render_overview
 from nipux_cli.db import AgentDB, utc_now
 from nipux_cli.digest import render_job_digest, write_daily_digest
-from nipux_cli.doctor import run_doctor
+from nipux_cli.doctor import doctor_check_status, doctor_checks_ready, run_doctor
 from nipux_cli.first_run_tui import (
     build_first_run_frame as _build_first_run_tui_frame,
     first_run_actions as _first_run_tui_actions,
@@ -2473,9 +2473,9 @@ def cmd_doctor(args: argparse.Namespace) -> None:
     config = load_config()
     checks = run_doctor(config=config, check_model=args.check_model)
     for check in checks:
-        status = "ok" if check.ok else "fail"
+        status = doctor_check_status(check)
         print(f"{status}\t{check.name}\t{check.detail}")
-    ok = all(check.ok for check in checks)
+    ok = doctor_checks_ready(checks, check_model=args.check_model)
     if args.check_model:
         if ok:
             _mark_model_setup_verified(config)

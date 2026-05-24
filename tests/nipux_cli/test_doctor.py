@@ -3,7 +3,7 @@ import json
 import urllib.error
 
 from nipux_cli.config import AppConfig, ModelConfig, RuntimeConfig
-from nipux_cli.doctor import run_doctor
+from nipux_cli.doctor import Check, doctor_check_status, doctor_checks_ready, run_doctor
 
 
 class FakeHTTPResponse:
@@ -135,6 +135,20 @@ def test_doctor_reports_error_body_when_provider_returns_no_choices(tmp_path, mo
     assert model_check.name == "model_generation"
     assert model_check.ok is False
     assert "tool schema rejected by provider" in model_check.detail
+
+
+def test_browser_runtime_failure_does_not_block_model_setup():
+    checks = [
+        Check("state_dir_writable", True, "ok"),
+        Check("sqlite", True, "ok"),
+        Check("model_config", True, "ok"),
+        Check("tool_surface", True, "ok"),
+        Check("browser_runtime", False, "missing"),
+        Check("model_endpoint", True, "chat accepted"),
+    ]
+
+    assert doctor_checks_ready(checks, check_model=True) is True
+    assert doctor_check_status(checks[4]) == "warn"
 
 
 def test_doctor_reports_nested_provider_generation_error(tmp_path, monkeypatch):

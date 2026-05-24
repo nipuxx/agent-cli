@@ -16,6 +16,11 @@ from nipux_cli.db import AgentDB
 from nipux_cli.tools import DEFAULT_REGISTRY
 
 
+NON_BLOCKING_CHECKS = {"browser_runtime"}
+BASE_BLOCKING_CHECKS = {"state_dir_writable", "sqlite", "model_config", "tool_surface"}
+MODEL_BLOCKING_CHECKS = {"model_endpoint", "model_generation"}
+
+
 @dataclass(frozen=True)
 class Check:
     name: str
@@ -274,3 +279,18 @@ def run_doctor(*, config: AppConfig | None = None, check_model: bool = False) ->
     if check_model:
         checks.append(_check_model_endpoint(config))
     return checks
+
+
+def doctor_checks_ready(checks: list[Check], *, check_model: bool) -> bool:
+    blocking = set(BASE_BLOCKING_CHECKS)
+    if check_model:
+        blocking.update(MODEL_BLOCKING_CHECKS)
+    return all(check.ok for check in checks if check.name in blocking)
+
+
+def doctor_check_status(check: Check) -> str:
+    if check.ok:
+        return "ok"
+    if check.name in NON_BLOCKING_CHECKS:
+        return "warn"
+    return "fail"

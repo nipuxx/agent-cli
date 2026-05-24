@@ -582,7 +582,8 @@ def test_first_run_doctor_notice_panel_shows_actual_failure(monkeypatch, tmp_pat
         selected=0,
     )
 
-    assert "LAST DOCTOR OUTPUT" in frame
+    assert "RESULTS" in frame
+    assert "LAST DOCTOR OUTPUT" not in frame
     assert "model_generation" in frame
     assert "tool" in frame
     assert "schema rejected" in frame

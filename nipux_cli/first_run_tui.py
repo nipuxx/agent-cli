@@ -460,7 +460,7 @@ def _notice_panel(notices: list[str], *, width: int) -> list[str]:
         rows.extend(_notice_rows(notice, width=inner))
     if not rows:
         rows = [_muted("No output yet.")]
-    return _panel("LAST DOCTOR OUTPUT", rows[-10:], width=panel_width, page_width=width)
+    return _panel("RESULTS", rows[-10:], width=panel_width, page_width=width)
 
 
 def _notice_rows(notice: str, *, width: int) -> list[str]:
@@ -483,7 +483,7 @@ def _notice_rows(notice: str, *, width: int) -> list[str]:
 
 def _split_doctor_notice(text: str) -> tuple[str, str, str]:
     parts = text.split(maxsplit=2)
-    if parts and parts[0] in {"ok", "fail"}:
+    if parts and parts[0] in {"ok", "warn", "fail"}:
         name = parts[1] if len(parts) > 1 else ""
         detail = parts[2] if len(parts) > 2 else ""
         return parts[0], name, detail
@@ -493,6 +493,8 @@ def _split_doctor_notice(text: str) -> tuple[str, str, str]:
 def _doctor_status_label(status: str) -> str:
     if status == "ok":
         return _accent("ok  ")
+    if status == "warn":
+        return "\033[38;5;221mwarn\033[0m"
     if status == "fail":
         return "\033[38;5;203mfail\033[0m"
     return _muted("note")
