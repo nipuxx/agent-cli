@@ -388,7 +388,7 @@ def local_discovery_summary_lines(report: LocalDiscoveryReport, *, max_models: i
             f"Using     {report.recommended.runtime} · {report.recommended.model} · {report.recommended.base_url}"
         )
     elif not report.installed_runtimes:
-        lines.append("Install   " + "; ".join(runtime.install_hint for runtime in report.runtimes[:2]))
+        lines.append("Download  Ollama or LM Studio for easiest setup; advanced: vLLM or " + LLAMA_CPP_DISPLAY_NAME)
         lines.append("Models    " + ", ".join(report.suggestions[:3]))
     return lines
 
