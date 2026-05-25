@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from nipux_cli.config import AppConfig
+from nipux_cli.local_discovery import cached_local_discovery, local_discovery_summary_lines
 from nipux_cli.settings import (
     config_field_value,
     edit_target_hint,
@@ -154,12 +155,14 @@ def _model_page_lines(
     width: int,
 ) -> list[str]:
     del selected
+    discovery = cached_local_discovery()
+    discovered = _discovered_model_lines(discovery)
     return [
         *_step_header("model", width=width),
         "",
         _center_ansi(_muted(_step_count_label("model")), width),
         _center_ansi(_bold("Enter the model id"), width),
-        _center_ansi(_muted("This exact model powers chat replies and background workers."), width),
+        _center_ansi(_muted("Choose from discovered local models or type any OpenAI-compatible model id."), width),
         "",
         *_field_panel(
             "MODEL ID",
@@ -171,6 +174,8 @@ def _model_page_lines(
             width=min(84, width - 8),
             page_width=width,
         ),
+        "",
+        *_panel("DISCOVERED MODELS", discovered, width=min(90, width - 8), page_width=width),
         "",
         _center_ansi(_muted("Enter saves and advances. Blank input is not accepted."), width),
         "",
@@ -187,12 +192,13 @@ def _endpoint_page_lines(
     width: int,
 ) -> list[str]:
     del selected
+    discovery = cached_local_discovery()
     return [
         *_step_header("endpoint", width=width),
         "",
         _center_ansi(_muted(_step_count_label("endpoint")), width),
         _center_ansi(_bold("Enter the endpoint first"), width),
-        _center_ansi(_muted("Use an OpenAI-compatible /v1 endpoint. Local or hosted both work."), width),
+        _center_ansi(_muted("Nipux looks for local OpenAI-compatible runtimes and prefills the best match."), width),
         "",
         *_field_panel(
             "BASE URL",
@@ -204,6 +210,8 @@ def _endpoint_page_lines(
             width=min(90, width - 8),
             page_width=width,
         ),
+        "",
+        *_panel("LOCAL DISCOVERY", local_discovery_summary_lines(discovery), width=min(96, width - 8), page_width=width),
         "",
         _center_ansi(_muted("Example formats: http://localhost:8000/v1 or https://provider.example/v1"), width),
         "",
@@ -297,6 +305,25 @@ def _doctor_page_lines(*, config: AppConfig, selected: int, width: int) -> list[
         "",
         *_action_cards(first_run_actions("doctor"), selected=selected, config=config, width=width),
     ]
+
+
+def _discovered_model_lines(discovery: Any) -> list[str]:
+    if discovery.recommended:
+        lines = [
+            f"Recommended  {discovery.recommended.model}",
+            f"Runtime      {discovery.recommended.runtime}",
+            f"Endpoint     {discovery.recommended.base_url}",
+        ]
+    else:
+        lines = ["No installed local model was detected."]
+    for runtime in discovery.runtimes:
+        if not runtime.models:
+            continue
+        visible = ", ".join(runtime.models[:4])
+        lines.append(f"{runtime.name:<11} {visible}")
+    if not any(runtime.installed for runtime in discovery.runtimes):
+        lines.append("Suggested   " + ", ".join(discovery.suggestions[:4]))
+    return lines[:8]
 
 
 def _stepper_lines(view: str, *, config: AppConfig, width: int) -> list[str]:
@@ -644,7 +671,7 @@ def _navigation_hint(view: str, *, width: int) -> str:
     elif view == "doctor":
         text = "←/→ steps   ↑/↓ select   Enter run checks   2 open chat after success"
     else:
-        text = "←/→ steps   Enter save   Backspace edit"
+        text = "←/→ steps   ↑/↓ discovered choices   Enter save   Backspace edit"
     return _center_ansi(_muted(text), width)
 
 

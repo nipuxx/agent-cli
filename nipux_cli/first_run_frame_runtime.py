@@ -12,7 +12,8 @@ from dataclasses import dataclass
 from typing import Callable
 from urllib.parse import urlparse
 
-from nipux_cli.config import load_config
+from nipux_cli.config import DEFAULT_BASE_URL, DEFAULT_MODEL, load_config
+from nipux_cli.local_discovery import cached_local_discovery, recommended_local_model_config
 from nipux_cli.settings import inline_setting_notice
 from nipux_cli.tui_commands import (
     FIRST_RUN_SLASH_COMMANDS,
@@ -382,6 +383,13 @@ def _handle_first_run_edit_escape(
     key, _payload = decode_terminal_escape(read_escape_sequence("\x1b", fd=stdin_fd))
     if key == "unknown":
         return view, editing_field, buffer, False
+    if key in {"up", "down"}:
+        cycled = first_run_cycle_discovered_value(
+            editing_field,
+            buffer,
+            direction=-1 if key == "up" else 1,
+        )
+        return view, editing_field, cycled, False
     if key == "left":
         next_view = first_run_adjacent_view(view, direction=-1)
         next_field = required_first_run_edit_field(next_view)
@@ -497,14 +505,63 @@ def first_run_edit_initial_value(field: str | None) -> str:
         return ""
     config = load_config()
     if field == "model.base_url":
+        discovered = recommended_local_model_config()
+        if discovered and config.model.base_url == DEFAULT_BASE_URL:
+            return discovered.base_url
         return config.model.base_url
     if field == "model.name":
+        discovered = recommended_local_model_config()
+        if discovered and config.model.model == DEFAULT_MODEL:
+            return discovered.model
         if config.model.model in {"local-model", "test"} and "openrouter.ai" in config.model.base_url:
             return "qwen/qwen3.6-27b"
         return config.model.model
     if field == "secret:model.api_key":
-        return config.model.api_key or ""
+        if config.model.api_key:
+            return config.model.api_key
+        if _is_local_endpoint(config.model.base_url):
+            return "skip"
+        return ""
     return ""
+
+
+def first_run_cycle_discovered_value(field: str | None, current: str, *, direction: int) -> str:
+    values = first_run_discovered_values(field)
+    if not values:
+        return current
+    current_clean = current.strip()
+    lowered = [value.lower() for value in values]
+    try:
+        index = lowered.index(current_clean.lower())
+    except ValueError:
+        index = -1 if direction >= 0 else 0
+    next_index = (index + (1 if direction >= 0 else -1)) % len(values)
+    return values[next_index]
+
+
+def first_run_discovered_values(field: str | None) -> list[str]:
+    if not field:
+        return []
+    discovery = cached_local_discovery()
+    if field == "model.base_url":
+        values = [
+            runtime.base_url
+            for runtime in discovery.runtimes
+            if runtime.base_url and (runtime.running or runtime.installed)
+        ]
+        if discovery.recommended and discovery.recommended.base_url:
+            values.insert(0, discovery.recommended.base_url)
+        return _unique_values(values)
+    if field == "model.name":
+        values: list[str] = []
+        if discovery.recommended and discovery.recommended.model:
+            values.append(discovery.recommended.model)
+        for runtime in discovery.runtimes:
+            values.extend(runtime.models)
+        if not values:
+            values.extend(discovery.suggestions)
+        return _unique_values(values)
+    return []
 
 
 def next_first_run_view_after_edit(view: str) -> str | None:
@@ -545,6 +602,21 @@ def _save_first_run_edit(field: str, raw_value: str) -> tuple[bool, str]:
 def _is_local_endpoint(value: str) -> bool:
     host = (urlparse(value).hostname or "").lower()
     return host in {"localhost", "127.0.0.1", "::1", "0.0.0.0"} or host.endswith(".local")
+
+
+def _unique_values(values: list[str]) -> list[str]:
+    seen: set[str] = set()
+    result: list[str] = []
+    for value in values:
+        text = " ".join(str(value).split()).strip()
+        if not text:
+            continue
+        key = text.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        result.append(text)
+    return result
 
 
 def _append_notice(notices: list[str], message: str, *, limit: int = 10) -> None:
