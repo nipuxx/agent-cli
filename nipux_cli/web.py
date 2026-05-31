@@ -79,7 +79,7 @@ def _duckduckgo_link(raw: str) -> str:
     return html.unescape(raw)
 
 
-def web_search(query: str, *, limit: int = 5) -> dict[str, Any]:
+def _ddg_search(query: str, *, limit: int = 5) -> dict[str, Any]:
     url = "https://duckduckgo.com/html/?" + urllib.parse.urlencode({"q": query})
     markup, _ = _request(url)
     pattern = re.compile(
@@ -95,7 +95,7 @@ def web_search(query: str, *, limit: int = 5) -> dict[str, Any]:
     return {"success": True, "query": query, "results": results}
 
 
-def web_extract(urls: list[str], *, limit_chars: int = 12_000) -> dict[str, Any]:
+def _ddg_extract(urls: list[str], *, limit_chars: int = 12_000) -> dict[str, Any]:
     pages = []
     for url in urls[:5]:
         try:
@@ -119,3 +119,45 @@ def web_extract(urls: list[str], *, limit_chars: int = 12_000) -> dict[str, Any]
         except Exception as exc:
             pages.append({"url": url, "error": str(exc)})
     return {"success": True, "pages": pages}
+
+
+def _tavily_search(query: str, *, limit: int = 5) -> dict[str, Any]:
+    from tavily import TavilyClient
+
+    client = TavilyClient()
+    response = client.search(query=query, max_results=limit)
+    results = [
+        {"title": r.get("title", ""), "url": r.get("url", "")}
+        for r in response.get("results", [])
+    ]
+    return {"success": True, "query": query, "results": results}
+
+
+def _tavily_extract(urls: list[str], *, limit_chars: int = 12_000) -> dict[str, Any]:
+    from tavily import TavilyClient
+
+    client = TavilyClient()
+    response = client.extract(urls=urls[:5])
+    pages = []
+    for r in response.get("results", []):
+        text = r.get("raw_content") or r.get("text") or ""
+        pages.append({
+            "url": r.get("url", ""),
+            "text": text[:limit_chars],
+            "truncated": len(text) > limit_chars,
+        })
+    for f in response.get("failed_results", []):
+        pages.append({"url": f.get("url", ""), "error": f.get("error", "extraction failed")})
+    return {"success": True, "pages": pages}
+
+
+def web_search(query: str, *, limit: int = 5, search_provider: str = "duckduckgo") -> dict[str, Any]:
+    if search_provider == "tavily":
+        return _tavily_search(query, limit=limit)
+    return _ddg_search(query, limit=limit)
+
+
+def web_extract(urls: list[str], *, limit_chars: int = 12_000, search_provider: str = "duckduckgo") -> dict[str, Any]:
+    if search_provider == "tavily":
+        return _tavily_extract(urls, limit_chars=limit_chars)
+    return _ddg_extract(urls, limit_chars=limit_chars)
