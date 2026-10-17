@@ -25,6 +25,7 @@ def test_load_config_defaults_to_local_endpoint(tmp_path, monkeypatch):
     assert config.tools.web is True
     assert config.tools.shell is True
     assert config.tools.files is True
+    assert config.tools.search_provider == "duckduckgo"
 
 
 def test_load_config_from_yaml(tmp_path, monkeypatch):
@@ -123,6 +124,7 @@ def test_default_config_yaml_allows_provider_template_without_secret():
     assert "output_cost_per_million: null" in text
     assert "max_job_cost_usd: null" in text
     assert "tools:" in text
+    assert "search_provider: duckduckgo" in text
     assert "browser: true" in text
     assert "shell: true" in text
     assert "sk-" not in text

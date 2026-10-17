@@ -17,6 +17,8 @@ tools:
   web: true
   shell: true
   files: true
+  # Optional: parallel (install the parallel extra first).
+  search_provider: duckduckgo
 email:
   enabled: false
   smtp_host: ""

@@ -189,6 +189,32 @@ Use `/browser`, `/web`, `/cli-access`, and `/file-access` in the terminal UI to
 change those switches later. Disabled tools are removed from the worker tool
 schema and blocked if an old daemon tries to call them.
 
+### Optional Parallel web provider
+
+Use [Parallel Search MCP](https://docs.parallel.ai/integrations/mcp/search-mcp)
+for web search with excerpts and page fetching through the existing `web_search`
+and `web_extract` tools. Search uses Fast mode with no Parallel account or API key.
+Anonymous usage has rate limits.
+
+Install the optional dependency from a checkout:
+
+```bash
+uv tool install --editable '.[parallel]'
+```
+
+Then set the provider in `~/.nipux/config.yaml` and restart the daemon:
+
+```yaml
+tools:
+  web: true
+  search_provider: parallel
+```
+
+DuckDuckGo remains the default. Set `search_provider: duckduckgo` to switch back.
+Disabling `tools.web` blocks both providers. Parallel requests have a 20-second
+timeout; errors are returned to the worker without switching providers. Page
+text is limited to 12,000 characters per URL, as with the default extractor.
+
 ## Local Model Examples
 
 Nipux talks to OpenAI-compatible `/v1/chat/completions` and `/v1/models`
